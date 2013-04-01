@@ -1,14 +1,11 @@
 .history
 .idea/
 .idea_modules/
-/project/boot/
+/project/project/
 /project/target/
 /target/
-/project/plugins/target/
-/project/plugins/project/boot/
-/project/plugins/project/target/
+*/target/
 .DS_Store
 *.swp
 *.swo
-/migrations/database.yml
-/project/project/target/
+resolvers.sbt

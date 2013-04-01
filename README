@@ -1,0 +1,10 @@
+
+While we're still sorting out the dependencies for SodaFountain, take note:
+
+Socrata employees should add this resolver to their SBT config:
+
+    resolvers += "socrata maven" at "https://repo.socrata.com/artifactory/libs-release"
+
+A nice way to do this is to add it to resolvers.sbt, which is git ignored.
+
+Anyone else who wants to build this will need to build and publish-local the dependencies first. They're available on github.
