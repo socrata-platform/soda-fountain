@@ -26,17 +26,8 @@ object SodaFountainJetty {
 
     //val properties = readProperties
 
-    val router = new SodaRouter()
-    def service(req: HttpServletRequest): HttpResponse =
-      router(req.getMethod, req.getRequestURI.split('/').tail) match {
-        case Some(s) =>
-          s(req)
-        case None =>
-          NotFound ~> ContentType("application/json") ~> Content("{\"error\": 404, \"message\": \"Not found.\"}")
-      }
 
-    val server = new SocrataServerJetty(service,
-      port = 3141)
+    val server = new SocrataServerJetty(SodaRouter.routedService, port = 1950)
     server.run
   }
 }
