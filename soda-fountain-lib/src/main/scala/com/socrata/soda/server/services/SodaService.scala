@@ -9,7 +9,15 @@ class SodaService {
 }
 
 object SodaService {
-  def get(request:HttpServletRequest) : HttpServletResponse => Unit = {
-    OK ~> ContentType("application/json; charset=utf-8") ~> Content("{response:'ok'}")
+  def version(request:HttpServletRequest) : HttpServletResponse => Unit = {
+    ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("Version check not implemented")
+  }
+
+  def resource(request:HttpServletRequest): HttpServletResponse => Unit = {
+    ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
+  }
+
+  def catalog(request:HttpServletRequest): HttpServletResponse => Unit = {
+    ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("catalog request not implemented")
   }
 }
