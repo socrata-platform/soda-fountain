@@ -2,7 +2,7 @@
 <web-app>
   <servlet>
     <servlet-name>SodaFountain</servlet-name>
-    <servlet-class>com.socrata.soda.server.SodaFountain</servlet-class>
+    <servlet-class>com.socrata.soda.server.SodaFountainServlet</servlet-class>
   </servlet>
   <servlet-mapping>
     <servlet-name>SodaFountain</servlet-name>

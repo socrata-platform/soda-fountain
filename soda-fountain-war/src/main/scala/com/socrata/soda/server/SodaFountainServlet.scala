@@ -6,7 +6,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import scala.Some
 
-class SodaFountain extends HttpServlet {
+class SodaFountainServlet extends HttpServlet {
 
   override def doGet(req: HttpServletRequest, resp: HttpServletResponse)    {SodaRouter.routedService(req)(resp)}
   override def doPost(req: HttpServletRequest, resp: HttpServletResponse)   {SodaRouter.routedService(req)(resp)}
