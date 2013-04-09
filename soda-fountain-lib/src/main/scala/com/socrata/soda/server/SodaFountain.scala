@@ -22,7 +22,7 @@ object SodaFountain {
   def datasetByResourceName(request:HttpServletRequest): HttpServletResponse => Unit = {
     request.getMethod match {
       case GET => DatasetService.getByResourceName
-      case POST | PUT => ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
+      case POST | PUT => DatasetService.upsert
       case DELETE => ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
     }
   }
