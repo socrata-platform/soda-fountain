@@ -4,7 +4,7 @@ import com.rojoma.json.util.JsonUtil
 import com.rojoma.json.ast._
 import com.rojoma.json.ast.JString
 
-abstract class RowUpdateInstruction extends JsonEncodable {
+sealed abstract class RowUpdateInstruction extends JsonEncodable {
   override def toString = JsonUtil.renderJson(asJson)
 }
 

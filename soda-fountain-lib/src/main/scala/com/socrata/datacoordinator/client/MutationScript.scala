@@ -11,14 +11,27 @@ class MutationScript(
         instructions: Iterable[Either[ColumnMutationInstruction,RowUpdateInstruction]]){
 
   def streamJson(writer: Writer){
+    var rowDataDeclared = false
     val out = new BufferedWriter(writer)
     out.write('[')
     out.write(JsonUtil.renderJson(JObject(topLevelCommand)))
     instructions.foreach{ instruction =>
       out.write(',')
       instruction match {
-        case Left(i)  => out.write(i.toString)
-        case Right(i) => out.write(i.toString)
+        case Left(i)  => {
+          if (rowDataDeclared){
+            out.write("null,")
+            rowDataDeclared = false
+          }
+          out.write(i.toString)
+        }
+        case Right(i) => {
+          if (!rowDataDeclared) {
+            out.write("{\"c\":\"row data\"},")
+            rowDataDeclared = true
+          }
+          out.write(i.toString)
+        }
       }
     }
     out.write(']')

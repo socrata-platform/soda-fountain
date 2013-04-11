@@ -10,7 +10,7 @@ class ColumnMutationInstructionTest extends DataCoordinatorClientTest {
   }
   test("Drop Column toString produces JSON") {
     val ac = new DropColumnInstruction("drop_col")
-    ac.toString must equal (normalizeWhitespace("{c:'drop column',name:'drop_col'}"))
+    ac.toString must equal (normalizeWhitespace("{c:'drop column',column:'drop_col'}"))
   }
   test("Rename Column toString produces JSON") {
     val ac = new RenameColumnInstruction("old_name", "new_name")
@@ -18,10 +18,10 @@ class ColumnMutationInstructionTest extends DataCoordinatorClientTest {
   }
   test("Set Row ID toString produces JSON") {
     val ac = new SetRowIdColumnInstruction("id_col")
-    ac.toString must equal (normalizeWhitespace("{c:'set row id',name:'id_col'}"))
+    ac.toString must equal (normalizeWhitespace("{c:'set row id',column:'id_col'}"))
   }
   test("Drop Row ID toString produces JSON") {
     val ac = new DropRowIdColumnInstruction("drop_id_col")
-    ac.toString must equal (normalizeWhitespace("{c:'drop row id',name:'drop_id_col'}"))
+    ac.toString must equal (normalizeWhitespace("{c:'drop row id',column:'drop_id_col'}"))
   }
 }
