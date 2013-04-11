@@ -40,7 +40,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal', dataset:'test dataset', user:'Daniel the tester'},
-        | {c:'row data'},
+        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
         | {a:'aaa', b:'bbb'}
         |]""".stripMargin
     testCompare(mc, expected)
@@ -56,7 +56,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal', dataset:'test dataset', user:'Daniel the tester'},
-        | {c:'row data'},
+        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
         | ['aaa']
         |]""".stripMargin
     testCompare(mc, expected)
@@ -74,7 +74,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
       """[
         | {c:'normal', dataset:'test dataset', user:'Daniel the tester'},
         | {c:'add column', name:'b', type:'text'},
-        | {c:'row data'},
+        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
         | {a:'aaa', b:'bbb'}
         |]""".stripMargin
     testCompare(mc, expected)
@@ -91,10 +91,47 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal', dataset:'test dataset', user:'Daniel the tester'},
-        | {c:'row data'},
+        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
         | {a:'aaa'},
         | null,
         | {c:'add column', name:'b', type:'text'}
+        |]""".stripMargin
+    testCompare(mc, expected)
+  }
+
+  test("Mutation Script encodes a row option change and row update"){
+    val roc = new RowUpdateOptionChange(true, false, false)
+    val ru = new UpsertRowInstruction(Map("a" -> "aaa"))
+    val mc = new MutationScript(
+      "test dataset",
+      "Daniel the tester",
+      UpdateDataset(),
+      Array(Right(roc),Right(ru)).toIterable)
+    val expected =
+      """[
+        | {c:'normal', dataset:'test dataset', user:'Daniel the tester'},
+        | {c:'row data',"truncate":true,"update":"replace","fatal_row_errors":false},
+        | {a:'aaa'}
+        |]""".stripMargin
+    testCompare(mc, expected)
+  }
+
+  test("Mutation Script encodes a multiple row option changes and row update"){
+    val roc1 = new RowUpdateOptionChange(true, false, false)
+    val roc2 = new RowUpdateOptionChange()
+    val ru = new UpsertRowInstruction(Map("a" -> "aaa"))
+    val mc = new MutationScript(
+      "test dataset",
+      "Daniel the tester",
+      UpdateDataset(),
+      Array(Right(roc1),Right(roc2),Right(ru)).toIterable)
+    val expected =
+      """[
+        | {c:'normal', dataset:'test dataset', user:'Daniel the tester'},
+        | {c:'row data',"truncate":true,"update":"replace","fatal_row_errors":false},
+        | null,
+        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
+        | {a:'aaa'}
         |]""".stripMargin
     testCompare(mc, expected)
   }

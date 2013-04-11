@@ -12,6 +12,7 @@ class MutationScript(
 
   def streamJson(writer: Writer){
     var rowDataDeclared = false
+    var declaredOptions = RowUpdateOptionChange()
     val out = new BufferedWriter(writer)
     out.write('[')
     out.write(JsonUtil.renderJson(JObject(topLevelCommand)))
@@ -26,11 +27,29 @@ class MutationScript(
           out.write(i.toString)
         }
         case Right(i) => {
-          if (!rowDataDeclared) {
-            out.write("{\"c\":\"row data\"},")
-            rowDataDeclared = true
+          i match {
+            case ops: RowUpdateOptionChange => {
+              if (ops != declaredOptions){
+                if (rowDataDeclared){
+                  out.write("null,")
+                  rowDataDeclared = false
+                }
+              }
+              declaredOptions = ops
+              if (!rowDataDeclared){
+                out.write(declaredOptions.toString)
+                rowDataDeclared = true
+              }
+            }
+            case _ => {
+              if (!rowDataDeclared) {
+                out.write(declaredOptions.toString)
+                out.write(",")
+                rowDataDeclared = true
+              }
+              out.write(i.toString)
+            }
           }
-          out.write(i.toString)
         }
       }
     }
@@ -47,7 +66,10 @@ class MutationScript(
     copyInstruction match {
       case i: CreateDataset => topLevelCommandBase + ("locale" -> JString(i.locale))
       case i: CopyDataset   => topLevelCommandBase + ("copy_data" -> JBoolean(i.copyData))
-      case i: PublishDataset=> topLevelCommandBase + ("snapshot_limit" -> JNumber(i.snapshotLimit))
+      case i: PublishDataset=> i.snapshotLimit match {
+        case Some(s)  => topLevelCommandBase + ("snapshot_limit" -> JNumber(s))
+        case None     => topLevelCommandBase
+      }
       case _ => topLevelCommandBase
     }
   }
