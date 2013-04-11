@@ -1,8 +1,10 @@
 package com.socrata.datacoordinator.client
 
-object DatasetCopyInstruction extends Enumeration {
-  type DatasetCopyInstruction = Value
-  val create, copy, publish, drop, normal = Value
-}
+sealed abstract class DatasetCopyInstruction { val command: String}
 
-class DatasetCopyInstruction
+case class CreateDataset(locale: String) extends DatasetCopyInstruction { val command = "create"}
+case class CopyDataset(copyData: Boolean) extends DatasetCopyInstruction { val command = "copy"}
+case class PublishDataset(snapshotLimit: Int) extends DatasetCopyInstruction { val command = "publish"}
+case class DropDataset() extends DatasetCopyInstruction { val command = "drop"}
+case class UpdateDataset() extends DatasetCopyInstruction { val command = "normal"}
+

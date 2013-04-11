@@ -7,7 +7,7 @@ object BuildSettings {
     version := "0.0.15-SNAPSHOT",
     scalaVersion := "2.10.0",
     testOptions in Test ++= Seq(
-      Tests.Argument(TestFrameworks.ScalaTest, "-oFD")
+      Tests.Argument(TestFrameworks.ScalaTest, "-oD")
     ),
     scalacOptions ++= Seq("-encoding", "UTF-8", "-g:vars", "-deprecation", "-feature", "-language:implicitConversions"),
     javacOptions ++= Seq("-encoding", "UTF-8", "-g", "-Xlint:unchecked", "-Xlint:deprecation", "-Xmaxwarns", "999999"),
