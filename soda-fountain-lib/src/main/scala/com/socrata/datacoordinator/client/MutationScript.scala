@@ -9,11 +9,14 @@ class MutationScript(
         user: String,
         copyInstruction: DatasetCopyInstruction,
         instructions: Iterable[Either[ColumnMutationInstruction,RowUpdateInstruction]]){
-
-  def streamJson(writer: Writer){
+  def streamJson(os:OutputStream){
+    val out = new OutputStreamWriter(os)
+    streamJson(out)
+  }
+  def streamJson(out: Writer){
     var rowDataDeclared = false
     var declaredOptions = RowUpdateOptionChange()
-    val out = new BufferedWriter(writer)
+
     out.write('[')
     out.write(JsonUtil.renderJson(JObject(topLevelCommand)))
     instructions.foreach{ instruction =>

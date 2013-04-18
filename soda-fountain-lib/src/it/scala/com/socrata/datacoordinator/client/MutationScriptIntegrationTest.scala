@@ -13,5 +13,6 @@ class MutationScriptIntegrationTest extends DataCoordinatorIntegrationTest {
     val mc = new MutationScript("it_test_1", "Daniel the tester", CreateDataset(), Array().toIterable)
     val expected = """["response to create?"]""".stripMargin
     coordinatorCompare(mc, expected)
+
   }
 }
