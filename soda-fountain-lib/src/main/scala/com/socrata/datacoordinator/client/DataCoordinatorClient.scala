@@ -8,12 +8,11 @@ object DataCoordinatorClient {
 
 class DataCoordinatorClient(val baseUrl: String) {
 
-  def mutate(script: MutationScript){
-    val request = url("http://" + baseUrl + "/mutate")
-    request.addHeader("Content-Type", "application/json")
-    request << script.toString
-    val response = Http(request)
-    //for (r <- response) println("response from DC:" + r)
-    response( )
+  def dcUrl(relativeUrl: String) = host(baseUrl) / relativeUrl
+
+  def sendMutateRequest(script: MutationScript) = {
+    val request = dcUrl("mutate").addHeader("Content-Type", "application/json") << script.toString
+    val response = Http(request OK as.String).either
+    response
   }
 }
