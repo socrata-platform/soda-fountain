@@ -1,6 +1,6 @@
 package com.socrata.datacoordinator.client
 
-class MutationScriptIntegrationTest extends DataCoordinatorIntegrationTest {
+class CopyInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
 
   test("Mutation Script can hit data coordinator"){
     val createScript = new MutationScript("it_test_noop", "Daniel the tester", CreateDataset(), Array().toIterable)

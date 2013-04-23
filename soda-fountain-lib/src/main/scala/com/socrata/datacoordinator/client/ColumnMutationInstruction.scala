@@ -9,11 +9,11 @@ sealed abstract class ColumnMutationInstruction extends JsonEncodable {
   override def toString = JsonUtil.renderJson(asJson)
 }
 
-case class AddColumnInstruction(name: String, dataType: String) extends CM {
+case class AddColumnInstruction(name: String, dataType: DatasetType) extends CM {
   def asJson = JObject(Map(
     "c"     -> JString("add column"),
     "name"  -> JString(name),
-    "type"  -> JString(dataType)))
+    "type"  -> JString(dataType.name)))
 }
 
 case class DropColumnInstruction(name: String) extends CM {
