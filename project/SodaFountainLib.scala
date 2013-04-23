@@ -4,7 +4,6 @@ import Keys._
 object SodaFountainLib{
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings() ++ Seq(
     libraryDependencies ++= Seq(
-      "com.socrata" %% "coordinator" % "0.0.1-SNAPSHOT",
       "com.socrata" %% "socrata-http-utils" % "1.2.0",
       "com.rojoma" %% "rojoma-json" % "[2.3.0,3.0.0)",
       "net.databinder.dispatch" %% "dispatch-core" % "0.10.0",
