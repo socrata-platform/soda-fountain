@@ -1,12 +1,13 @@
 package com.socrata.datacoordinator.client
 
-/**
- * Created with IntelliJ IDEA.
- * User: rathbone1200cc
- * Date: 4/23/13
- * Time: 1:58 PM
- * To change this template use File | Settings | File Templates.
- */
-class RowUpdateIntegrationTest {
+class RowUpdateIntegrationTest extends DataCoordinatorIntegrationTest {
 
+  test("can declare row data"){
+    val createScript = new MutationScript("it_row_data_noop", "Daniel the tester", CreateDataset(), Array().toIterable)
+    coordinatorGetResponseOrError(createScript)
+    val rowDataNoop = RowUpdateOptionChange(true, false, true)
+    val rowDataScript = new MutationScript("it_row_data_noop", "Daniel the tester", UpdateDataset(), Array(Right(rowDataNoop)).toIterable)
+    val expected = """[]""".stripMargin
+    coordinatorCompare(rowDataScript, expected)
+  }
 }

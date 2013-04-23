@@ -60,9 +60,11 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
     val createScript = new MutationScript("it_col_rename", "Daniel the tester", CreateDataset(), Array().toIterable)
     coordinatorGetResponseOrError(createScript)
     val dropColOp1 = DropColumnInstruction("named_col")
+    val dropColScript1 = new MutationScript("it_col_rename", "Daniel the tester", UpdateDataset(), Array(Left(dropColOp1)).toIterable)
+    coordinatorGetResponseOrError(dropColScript1)
     val dropColOp2 = DropColumnInstruction("renamed_col")
-    val dropColScript = new MutationScript("it_col_rename", "Daniel the tester", UpdateDataset(), Array(Left(dropColOp1), Left(dropColOp2)).toIterable)
-    coordinatorGetResponseOrError(dropColScript)
+    val dropColScript2 = new MutationScript("it_col_rename", "Daniel the tester", UpdateDataset(), Array(Left(dropColOp2)).toIterable)
+    coordinatorGetResponseOrError(dropColScript2)
     val addColOp = AddColumnInstruction("named_col", Number() )
     val addColScript = new MutationScript("it_col_rename", "Daniel the tester", UpdateDataset(), Array(Left(addColOp)).toIterable)
     coordinatorGetResponseOrError(addColScript)
@@ -74,6 +76,11 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
 
 
   test("can declare row data"){
-
+    val createScript = new MutationScript("it_row_data_noop", "Daniel the tester", CreateDataset(), Array().toIterable)
+    coordinatorGetResponseOrError(createScript)
+    val rowDataNoop = RowUpdateOptionChange(true, false, true)
+    val rowDataScript = new MutationScript("it_row_data_noop", "Daniel the tester", UpdateDataset(), Array(Right(rowDataNoop)).toIterable)
+    val expected = """[]""".stripMargin
+    coordinatorCompare(rowDataScript, expected)
   }
 }
