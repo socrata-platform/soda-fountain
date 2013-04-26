@@ -2,15 +2,13 @@ package com.socrata.datacoordinator.client
 
 import com.rojoma.json.util.JsonUtil
 import com.rojoma.json.ast._
-import com.rojoma.json.ast.JString
-import com.rojoma.json.ast
 
 sealed abstract class RowUpdateInstruction extends JsonEncodable {
   override def toString = JsonUtil.renderJson(asJson)
 }
 
-case class UpsertRowInstruction(rowData: Map[String, String]) extends RowUpdateInstruction {
-  def asJson = JObject(rowData.mapValues(JString(_)))
+case class UpsertRowInstruction(rowData: Map[String, JValue]) extends RowUpdateInstruction {
+  def asJson = JObject(rowData)
 }
 
 case class DeleteRowInstruction(rowId: Either[String,BigDecimal]) extends RowUpdateInstruction {

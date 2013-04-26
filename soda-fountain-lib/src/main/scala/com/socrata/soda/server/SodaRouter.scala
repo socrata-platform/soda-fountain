@@ -15,6 +15,7 @@ object SodaRouter {
     ExtractingRouter[HttpService](GET, "/resource/?/data")( DatasetService.query _),
     ExtractingRouter[HttpService](GET, "/resource/?/data/?")( DatasetService.get _),
     ExtractingRouter[HttpService](POST, "/resource/?/data/?")( DatasetService.set _),
+    ExtractingRouter[HttpService](POST, "/resource/?")( DatasetService.setRowFromPost _),
     ExtractingRouter[HttpService](DELETE, "/resource/?/data/?")( DatasetService.delete _),
 
     ExtractingRouter[HttpService](POST, "/resource/?/columns")( ColumnService.create _),
