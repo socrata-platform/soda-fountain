@@ -5,14 +5,9 @@ import org.scalatest.matchers.MustMatchers
 import dispatch._
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
+import com.socrata.soda.server.IntegrationTest
 
-class DataCoordinatorIntegrationTest extends FunSuite with MustMatchers {
-
-  def normalizeWhitespace(fixture: String): String = CompactJsonWriter.toString(JsonReader(fixture).read())
-
-  def jsonCompare(actual:String, expected:String) = {
-    normalizeWhitespace(actual) must equal (normalizeWhitespace(expected))
-  }
+class DataCoordinatorIntegrationTest extends IntegrationTest {
 
   def coordinatorCompare(ms: MutationScript, expectedResponse: String){
     val actual = coordinatorGetResponseOrError(ms)

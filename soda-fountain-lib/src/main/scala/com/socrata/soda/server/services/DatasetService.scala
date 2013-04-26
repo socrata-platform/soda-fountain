@@ -40,8 +40,8 @@ object DatasetService {
         case None => SodaFountain.sendErrorResponse("could not parse request body as single JSON object", "parse.error", BadRequest, None)
       }
     } catch {
-      case e: Exception => SodaFountain.sendErrorResponse("could not parse request body as JSON: " + e.getMessage, "parse.error", BadRequest, None)
-      case _ => SodaFountain.sendErrorResponse("could not parse request body", "parse.error", BadRequest, None)
+      case e: Exception => SodaFountain.sendErrorResponse("could not parse request body as JSON: " + e.getMessage, "parse.error", UnsupportedMediaType, None)
+      case _ => SodaFountain.sendErrorResponse("could not parse request body", "parse.error", UnsupportedMediaType, None)
     }
   }
 
