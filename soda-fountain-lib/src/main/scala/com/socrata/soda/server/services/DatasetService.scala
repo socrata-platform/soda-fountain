@@ -7,9 +7,12 @@ import dispatch._
 import com.socrata.datacoordinator.client.{UpsertRowInstruction, UpdateDataset, MutationScript, DataCoordinatorClient}
 import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
+import com.socrata.soda.server.SodaFountain
 
 
 object DatasetService {
+
+  val dc = DataCoordinatorClient.instance
 
   def query(datasetResourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
     ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
@@ -20,23 +23,25 @@ object DatasetService {
   }
 
   def setRowFromPost(datasetResourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
-    val fields = JsonUtil.readJson[Map[String,JValue]](request.getReader)
-    fields match {
-      case Some(map) => {
-        val client = new DataCoordinatorClient("localhost:12345")
-        val script = new MutationScript(datasetResourceName,
-          "soda-fountain-community-edition",
-          UpdateDataset(),
-          Array(Right(UpsertRowInstruction(map))).toIterable)
-        val response = client.sendMutateRequest(script)
-        response() match {
-          case Left(th) => {
-            BadRequest ~> ContentType("text/plain; charset=utf-8") ~> Content(th.getMessage)
+    try {
+      val fields = JsonUtil.readJson[Map[String,JValue]](request.getReader)
+      fields match {
+        case Some(map) => {
+          val script = new MutationScript(datasetResourceName,
+            "soda-fountain-community-edition",
+            UpdateDataset(),
+            Array(Right(UpsertRowInstruction(map))).toIterable)
+          val response = dc.sendMutateRequest(script)
+          response() match {
+            case Right(resp) => DataCoordinatorClient.passThroughResponse(resp)
+            case Left(th) => SodaFountain.sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None)
           }
-          case Right(resp) => OK ~>  ContentType("text/plain; charset=utf-8") ~> Content(resp.getResponseBody)
         }
+        case None => SodaFountain.sendErrorResponse("could not parse request body as single JSON object", "parse.error", BadRequest, None)
       }
-      case None => BadRequest ~> ContentType("text/plain; charset=utf-8") ~> Content("bad request")
+    } catch {
+      case e: Exception => SodaFountain.sendErrorResponse("could not parse request body as JSON: " + e.getMessage, "parse.error", BadRequest, None)
+      case _ => SodaFountain.sendErrorResponse("could not parse request body", "parse.error", BadRequest, None)
     }
   }
 

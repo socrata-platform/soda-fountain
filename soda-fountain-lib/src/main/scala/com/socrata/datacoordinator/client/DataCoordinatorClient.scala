@@ -4,8 +4,18 @@ import dispatch._, Defaults._
 import com.ning.http.client.Request.EntityWriter
 import java.io.OutputStream
 
-object DataCoordinatorClient {
+import com.socrata.http.server.responses._
+import com.socrata.http.server.implicits._
+import com.ning.http.client.Response
+import com.socrata.http.server.responses
+import javax.servlet.http.HttpServletResponse
 
+object DataCoordinatorClient {
+  val instance = new DataCoordinatorClient("localhost:12345")
+
+  def passThroughResponse(response: Response): HttpServletResponse => Unit = {
+    responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
+  }
 }
 
 class DataCoordinatorClient(val baseUrl: String) {
