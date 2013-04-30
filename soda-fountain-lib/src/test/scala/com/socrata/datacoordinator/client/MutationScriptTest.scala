@@ -1,5 +1,6 @@
 package com.socrata.datacoordinator.client
 import java.io._
+import com.rojoma.json.ast.JString
 
 class MutationScriptTest extends DataCoordinatorClientTest {
 
@@ -16,7 +17,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a column mutation"){
-    val cm = AddColumnInstruction("column_to_add", "number")
+    val cm = AddColumnInstruction("column_to_add", Number())
     val mc = new MutationScript(
       "test dataset",
       "Daniel the tester",
@@ -31,7 +32,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a row update"){
-    val ru = new UpsertRowInstruction(Map("a" -> "aaa", "b" -> "bbb"))
+    val ru = new UpsertRowInstruction(Map("a" -> JString("aaa"), "b" -> JString("bbb")))
     val mc = new MutationScript(
       "test dataset",
       "Daniel the tester",
@@ -63,8 +64,8 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a both column mutation and row update"){
-    val cm = AddColumnInstruction("b", "text")
-    val ru = new UpsertRowInstruction(Map("a" -> "aaa", "b" -> "bbb"))
+    val cm = AddColumnInstruction("b", Text())
+    val ru = new UpsertRowInstruction(Map("a" -> JString("aaa"), "b" -> JString("bbb")))
     val mc = new MutationScript(
       "test dataset",
       "Daniel the tester",
@@ -81,8 +82,8 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a column mutation after a row update"){
-    val ru = new UpsertRowInstruction(Map("a" -> "aaa"))
-    val cm = AddColumnInstruction("b", "text")
+    val ru = new UpsertRowInstruction(Map("a" -> JString("aaa")))
+    val cm = AddColumnInstruction("b", Text())
     val mc = new MutationScript(
       "test dataset",
       "Daniel the tester",
@@ -101,7 +102,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
 
   test("Mutation Script encodes a row option change and row update"){
     val roc = new RowUpdateOptionChange(true, false, false)
-    val ru = new UpsertRowInstruction(Map("a" -> "aaa"))
+    val ru = new UpsertRowInstruction(Map("a" -> JString("aaa")))
     val mc = new MutationScript(
       "test dataset",
       "Daniel the tester",
@@ -119,7 +120,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   test("Mutation Script encodes a multiple row option changes and row update"){
     val roc1 = new RowUpdateOptionChange(true, false, false)
     val roc2 = new RowUpdateOptionChange()
-    val ru = new UpsertRowInstruction(Map("a" -> "aaa"))
+    val ru = new UpsertRowInstruction(Map("a" -> JString("aaa")))
     val mc = new MutationScript(
       "test dataset",
       "Daniel the tester",

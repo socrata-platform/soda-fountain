@@ -10,10 +10,10 @@ import com.rojoma.json.ast._
 
 class SodaServerIntegrationTest extends IntegrationTest {
 
-  def localUrl = host("localhost:8080")
+  val host = "localhost:8080"
 
-  def postJson(body: JValue) = {
-    val request = (localUrl / "resource" / "testDataset").
+  def postJson(relativePath: String, body: JValue) = {
+    val request = url(host + relativePath).
       POST.
       addHeader("Content-Type", "application/json").
       setBody(body.toString)
@@ -22,7 +22,7 @@ class SodaServerIntegrationTest extends IntegrationTest {
   }
 
   test("row update request malformed json returns error response"){
-    def result = postJson(JString("this is not json"))
+    def result = postJson("/resource/testDataset", JString("this is not json"))
     result() match {
       case Left(exc) => fail(exc.getMessage)
       case Right(response) => response.getStatusCode must equal (415)
@@ -30,10 +30,15 @@ class SodaServerIntegrationTest extends IntegrationTest {
   }
 
   test("row update request with unexpected format json returns error response"){
-    def result = postJson(JArray(Array(JString("this is an array"), JString("why would you post an array?"))))
+    def result = postJson("/resource/testDataset", JArray(Array(JString("this is an array"), JString("why would you post an array?"))))
     result() match {
       case Left(exc) => fail(exc.getMessage)
       case Right(response) => response.getStatusCode must equal (400)
     }
   }
+
+//  test("soda fountain can create dataset"){
+//
+//    def result = postJson("/resources", json)
+//  }
 }
