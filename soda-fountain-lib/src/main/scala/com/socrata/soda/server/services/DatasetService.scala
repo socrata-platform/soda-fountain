@@ -27,11 +27,11 @@ object DatasetService {
       val fields = JsonUtil.readJson[Map[String,JValue]](request.getReader)
       fields match {
         case Some(map) => {
-          val script = new MutationScript(datasetResourceName,
+          val script = new MutationScript(
             "soda-fountain-community-edition",
             UpdateDataset(),
             Array(Right(UpsertRowInstruction(map))).toIterable)
-          val response = dc.sendMutateRequest(script)
+          val response = dc.sendMutateRequest(datasetResourceName, script)
           response() match {
             case Right(resp) => DataCoordinatorClient.passThroughResponse(resp)
             case Left(th) => SodaFountain.sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None)
@@ -41,7 +41,7 @@ object DatasetService {
       }
     } catch {
       case e: Exception => SodaFountain.sendErrorResponse("could not parse request body as JSON: " + e.getMessage, "parse.error", UnsupportedMediaType, None)
-      case _ => SodaFountain.sendErrorResponse("could not parse request body", "parse.error", UnsupportedMediaType, None)
+      case _: Throwable => SodaFountain.sendErrorResponse("error processing request", "internal.error", InternalServerError, None)
     }
   }
 

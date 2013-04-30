@@ -33,7 +33,7 @@ class DataCoordinatorClient(val baseUrl: String) {
     }
   }
 
-  def sendMutateRequest(script: MutationScript) = {
+  def sendMutateRequest(datasetResourceName: String, script: MutationScript) = {
     val request = dcUrl("mutate").
       POST.
       addHeader("Content-Type", "application/json").

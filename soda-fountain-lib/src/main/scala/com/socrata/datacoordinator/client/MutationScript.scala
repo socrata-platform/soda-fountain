@@ -5,7 +5,6 @@ import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
 
 class MutationScript(
-        dataset: String,
         user: String,
         copyInstruction: DatasetCopyInstruction,
         instructions: Iterable[Either[ColumnMutationInstruction,RowUpdateInstruction]]){
@@ -62,7 +61,6 @@ class MutationScript(
 
   private val topLevelCommandBase = Map(
     "c"       -> JString(copyInstruction.command),
-    "dataset" -> JString(dataset),
     "user"    -> JString(user))
 
   def topLevelCommand: Map[String, JValue] = {
