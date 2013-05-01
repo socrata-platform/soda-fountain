@@ -5,13 +5,14 @@ import com.socrata.http.server._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import scala.Some
+import com.socrata.soda.server.mocks.PostgresStore
+import com.socrata.datacoordinator.client.{CuratorClient, DataCoordinatorClient}
 
 class SodaFountainServlet extends HttpServlet {
 
-  val fountain = new SodaFountain(SodaFountain.getConfiguredStore, SodaFountain.getConfiguredClient)
-  val router: SodaRouter = fountain.router
-  override def doGet(req: HttpServletRequest, resp: HttpServletResponse)    {router.route(req)(resp)}
-  override def doPost(req: HttpServletRequest, resp: HttpServletResponse)   {router.route(req)(resp)}
-  override def doPut(req: HttpServletRequest, resp: HttpServletResponse)    {router.route(req)(resp)}
-  override def doDelete(req: HttpServletRequest, resp: HttpServletResponse) {router.route(req)(resp)}
+  val fountain = new SodaFountain with PostgresStore with CuratorClient with SodaRouter
+  override def doGet(req: HttpServletRequest, resp: HttpServletResponse)    {fountain.route(req)(resp)}
+  override def doPost(req: HttpServletRequest, resp: HttpServletResponse)   {fountain.route(req)(resp)}
+  override def doPut(req: HttpServletRequest, resp: HttpServletResponse)    {fountain.route(req)(resp)}
+  override def doDelete(req: HttpServletRequest, resp: HttpServletResponse) {fountain.route(req)(resp)}
 }

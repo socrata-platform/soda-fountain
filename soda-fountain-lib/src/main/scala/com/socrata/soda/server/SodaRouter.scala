@@ -9,9 +9,9 @@ import com.socrata.http.server.implicits._
 import scala.Some
 import com.socrata.soda.server.services._
 
-class SodaRouter(data: DatasetService, columns: ColumnService, catalog: CatalogService) {
+trait SodaRouter extends SodaFountain {
 
-  private val router = RouterSet(
+  val router = RouterSet(
     ExtractingRouter[HttpService](GET, "/resource/?/data")( data.query _),
     ExtractingRouter[HttpService](GET, "/resource/?/data/?")( data.get _),
     ExtractingRouter[HttpService](POST, "/resource/?/data/?")( data.set _),

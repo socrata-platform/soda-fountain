@@ -1,20 +1,33 @@
 package com.socrata.soda.server
 
-import com.socrata.soda.server.persistence._
+import com.socrata.soda.server.mocks._
 import com.socrata.datacoordinator.client.DataCoordinatorClient
 import com.socrata.soda.server.services.{SodaService, CatalogService, ColumnService, DatasetService}
 
 object SodaFountain {
-  def getConfiguredStore: NameAndSchemaStore = new PostgresNameAndSchemaStore()
-  def getConfiguredClient: DataCoordinatorClient = new DataCoordinatorClient("http://localhost:12345")
 
+  /*
+   val configFileArg = args.find(_.startsWith("--config=")).
+     getOrElse(throw new IllegalArgumentException("no config specified - add command line arg for --config=<config file>")).
+     substring(9)
+
+   def readProperties = {
+     val props = new Properties()
+     val propsFile = new FileInputStream(configFileArg)
+     props.load(propsFile)
+     propsFile.close()
+     props
+   }
+   */
+
+  //val properties = readProperties
 }
 
-class SodaFountain(val store: NameAndSchemaStore, val dc: DataCoordinatorClient) extends SodaService {
+abstract class SodaFountain
+  extends SodaService
+  with DatasetService
+  with ColumnService
+  with CatalogService {
 
-  val data = new SodaFountain(store, dc) with DatasetService
-  val columns = new SodaFountain(store, dc) with ColumnService
-  val catalog = new SodaFountain(store, dc) with CatalogService
 
-  def router = new SodaRouter(data, columns, catalog)
 }

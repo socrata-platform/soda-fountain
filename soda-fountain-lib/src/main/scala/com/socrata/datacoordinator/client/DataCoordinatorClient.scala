@@ -9,6 +9,7 @@ import com.socrata.http.server.implicits._
 import com.ning.http.client.Response
 import com.socrata.http.server.responses
 import javax.servlet.http.HttpServletResponse
+import com.socrata.soda.server.services.SodaService
 
 object DataCoordinatorClient {
 
@@ -17,7 +18,9 @@ object DataCoordinatorClient {
   }
 }
 
-class DataCoordinatorClient(val baseUrl: String) {
+trait DataCoordinatorClient {
+
+  def baseUrl: String
 
   protected def dcUrl(relativeUrl: String) = host(baseUrl) / relativeUrl
 

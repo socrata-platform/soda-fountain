@@ -7,7 +7,7 @@ import com.rojoma.json.ast._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import com.socrata.datacoordinator.client.DataCoordinatorClient
-import com.socrata.soda.server.persistence.NameAndSchemaStore
+import com.socrata.soda.server.mocks.NameAndSchemaStore
 
 trait SodaService {
 

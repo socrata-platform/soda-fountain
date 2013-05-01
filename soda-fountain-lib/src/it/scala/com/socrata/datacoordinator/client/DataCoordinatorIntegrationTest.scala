@@ -5,9 +5,12 @@ import org.scalatest.matchers.MustMatchers
 import dispatch._
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
-import com.socrata.soda.server.IntegrationTest
+import com.socrata.soda.server.{SodaFountain, IntegrationTest}
+import com.socrata.soda.server.mocks.{MockNameAndSchemaStore, LocalDataCoordinator}
 
 class DataCoordinatorIntegrationTest extends IntegrationTest {
+
+  val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator
 
   def coordinatorCompare(dataset: String, ms: MutationScript, expectedResponse: String){
     val actual = coordinatorGetResponseOrError(dataset, ms)
@@ -15,8 +18,7 @@ class DataCoordinatorIntegrationTest extends IntegrationTest {
   }
 
   def coordinatorGetResponseOrError(dataset: String, ms: MutationScript) = {
-    val client = new DataCoordinatorClient("localhost:12345")
-    val response = client.sendMutateRequest(dataset, ms)
+    val response = fountain.dc.sendMutateRequest(dataset, ms)
     val actual = response() match {
       case Left(th) => th.getMessage
       case Right(resp) => resp.getResponseBody
