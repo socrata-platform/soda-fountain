@@ -9,14 +9,14 @@ import com.socrata.soda.server.IntegrationTest
 
 class DataCoordinatorIntegrationTest extends IntegrationTest {
 
-  def coordinatorCompare(ms: MutationScript, expectedResponse: String){
-    val actual = coordinatorGetResponseOrError(ms)
+  def coordinatorCompare(dataset: String, ms: MutationScript, expectedResponse: String){
+    val actual = coordinatorGetResponseOrError(dataset, ms)
     jsonCompare(actual, expectedResponse)
   }
 
-  def coordinatorGetResponseOrError(ms: MutationScript) = {
+  def coordinatorGetResponseOrError(dataset: String, ms: MutationScript) = {
     val client = new DataCoordinatorClient("localhost:12345")
-    val response = client.sendMutateRequest(ms)
+    val response = client.sendMutateRequest(dataset, ms)
     val actual = response() match {
       case Left(th) => th.getMessage
       case Right(resp) => resp.getResponseBody

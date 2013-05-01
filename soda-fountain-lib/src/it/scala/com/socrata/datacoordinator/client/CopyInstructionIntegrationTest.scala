@@ -1,22 +1,24 @@
 package com.socrata.datacoordinator.client
 
+import com.socrata.soda.server.persistence.MockStore
+
 class CopyInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
 
   test("Mutation Script can hit data coordinator"){
-    val createScript = new MutationScript("it_test_noop", "Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(createScript)
-    val mc = new MutationScript("it_test_noop", "Daniel the tester", UpdateDataset(), Array().toIterable)
+    val createScript = new MutationScript("Daniel the tester", CreateDataset(), Array().toIterable)
+    coordinatorGetResponseOrError("it_test_noop", createScript)
+    val mc = new MutationScript("Daniel the tester", UpdateDataset(MockStore.blankSchemaHash), Array().toIterable)
     val expected = """[]""".stripMargin
-    coordinatorCompare(mc, expected)
+    coordinatorCompare("it_test_noop", mc, expected)
   }
 
   test("Mutation Script can cause an error"){
-    val mc = new MutationScript("test dataset", "Daniel the tester", UpdateDataset(), Array().toIterable)
+    val mc = new MutationScript( "Daniel the tester", UpdateDataset(MockStore.blankSchemaHash), Array().toIterable)
     val expected = """{
                      |  "errorCode" : "update.dataset.does-not-exist",
                      |  "data" : { "dataset" : "test dataset" }
                      |}""".stripMargin
-    coordinatorCompare(mc, expected)
+    coordinatorCompare("test dataset", mc, expected)
   }
 
   //if I can't delete the initial copy, then how can I test the create?
@@ -31,41 +33,44 @@ class CopyInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
   */
 
   test("Mutation Script can publish dataset"){
-    val createScript = new MutationScript("it_test_publish", "Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(createScript)
-    val copyScript = new MutationScript("it_test_publish", "Daniel the tester", CopyDataset(false), Array().toIterable)
-    coordinatorGetResponseOrError(copyScript)
-    val pubScript = new MutationScript("it_test_publish", "Daniel the tester", PublishDataset(None), Array().toIterable)
+    val datasetName = "it_test_publish"
+    val createScript = new MutationScript("Daniel the tester", CreateDataset(), Array().toIterable)
+    coordinatorGetResponseOrError(datasetName, createScript)
+    val copyScript = new MutationScript("Daniel the tester", CopyDataset(false, MockStore.blankSchemaHash), Array().toIterable)
+    coordinatorGetResponseOrError(datasetName, copyScript)
+    val pubScript = new MutationScript("Daniel the tester", PublishDataset(None, MockStore.blankSchemaHash), Array().toIterable)
     val expected = """[]""".stripMargin
-    coordinatorCompare(pubScript, expected)
+    coordinatorCompare(datasetName, pubScript, expected)
   }
 
   //need to publish before creating copy
   test("Mutation Script can copy dataset"){
-    val createScript = new MutationScript("it_test_copy", "Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(createScript)
-    val delScript = new MutationScript("it_test_copy", "Daniel the tester", DropDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(delScript)
-    val pubScript = new MutationScript("it_test_copy", "Daniel the tester", PublishDataset(None), Array().toIterable)
-    coordinatorGetResponseOrError(pubScript)
-    val copyScript = new MutationScript("it_test_copy", "Daniel the tester", CopyDataset(false), Array().toIterable)
+    val datasetName = "it_test_copy"
+    val createScript = new MutationScript("Daniel the tester", CreateDataset(), Array().toIterable)
+    coordinatorGetResponseOrError(datasetName, createScript)
+    val delScript = new MutationScript("Daniel the tester", DropDataset(MockStore.blankSchemaHash), Array().toIterable)
+    coordinatorGetResponseOrError(datasetName, delScript)
+    val pubScript = new MutationScript("Daniel the tester", PublishDataset(None, MockStore.blankSchemaHash), Array().toIterable)
+    coordinatorGetResponseOrError(datasetName, pubScript)
+    val copyScript = new MutationScript("Daniel the tester", CopyDataset(false, MockStore.blankSchemaHash), Array().toIterable)
     val expected = """[]""".stripMargin
-    coordinatorCompare(copyScript, expected)
+    coordinatorCompare(datasetName, copyScript, expected)
   }
 
   //need to publish before creating copy
   test("Mutation Script can drop dataset"){
-    val createScript = new MutationScript("it_test_drop", "Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(createScript)
-    val delScript = new MutationScript("it_test_drop", "Daniel the tester", DropDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(delScript)
-    val pubScript = new MutationScript("it_test_drop", "Daniel the tester", PublishDataset(None), Array().toIterable)
-    coordinatorGetResponseOrError(pubScript)
-    val copyScript = new MutationScript("it_test_drop", "Daniel the tester", CopyDataset(false), Array().toIterable)
-    coordinatorGetResponseOrError(copyScript)
-    val delScript2 = new MutationScript("it_test_drop", "Daniel the tester", DropDataset(), Array().toIterable)
+    val datasetName = "it_test_drop"
+    val createScript = new MutationScript( "Daniel the tester", CreateDataset(), Array().toIterable)
+    coordinatorGetResponseOrError(datasetName, createScript)
+    val delScript = new MutationScript( "Daniel the tester", DropDataset(MockStore.blankSchemaHash), Array().toIterable)
+    coordinatorGetResponseOrError(datasetName, delScript)
+    val pubScript = new MutationScript( "Daniel the tester", PublishDataset(None, MockStore.blankSchemaHash), Array().toIterable)
+    coordinatorGetResponseOrError(datasetName, pubScript)
+    val copyScript = new MutationScript("Daniel the tester", CopyDataset(false, MockStore.blankSchemaHash), Array().toIterable)
+    coordinatorGetResponseOrError(datasetName, copyScript)
+    val delScript2 = new MutationScript("Daniel the tester", DropDataset(MockStore.blankSchemaHash), Array().toIterable)
     val expected = """[]""".stripMargin
-    coordinatorCompare(delScript2, expected)
+    coordinatorCompare(datasetName, delScript2, expected)
   }
 
 

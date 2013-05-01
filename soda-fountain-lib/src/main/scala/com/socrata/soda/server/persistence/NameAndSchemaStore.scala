@@ -1,5 +1,6 @@
 package com.socrata.soda.server.persistence
 
-class NameAndSchemaStore {
+abstract class NameAndSchemaStore {
 
+  def getSchemaHash(datasetResourceName: String) : String
 }

@@ -7,6 +7,8 @@ import com.socrata.http.server.implicits._
 import java.io.FileInputStream
 import java.util.Properties
 import javax.servlet.http.HttpServletRequest
+import com.socrata.soda.server.persistence.PostgresNameAndSchemaStore
+import com.socrata.datacoordinator.client.DataCoordinatorClient
 
 object SodaFountainJetty {
   def main(args:Array[String]) {
@@ -26,8 +28,8 @@ object SodaFountainJetty {
 
     //val properties = readProperties
 
-
-    val server = new SocrataServerJetty(SodaRouter.routedService, port = 1950)
+    val fountain = new SodaFountain(new PostgresNameAndSchemaStore(), new DataCoordinatorClient("http://localhost:12345"))
+    val server = new SocrataServerJetty(fountain.router.route, port = 1950)
     server.run
   }
 }

@@ -10,9 +10,7 @@ import com.rojoma.json.util.JsonUtil
 import com.socrata.soda.server.SodaFountain
 
 
-object DatasetService {
-
-  val dc = DataCoordinatorClient.instance
+trait DatasetService extends SodaService {
 
   def query(datasetResourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
     ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
@@ -29,19 +27,19 @@ object DatasetService {
         case Some(map) => {
           val script = new MutationScript(
             "soda-fountain-community-edition",
-            UpdateDataset(),
+            UpdateDataset(store.getSchemaHash(datasetResourceName)),
             Array(Right(UpsertRowInstruction(map))).toIterable)
           val response = dc.sendMutateRequest(datasetResourceName, script)
           response() match {
             case Right(resp) => DataCoordinatorClient.passThroughResponse(resp)
-            case Left(th) => SodaFountain.sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None)
+            case Left(th) => sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None)
           }
         }
-        case None => SodaFountain.sendErrorResponse("could not parse request body as single JSON object", "parse.error", BadRequest, None)
+        case None => sendErrorResponse("could not parse request body as single JSON object", "parse.error", BadRequest, None)
       }
     } catch {
-      case e: Exception => SodaFountain.sendErrorResponse("could not parse request body as JSON: " + e.getMessage, "parse.error", UnsupportedMediaType, None)
-      case _: Throwable => SodaFountain.sendErrorResponse("error processing request", "internal.error", InternalServerError, None)
+      case e: Exception => sendErrorResponse("could not parse request body as JSON: " + e.getMessage, "parse.error", UnsupportedMediaType, None)
+      case _: Throwable => sendErrorResponse("error processing request", "internal.error", InternalServerError, None)
     }
   }
 

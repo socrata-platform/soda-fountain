@@ -9,28 +9,28 @@ import com.socrata.http.server.implicits._
 import scala.Some
 import com.socrata.soda.server.services._
 
-object SodaRouter {
+class SodaRouter(data: DatasetService, columns: ColumnService, catalog: CatalogService) {
 
   private val router = RouterSet(
-    ExtractingRouter[HttpService](GET, "/resource/?/data")( DatasetService.query _),
-    ExtractingRouter[HttpService](GET, "/resource/?/data/?")( DatasetService.get _),
-    ExtractingRouter[HttpService](POST, "/resource/?/data/?")( DatasetService.set _),
-    ExtractingRouter[HttpService](POST, "/resource/?")( DatasetService.setRowFromPost _),
-    ExtractingRouter[HttpService](DELETE, "/resource/?/data/?")( DatasetService.delete _),
+    ExtractingRouter[HttpService](GET, "/resource/?/data")( data.query _),
+    ExtractingRouter[HttpService](GET, "/resource/?/data/?")( data.get _),
+    ExtractingRouter[HttpService](POST, "/resource/?/data/?")( data.set _),
+    ExtractingRouter[HttpService](POST, "/resource/?")( data.setRowFromPost _),
+    ExtractingRouter[HttpService](DELETE, "/resource/?/data/?")( data.delete _),
 
-    ExtractingRouter[HttpService](POST, "/resource/?/columns")( ColumnService.create _),
-    ExtractingRouter[HttpService](GET, "/resource/?/columns")( ColumnService.getAll _),
-    ExtractingRouter[HttpService](PUT, "/resource/?/column/?")( ColumnService.set _),
-    ExtractingRouter[HttpService](DELETE, "/resource/?/column/?")( ColumnService.delete _),
-    ExtractingRouter[HttpService](GET, "/resource/?/column/?")( ColumnService.get _),
+    ExtractingRouter[HttpService](POST, "/resource/?/columns")( columns.create _),
+    ExtractingRouter[HttpService](GET, "/resource/?/columns")( columns.getAll _),
+    ExtractingRouter[HttpService](PUT, "/resource/?/column/?")( columns.set _),
+    ExtractingRouter[HttpService](DELETE, "/resource/?/column/?")( columns.delete _),
+    ExtractingRouter[HttpService](GET, "/resource/?/column/?")( columns.get _),
 
-    ExtractingRouter[HttpService](POST, "/resources")( CatalogService.create _),
-    ExtractingRouter[HttpService](DELETE, "/resource/?")( CatalogService.delete _),
-    ExtractingRouter[HttpService](PUT, "/resource/?")( CatalogService.set _),
-    ExtractingRouter[HttpService](GET, "/resource/?")( CatalogService.get _)
+    ExtractingRouter[HttpService](POST, "/resources")( catalog.create _),
+    ExtractingRouter[HttpService](DELETE, "/resource/?")( catalog.delete _),
+    ExtractingRouter[HttpService](PUT, "/resource/?")( catalog.set _),
+    ExtractingRouter[HttpService](GET, "/resource/?")( catalog.get _)
 
   )
-  def routedService(req: HttpServletRequest): HttpResponse =
+  def route(req: HttpServletRequest): HttpResponse =
     router(req.getMethod, req.getRequestURI.split('/').tail) match {
       case Some(s) =>
         s(req)

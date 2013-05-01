@@ -11,7 +11,6 @@ import com.socrata.http.server.responses
 import javax.servlet.http.HttpServletResponse
 
 object DataCoordinatorClient {
-  val instance = new DataCoordinatorClient("localhost:12345")
 
   def passThroughResponse(response: Response): HttpServletResponse => Unit = {
     responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
