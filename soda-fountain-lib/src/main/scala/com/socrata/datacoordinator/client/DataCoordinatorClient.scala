@@ -43,4 +43,6 @@ trait DataCoordinatorClient {
     val response = Http(request).either
     response
   }
+
+  //def create(resourceName, )
 }

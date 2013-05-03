@@ -8,6 +8,10 @@ trait PostgresStore extends SodaService {
 
   object postgres extends NameAndSchemaStore {
     def getSchemaHash(datasetResourceName: String) : String = ???
+    def setSchemaHash(resourceName: String, hash:String) = ???
+
+    def translateResourceName( resourceName: String) : (BigDecimal, String) = ???
+    def store(resourceName: String, id: BigDecimal, schemaHash: String) = ???
   }
 }
 
