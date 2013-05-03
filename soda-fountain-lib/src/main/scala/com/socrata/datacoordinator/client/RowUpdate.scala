@@ -3,15 +3,15 @@ package com.socrata.datacoordinator.client
 import com.rojoma.json.util.JsonUtil
 import com.rojoma.json.ast._
 
-sealed abstract class RowUpdateInstruction extends dataCoordinatorInstruction {
+sealed abstract class RowUpdate extends dataCoordinatorInstruction {
   override def toString = JsonUtil.renderJson(asJson)
 }
 
-case class UpsertRowInstruction(rowData: Map[String, JValue]) extends RowUpdateInstruction {
+case class UpsertRow(rowData: Map[String, JValue]) extends RowUpdate {
   def asJson = JObject(rowData)
 }
 
-case class DeleteRowInstruction(rowId: Either[String,BigDecimal]) extends RowUpdateInstruction {
+case class DeleteRow(rowId: Either[String,BigDecimal]) extends RowUpdate {
   def asJson = JArray(Seq(rowId match {
     case Left(id) => JString(id)
     case Right(id) => JNumber(id)
@@ -21,7 +21,7 @@ case class DeleteRowInstruction(rowId: Either[String,BigDecimal]) extends RowUpd
 case class RowUpdateOptionChange(truncate: Boolean = false,
                                  mergeInsteadOfReplace: Boolean = true,
                                  errorsAreFatal: Boolean = true)
-  extends RowUpdateInstruction  {
+  extends RowUpdate  {
 //  def asJson = {
 //    val map = scala.collection.mutable.Map[String, JValue]("c" -> JString("row data"))
 //    if (truncate) map.put("truncate", JString(truncate.toString))

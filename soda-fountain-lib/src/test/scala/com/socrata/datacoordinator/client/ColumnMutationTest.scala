@@ -2,7 +2,7 @@ package com.socrata.datacoordinator.client
 import org.scalatest.matchers.MustMatchers
 import org.scalatest.FunSuite
 
-class ColumnMutationInstructionTest extends DataCoordinatorClientTest {
+class ColumnMutationTest extends DataCoordinatorClientTest {
 
   test("Add Column toString produces JSON") {
     val ac = new AddColumnInstruction("new_col", Number())

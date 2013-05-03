@@ -4,7 +4,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import dispatch._
-import com.socrata.datacoordinator.client.{UpsertRowInstruction, UpdateDataset, MutationScript, DataCoordinatorClient}
+import com.socrata.datacoordinator.client.{UpsertRow, UpdateDataset, MutationScript, DataCoordinatorClient}
 import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
 import com.socrata.soda.server.SodaFountain
@@ -30,7 +30,7 @@ trait DatasetService extends SodaService {
             val script = new MutationScript(
               "soda-fountain-community-edition",
               UpdateDataset(store.getSchemaHash(datasetResourceName)),
-              Array(UpsertRowInstruction(map)).toIterable)
+              Array(UpsertRow(map)).toIterable)
             val response = dc.sendMutateRequest(datasetResourceName, script)
             response() match {
               case Right(resp) => DataCoordinatorClient.passThroughResponse(resp)

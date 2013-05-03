@@ -1,5 +1,5 @@
 package com.socrata.datacoordinator
 
 package object client {
-  type CM = ColumnMutationInstruction
+  type CM = ColumnMutation
 }

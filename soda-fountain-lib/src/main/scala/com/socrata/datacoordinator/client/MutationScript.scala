@@ -24,14 +24,14 @@ class MutationScript(
       val instruction = itr.next
       out.write(',')
       instruction match {
-        case i: ColumnMutationInstruction  => {
+        case i: ColumnMutation  => {
           if (rowDataDeclared){
             out.write("null,")
             rowDataDeclared = false
           }
           out.write(i.toString)
         }
-        case i: RowUpdateInstruction => {
+        case i: RowUpdate => {
           i match {
             case ops: RowUpdateOptionChange => {
               if (ops != declaredOptions){

@@ -33,7 +33,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a row update"){
-    val ru = new UpsertRowInstruction(Map("a" -> JString("aaa"), "b" -> JString("bbb")))
+    val ru = new UpsertRow(Map("a" -> JString("aaa"), "b" -> JString("bbb")))
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
@@ -48,7 +48,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a row delete"){
-    val ru = new DeleteRowInstruction(Left("aaa"))
+    val ru = new DeleteRow(Left("aaa"))
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
@@ -64,7 +64,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
 
   test("Mutation Script encodes a both column mutation and row update"){
     val cm = AddColumnInstruction("b", Text())
-    val ru = new UpsertRowInstruction(Map("a" -> JString("aaa"), "b" -> JString("bbb")))
+    val ru = new UpsertRow(Map("a" -> JString("aaa"), "b" -> JString("bbb")))
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
@@ -80,7 +80,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a column mutation after a row update"){
-    val ru = new UpsertRowInstruction(Map("a" -> JString("aaa")))
+    val ru = new UpsertRow(Map("a" -> JString("aaa")))
     val cm = AddColumnInstruction("b", Text())
     val mc = new MutationScript(
       "Daniel the tester",
@@ -99,7 +99,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
 
   test("Mutation Script encodes a row option change and row update"){
     val roc = new RowUpdateOptionChange(true, false, false)
-    val ru = new UpsertRowInstruction(Map("a" -> JString("aaa")))
+    val ru = new UpsertRow(Map("a" -> JString("aaa")))
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
@@ -116,7 +116,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   test("Mutation Script encodes a multiple row option changes and row update"){
     val roc1 = new RowUpdateOptionChange(true, false, false)
     val roc2 = new RowUpdateOptionChange()
-    val ru = new UpsertRowInstruction(Map("a" -> JString("aaa")))
+    val ru = new UpsertRow(Map("a" -> JString("aaa")))
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
