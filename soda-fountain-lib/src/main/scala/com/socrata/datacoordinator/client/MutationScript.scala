@@ -7,7 +7,7 @@ import com.rojoma.json.util.JsonUtil
 class MutationScript(
         user: String,
         copyInstruction: DatasetCopyInstruction,
-        instructions: Iterable[Either[ColumnMutationInstruction,RowUpdateInstruction]]){
+        instructions: Iterable[dataCoordinatorInstruction]){
   def streamJson(os:OutputStream){
     val out = new OutputStreamWriter(os)
     streamJson(out)
@@ -24,14 +24,14 @@ class MutationScript(
       val instruction = itr.next
       out.write(',')
       instruction match {
-        case Left(i)  => {
+        case i: ColumnMutationInstruction  => {
           if (rowDataDeclared){
             out.write("null,")
             rowDataDeclared = false
           }
           out.write(i.toString)
         }
-        case Right(i) => {
+        case i: RowUpdateInstruction => {
           i match {
             case ops: RowUpdateOptionChange => {
               if (ops != declaredOptions){

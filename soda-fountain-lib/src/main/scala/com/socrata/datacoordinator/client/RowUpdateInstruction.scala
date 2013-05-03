@@ -3,7 +3,7 @@ package com.socrata.datacoordinator.client
 import com.rojoma.json.util.JsonUtil
 import com.rojoma.json.ast._
 
-sealed abstract class RowUpdateInstruction extends JsonEncodable {
+sealed abstract class RowUpdateInstruction extends dataCoordinatorInstruction {
   override def toString = JsonUtil.renderJson(asJson)
 }
 

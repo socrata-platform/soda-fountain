@@ -23,7 +23,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
-      Array(Left(cm)).toIterable)
+      Array(cm).toIterable)
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester'},
@@ -37,7 +37,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
-      Array(Right(ru)).toIterable)
+      Array(ru).toIterable)
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester'},
@@ -52,7 +52,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
-      Array(Right(ru)).toIterable)
+      Array(ru).toIterable)
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester'},
@@ -68,7 +68,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
-      Array(Left(cm), Right(ru)).toIterable)
+      Array(cm, ru).toIterable)
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester'},
@@ -85,7 +85,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
-      Array(Right(ru), Left(cm)).toIterable)
+      Array(ru, cm).toIterable)
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester'},
@@ -103,7 +103,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
-      Array(Right(roc),Right(ru)).toIterable)
+      Array(roc, ru).toIterable)
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester'},
@@ -120,7 +120,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
-      Array(Right(roc1),Right(roc2),Right(ru)).toIterable)
+      Array(roc1,roc2,ru).toIterable)
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester'},

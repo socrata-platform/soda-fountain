@@ -30,7 +30,7 @@ trait DatasetService extends SodaService {
             val script = new MutationScript(
               "soda-fountain-community-edition",
               UpdateDataset(store.getSchemaHash(datasetResourceName)),
-              Array(Right(UpsertRowInstruction(map))).toIterable)
+              Array(UpsertRowInstruction(map)).toIterable)
             val response = dc.sendMutateRequest(datasetResourceName, script)
             response() match {
               case Right(resp) => DataCoordinatorClient.passThroughResponse(resp)

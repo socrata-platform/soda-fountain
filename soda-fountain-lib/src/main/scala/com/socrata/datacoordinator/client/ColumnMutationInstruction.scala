@@ -5,7 +5,7 @@ import com.rojoma.json.util.JsonUtil
 import com.rojoma.json.ast.{JString, JObject}
 
 
-sealed abstract class ColumnMutationInstruction extends JsonEncodable {
+sealed abstract class ColumnMutationInstruction extends dataCoordinatorInstruction {
   override def toString = JsonUtil.renderJson(asJson)
 }
 
