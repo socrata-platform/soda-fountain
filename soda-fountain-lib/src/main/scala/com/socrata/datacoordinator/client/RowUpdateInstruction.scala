@@ -20,7 +20,8 @@ case class DeleteRowInstruction(rowId: Either[String,BigDecimal]) extends RowUpd
 
 case class RowUpdateOptionChange(truncate: Boolean = false,
                                  mergeInsteadOfReplace: Boolean = true,
-                                 errorsAreFatal: Boolean = true) extends RowUpdateInstruction  {
+                                 errorsAreFatal: Boolean = true)
+  extends RowUpdateInstruction  {
 //  def asJson = {
 //    val map = scala.collection.mutable.Map[String, JValue]("c" -> JString("row data"))
 //    if (truncate) map.put("truncate", JString(truncate.toString))

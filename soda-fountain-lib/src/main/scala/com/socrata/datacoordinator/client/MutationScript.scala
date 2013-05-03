@@ -18,7 +18,10 @@ class MutationScript(
 
     out.write('[')
     out.write(JsonUtil.renderJson(JObject(topLevelCommand)))
-    instructions.foreach{ instruction =>
+
+    val itr = instructions.iterator
+    while (itr.hasNext){
+      val instruction = itr.next
       out.write(',')
       instruction match {
         case Left(i)  => {

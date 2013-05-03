@@ -7,8 +7,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import com.socrata.soda.server.{SodaFountain, IntegrationTest}
 import com.socrata.soda.server.mocks.{MockNameAndSchemaStore, LocalDataCoordinator}
+import org.scalatest.ParallelTestExecution
 
-class DataCoordinatorIntegrationTest extends IntegrationTest {
+class DataCoordinatorIntegrationTest extends IntegrationTest with ParallelTestExecution {
 
   val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator
 

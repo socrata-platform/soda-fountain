@@ -7,9 +7,7 @@ trait PostgresStore extends SodaService {
   val store: NameAndSchemaStore = postgres
 
   object postgres extends NameAndSchemaStore {
-    def getSchemaHash(datasetResourceName: String) : String = {
-      throw new Error("not yet implemented")
-    }
+    def getSchemaHash(datasetResourceName: String) : String = ???
   }
 }
 

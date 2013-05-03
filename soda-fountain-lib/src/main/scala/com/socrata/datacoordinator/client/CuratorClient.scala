@@ -7,7 +7,7 @@ trait CuratorClient extends SodaService {
   val dc: DataCoordinatorClient = client
 
   object client extends DataCoordinatorClient {
-    def baseUrl: String = {throw new NotImplementedError("plug in curator here")}
+    def baseUrl: String = ???
   }
 
 }
