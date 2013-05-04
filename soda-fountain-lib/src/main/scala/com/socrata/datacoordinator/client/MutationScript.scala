@@ -7,7 +7,7 @@ import com.rojoma.json.util.JsonUtil
 class MutationScript(
         user: String,
         copyInstruction: DatasetCopyInstruction,
-        instructions: Iterable[dataCoordinatorInstruction]){
+        instructions: Iterable[DataCoordinatorInstruction]){
   def streamJson(os:OutputStream){
     val out = new OutputStreamWriter(os)
     streamJson(out)
