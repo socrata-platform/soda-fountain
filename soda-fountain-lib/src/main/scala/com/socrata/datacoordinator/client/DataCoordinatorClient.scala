@@ -2,14 +2,15 @@ package com.socrata.datacoordinator.client
 
 import dispatch._, Defaults._
 import com.ning.http.client.Request.EntityWriter
-import java.io.OutputStream
+import java.io.{InputStreamReader, BufferedReader, Reader, OutputStream}
 
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import com.ning.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.responses
 import javax.servlet.http.HttpServletResponse
-import com.socrata.soda.server.services.SodaService
+import com.rojoma.json.util.JsonUtil
+import com.rojoma.json.ast._
 
 object DataCoordinatorClient {
 
@@ -23,7 +24,7 @@ trait DataCoordinatorClient {
   def baseUrl: String
 
   val createUrl = host(baseUrl) / "dataset"
-  def mutateUrl(datasetName: String) = host(baseUrl) / "dataset" / datasetName
+  def mutateUrl(datasetId: BigDecimal) = host(baseUrl) / "dataset" / datasetId.toString
   def schemaUrl(datasetName: String) = host(baseUrl) / "dataset" / datasetName / "schema"
 
   protected def jsonWriter(script: MutationScript): EntityWriter = new EntityWriter {
@@ -42,8 +43,8 @@ trait DataCoordinatorClient {
     Http(request)
   }
 
-  def sendMutateRequest(datasetResourceName: String, script: MutationScript) = {
-    val request = mutateUrl(datasetResourceName).
+  def sendMutateRequest(datasetId: BigDecimal, script: MutationScript) = {
+    val request = mutateUrl(datasetId).
       POST.
       addHeader("Content-Type", "application/json").
       setBody(jsonWriter(script))
@@ -57,28 +58,47 @@ trait DataCoordinatorClient {
     response
   }
 
-  def create(resourceName: String, locale: String = "en_US", user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
+  def create(
+              resourceName: String,
+              user: String,
+              instructions: Option[Iterable[DataCoordinatorInstruction]],
+              locale: String = "en_US")
+    : Either[Throwable, (BigDecimal, String)] =
+  {
     val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().toIterable))
-    sendScript(createUrl.POST, createScript)
+    val response = sendScript(createUrl.POST, createScript)
+    response() match {
+      case Right(r) => {
+        val idAndHash = JsonUtil.readJson[JArray](new InputStreamReader(r.getResponseBodyAsStream))
+        idAndHash match {
+          case Some(a) => {
+            val b = a.toArray
+            Right((BigDecimal(b(0).toString()), b(1).toString))
+          }
+          case None => Left(new Error("unexpected response from data coordinator"))
+        }
+      }
+      case Left(t) => Left(t)
+    }
   }
-  def update(resourceName: String, schema: String, user: String, instructions: Iterable[DataCoordinatorInstruction]) = {
+  def update(datasetId: BigDecimal, schema: String, user: String, instructions: Iterable[DataCoordinatorInstruction]) = {
     val updateScript = new MutationScript(user, UpdateDataset(schema), instructions)
-    sendScript(mutateUrl(resourceName).POST, updateScript)
+    sendScript(mutateUrl(datasetId).POST, updateScript)
   }
-  def copy(resourceName: String, schema: String, copyData: Boolean, user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
+  def copy(datasetId: BigDecimal, schema: String, copyData: Boolean, user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
     val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Array().toIterable))
-    sendScript(mutateUrl(resourceName).POST, createScript)
+    sendScript(mutateUrl(datasetId).POST, createScript)
   }
-  def publish(resourceName: String, schema: String, snapshotLimit:Option[Int], user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
+  def publish(datasetId: BigDecimal, schema: String, snapshotLimit:Option[Int], user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
     val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions.getOrElse(Array().toIterable))
-    sendScript(mutateUrl(resourceName).POST, pubScript)
+    sendScript(mutateUrl(datasetId).POST, pubScript)
   }
-  def dropCopy(resourceName: String, schema: String, user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
+  def dropCopy(datasetId: BigDecimal, schema: String, user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
     val dropScript = new MutationScript(user, DropDataset(schema), instructions.getOrElse(Array().toIterable))
-    sendScript(mutateUrl(resourceName).POST, dropScript)
+    sendScript(mutateUrl(datasetId).POST, dropScript)
   }
-  def deleteAllCopies(resourceName: String, schema: String, user: String) = {
+  def deleteAllCopies(datasetId: BigDecimal, schema: String, user: String) = {
     val deleteScript = new MutationScript(user, DropDataset(schema), Array().toIterable)
-    sendScript(mutateUrl(resourceName).DELETE, deleteScript)
+    sendScript(mutateUrl(datasetId).DELETE, deleteScript)
   }
 }

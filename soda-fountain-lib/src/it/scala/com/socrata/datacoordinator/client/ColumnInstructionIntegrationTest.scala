@@ -1,92 +1,37 @@
 package com.socrata.datacoordinator.client
 
+import dispatch._
 
 class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
 
-  test("Mutation Script can add column"){
-    val datasetName = "it_col_add"
-    val createScript = new MutationScript( "Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(datasetName,  createScript)
-    val dropColOp = DropColumnInstruction("new_col")
-    val dropColScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(dropColOp).toIterable)
-    coordinatorGetResponseOrError(datasetName,  dropColScript)
-    val addColOp = AddColumnInstruction("new_col", Number() )
-    val addColScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(addColOp).toIterable)
-    val expected = """[]""".stripMargin
-    coordinatorCompare(datasetName, addColScript, expected)
+  val userName = "daniel_the_tester"
+
+  test("Mutation Script can add/drop column"){
+    val idAndHash = fountain.dc.create("it_col_add_drop", userName, None).right.getOrElse(throw new Error("could not create dataset"))
+    val c = fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(AddColumnInstruction("new_col", Number())).toIterable)
+    c() match {
+      case Right(r) => r must equal ("""[]""".stripMargin)
+      case Left(e) => throw e
+    }
+    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(DropColumnInstruction("new_col", Number())).toIterable)().right.getOrElse(throw New Error("could not create column")) must equal ("""[]""".stripMargin)
   }
 
-  test("Mutation Script can drop column"){
-    val datasetName = "it_col_drop"
-    val createScript = new MutationScript( "Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(datasetName,  createScript)
-    val addColOp = AddColumnInstruction("new_col", Number() )
-    val dropColOp = DropColumnInstruction("new_col")
-    val addColScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(addColOp).toIterable)
-    coordinatorGetResponseOrError(datasetName, addColScript)
-    val dropColScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(dropColOp).toIterable)
-    val expected = """[]""".stripMargin
-    coordinatorCompare(datasetName, dropColScript, expected)
-  }
-
-  test("can set row id"){
-    val datasetName = "it_col_set_row_id"
-    val createScript = new MutationScript( "Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(datasetName,  createScript)
-    val addColOp = AddColumnInstruction("new_col", Number() )
-    val addColScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(addColOp).toIterable)
-    coordinatorGetResponseOrError(datasetName,  addColScript)
-    val dropRowIdOp = DropRowIdColumnInstruction("new_col")
-    val dropRowIdScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(dropRowIdOp).toIterable)
-    coordinatorGetResponseOrError(datasetName,  dropRowIdScript)
-    val setRowIdOp = SetRowIdColumnInstruction("new_col")
-    val setRowIdScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(setRowIdOp).toIterable)
-    val expected = """[]""".stripMargin
-    coordinatorCompare(datasetName, setRowIdScript, expected)
-  }
-
-  test("can drop row id"){
-    val datasetName = "it_col_drop_row_id"
-    val createScript = new MutationScript( "Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(datasetName, createScript)
-    val addColOp = AddColumnInstruction("new_col", Number() )
-    val addColScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(addColOp).toIterable)
-    coordinatorGetResponseOrError(datasetName,  addColScript)
-    val setRowIdOp = SetRowIdColumnInstruction("new_col")
-    val setRowIdScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(setRowIdOp).toIterable)
-    coordinatorGetResponseOrError( datasetName,   setRowIdScript)
-    val dropRowIdOp = DropRowIdColumnInstruction("new_col")
-    val dropRowIdScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(dropRowIdOp).toIterable)
-    val expected = """[]""".stripMargin
-    coordinatorCompare(datasetName, dropRowIdScript, expected)
+  test("can set/drop row id column"){
+    val idAndHash = fountain.dc.create("it_col_set_drop_row_id", userName, None).right.getOrElse(throw new Error("could not create dataset"))
+    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(AddColumnInstruction("new_col", Number())).toIterable)().right.getOrElse(throw New Error("could not create column")) must equal ("""[]""".stripMargin)
+    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(SetRowIdColumnInstruction("new_col")).toIterable)().right.getOrElse(throw New Error("could not set row id column")) must equal ("""[]""".stripMargin)
+    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(DropRowIdColumnInstruction("new_col")).toIterable)().right.getOrElse(throw New Error("could not drop row id column")) must equal ("""[]""".stripMargin)
   }
 
   test("can rename column"){
-    val datasetName = "it_col_rename"
-    val createScript = new MutationScript("Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError(datasetName, createScript)
-    val dropColOp1 = DropColumnInstruction("named_col")
-    val dropColScript1 = new MutationScript("Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(dropColOp1).toIterable)
-    coordinatorGetResponseOrError(datasetName,  dropColScript1)
-    val dropColOp2 = DropColumnInstruction("renamed_col")
-    val dropColScript2 = new MutationScript("Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(dropColOp2).toIterable)
-    coordinatorGetResponseOrError(datasetName,  dropColScript2)
-    val addColOp = AddColumnInstruction("named_col", Number() )
-    val addColScript = new MutationScript("Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(addColOp).toIterable)
-    coordinatorGetResponseOrError(datasetName,  addColScript)
-    val renameColumnOp = RenameColumnInstruction("named_col", "renamed_col")
-    val renameColScript = new MutationScript("Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(renameColumnOp).toIterable)
-    val expected = """[]""".stripMargin
-    coordinatorCompare(datasetName, renameColScript, expected)
+    val idAndHash = fountain.dc.create("it_col_rename", userName, None).right.getOrElse(throw new Error("could not create dataset"))
+    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(AddColumnInstruction("named_col", Number())).toIterable)().right.getOrElse(throw New Error("could not create column")) must equal ("""[]""".stripMargin)
+    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(RenameColumnInstruction("named_col", "renamed_col")).toIterable)().right.getOrElse(throw New Error("could not rename column")) must equal ("""[]""".stripMargin)
   }
 
 
   test("can declare row data"){
-    val createScript = new MutationScript("Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError("it_row_data_noop", createScript)
-    val rowDataNoop = RowUpdateOptionChange(true, false, true)
-    val rowDataScript = new MutationScript( "Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("mocked")), Array(rowDataNoop).toIterable)
-    val expected = """[]""".stripMargin
-    coordinatorCompare("it_row_data_noop", rowDataScript, expected)
+    val idAndHash = fountain.dc.create("it_declare_row_data", userName, None).right.getOrElse(throw new Error("could not create dataset"))
+    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(RowUpdateOptionChange(true, false, true)).toIterable)().right.getOrElse(throw New Error("could not declare row data")) must equal ("""[]""".stripMargin)
   }
 }
