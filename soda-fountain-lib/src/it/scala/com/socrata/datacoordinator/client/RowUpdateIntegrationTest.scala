@@ -1,14 +1,23 @@
 package com.socrata.datacoordinator.client
 
+import dispatch._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class RowUpdateIntegrationTest extends DataCoordinatorIntegrationTest {
 
+  val userName = "daniel_the_tester"
+
   test("can declare row data"){
-    val createScript = new MutationScript("Daniel the tester", CreateDataset(), Array().toIterable)
-    coordinatorGetResponseOrError("it_row_data_noop", createScript)
-    val rowDataNoop = RowUpdateOptionChange(true, false, true)
-    val rowDataScript = new MutationScript("Daniel the tester", UpdateDataset(fountain.store.getSchemaHash("it_row_data")), Array(rowDataNoop).toIterable)
-    val expected = """[]""".stripMargin
-    coordinatorCompare("it_row_data_noop", rowDataScript, expected)
+    val responses = for {
+      idAndHash <-fountain.dc.create("it_declare_row_data", userName, None).right
+      rowDataDec <- fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(RowUpdateOptionChange(true, false, true)).toIterable).right
+    } yield (idAndHash, rowDataDec)
+
+    responses() match {
+      case Right((idAndHash, rowDataDec)) => {
+        rowDataDec.getResponseBody must equal ("""[]""".stripMargin)
+      }
+      case Left(thr) => throw thr
+    }
   }
 }

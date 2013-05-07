@@ -12,7 +12,7 @@ trait MockNameAndSchemaStore extends SodaService {
     def getSchemaHash(datasetResourceName: String) : String = "mockSchemaHash"
     def setSchemaHash(resourceName: String, hash:String) = ???
 
-    def translateResourceName( resourceName: String) : (BigDecimal, String) = ???
+    def translateResourceName( resourceName: String) : Option[(BigDecimal, String)] = ???
 
     def store(resourceName: String, id: BigDecimal, schemaHash: String) = ???
   }

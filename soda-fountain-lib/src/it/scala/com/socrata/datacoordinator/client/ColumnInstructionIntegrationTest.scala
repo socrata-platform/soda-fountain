@@ -1,37 +1,59 @@
 package com.socrata.datacoordinator.client
 
 import dispatch._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
 
   val userName = "daniel_the_tester"
 
   test("Mutation Script can add/drop column"){
-    val idAndHash = fountain.dc.create("it_col_add_drop", userName, None).right.getOrElse(throw new Error("could not create dataset"))
-    val c = fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(AddColumnInstruction("new_col", Number())).toIterable)
-    c() match {
-      case Right(r) => r must equal ("""[]""".stripMargin)
-      case Left(e) => throw e
+    val responses = for {
+      idAndHash <- fountain.dc.create("it_col_add_drop", userName, None).right
+      colCreate <- fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(AddColumnInstruction("new_col", Number())).toIterable).right
+      colDrop <- fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(DropColumnInstruction("new_col")).toIterable).right
+    } yield (idAndHash, colCreate, colDrop)
+
+    responses() match {
+      case Right((idAndHash, colCreate, colDrop)) => {
+        colCreate.getResponseBody must equal ("""[]""".stripMargin)
+        colDrop.getResponseBody must equal ("""[]""".stripMargin)
+      }
+      case Left(thr) => throw thr
     }
-    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(DropColumnInstruction("new_col", Number())).toIterable)().right.getOrElse(throw New Error("could not create column")) must equal ("""[]""".stripMargin)
   }
 
   test("can set/drop row id column"){
-    val idAndHash = fountain.dc.create("it_col_set_drop_row_id", userName, None).right.getOrElse(throw new Error("could not create dataset"))
-    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(AddColumnInstruction("new_col", Number())).toIterable)().right.getOrElse(throw New Error("could not create column")) must equal ("""[]""".stripMargin)
-    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(SetRowIdColumnInstruction("new_col")).toIterable)().right.getOrElse(throw New Error("could not set row id column")) must equal ("""[]""".stripMargin)
-    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(DropRowIdColumnInstruction("new_col")).toIterable)().right.getOrElse(throw New Error("could not drop row id column")) must equal ("""[]""".stripMargin)
+    val responses = for {
+      idAndHash <-fountain.dc.create("it_col_set_drop_row_id", userName, None).right
+      newCol <- fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(AddColumnInstruction("new_col", Number())).toIterable).right
+      setId <-  fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(SetRowIdColumnInstruction("new_col")).toIterable).right
+      dropId <- fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(DropRowIdColumnInstruction("new_col")).toIterable).right
+    } yield (idAndHash, newCol, setId, dropId)
+
+    responses() match {
+      case Right((idAndHash, newCol, setId, dropId)) => {
+        newCol.getResponseBody must equal ("""[]""".stripMargin)
+        setId.getResponseBody must equal ("""[]""".stripMargin)
+        dropId.getResponseBody must equal ("""[]""".stripMargin)
+      }
+      case Left(thr) => throw thr
+    }
   }
 
   test("can rename column"){
-    val idAndHash = fountain.dc.create("it_col_rename", userName, None).right.getOrElse(throw new Error("could not create dataset"))
-    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(AddColumnInstruction("named_col", Number())).toIterable)().right.getOrElse(throw New Error("could not create column")) must equal ("""[]""".stripMargin)
-    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(RenameColumnInstruction("named_col", "renamed_col")).toIterable)().right.getOrElse(throw New Error("could not rename column")) must equal ("""[]""".stripMargin)
-  }
+    val responses = for {
+      idAndHash <-fountain.dc.create("it_col_rename", userName, None).right
+      namedCol <- fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(AddColumnInstruction("named_col", Number())).toIterable).right
+      renamedCol <-fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(RenameColumnInstruction("named_col", "renamed_col")).toIterable).right
+    } yield (idAndHash, namedCol, renamedCol)
 
-
-  test("can declare row data"){
-    val idAndHash = fountain.dc.create("it_declare_row_data", userName, None).right.getOrElse(throw new Error("could not create dataset"))
-    fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(RowUpdateOptionChange(true, false, true)).toIterable)().right.getOrElse(throw New Error("could not declare row data")) must equal ("""[]""".stripMargin)
+    responses() match {
+      case Right((idAndHash, namedCol, renamedCol)) => {
+        namedCol.getResponseBody must equal ("""[]""".stripMargin)
+        renamedCol.getResponseBody must equal ("""[]""".stripMargin)
+      }
+      case Left(thr) => throw thr
+    }
   }
 }

@@ -3,9 +3,8 @@ package com.socrata.datacoordinator.client
 import dispatch._
 import com.socrata.soda.server.{SodaFountain, IntegrationTest}
 import com.socrata.soda.server.mocks.{MockNameAndSchemaStore, LocalDataCoordinator}
-import org.scalatest.ParallelTestExecution
 
-class DataCoordinatorIntegrationTest extends IntegrationTest with ParallelTestExecution {
+class DataCoordinatorIntegrationTest extends IntegrationTest {
 
   val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator
 
@@ -15,7 +14,7 @@ class DataCoordinatorIntegrationTest extends IntegrationTest with ParallelTestEx
   }
 
   def coordinatorGetResponseOrError(datasetId: BigDecimal, ms: MutationScript) = {
-    val response = fountain.dc.sendMutateRequest(dataset, ms)
+    val response = fountain.dc.sendMutateRequest(datasetId, ms)
     val actual = response() match {
       case Left(th) => th.getMessage
       case Right(resp) => resp.getResponseBody

@@ -58,16 +58,12 @@ trait DataCoordinatorClient {
     response
   }
 
-  def create(
-              resourceName: String,
+  def create( resourceName: String,
               user: String,
               instructions: Option[Iterable[DataCoordinatorInstruction]],
-              locale: String = "en_US")
-    : Either[Throwable, (BigDecimal, String)] =
-  {
+              locale: String = "en_US") = {
     val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().toIterable))
-    val response = sendScript(createUrl.POST, createScript)
-    response() match {
+    for(response <- sendScript(createUrl.POST, createScript)) yield response match {
       case Right(r) => {
         val idAndHash = JsonUtil.readJson[JArray](new InputStreamReader(r.getResponseBodyAsStream))
         idAndHash match {
