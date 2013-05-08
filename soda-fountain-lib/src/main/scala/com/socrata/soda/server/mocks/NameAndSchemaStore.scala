@@ -6,5 +6,5 @@ trait NameAndSchemaStore {
   def setSchemaHash(resourceName: String, hash:String)
 
   def store(resourceName: String, id: BigDecimal, schemaHash: String)
-  def translateResourceName( resourceName: String) : Option[(BigDecimal, String)]
+  def translateResourceName( resourceName: String) : Option[String]
 }

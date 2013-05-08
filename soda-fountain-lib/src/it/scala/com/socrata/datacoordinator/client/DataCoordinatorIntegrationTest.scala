@@ -8,12 +8,12 @@ class DataCoordinatorIntegrationTest extends IntegrationTest {
 
   val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator
 
-  def coordinatorCompare(datasetId: BigDecimal, ms: MutationScript, expectedResponse: String){
+  def coordinatorCompare(datasetId: String, ms: MutationScript, expectedResponse: String){
     val actual = coordinatorGetResponseOrError(datasetId, ms)
     jsonCompare(actual, expectedResponse)
   }
 
-  def coordinatorGetResponseOrError(datasetId: BigDecimal, ms: MutationScript) = {
+  def coordinatorGetResponseOrError(datasetId: String, ms: MutationScript) = {
     val response = fountain.dc.sendMutateRequest(datasetId, ms)
     val actual = response() match {
       case Left(th) => th.getMessage

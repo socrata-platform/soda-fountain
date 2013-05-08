@@ -62,19 +62,25 @@ class MutationScript(
     out.flush()
   }
 
-  private val topLevelCommandBase = Map(
-    "c"       -> JString(copyInstruction.command),
-    "user"    -> JString(user))
+  private def topLevelCommandBase(schema: Option[String]) = {
+    val base = Map( "c" -> JString(copyInstruction.command), "user" -> JString(user))
+    val baseAndSchema = schema match {
+      case Some(s) => base + ("schema" -> JString(s))
+      case None => base
+    }
+    baseAndSchema
+  }
 
   def topLevelCommand: Map[String, JValue] = {
     copyInstruction match {
-      case i: CreateDataset => topLevelCommandBase + ("locale" -> JString(i.locale))
-      case i: CopyDataset   => topLevelCommandBase + ("copy_data" -> JBoolean(i.copyData))
+      case i: CreateDataset => Map("locale" -> JString(i.locale), "c" -> JString(copyInstruction.command), "user" -> JString(user))
+      case i: UpdateDataset => topLevelCommandBase(i.schema)
+      case i: CopyDataset   => topLevelCommandBase(i.schema) + ("copy_data" -> JBoolean(i.copyData))
       case i: PublishDataset=> i.snapshotLimit match {
-        case Some(s)  => topLevelCommandBase + ("snapshot_limit" -> JNumber(s))
-        case None     => topLevelCommandBase
+        case Some(s)  => topLevelCommandBase(i.schema) + ("snapshot_limit" -> JNumber(s))
+        case None     => topLevelCommandBase(i.schema)
       }
-      case _ => topLevelCommandBase
+      case i: DropDataset => topLevelCommandBase(i.schema)
     }
   }
 

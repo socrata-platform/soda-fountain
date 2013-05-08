@@ -28,8 +28,8 @@ trait DatasetService extends SodaService {
         fields match {
           case Some(map) => {
             store.translateResourceName(resourceName) match {
-              case Some((datasetId, schemaHash)) => {
-                val response = dc.update(datasetId, schemaHash, "soda-fountain-community-edition", Array(UpsertRow(map)).toIterable)
+              case Some(datasetId) => {
+                val response = dc.update(datasetId, None, "soda-fountain-community-edition", Array(UpsertRow(map)).toIterable)
                 response() match {
                   case Right(resp) => DataCoordinatorClient.passThroughResponse(resp)
                   case Left(th) => sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None)

@@ -24,7 +24,7 @@ trait DataCoordinatorClient {
   def baseUrl: String
 
   val createUrl = host(baseUrl) / "dataset"
-  def mutateUrl(datasetId: BigDecimal) = host(baseUrl) / "dataset" / datasetId.toString
+  def mutateUrl(datasetId: String) = host(baseUrl) / "dataset" / datasetId
   def schemaUrl(datasetName: String) = host(baseUrl) / "dataset" / datasetName / "schema"
 
   protected def jsonWriter(script: MutationScript): EntityWriter = new EntityWriter {
@@ -43,7 +43,7 @@ trait DataCoordinatorClient {
     Http(request)
   }
 
-  def sendMutateRequest(datasetId: BigDecimal, script: MutationScript) = {
+  def sendMutateRequest(datasetId: String, script: MutationScript) = {
     val request = mutateUrl(datasetId).
       POST.
       addHeader("Content-Type", "application/json").
@@ -67,9 +67,8 @@ trait DataCoordinatorClient {
       case Right(r) => {
         val idAndHash = JsonUtil.readJson[JArray](new InputStreamReader(r.getResponseBodyAsStream))
         idAndHash match {
-          case Some(a) => {
-            val b = a.toArray
-            Right((BigDecimal(b(0).toString()), b(1).toString))
+          case Some(JArray(Seq(JString(datasetId), JArray(rowReports)))) => {
+            Right((datasetId, rowReports))
           }
           case None => Left(new Error("unexpected response from data coordinator"))
         }
@@ -77,23 +76,23 @@ trait DataCoordinatorClient {
       case Left(t) => Left(t)
     }
   }
-  def update(datasetId: BigDecimal, schema: String, user: String, instructions: Iterable[DataCoordinatorInstruction]) = {
+  def update(datasetId: String, schema: Option[String], user: String, instructions: Iterable[DataCoordinatorInstruction]) = {
     val updateScript = new MutationScript(user, UpdateDataset(schema), instructions)
     sendScript(mutateUrl(datasetId).POST, updateScript)
   }
-  def copy(datasetId: BigDecimal, schema: String, copyData: Boolean, user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
+  def copy(datasetId: String, schema: Option[String], copyData: Boolean, user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
     val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Array().toIterable))
     sendScript(mutateUrl(datasetId).POST, createScript)
   }
-  def publish(datasetId: BigDecimal, schema: String, snapshotLimit:Option[Int], user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
+  def publish(datasetId: String, schema: Option[String], snapshotLimit:Option[Int], user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
     val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions.getOrElse(Array().toIterable))
     sendScript(mutateUrl(datasetId).POST, pubScript)
   }
-  def dropCopy(datasetId: BigDecimal, schema: String, user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
+  def dropCopy(datasetId: String, schema: Option[String], user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
     val dropScript = new MutationScript(user, DropDataset(schema), instructions.getOrElse(Array().toIterable))
     sendScript(mutateUrl(datasetId).POST, dropScript)
   }
-  def deleteAllCopies(datasetId: BigDecimal, schema: String, user: String) = {
+  def deleteAllCopies(datasetId: String, schema: Option[String], user: String) = {
     val deleteScript = new MutationScript(user, DropDataset(schema), Array().toIterable)
     sendScript(mutateUrl(datasetId).DELETE, deleteScript)
   }

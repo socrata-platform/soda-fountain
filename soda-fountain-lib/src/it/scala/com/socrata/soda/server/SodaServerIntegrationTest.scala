@@ -10,11 +10,11 @@ import com.rojoma.json.ast._
 
 class SodaServerIntegrationTest extends IntegrationTest {
 
-  val host = "localhost:8080"
+  val hostname: String = "localhost:8080"
 
-  def postJson(relativePath: String, body: JValue) = {
-    val request = url(host + relativePath).
-      POST.
+  def postJson(resourceName: String, body: JValue) = {
+    val url = host(hostname) / "resource" / resourceName
+    val request = url.POST.
       addHeader("Content-Type", "application/json").
       setBody(body.toString)
     val response = Http(request).either
@@ -22,7 +22,7 @@ class SodaServerIntegrationTest extends IntegrationTest {
   }
 
   test("row update request malformed json returns error response"){
-    def result = postJson("/resource/testDataset", JString("this is not json"))
+    def result = postJson("testDataset", JString("this is not json"))
     result() match {
       case Left(exc) => fail(exc.getMessage)
       case Right(response) => response.getStatusCode must equal (415)
@@ -30,7 +30,7 @@ class SodaServerIntegrationTest extends IntegrationTest {
   }
 
   test("row update request with unexpected format json returns error response"){
-    def result = postJson("/resource/testDataset", JArray(Array(JString("this is an array"), JString("why would you post an array?"))))
+    def result = postJson("testDataset", JArray(Array(JString("this is an array"), JString("why would you post an array?"))))
     result() match {
       case Left(exc) => fail(exc.getMessage)
       case Right(response) => response.getStatusCode must equal (400)

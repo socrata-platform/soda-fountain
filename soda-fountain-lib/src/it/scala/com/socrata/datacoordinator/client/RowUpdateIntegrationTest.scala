@@ -9,13 +9,13 @@ class RowUpdateIntegrationTest extends DataCoordinatorIntegrationTest {
 
   test("can declare row data"){
     val responses = for {
-      idAndHash <-fountain.dc.create("it_declare_row_data", userName, None).right
-      rowDataDec <- fountain.dc.update(idAndHash._1, idAndHash._2, userName, Array(RowUpdateOptionChange(true, false, true)).toIterable).right
-    } yield (idAndHash, rowDataDec)
+      idAndResults <-fountain.dc.create("it_declare_row_data", userName, None).right
+      rowDataDec <- fountain.dc.update(idAndResults._1, None, userName, Array(RowUpdateOptionChange(true, false, true)).toIterable).right
+    } yield (idAndResults, rowDataDec)
 
     responses() match {
-      case Right((idAndHash, rowDataDec)) => {
-        rowDataDec.getResponseBody must equal ("""[]""".stripMargin)
+      case Right((idAndResults, rowDataDec)) => {
+        rowDataDec.getResponseBody must equal ("""[{"inserted":{},"updated":{},"deleted":{},"errors":{}}]""".stripMargin)
       }
       case Left(thr) => throw thr
     }
