@@ -8,24 +8,16 @@ trait ColumnService {
 
   object columns {
 
-    def getAll(datasetResourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
+    def update(datasetResourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
     }
 
-    def get(datasetResourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
+    def drop(datasetResourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
     }
 
-    def set(datasetResourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
+    def getSchema(datasetResourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
-    }
-
-    def create(columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit = {
-      ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("create request not implemented")
-    }
-
-    def delete(datasetResourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit = {
-      ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("delete request not implemented")
     }
   }
 }

@@ -12,23 +12,27 @@ import com.socrata.soda.server.services._
 trait SodaRouter extends SodaFountain {
 
   val router = RouterSet(
-    ExtractingRouter[HttpService](GET, "/resource/?/data")( data.query _),
-    ExtractingRouter[HttpService](GET, "/resource/?/data/?")( data.get _),
-    ExtractingRouter[HttpService](POST, "/resource/?/data/?")( data.set _),
-    ExtractingRouter[HttpService](POST, "/resource/?")( data.setRowFromPost _),
-    ExtractingRouter[HttpService](DELETE, "/resource/?/data/?")( data.delete _),
 
-    ExtractingRouter[HttpService](POST, "/resource/?/columns")( columns.create _),
-    ExtractingRouter[HttpService](GET, "/resource/?/columns")( columns.getAll _),
-    ExtractingRouter[HttpService](PUT, "/resource/?/column/?")( columns.set _),
-    ExtractingRouter[HttpService](DELETE, "/resource/?/column/?")( columns.delete _),
-    ExtractingRouter[HttpService](GET, "/resource/?/column/?")( columns.get _),
+    ExtractingRouter[HttpService](POST,   "/resource/?")        ( dataset.upsert _),
+    ExtractingRouter[HttpService](PUT,    "/resource/?")        ( dataset.replace _),
+    ExtractingRouter[HttpService](DELETE, "/resource/?")        ( dataset.truncate _),
+    ExtractingRouter[HttpService](GET,    "/resource/?")        ( dataset.query _),
 
-    ExtractingRouter[HttpService](POST, "/resources")( catalog.create _),
-    ExtractingRouter[HttpService](DELETE, "/resource/?")( catalog.delete _),
-    ExtractingRouter[HttpService](PUT, "/resource/?")( catalog.set _),
-    ExtractingRouter[HttpService](GET, "/resource/?")( catalog.get _)
+    ExtractingRouter[HttpService](POST,   "/resource/?/?")        ( rows.upsert _),
+    ExtractingRouter[HttpService](PUT,    "/resource/?/?")        ( notSupported2 _),
+    ExtractingRouter[HttpService](DELETE, "/resource/?/?")        ( rows.delete _),
+    ExtractingRouter[HttpService](GET,    "/resource/?/?")        ( rows.get _),
 
+    ExtractingRouter[HttpService](POST,   "/dataset")          ( dataset.create _),
+    ExtractingRouter[HttpService](POST,   "/dataset/?")        ( dataset.setSchema _),
+    ExtractingRouter[HttpService](PUT,    "/dataset/?")        ( notSupported _),
+    ExtractingRouter[HttpService](DELETE, "/dataset/?")        ( dataset.delete _),
+    ExtractingRouter[HttpService](GET,    "/dataset/?")        ( dataset.getSchema _),
+
+    ExtractingRouter[HttpService](POST,   "/dataset/?/?")        ( columns.update _),
+    ExtractingRouter[HttpService](PUT,    "/dataset/?/?")        ( notSupported2 _),
+    ExtractingRouter[HttpService](DELETE, "/dataset/?/?")        ( columns.drop _),
+    ExtractingRouter[HttpService](GET,    "/dataset/?/?")        ( columns.getSchema _)
   )
   def route(req: HttpServletRequest): HttpResponse =
     router(req.getMethod, req.getRequestURI.split('/').tail) match {

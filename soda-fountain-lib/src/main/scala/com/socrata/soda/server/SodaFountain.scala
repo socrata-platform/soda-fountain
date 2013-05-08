@@ -1,6 +1,6 @@
 package com.socrata.soda.server
 
-import com.socrata.soda.server.services.{SodaService, CatalogService, ColumnService, DatasetService}
+import com.socrata.soda.server.services._
 
 object SodaFountain {
 
@@ -24,6 +24,7 @@ object SodaFountain {
 abstract class SodaFountain
   extends SodaService
   with DatasetService
+  with RowService
   with ColumnService
   with CatalogService {
 

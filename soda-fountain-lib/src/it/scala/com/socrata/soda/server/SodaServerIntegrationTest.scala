@@ -40,8 +40,7 @@ class SodaServerIntegrationTest extends IntegrationTest {
     }
   }
 
-//  test("soda fountain can create dataset"){
-//
-//    def result = postJson("/resources", json)
-//  }
+  test("soda fountain can create dataset"){
+
+  }
 }

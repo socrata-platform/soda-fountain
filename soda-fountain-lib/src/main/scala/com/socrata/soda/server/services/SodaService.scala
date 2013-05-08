@@ -1,6 +1,6 @@
 package com.socrata.soda.server.services
 
-import javax.servlet.http.HttpServletResponse
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 import com.socrata.http.server.responses._
 import scala.Some
 import com.rojoma.json.ast._
@@ -25,4 +25,8 @@ trait SodaService {
     }
     httpCode ~> ContentType("application/json; charset=utf-8") ~> Content(JObject(errorMap).toString)
   }
+
+  def notSupported(id:String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
+  //surely this can be improved, but changing it to a String* vararg makes the router angry.
+  def notSupported2(id:String, part2:String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
 }
