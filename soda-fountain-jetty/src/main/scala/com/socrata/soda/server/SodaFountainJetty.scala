@@ -7,8 +7,8 @@ import com.socrata.http.server.implicits._
 import java.io.FileInputStream
 import java.util.Properties
 import javax.servlet.http.HttpServletRequest
-import com.socrata.soda.server.mocks.PostgresStore
 import com.socrata.datacoordinator.client.{CuratorClient, DataCoordinatorClient}
+import com.socrata.soda.server.persistence.PostgresStore
 
 object SodaFountainJetty {
   def main(args:Array[String]) {

@@ -1,4 +1,4 @@
-package com.socrata.soda.server.mocks
+package com.socrata.soda.server.persistence
 
 trait NameAndSchemaStore {
 

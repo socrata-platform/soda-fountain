@@ -1,7 +1,5 @@
 package com.socrata.soda.server
 
-import com.socrata.soda.server.mocks._
-import com.socrata.datacoordinator.client.DataCoordinatorClient
 import com.socrata.soda.server.services.{SodaService, CatalogService, ColumnService, DatasetService}
 
 object SodaFountain {

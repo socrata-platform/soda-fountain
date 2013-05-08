@@ -25,7 +25,10 @@ class SodaServerIntegrationTest extends IntegrationTest {
     def result = postJson("testDataset", JString("this is not json"))
     result() match {
       case Left(exc) => fail(exc.getMessage)
-      case Right(response) => response.getStatusCode must equal (415)
+      case Right(response) => {
+        response.getResponseBody.length must be > (0)
+        response.getStatusCode must equal (415)
+      }
     }
   }
 

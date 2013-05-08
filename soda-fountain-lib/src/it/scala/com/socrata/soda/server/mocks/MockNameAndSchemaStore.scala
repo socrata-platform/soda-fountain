@@ -1,6 +1,7 @@
 package com.socrata.soda.server.mocks
 
 import com.socrata.soda.server.services.SodaService
+import com.socrata.soda.server.persistence.NameAndSchemaStore
 
 trait MockNameAndSchemaStore extends SodaService {
   val store: NameAndSchemaStore = mock

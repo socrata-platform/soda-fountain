@@ -4,7 +4,7 @@ import com.rojoma.json.ast.JString
 
 class MutationScriptTest extends DataCoordinatorClientTest {
 
-  val fakeSchemaHash = "fakeSchemaHash"
+  val fakeSchemaHash = None // Some("fakeSchemaHash")
 
   def testCompare(mc: MutationScript, expected: String) {
     val sw = new StringWriter()

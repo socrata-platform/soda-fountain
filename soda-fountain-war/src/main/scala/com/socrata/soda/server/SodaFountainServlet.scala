@@ -5,8 +5,8 @@ import com.socrata.http.server._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import scala.Some
-import com.socrata.soda.server.mocks.PostgresStore
 import com.socrata.datacoordinator.client.{CuratorClient, DataCoordinatorClient}
+import com.socrata.soda.server.persistence.PostgresStore
 
 class SodaFountainServlet extends HttpServlet {
 
