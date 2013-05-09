@@ -21,6 +21,17 @@ class SodaServerIntegrationTest extends IntegrationTest {
     response
   }
 
+  def post(service:String, part1o: Option[String], part2o: Option[String], body: JValue) = {
+    val url = host(hostname) / service
+    val request = part1o.foldLeft(url){ (url1, part1) =>
+      part2o.foldLeft( url1 / part1 ) ( (url2, part2) => url2 / part2)
+    }
+    request.POST.
+      addHeader("Content-Type", "application/json").
+      setBody(body.toString)
+    Http(request)
+  }
+
   test("row update request malformed json returns error response"){
     def result = postJson("testDataset", JString("this is not json"))
     result() match {
@@ -41,6 +52,17 @@ class SodaServerIntegrationTest extends IntegrationTest {
   }
 
   test("soda fountain can create dataset"){
-
+    val body = JObject(Map(
+      "resource_name" -> JString("soda-int-create"),
+      "name" -> JString("soda integration test create dataset")
+    ))
+    val r = for { r <- post("dataset", None, None, body).either.right } yield r
+    r() match {
+      case Right(response) => {
+        response.getResponseBody must equal ("")
+        response.getStatusCode must equal (200)
+      }
+      case Left(thr) => throw thr
+    }
   }
 }

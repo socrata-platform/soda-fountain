@@ -21,12 +21,12 @@ object Build extends sbt.Build {
     file("soda-fountain-war"),
     settings = SodaFountainWAR.settings,
     configurations = SodaFountainWAR.configurations
-  ) dependsOn(sodaFountainLib)
+  ) dependsOn(sodaFountainLib % "compile,it->it")
 
   lazy val sodaFountainJetty = Project(
     "soda-fountain-jetty",
     file("soda-fountain-jetty"),
     settings = SodaFountainJetty.settings,
     configurations = SodaFountainJetty.configurations
-  ) dependsOn(sodaFountainLib)
+  ) dependsOn(sodaFountainLib % "compile,it->it")
 }
