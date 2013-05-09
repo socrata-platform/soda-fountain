@@ -13,6 +13,7 @@ trait SodaService {
 
   val dc : DataCoordinatorClient
   val store : NameAndSchemaStore
+  val mockUser = "soda-server-community-edition"
 
   def sendErrorResponse(message: String, errorCode: String, httpCode: HttpServletResponse => Unit = BadRequest, data: Option[JValue] = None) = {
     val messageAndCode = Map[String, JValue](

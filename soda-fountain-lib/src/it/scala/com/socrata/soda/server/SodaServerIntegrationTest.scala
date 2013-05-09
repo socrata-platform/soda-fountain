@@ -54,7 +54,8 @@ class SodaServerIntegrationTest extends IntegrationTest {
   test("soda fountain can create dataset"){
     val body = JObject(Map(
       "resource_name" -> JString("soda-int-create"),
-      "name" -> JString("soda integration test create dataset")
+      "name" -> JString("soda integration test create dataset"),
+      "columns" -> JArray(Seq())
     ))
     val r = for { r <- post("dataset", None, None, body).either.right } yield r
     r() match {
