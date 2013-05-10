@@ -12,13 +12,14 @@ class SodaServerIntegrationTest extends IntegrationTest {
 
   val hostname: String = "localhost:8080"
 
-  def postJson(resourceName: String, body: JValue) = {
-    val url = host(hostname) / "resource" / resourceName
-    val request = url.POST.
-      addHeader("Content-Type", "application/json").
-      setBody(body.toString)
-    val response = Http(request).either
-    response
+  def column(name: String, fieldName: String, oDesc: Option[String], datatype: String): JObject = {
+    val base = Map(
+      "name" -> JString(name),
+      "field_name" -> JString(fieldName),
+      "datatype" -> JString(datatype)
+    )
+    val map = oDesc match { case Some(desc) => base + ("description" -> JString(desc)); case None => base }
+    JObject(map)
   }
 
   def post(service:String, part1o: Option[String], part2o: Option[String], body: JValue) = {
@@ -32,8 +33,8 @@ class SodaServerIntegrationTest extends IntegrationTest {
     Http(request)
   }
 
-  test("row update request malformed json returns error response"){
-    def result = postJson("testDataset", JString("this is not json"))
+  test("update request malformed json returns error response"){
+    def result = for (r <- post("resource", Option("testDataset"), None, JString("this is not json")).either.right) yield r
     result() match {
       case Left(exc) => fail(exc.getMessage)
       case Right(response) => {
@@ -43,11 +44,11 @@ class SodaServerIntegrationTest extends IntegrationTest {
     }
   }
 
-  test("row update request with unexpected format json returns error response"){
-    def result = postJson("testDataset", JArray(Array(JString("this is an array"), JString("why would you post an array?"))))
+  test("update request with unexpected format json returns error response"){
+    def result = for (r <- post("resource", Option("testDataset"), None, JArray(Array(JString("this is an array"), JString("why would you post an array?")))).either.right) yield r
     result() match {
-      case Left(exc) => fail(exc.getMessage)
       case Right(response) => response.getStatusCode must equal (400)
+      case Left(exc) => fail(exc.getMessage)
     }
   }
 
@@ -62,6 +63,41 @@ class SodaServerIntegrationTest extends IntegrationTest {
       case Right(response) => {
         response.getResponseBody must equal ("")
         response.getStatusCode must equal (200)
+      }
+      case Left(thr) => throw thr
+    }
+  }
+
+  test("soda fountain can upsert a row"){
+    val resourceName = "soda-int-upsert-row"
+    val body = JObject(Map(
+      "resource_name" -> JString(resourceName),
+      "name" -> JString("soda integration test upsert row"),
+      "columns" -> JArray(Seq(
+        column("text column", "coltext", Some("a text column"), "text"),
+        column("num column", "colnum", Some("a number column"), "number")
+      )),
+      "row_identifier" -> JString("coltext")
+    ))
+    val r = for { r <- post("dataset", None, None, body).either.right } yield r
+    r() match {
+      case Right(response) => {
+        response.getResponseBody must equal ("")
+        response.getStatusCode must equal (200)
+
+        val rowId = "rowZ"
+        val rowBody = JObject(Map(
+          "coltext" -> JString(rowId),
+          "colnum" -> JNumber(24601)
+        ))
+        val u = for { u <- post("resource", Some(resourceName), Some(rowId), rowBody).either.right } yield u
+        u() match {
+          case Right(rowResponse) => {
+            rowResponse.getResponseBody must equal ("")
+            rowResponse.getStatusCode must equal (200)
+          }
+          case Left(thr) => throw thr
+        }
       }
       case Left(thr) => throw thr
     }
