@@ -10,7 +10,7 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
   test("Mutation Script can add/drop column"){
     val responses = for {
       idAndResults <- fountain.dc.create("it_col_add_drop", userName, None).right
-      colCreate <- fountain.dc.update(idAndResults._1, None, userName, Array(AddColumnInstruction("new_col", Number())).toIterable).right
+      colCreate <- fountain.dc.update(idAndResults._1, None, userName, Array( new AddColumnInstruction("new_col", "number")).toIterable).right
       colDrop <- fountain.dc.update(idAndResults._1, None, userName, Array(DropColumnInstruction("new_col")).toIterable).right
     } yield (idAndResults, colCreate, colDrop)
 
@@ -26,7 +26,7 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
   test("can set/drop row id column"){
     val responses = for {
       idAndResults <-fountain.dc.create("it_col_set_drop_row_id", userName, None).right
-      newCol <- fountain.dc.update(idAndResults._1, None, userName, Array(AddColumnInstruction("new_col", Number())).toIterable).right
+      newCol <- fountain.dc.update(idAndResults._1, None, userName, Array(new AddColumnInstruction("new_col", "number")).toIterable).right
       setId <-  fountain.dc.update(idAndResults._1, None, userName, Array(SetRowIdColumnInstruction("new_col")).toIterable).right
       dropId <- fountain.dc.update(idAndResults._1, None, userName, Array(DropRowIdColumnInstruction("new_col")).toIterable).right
     } yield (idAndResults, newCol, setId, dropId)
@@ -44,7 +44,7 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
   test("can rename column"){
     val responses = for {
       idAndResults <-fountain.dc.create("it_col_rename", userName, None).right
-      namedCol <- fountain.dc.update(idAndResults._1, None, userName, Array(AddColumnInstruction("named_col", Number())).toIterable).right
+      namedCol <- fountain.dc.update(idAndResults._1, None, userName, Array(new AddColumnInstruction("named_col", "number")).toIterable).right
       renamedCol <-fountain.dc.update(idAndResults._1, None, userName, Array(RenameColumnInstruction("named_col", "renamed_col")).toIterable).right
     } yield (idAndResults, namedCol, renamedCol)
 

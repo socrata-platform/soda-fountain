@@ -5,7 +5,7 @@ import org.scalatest.FunSuite
 class ColumnMutationTest extends DataCoordinatorClientTest {
 
   test("Add Column toString produces JSON") {
-    val ac = new AddColumnInstruction("new_col", Number())
+    val ac = new AddColumnInstruction("new_col", "number")
     ac.toString must equal (normalizeWhitespace("{c:'add column',name:'new_col',type:'number'}"))
   }
   test("Drop Column toString produces JSON") {

@@ -74,10 +74,10 @@ class SodaServerIntegrationTest extends IntegrationTest {
       "resource_name" -> JString(resourceName),
       "name" -> JString("soda integration test upsert row"),
       "columns" -> JArray(Seq(
-        column("text column", "coltext", Some("a text column"), "text"),
-        column("num column", "colnum", Some("a number column"), "number")
+        column("text column", "col_text", Some("a text column"), "text"),
+        column("num column", "col_num", Some("a number column"), "number")
       )),
-      "row_identifier" -> JString("coltext")
+      "row_identifier" -> JString("col_text")
     ))
     val r = for { r <- post("dataset", None, None, body).either.right } yield r
     r() match {
@@ -87,13 +87,12 @@ class SodaServerIntegrationTest extends IntegrationTest {
 
         val rowId = "rowZ"
         val rowBody = JObject(Map(
-          "coltext" -> JString(rowId),
-          "colnum" -> JNumber(24601)
+          "col_text" -> JString(rowId),
+          "col_num" -> JNumber(24601)
         ))
         val u = for { u <- post("resource", Some(resourceName), Some(rowId), rowBody).either.right } yield u
         u() match {
           case Right(rowResponse) => {
-            rowResponse.getResponseBody must equal ("")
             rowResponse.getStatusCode must equal (200)
           }
           case Left(thr) => throw thr

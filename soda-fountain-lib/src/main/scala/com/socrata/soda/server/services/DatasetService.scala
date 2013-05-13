@@ -8,6 +8,8 @@ import com.socrata.datacoordinator.client._
 import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
 import scala.collection.Map
+import com.socrata.soql.types.SoQLType
+import com.socrata.soql.environment.TypeName
 
 
 trait DatasetService extends SodaService {
@@ -37,9 +39,9 @@ trait DatasetService extends SodaService {
                   val c = for {
                     JString(name) <- fields.get("name")
                     JString(fieldName) <- fields.get("field_name")
-                    JString(datatype) <- fields.get("datatype")
+                    JString(dataTypeName) <- fields.get("datatype")
                   }
-                  yield (name, fieldName, datatype, fields.get("description").map(_.asInstanceOf[JString].string) )
+                  yield (name, fieldName, dataTypeName, fields.get("description").map(_.asInstanceOf[JString].string) )
                   c match {
                     case Some(c) => Right(c)
                     case None => Left(jval)
@@ -48,9 +50,9 @@ trait DatasetService extends SodaService {
                 val badColumns = for (Left(bc) <- allColumns) yield bc
                 if (badColumns.length == 0){
                   val goodColumns = for (Right(gc) <- allColumns) yield gc
-                  val columnInstructions = goodColumns.map(c => AddColumnInstruction(c._2, Text())) //TODO: get the real type here
+                  val columnInstructions = goodColumns.map(c => new AddColumnInstruction(c._2, c._3))
                   val instructions = oRowId match{ case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid.asInstanceOf[JString].string); case None => columnInstructions}
-                  val loc = oLoc match { case Some(JString(loc)) => loc; case None => "en_US"}
+                  val loc = oLoc match { case Some(JString(loc)) => loc; case _ => "en_US"}
                   val r = dc.create(resourceName, mockUser, Some(instructions), loc )
                   r() match {
                     case Right((datasetId, records)) => {

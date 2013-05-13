@@ -2,18 +2,21 @@ package com.socrata.datacoordinator.client
 
 
 import com.rojoma.json.util.JsonUtil
-import com.rojoma.json.ast.{JString, JObject}
+import com.rojoma.json.ast._
+import com.socrata.soql.types.SoQLType
+import com.socrata.soql.environment.TypeName
 
 
 sealed abstract class ColumnMutation extends DataCoordinatorInstruction {
   override def toString = JsonUtil.renderJson(asJson)
 }
 
-case class AddColumnInstruction(name: String, dataType: DatasetType) extends CM {
+case class AddColumnInstruction(name: String, dataType: SoQLType) extends CM {
+  def this(name: String, dataTypeName: String) = this(name, SoQLType.typesByName(TypeName(dataTypeName)))
   def asJson = JObject(Map(
     "c"     -> JString("add column"),
     "name"  -> JString(name),
-    "type"  -> JString(dataType.name)))
+    "type"  -> JString(dataType.toString)))
 }
 
 case class DropColumnInstruction(name: String) extends CM {

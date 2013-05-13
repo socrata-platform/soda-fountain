@@ -9,7 +9,7 @@ trait MockNameAndSchemaStore extends SodaService {
   private object mock extends NameAndSchemaStore {
     val names = new scala.collection.mutable.HashMap[String, String]
 
-    def translateResourceName( resourceName: String) : Option[String] = ???
+    def translateResourceName( resourceName: String) : Option[String] = names.get(resourceName)
 
     def store(resourceName: String, datasetId: String) = names.put(resourceName, datasetId)
   }

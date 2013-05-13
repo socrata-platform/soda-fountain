@@ -19,7 +19,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a column mutation"){
-    val cm = AddColumnInstruction("column_to_add", Number())
+    val cm = new AddColumnInstruction("column_to_add", "number")
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
@@ -63,7 +63,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a both column mutation and row update"){
-    val cm = AddColumnInstruction("b", Text())
+    val cm = new AddColumnInstruction("b", "text")
     val ru = new UpsertRow(Map("a" -> JString("aaa"), "b" -> JString("bbb")))
     val mc = new MutationScript(
       "Daniel the tester",
@@ -81,7 +81,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
 
   test("Mutation Script encodes a column mutation after a row update"){
     val ru = new UpsertRow(Map("a" -> JString("aaa")))
-    val cm = AddColumnInstruction("b", Text())
+    val cm = new AddColumnInstruction("b", "text")
     val mc = new MutationScript(
       "Daniel the tester",
       UpdateDataset(fakeSchemaHash),
