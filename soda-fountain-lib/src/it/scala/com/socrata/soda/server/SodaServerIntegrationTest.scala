@@ -50,19 +50,44 @@ class SodaServerIntegrationTest extends IntegrationTest {
     response.getStatusCode must equal (400)
   }
 
-  test("soda fountain can create dataset"){
-    val body = JObject(Map(
-      "resource_name" -> JString("soda-int-create"),
+  test("soda fountain can create/setSchema/getSchema/delete dataset"){
+    val resourceName = "soda-int-dataset"
+    val cBody = JObject(Map(
+      "resource_name" -> JString(resourceName),
       "name" -> JString("soda integration test create dataset"),
       "columns" -> JArray(Seq())
     ))
-    val response = dispatch("POST", "dataset", None, None, Some(body))
-    response.getResponseBody must equal ("")
-    response.getStatusCode must equal (200)
+    val cResponse = dispatch("POST", "dataset", None, None, Some(cBody))
+    cResponse.getResponseBody must equal ("")
+    cResponse.getStatusCode must equal (200)
+
+    val sBoday = JObject(Map(
+      "row_identifier" -> JArray(Seq(JString("col_id"))),
+      "columns" -> JArray(Seq(
+        column("the ID column", "col_id", "this is the ID column", "number"),
+        column("a text column", "col_text", "this is a text column", "text"),
+        column("a boolean column", "col_bool", None, "boolean")
+      ))
+    ))
+    val sResponse = dispatch("POST", "dataset", Some(resourceName), None, Some(sBoday))
+    sResponse.getResponseBody must equal ("")
+    sResponse.getStatusCode must equal (200)
+
+    val gResponse = dispatch("GET", "dataset", Some(resourceName), None, Some(sBoday))
+    gResponse.getResponseBody must equal ("{dataset schema}")
+    gResponse.getStatusCode must equal (200)
+
+    val dResponse = dispatch("DELETE", "dataset", Some(resourceName), None, Some(sBoday))
+    dResponse.getResponseBody must equal ("")
+    dResponse.getStatusCode must equal (200)
+
+    val g2Response = dispatch("GET", "dataset", Some(resourceName), None, Some(sBoday))
+    g2Response.getResponseBody must equal ("")
+    g2Response.getStatusCode must equal (404)
   }
 
   test("soda fountain can insert/update/get/delete a row"){
-    val resourceName = "soda-int-upsert-row"
+    val resourceName = "soda-int-row"
     val body = JObject(Map(
       "resource_name" -> JString(resourceName),
       "name" -> JString("soda integration test upsert row"),
@@ -105,4 +130,5 @@ class SodaServerIntegrationTest extends IntegrationTest {
     gr2.getResponseBody must equal ("{verify row deleted}")
 
   }
+
 }
