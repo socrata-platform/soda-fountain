@@ -25,8 +25,7 @@ abstract class SodaFountain
   extends SodaService
   with DatasetService
   with RowService
-  with ColumnService
-  with CatalogService {
+  with ColumnService {
 
 
 }

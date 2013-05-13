@@ -22,34 +22,32 @@ class SodaServerIntegrationTest extends IntegrationTest {
     JObject(map)
   }
 
-  def post(service:String, part1o: Option[String], part2o: Option[String], body: JValue) = {
+  def dispatch(method: String, service:String, part1o: Option[String], part2o: Option[String], oBody: Option[JValue]) = {
     val url = host(hostname) / service
     val request = part1o.foldLeft(url){ (url1, part1) =>
       part2o.foldLeft( url1 / part1 ) ( (url2, part2) => url2 / part2)
     }
-    request.POST.
-      addHeader("Content-Type", "application/json").
-      setBody(body.toString)
-    Http(request)
+    request.setMethod(method).addHeader("Content-Type", "application/json")
+    oBody match {
+      case Some(body) => request.setBody(body.toString)
+      case None => request
+    }
+    val response = for (r <- Http(request).either.right) yield r
+    response() match {
+      case Right(response) => response
+      case Left(thr) => throw thr
+    }
   }
 
   test("update request malformed json returns error response"){
-    def result = for (r <- post("resource", Option("testDataset"), None, JString("this is not json")).either.right) yield r
-    result() match {
-      case Left(exc) => fail(exc.getMessage)
-      case Right(response) => {
-        response.getResponseBody.length must be > (0)
-        response.getStatusCode must equal (415)
-      }
-    }
+    val response = dispatch("POST", "resource", Option("testDataset"), None, Some(JString("this is not json")))
+    response.getResponseBody.length must be > (0)
+    response.getStatusCode must equal (415)
   }
 
   test("update request with unexpected format json returns error response"){
-    def result = for (r <- post("resource", Option("testDataset"), None, JArray(Array(JString("this is an array"), JString("why would you post an array?")))).either.right) yield r
-    result() match {
-      case Right(response) => response.getStatusCode must equal (400)
-      case Left(exc) => fail(exc.getMessage)
-    }
+    val response = dispatch("POST", "resource", Option("testDataset"), None, Some(JArray(Array(JString("this is an array"), JString("why would you post an array?")))))
+    response.getStatusCode must equal (400)
   }
 
   test("soda fountain can create dataset"){
@@ -58,17 +56,12 @@ class SodaServerIntegrationTest extends IntegrationTest {
       "name" -> JString("soda integration test create dataset"),
       "columns" -> JArray(Seq())
     ))
-    val r = for { r <- post("dataset", None, None, body).either.right } yield r
-    r() match {
-      case Right(response) => {
-        response.getResponseBody must equal ("")
-        response.getStatusCode must equal (200)
-      }
-      case Left(thr) => throw thr
-    }
+    val response = dispatch("POST", "dataset", None, None, Some(body))
+    response.getResponseBody must equal ("")
+    response.getStatusCode must equal (200)
   }
 
-  test("soda fountain can upsert a row"){
+  test("soda fountain can insert/update/get/delete a row"){
     val resourceName = "soda-int-upsert-row"
     val body = JObject(Map(
       "resource_name" -> JString(resourceName),
@@ -79,26 +72,37 @@ class SodaServerIntegrationTest extends IntegrationTest {
       )),
       "row_identifier" -> JString("col_text")
     ))
-    val r = for { r <- post("dataset", None, None, body).either.right } yield r
-    r() match {
-      case Right(response) => {
-        response.getResponseBody must equal ("")
-        response.getStatusCode must equal (200)
+    val d = dispatch("POST", "dataset", None, None, Some(body))
 
-        val rowId = "rowZ"
-        val rowBody = JObject(Map(
-          "col_text" -> JString(rowId),
-          "col_num" -> JNumber(24601)
-        ))
-        val u = for { u <- post("resource", Some(resourceName), Some(rowId), rowBody).either.right } yield u
-        u() match {
-          case Right(rowResponse) => {
-            rowResponse.getStatusCode must equal (200)
-          }
-          case Left(thr) => throw thr
-        }
-      }
-      case Left(thr) => throw thr
-    }
+    d.getResponseBody must equal ("")
+    d.getStatusCode must equal (200)
+
+    val rowId = "rowZ"
+    val urBody = JObject(Map(
+    "col_text" -> JString(rowId),
+    "col_num" -> JNumber(24601)
+    ))
+    val ur = dispatch("POST", "resource", Some(resourceName), Some(rowId), Some(urBody))
+    ur.getStatusCode must equal (200)
+
+    val rrBody = JObject(Map(
+    "col_text" -> JString(rowId),
+    "col_num" -> JNumber(101010)
+    ))
+    val rr = dispatch("POST", "resource", Some(resourceName), Some(rowId), Some(rrBody))
+    rr.getStatusCode must equal (200)
+
+    val gr = dispatch("GET", "resource", Some(resourceName), Some(rowId), None)
+    gr.getStatusCode must equal (200)
+    gr.getResponseBody must equal ("{row get response}")
+
+    val dr = dispatch("DELETE", "resource", Some(resourceName), Some(rowId), None)
+    dr.getStatusCode must equal (200)
+    dr.getResponseBody must equal ("{row delete response}")
+
+    val gr2 = dispatch("GET", "resource", Some(resourceName), Some(rowId), None)
+    gr2.getStatusCode must equal (404)
+    gr2.getResponseBody must equal ("{verify row deleted}")
+
   }
 }
