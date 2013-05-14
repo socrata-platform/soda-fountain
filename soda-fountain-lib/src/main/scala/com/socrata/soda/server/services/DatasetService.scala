@@ -41,7 +41,7 @@ trait DatasetService extends SodaService {
                     JString(fieldName) <- fields.get("field_name")
                     JString(dataTypeName) <- fields.get("datatype")
                   }
-                  yield (name, fieldName, dataTypeName, fields.get("description").map(_.asInstanceOf[JString].string) )
+                  yield (name, fieldName, dataTypeName, fields.get("description").map(_.asInstanceOf[JString].string) ) //TODO: catch the case that the description is not a string
                   c match {
                     case Some(c) => Right(c)
                     case None => Left(jval)
@@ -51,12 +51,12 @@ trait DatasetService extends SodaService {
                 if (badColumns.length == 0){
                   val goodColumns = for (Right(gc) <- allColumns) yield gc
                   val columnInstructions = goodColumns.map(c => new AddColumnInstruction(c._2, c._3))
-                  val instructions = oRowId match{ case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid.asInstanceOf[JString].string); case None => columnInstructions}
+                  val instructions = oRowId match{ case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid.asInstanceOf[JString].string); case None => columnInstructions}  //TODO: catch the bad cast
                   val loc = oLoc match { case Some(JString(loc)) => loc; case _ => "en_US"}
                   val r = dc.create(resourceName, mockUser, Some(instructions), loc )
                   r() match {
                     case Right((datasetId, records)) => {
-                      store.store(resourceName, datasetId)
+                      store.store(resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
                       OK
                     }
                     case Left(thr) => sendErrorResponse("could not create dataset", "internal.error", InternalServerError, Some(JString(thr.getMessage)))

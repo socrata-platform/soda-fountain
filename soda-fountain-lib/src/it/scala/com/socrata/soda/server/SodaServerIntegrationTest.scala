@@ -27,7 +27,7 @@ class SodaServerIntegrationTest extends IntegrationTest {
     val request = part1o.foldLeft(url){ (url1, part1) =>
       part2o.foldLeft( url1 / part1 ) ( (url2, part2) => url2 / part2)
     }
-    request.setMethod(method).addHeader("Content-Type", "application/json")
+    request.setMethod(method).addHeader("Content-Type", "application/json")     //TODO: set charset here to utf8
     oBody match {
       case Some(body) => request.setBody(body.toString)
       case None => request

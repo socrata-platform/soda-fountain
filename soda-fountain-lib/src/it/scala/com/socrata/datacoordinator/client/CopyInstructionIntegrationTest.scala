@@ -16,7 +16,7 @@ class CopyInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
 
     responses() match {
       case Right((idAndResults, delete)) => {
-        idAndResults._1.toInt must be > (0)
+        idAndResults._1.length must be > (0)
         delete.getResponseBody must equal ("""""".stripMargin)
         delete.getStatusCode must equal (200)
       }
