@@ -26,7 +26,7 @@ trait DatasetService extends SodaService {
     def create()(request:HttpServletRequest): HttpServletResponse => Unit =  {
       DatasetSpec(request.getReader) match {
         case Right(dspec) => {
-          val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.name, c.dataType))
+          val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.fieldName, c.dataType))
           val instructions = dspec.rowId match{
             case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid)
             case None => columnInstructions

@@ -99,8 +99,8 @@ class DatasetExtractor(map: Map[String, JValue]){
   }
   def rowId = map.get("row_identifier") match {
     case Some(jval) => jval match {
-      case JString(idString) => Right(Some(idString))
-      case _ => Left("An optional row_identifer was included but could not be read - it must be a string.")
+      case JArray(Seq(JString(idString))) => Right(Some(idString))
+      case _ => Left("An optional row_identifer was included but could not be read - it must be an array containing a single string (the name of the row_identifier column).")
     }
     case None => Right(None)
   }

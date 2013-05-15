@@ -154,12 +154,12 @@ class SodaServerIntegrationTest extends IntegrationTest {
         column("text column", "col_text", Some("a text column"), "text"),
         column("num column", "col_num", Some("a number column"), "number")
       )),
-      "row_identifier" -> JString("col_text")
+      "row_identifier" -> JArray(Seq(JString("col_text")))
     ))
-    val d = dispatch("POST", "dataset", None, None, Some(body))
+    val cd = dispatch("POST", "dataset", None, None, Some(body))
 
-    d.getResponseBody must equal ("")
-    d.getStatusCode must equal (200)
+    cd.getResponseBody must equal ("")
+    cd.getStatusCode must equal (200)
 
     //upsert row
     val rowId = "rowZ"

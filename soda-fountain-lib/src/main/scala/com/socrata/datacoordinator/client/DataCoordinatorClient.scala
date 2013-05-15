@@ -2,7 +2,7 @@ package com.socrata.datacoordinator.client
 
 import dispatch._, Defaults._
 import com.ning.http.client.Request.EntityWriter
-import java.io.{InputStreamReader, BufferedReader, Reader, OutputStream}
+import java.io._
 
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
@@ -65,12 +65,17 @@ trait DataCoordinatorClient {
     val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().toIterable))
     for(response <- sendScript(createUrl.POST, createScript)) yield response match {
       case Right(r) => {
-        val idAndHash = JsonUtil.readJson[JArray](new InputStreamReader(r.getResponseBodyAsStream))
-        idAndHash match {
-          case Some(JArray(Seq(JString(datasetId), JArray(rowReports)))) => {
-            Right((datasetId, rowReports))
+        val body = r.getResponseBody
+        r.getStatusCode match {
+          case 200 => {
+            JsonUtil.readJson[JArray](new StringReader(body)) match {
+              case Some(JArray(Seq(JString(datasetId), JArray(rowReports)))) => {
+                Right((datasetId, rowReports))
+              }
+              case None => Left(new Error("unexpected response from data coordinator: " + body))
+            }
           }
-          case None => Left(new Error("unexpected response from data coordinator"))
+          case _ => Left(new Error(body))
         }
       }
       case Left(t) => Left(t)
