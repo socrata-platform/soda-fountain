@@ -25,7 +25,7 @@ trait DataCoordinatorClient {
 
   val createUrl = host(baseUrl) / "dataset"
   def mutateUrl(datasetId: String) = host(baseUrl) / "dataset" / datasetId
-  def schemaUrl(datasetName: String) = host(baseUrl) / "dataset" / datasetName / "schema"
+  def schemaUrl(datasetId: String) = host(baseUrl) / "dataset" / datasetId / "schema"
 
   protected def jsonWriter(script: MutationScript): EntityWriter = new EntityWriter {
     def writeEntity(out: OutputStream) {
@@ -38,8 +38,8 @@ trait DataCoordinatorClient {
     }
   }
 
-  protected def getSchema(resourceName:String) = {
-    val request = schemaUrl(resourceName).GET
+  def getSchema(datasetId:String) = {
+    val request = schemaUrl(datasetId).GET
     Http(request)
   }
 

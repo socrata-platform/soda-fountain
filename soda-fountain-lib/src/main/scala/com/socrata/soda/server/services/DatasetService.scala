@@ -6,11 +6,6 @@ import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import dispatch._
 import com.socrata.datacoordinator.client._
 import com.rojoma.json.ast._
-import com.rojoma.json.util.JsonUtil
-import scala.collection.Map
-import com.socrata.soql.types.SoQLType
-import com.socrata.soql.environment.TypeName
-import java.io.Reader
 
 
 trait DatasetService extends SodaService {
@@ -44,10 +39,24 @@ trait DatasetService extends SodaService {
       }
     }
     def setSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
-      ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
+      ColumnSpec.array(request.getReader) match {
+        case Right(specs) => ???
+        case Left(ers) => sendErrorResponse( ers.mkString(" "), "column.specification.invalid", BadRequest, None )
+      }
     }
     def getSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
-      ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
+      val ido = store.translateResourceName(resourceName)
+      ido match {
+        case Some(id) => {
+          val f = dc.getSchema(id)
+          val r = f()
+          r.getStatusCode match {
+            case 200 => OK ~> Content(r.getResponseBody)
+            case _ => sendErrorResponse("could not find dataset schema", "dataset.schema.notfound", NotFound, Some(JString(resourceName)))
+          }
+        }
+        case None => sendErrorResponse("resource name not recognized", "resourceName.invalid", NotFound, Some(JString(resourceName)))
+      }
     }
     def delete(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("delete request not implemented")

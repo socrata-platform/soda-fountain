@@ -60,6 +60,21 @@ object DatasetSpec {
 }
 
 object ColumnSpec {
+
+  implicit class EitherPartition[A](underlying: Seq[A]) {
+    def divide[B, C](f: A => Either[B, C]): (Seq[B], Seq[C]) = {
+      val lefts = new VectorBuilder[B]
+      val rights = new VectorBuilder[C]
+      underlying.foreach { x =>
+        f(x) match {
+          case Left(l) => lefts += l
+          case Right(r) => rights += r
+        }
+      }
+      (lefts.result(), rights.result())
+    }
+  }
+
   def apply(jval: JValue) : Either[Seq[String], ColumnSpec] = {
     jval match {
       case JObject(map) => {
@@ -77,6 +92,28 @@ object ColumnSpec {
         }
       }
       case _ => Left(Seq("column specification could not be read as JSON object"))
+    }
+  }
+  def array(reader: Reader) : Either[Seq[String], Seq[ColumnSpec]] = {
+    try {
+      JsonUtil.readJson[Seq[JValue]](reader) match {
+        case Some(cjvals) => array(cjvals)
+        case None => Left(Seq("could not parse as JSON array"))
+      }
+    }
+    catch {
+      case e: Exception => Left(Seq("could not parse as JSON array: " + e.getMessage))
+      case _: Throwable => Left(Seq("could not parse as JSON array"))
+    }
+  }
+  def array( jvals: Seq[JValue]) : Either[Seq[String], Seq[ColumnSpec]] = {
+    val mapped = jvals.map(ColumnSpec(_))
+    val (badColumns, goodColumns) = mapped.divide(identity)
+    if (badColumns.flatten.nonEmpty ) {
+      Left(badColumns.flatten )
+    }
+    else {
+      Right(goodColumns)
     }
   }
 }
@@ -112,31 +149,10 @@ class DatasetExtractor(map: Map[String, JValue]){
     case None => Right("en_US")
   }
 
-  implicit class EitherPartition[A](underlying: Seq[A]) {
-    def divide[B, C](f: A => Either[B, C]): (Seq[B], Seq[C]) = {
-      val lefts = new VectorBuilder[B]
-      val rights = new VectorBuilder[C]
-      underlying.foreach { x =>
-        f(x) match {
-          case Left(l) => lefts += l
-          case Right(r) => rights += r
-        }
-      }
-      (lefts.result(), rights.result())
-    }
-  }
-
   def columns: Either[Seq[String], Seq[ColumnSpec]] = {
     map.get("columns") match {
       case Some(JArray(jvals)) => {
-        val mapped = jvals.map(ColumnSpec(_))
-        val (badColumns, goodColumns) = mapped.divide(identity)
-        if (badColumns.flatten.nonEmpty ) {
-          Left(badColumns.flatten )
-        }
-        else {
-          Right(goodColumns)
-        }
+        ColumnSpec.array(jvals)
       }
       case _ => Left(Seq("Dataset columns specification not found: 'columns' is a required key, and its value must be a json array"))
     }

@@ -111,12 +111,12 @@ class SodaServerIntegrationTest extends IntegrationTest {
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
       JObject(Map(("col_id"->JNumber(2)), ("col_text"->JString("row 2"))))
     ))
-    val sResponse = dispatch("POST", "dataset", Some(resourceName), None, Some(uBody))
-    sResponse.getResponseBody must equal ("{rows inserted}")
-    sResponse.getStatusCode must equal (200)
+    val uResponse = dispatch("POST", "resource", Some(resourceName), None, Some(uBody))
+    uResponse.getResponseBody must equal ("{rows inserted}")
+    uResponse.getStatusCode must equal (200)
 
     //query
-    val qResponse = dispatch("GET", "dataset", Some(resourceName), None, None)
+    val qResponse = dispatch("GET", "resource", Some(resourceName), None, None)
     qResponse.getResponseBody must equal ("{rows 1 and 2}")
     qResponse.getStatusCode must equal (200)
 
@@ -125,22 +125,22 @@ class SodaServerIntegrationTest extends IntegrationTest {
       JObject(Map(("col_id"->JNumber(8)), ("col_text"->JString("row 8")))),
       JObject(Map(("col_id"->JNumber(9)), ("col_text"->JString("row 9"))))
     ))
-    val rResponse = dispatch("PUT", "dataset", Some(resourceName), None, Some(rBody))
+    val rResponse = dispatch("PUT", "resource", Some(resourceName), None, Some(rBody))
     rResponse.getResponseBody must equal ("{rows put}")
     rResponse.getStatusCode must equal (200)
 
     //query
-    val q2Response = dispatch("GET", "dataset", Some(resourceName), None, None)
+    val q2Response = dispatch("GET", "resource", Some(resourceName), None, None)
     q2Response.getResponseBody must equal ("{rows 8 and 9}")
     q2Response.getStatusCode must equal (200)
 
     //truncate
-    val tResponse = dispatch("DELETE", "dataset", Some(resourceName), None, None)
+    val tResponse = dispatch("DELETE", "resource", Some(resourceName), None, None)
     tResponse.getResponseBody must equal ("{rows deleted}")
     tResponse.getStatusCode must equal (200)
 
     //query
-    val q3Response = dispatch("GET", "dataset", Some(resourceName), None, None)
+    val q3Response = dispatch("GET", "resource", Some(resourceName), None, None)
     q3Response.getResponseBody must equal ("{all rows should be truncated}")
     q3Response.getStatusCode must equal (200)
   }
