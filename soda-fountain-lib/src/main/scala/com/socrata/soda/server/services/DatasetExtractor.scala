@@ -13,8 +13,8 @@ import com.rojoma.json.ast.JString
 case class DatasetSpec( resourceName:String,
                         name:String,
                         description:Option[String],
-                        rowId:Option[Either[BigDecimal, String]],
-                        locale:Option[String],
+                        rowId:Option[String],
+                        locale:String,
                         columns:Seq[ColumnSpec])
 case class ColumnSpec(  fieldName:String,
                         name:String,
@@ -99,18 +99,17 @@ class DatasetExtractor(map: Map[String, JValue]){
   }
   def rowId = map.get("row_identifier") match {
     case Some(jval) => jval match {
-      case JString(idString) => Right(Some(Right(idString)))
-      case JNumber(idNum) => Right(Some(Left(idNum)))
+      case JString(idString) => Right(Some(idString))
       case _ => Left("An optional row_identifer was included but could not be read - it must be a string.")
     }
     case None => Right(None)
   }
   def locale = map.get("locale") match {
     case Some(jval) => jval match {
-      case JString(loc) => Right(Some(loc))
+      case JString(loc) => Right(loc)
       case _ => Left("An optional locale description was included but could not be read - it must be a string.")
     }
-    case None => Right(None)
+    case None => Right("en_US")
   }
 
   implicit class EitherPartition[A](underlying: Seq[A]) {

@@ -24,59 +24,24 @@ trait DatasetService extends SodaService {
       ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
     }
     def create()(request:HttpServletRequest): HttpServletResponse => Unit =  {
-      try {
-        val fields = JsonUtil.readJson[Map[String,JValue]](request.getReader)
-        fields match {
-          case Some(requestMap) => {
-            val spec = for {
-              JString(resourceName) <- requestMap.get("resource_name")
-              JString(name) <- requestMap.get("name")
-              JArray(columns) <- requestMap.get("columns")
-            } yield (resourceName, name, columns, requestMap.get("description"), requestMap.get("row_identifier"), requestMap.get("locale"))
-            spec match {
-              case Some((resourceName, name, jColumns, oDesc, oRowId, oLoc)) => {
-                val allColumns = jColumns.map{ jval =>
-                  val fields = jval.asInstanceOf[JObject].toMap
-                  val c = for {
-                    JString(name) <- fields.get("name")
-                    JString(fieldName) <- fields.get("field_name")
-                    JString(dataTypeName) <- fields.get("datatype")
-                  }
-                  yield (name, fieldName, dataTypeName, fields.get("description").map(_.asInstanceOf[JString].string) ) //TODO: catch the case that the description is not a string
-                  c match {
-                    case Some(c) => Right(c)
-                    case None => Left(jval)
-                  }
-                }
-                val badColumns = for (Left(bc) <- allColumns) yield bc
-                if (badColumns.length == 0){
-                  val goodColumns = for (Right(gc) <- allColumns) yield gc
-                  val columnInstructions = goodColumns.map(c => new AddColumnInstruction(c._2, c._3))
-                  val instructions = oRowId match{ case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid.asInstanceOf[JString].string); case None => columnInstructions}  //TODO: catch the bad cast
-                  val loc = oLoc match { case Some(JString(loc)) => loc; case _ => "en_US"}
-                  val r = dc.create(resourceName, mockUser, Some(instructions), loc )
-                  r() match {
-                    case Right((datasetId, records)) => {
-                      store.store(resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
-                      OK
-                    }
-                    case Left(thr) => sendErrorResponse("could not create dataset", "internal.error", InternalServerError, Some(JString(thr.getMessage)))
-                  }
-                }
-                else {
-                  sendErrorResponse("name, field_name, and datatype are required for each column", "invalid.column", BadRequest, Some(JArray(badColumns)))
-                }
-              }
-              case None => sendErrorResponse("resource_name, name, and columns must all be specified to create a dataset", "missing.values", BadRequest, None)
-            }
+      DatasetSpec(request.getReader) match {
+        case Right(dspec) => {
+          val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.name, c.dataType))
+          val instructions = dspec.rowId match{
+            case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid)
+            case None => columnInstructions
           }
-          case None => sendErrorResponse("could not parse request body for dataset creation", "parse.error", BadRequest, None)
+          val r = dc.create(dspec.resourceName, mockUser, Some(instructions), dspec.locale )
+          r() match {
+            case Right((datasetId, records)) => {
+              store.store(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
+              OK
+            }
+            case Left(thr) => sendErrorResponse("could not create dataset", "internal.error", InternalServerError, Some(JString(thr.getMessage)))
+          }
         }
-      } catch {
-        case e: Exception => sendErrorResponse("could not parse request body as JSON: " + e.getMessage, "parse.error", UnsupportedMediaType, None)
-        case _: Throwable => sendErrorResponse("error processing request", "internal.error", InternalServerError, None)
+        case Left(ers: Seq[String]) => sendErrorResponse( ers.mkString(" "), "dataset.specification.invalid", BadRequest, None )
       }
-
     }
     def setSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
