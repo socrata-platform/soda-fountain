@@ -10,6 +10,7 @@ import com.rojoma.json.util.JsonUtil
 import scala.collection.Map
 import com.socrata.soql.types.SoQLType
 import com.socrata.soql.environment.TypeName
+import java.io.Reader
 
 
 trait DatasetService extends SodaService {
@@ -86,6 +87,7 @@ trait DatasetService extends SodaService {
     def delete(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("delete request not implemented")
     }
+
+
   }
 }
-
