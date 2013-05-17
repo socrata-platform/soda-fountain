@@ -6,13 +6,32 @@ import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import dispatch._
 import com.socrata.datacoordinator.client._
 import com.rojoma.json.ast._
+import com.socrata.soda.server.services.ClientRequestExtractor._
+import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
+import com.rojoma.json.io.{JsonBadParse, JsonReader}
 
 
 trait DatasetService extends SodaService {
 
   object dataset {
 
-    def upsert(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
+    def upsert(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val it = streamJsonArrayValues(request, 1000000L)  //TODO: read this limit from config
+      it match {
+        case Right(boundedIt) => {
+          try {
+            while (boundedIt.hasNext){
+
+            }
+            OK
+          }
+          catch {
+            case bp: JsonBadParse => sendErrorResponse("bad JSON value: " + bp.getMessage, "json.value.invalid", BadRequest, None)
+          }
+        }
+        case Left(err) => sendErrorResponse("Error upserting values", err, BadRequest, None)
+      }
+    }
     def replace(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
     def truncate(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
     def query(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
