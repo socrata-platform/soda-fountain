@@ -83,13 +83,11 @@ trait DataCoordinatorClient {
     response
   }
 
-  def streamMutateRequest(datasetId: String, script: MutationScript) = {
-    /*
-    val client = dispatch.Http.client
-    dc.
-      client.executeRequest(dcRequest)
-      */
-  }
+//  So it seems that Dispatch doesn't support streaming/chunked requests.  I'll have to find (or write) a way to do this.
+//  TODO: find a way to do request streaming
+//
+//  def streamMutateRequest(datasetId: String, script: MutationScript): Future[Either[Throwable, Response]] = {
+//  }
 
   def sendScript( rb: RequestBuilder, script: MutationScript) = {
     rb.addHeader("Content-Type", "application/json").setBody(jsonWriter(script))

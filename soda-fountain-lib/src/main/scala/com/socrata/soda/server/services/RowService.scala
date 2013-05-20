@@ -17,15 +17,16 @@ trait RowService extends SodaService {
         val fields = JsonUtil.readJson[Map[String,JValue]](request.getReader)
         fields match {
           case Some(map) => {
-            store.translateResourceName(resourceName) match {
-              case Some(datasetId) => {
+            val rnf = store.translateResourceName(resourceName)
+            rnf() match {
+              case Right(datasetId) => {
                 val response = dc.update(datasetId, None, "soda-fountain-community-edition", Array(UpsertRow(map)).iterator)
                 response() match {
                   case Right(resp) => DataCoordinatorClient.passThroughResponse(resp)
                   case Left(th) => sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None)
                 }
               }
-              case None => sendErrorResponse("could not find dataset", "unknown.dataset", NotFound, Some(JString(resourceName)))
+              case Left(err) => sendErrorResponse(err, "unknown.dataset", NotFound, Some(JString(resourceName)))
             }
           }
           case None => sendErrorResponse("could not parse request body as single JSON object", "parse.error", BadRequest, None)

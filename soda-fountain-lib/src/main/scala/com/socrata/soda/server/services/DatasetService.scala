@@ -22,23 +22,30 @@ trait DatasetService extends SodaService {
       it match {
         case Right(boundedIt) => {
           try {
-            for {
-              datasetId <- store.translateResourceName(resourceName)
-              schema <- dc.getSchema(datasetId)
-            } {
-              val upserts = boundedIt.map { rowjval =>
-                rowjval match {
-                  case JObject(map) =>  UpsertRow(map)
-                  case _ => throw new Error("unexpected value")
+            val rnf = store.translateResourceName(resourceName)
+            rnf() match {
+              case Right(datasetId) => {
+                val sf = dc.getSchema(datasetId)
+                sf() match {
+                  case Right(schema) => {
+                    val upserts = boundedIt.map { rowjval =>
+                      rowjval match {
+                        case JObject(map) =>  UpsertRow(map)
+                        case _ => throw new Error("unexpected value")
+                      }
+                    }
+
+                    val r = dc.update(datasetId, None, mockUser, upserts)
+                    r() match {
+                      case Right(rr) => OK
+                      case Left(thr) => sendErrorResponse(thr.getMessage, "upsert.error", InternalServerError, None)
+                    }
+                  }
+                  case Left(err) => sendErrorResponse(err, "schema.not-found", NotFound, None)
                 }
               }
-              val r = dc.update(datasetId, None, mockUser, upserts)
-              r() match {
-                case Right(rr) => OK
-                case Left(thr) => sendErrorResponse(thr.getMessage, "upsert.error", InternalServerError, None)
-              }
+              case Left(err) => sendErrorResponse(err, "dataset.not-found", NotFound, None)
             }
-            sendErrorResponse("could not find datasetId or schema", "dataset.not-found", NotFound, None)
           }
           catch {
             case bp: JsonBadParse => sendErrorResponse("bad JSON value: " + bp.getMessage, "json.value.invalid", BadRequest, None)
@@ -80,8 +87,8 @@ trait DatasetService extends SodaService {
     }
     def getSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val ido = store.translateResourceName(resourceName)
-      ido match {
-        case Some(id) => {
+      ido() match {
+        case Right(id) => {
           val f = dc.getSchema(id)
           val r = f()
           r match {
@@ -89,7 +96,7 @@ trait DatasetService extends SodaService {
             case Left(err) => sendErrorResponse(err, "dataset.schema.notfound", NotFound, Some(JString(resourceName)))
           }
         }
-        case None => sendErrorResponse("resource name not recognized", "resourceName.invalid", NotFound, Some(JString(resourceName)))
+        case Left(err) => sendErrorResponse(err, "resourceName.invalid", NotFound, Some(JString(resourceName)))
       }
     }
     def delete(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {

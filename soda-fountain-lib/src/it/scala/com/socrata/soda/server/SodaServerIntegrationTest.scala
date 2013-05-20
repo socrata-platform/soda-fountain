@@ -45,4 +45,31 @@ class SodaServerIntegrationTest extends IntegrationTest {
     }
   }
 
+  test("soda fountain upsert"){
+
+    val resourceName = "soda-upsert"
+    val cBody = JObject(Map(
+      "resource_name" -> JString(resourceName),
+      "name" -> JString("soda integration test upsert"),
+      "columns" -> JArray(Seq(
+        column("the ID column", "col_id", Some("this is the ID column"), "number"),
+        column("a text column", "col_text", Some("this is a text column"), "text"),
+        column("a boolean column", "col_bool", None, "boolean")
+      ))
+    ))
+    val cResponse = dispatch("POST", "dataset", None, None, Some(cBody))
+    cResponse.getResponseBody must equal ("")
+    cResponse.getStatusCode must equal (200)
+
+    //upsert
+    val uBody = JArray(Seq(
+      JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
+      JObject(Map(("col_id"->JNumber(2)), ("col_does_not_exist"->JString("row 2")))),
+      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3"))))
+    ))
+    val uResponse = dispatch("POST", "resource", Some(resourceName), None, Some(uBody))
+    uResponse.getResponseBody must equal ("{rows inserted}")
+    uResponse.getStatusCode must equal (200)
+  }
+
 }
