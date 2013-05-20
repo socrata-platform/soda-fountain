@@ -9,6 +9,8 @@ import com.rojoma.json.ast._
 import com.socrata.soda.server.services.ClientRequestExtractor._
 import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.json.io.{JsonBadParse, JsonReader}
+import scala.collection.Map
+import scala.concurrent.ExecutionContext.Implicits.global
 
 
 trait DatasetService extends SodaService {
@@ -20,10 +22,23 @@ trait DatasetService extends SodaService {
       it match {
         case Right(boundedIt) => {
           try {
-            while (boundedIt.hasNext){
-
+            for {
+              datasetId <- store.translateResourceName(resourceName)
+              schema <- dc.getSchema(datasetId)
+            } {
+              val upserts = boundedIt.map { rowjval =>
+                rowjval match {
+                  case JObject(map) =>  UpsertRow(map)
+                  case _ => throw new Error("unexpected value")
+                }
+              }
+              val r = dc.update(datasetId, None, mockUser, upserts)
+              r() match {
+                case Right(rr) => OK
+                case Left(thr) => sendErrorResponse(thr.getMessage, "upsert.error", InternalServerError, None)
+              }
             }
-            OK
+            sendErrorResponse("could not find datasetId or schema", "dataset.not-found", NotFound, None)
           }
           catch {
             case bp: JsonBadParse => sendErrorResponse("bad JSON value: " + bp.getMessage, "json.value.invalid", BadRequest, None)
@@ -45,7 +60,7 @@ trait DatasetService extends SodaService {
             case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid)
             case None => columnInstructions
           }
-          val r = dc.create(dspec.resourceName, mockUser, Some(instructions), dspec.locale )
+          val r = dc.create(dspec.resourceName, mockUser, Some(instructions.iterator), dspec.locale )
           r() match {
             case Right((datasetId, records)) => {
               store.store(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
@@ -69,9 +84,9 @@ trait DatasetService extends SodaService {
         case Some(id) => {
           val f = dc.getSchema(id)
           val r = f()
-          r.getStatusCode match {
-            case 200 => OK ~> Content(r.getResponseBody)
-            case _ => sendErrorResponse("could not find dataset schema", "dataset.schema.notfound", NotFound, Some(JString(resourceName)))
+          r match {
+            case Right(schema) => OK ~> Content(schema.toString)
+            case Left(err) => sendErrorResponse(err, "dataset.schema.notfound", NotFound, Some(JString(resourceName)))
           }
         }
         case None => sendErrorResponse("resource name not recognized", "resourceName.invalid", NotFound, Some(JString(resourceName)))

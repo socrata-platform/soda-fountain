@@ -19,7 +19,7 @@ trait RowService extends SodaService {
           case Some(map) => {
             store.translateResourceName(resourceName) match {
               case Some(datasetId) => {
-                val response = dc.update(datasetId, None, "soda-fountain-community-edition", Array(UpsertRow(map)).toIterable)
+                val response = dc.update(datasetId, None, "soda-fountain-community-edition", Array(UpsertRow(map)).iterator)
                 response() match {
                   case Right(resp) => DataCoordinatorClient.passThroughResponse(resp)
                   case Left(th) => sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None)

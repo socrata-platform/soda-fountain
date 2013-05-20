@@ -9,14 +9,38 @@ import com.socrata.http.server.implicits._
 import com.ning.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.responses
 import javax.servlet.http.HttpServletResponse
-import com.rojoma.json.util.JsonUtil
+import com.rojoma.json.util.{SimpleJsonCodecBuilder, JsonUtil}
 import com.rojoma.json.ast._
+import com.socrata.datacoordinator.client.DataCoordinatorClient.{RowOpReport, SchemaSpec}
+
 
 object DataCoordinatorClient {
+
+  object SchemaSpec {
+    implicit val codec = SimpleJsonCodecBuilder[SchemaSpec].build("hash", _.hash, "pk", _.pk, "schema", _.schema)
+  }
+  class SchemaSpec(val hash: String, val pk: String, val schema: Map[String,String]) {
+    override def toString = JsonUtil.renderJson(this)
+  }
+
+  object MutationResponse {
+  }
+  class MutationResponse
+
+  class RowOpReport(val createdCount: Int, val updatedCount: Int, val deletedCount: Int)
+  object RowOpReport {
+    implicit val codec = SimpleJsonCodecBuilder[RowOpReport].build("rows_created", _.createdCount , "rows_updated", _.updatedCount, "rows_deleted", _.deletedCount)
+  }
 
   def passThroughResponse(response: Response): HttpServletResponse => Unit = {
     responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
   }
+  def passThroughResponse(report: RowOpReport): HttpServletResponse => Unit = {
+    val sw = new StringWriter()
+    JsonUtil.writeJson[RowOpReport](sw, report, false, false)
+    OK ~>  ContentType("application/json") ~> Content(sw.toString)
+  }
+
 }
 
 trait DataCoordinatorClient {
@@ -38,9 +62,16 @@ trait DataCoordinatorClient {
     }
   }
 
+
   def getSchema(datasetId:String) = {
     val request = schemaUrl(datasetId).GET
-    Http(request)
+    for ( response <- Http(request) ) yield {
+      val osch = JsonUtil.readJson[SchemaSpec](new StringReader(response.getResponseBody))
+      osch match {
+        case Some(sch) => Right(sch)
+        case None => Left("schema not found")
+      }
+    }
   }
 
   def sendMutateRequest(datasetId: String, script: MutationScript) = {
@@ -52,6 +83,14 @@ trait DataCoordinatorClient {
     response
   }
 
+  def streamMutateRequest(datasetId: String, script: MutationScript) = {
+    /*
+    val client = dispatch.Http.client
+    dc.
+      client.executeRequest(dcRequest)
+      */
+  }
+
   def sendScript( rb: RequestBuilder, script: MutationScript) = {
     rb.addHeader("Content-Type", "application/json").setBody(jsonWriter(script))
     val response = Http(rb).either
@@ -60,9 +99,9 @@ trait DataCoordinatorClient {
 
   def create( resourceName: String,
               user: String,
-              instructions: Option[Iterable[DataCoordinatorInstruction]],
+              instructions: Option[Iterator[DataCoordinatorInstruction]],
               locale: String = "en_US") = {
-    val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().toIterable))
+    val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
     for(response <- sendScript(createUrl.POST, createScript)) yield response match {
       case Right(r) => {
         val body = r.getResponseBody
@@ -81,24 +120,33 @@ trait DataCoordinatorClient {
       case Left(t) => Left(t)
     }
   }
-  def update(datasetId: String, schema: Option[String], user: String, instructions: Iterable[DataCoordinatorInstruction]) = {
+  def update(datasetId: String, schema: Option[String], user: String, instructions: Iterator[DataCoordinatorInstruction]) = {
     val updateScript = new MutationScript(user, UpdateDataset(schema), instructions)
-    sendScript(mutateUrl(datasetId).POST, updateScript)
+    val future = sendScript(mutateUrl(datasetId).POST, updateScript)
+    for (r <- future) yield r match {
+      case Right(response) => Right(response) //JsonUtil.readJson[RowOpReport](new StringReader(response.getResponseBody)) match {
+        //case Some(rr) => Right(rr)
+        //case None => Left(new Exception("could not read row report"))
+      //}
+      case Left(thr) => Left(thr)
+    }
   }
-  def copy(datasetId: String, schema: Option[String], copyData: Boolean, user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
-    val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Array().toIterable))
+  def copy(datasetId: String, schema: Option[String], copyData: Boolean, user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
+    val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Array().iterator))
     sendScript(mutateUrl(datasetId).POST, createScript)
   }
-  def publish(datasetId: String, schema: Option[String], snapshotLimit:Option[Int], user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
-    val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions.getOrElse(Array().toIterable))
+  def publish(datasetId: String, schema: Option[String], snapshotLimit:Option[Int], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
+    val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions.getOrElse(Array().iterator))
     sendScript(mutateUrl(datasetId).POST, pubScript)
   }
-  def dropCopy(datasetId: String, schema: Option[String], user: String, instructions: Option[Iterable[DataCoordinatorInstruction]]) = {
-    val dropScript = new MutationScript(user, DropDataset(schema), instructions.getOrElse(Array().toIterable))
+  def dropCopy(datasetId: String, schema: Option[String], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
+    val dropScript = new MutationScript(user, DropDataset(schema), instructions.getOrElse(Array().iterator))
     sendScript(mutateUrl(datasetId).POST, dropScript)
   }
   def deleteAllCopies(datasetId: String, schema: Option[String], user: String) = {
-    val deleteScript = new MutationScript(user, DropDataset(schema), Array().toIterable)
+    val deleteScript = new MutationScript(user, DropDataset(schema), Array().iterator)
     sendScript(mutateUrl(datasetId).DELETE, deleteScript)
   }
+
+
 }

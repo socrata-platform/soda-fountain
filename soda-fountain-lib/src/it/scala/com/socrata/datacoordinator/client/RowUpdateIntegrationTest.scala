@@ -10,7 +10,7 @@ class RowUpdateIntegrationTest extends DataCoordinatorIntegrationTest {
   test("can declare row data"){
     val responses = for {
       idAndResults <-fountain.dc.create("it_declare_row_data", userName, None).right
-      rowDataDec <- fountain.dc.update(idAndResults._1, None, userName, Array(RowUpdateOptionChange(true, false, true)).toIterable).right
+      rowDataDec <- fountain.dc.update(idAndResults._1, None, userName, Array(RowUpdateOptionChange(true, false, true)).iterator).right
     } yield (idAndResults, rowDataDec)
 
     responses() match {

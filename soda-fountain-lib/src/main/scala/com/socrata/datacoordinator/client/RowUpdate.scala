@@ -2,6 +2,7 @@ package com.socrata.datacoordinator.client
 
 import com.rojoma.json.util.JsonUtil
 import com.rojoma.json.ast._
+import scala.collection.Map
 
 sealed abstract class RowUpdate extends DataCoordinatorInstruction {
   override def toString = JsonUtil.renderJson(asJson)

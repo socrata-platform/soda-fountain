@@ -4,6 +4,7 @@ import org.scalatest.FunSuite
 import org.scalatest.matchers.MustMatchers
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import java.io.StringReader
+import com.socrata.soda.server.services.ClientRequestExtractor.DatasetSpec
 
 class DatasetExtractorTest extends FunSuite with MustMatchers {
   def normalizeWhitespace(fixture: String): String = CompactJsonWriter.toString(JsonReader(fixture).read())
