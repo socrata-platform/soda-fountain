@@ -3,10 +3,11 @@ package com.socrata.datacoordinator.client
 import dispatch._
 import com.socrata.soda.server.{SodaFountain, IntegrationTest}
 import com.socrata.soda.server.mocks.{MockNameAndSchemaStore, LocalDataCoordinator}
+import com.socrata.querycoordinator.client.{LocalQueryCoordinatorClient, QueryCoordinatorClient}
 
 class DataCoordinatorIntegrationTest extends IntegrationTest {
 
-  val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator
+  val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator with LocalQueryCoordinatorClient
 
   def coordinatorCompare(datasetId: String, ms: MutationScript, expectedResponse: String){
     val actual = coordinatorGetResponseOrError(datasetId, ms)
