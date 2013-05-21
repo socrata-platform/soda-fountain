@@ -34,10 +34,11 @@ trait DatasetService extends SodaService {
                         case _ => throw new Error("unexpected value")
                       }
                     }
-
                     val r = dc.update(datasetId, None, mockUser, upserts)
                     r() match {
-                      case Right(rr) => OK
+                      case Right(rr) => {
+                        DataCoordinatorClient.passThroughResponse(rr)
+                      }
                       case Left(thr) => sendErrorResponse(thr.getMessage, "upsert.error", InternalServerError, None)
                     }
                   }
@@ -57,7 +58,10 @@ trait DatasetService extends SodaService {
     def replace(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
     def truncate(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
     def query(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
-      ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
+
+      val q = Option(request.getParameter("$query")).getOrElse("select *")
+
+      sendErrorResponse("not yet implemented", "NYI", InternalServerError, None)
     }
     def create()(request:HttpServletRequest): HttpServletResponse => Unit =  {
       DatasetSpec(request.getReader) match {

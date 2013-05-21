@@ -22,13 +22,13 @@ class IntegrationTest extends FunSuite with MustMatchers with ParallelTestExecut
     JObject(map)
   }
 
-  def dispatch(method: String, service:String, part1o: Option[String], part2o: Option[String], oBody: Option[JValue]) = {
+  def dispatch(method: String, service:String, part1o: Option[String], part2o: Option[String], paramso: Option[Map[String,String]], bodyo: Option[JValue]) = {
     val url = host(hostname) / service
     val request = part1o.foldLeft(url){ (url1, part1) =>
       part2o.foldLeft( url1 / part1 ) ( (url2, part2) => url2 / part2)
     }
     request.setMethod(method).addHeader("Content-Type", "application/json;charset=utf-8")
-    oBody match {
+    bodyo match {
       case Some(body) => request.setBody(body.toString)
       case None => request
     }

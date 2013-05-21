@@ -17,7 +17,7 @@ class SodaServerEndToEndTest extends IntegrationTest {
       "name" -> JString("soda integration test create/setSchema/getSchema/delete dataset"),
       "columns" -> JArray(Seq())
     ))
-    val cResponse = dispatch("POST", "dataset", None, None, Some(cBody))
+    val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
     cResponse.getResponseBody must equal ("")
     cResponse.getStatusCode must equal (200)
 
@@ -30,22 +30,22 @@ class SodaServerEndToEndTest extends IntegrationTest {
         column("a boolean column", "col_bool", None, "boolean")
       ))
     ))
-    val sResponse = dispatch("POST", "dataset", Some(resourceName), None, Some(sBody))
+    val sResponse = dispatch("POST", "dataset", Some(resourceName), None, None,  Some(sBody))
     sResponse.getResponseBody must equal ("")
     sResponse.getStatusCode must equal (200)
 
     //get schema
-    val gResponse = dispatch("GET", "dataset", Some(resourceName), None, None)
+    val gResponse = dispatch("GET", "dataset", Some(resourceName), None, None,  None)
     gResponse.getResponseBody must equal ("{dataset schema}")
     gResponse.getStatusCode must equal (200)
 
     //delete
-    val dResponse = dispatch("DELETE", "dataset", Some(resourceName), None, None)
+    val dResponse = dispatch("DELETE", "dataset", Some(resourceName), None, None,  None)
     dResponse.getResponseBody must equal ("")
     dResponse.getStatusCode must equal (200)
 
     //verify deleted
-    val g2Response = dispatch("GET", "dataset", Some(resourceName), None, None)
+    val g2Response = dispatch("GET", "dataset", Some(resourceName), None, None,  None)
     g2Response.getResponseBody must equal ("g")
     g2Response.getStatusCode must equal (404)
   }
@@ -62,7 +62,7 @@ class SodaServerEndToEndTest extends IntegrationTest {
         column("a boolean column", "col_bool", None, "boolean")
       ))
     ))
-    val cResponse = dispatch("POST", "dataset", None, None, Some(cBody))
+    val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
     cResponse.getResponseBody must equal ("")
     cResponse.getStatusCode must equal (200)
 
@@ -71,12 +71,13 @@ class SodaServerEndToEndTest extends IntegrationTest {
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
       JObject(Map(("col_id"->JNumber(2)), ("col_text"->JString("row 2"))))
     ))
-    val uResponse = dispatch("POST", "resource", Some(resourceName), None, Some(uBody))
-    uResponse.getResponseBody must equal ("{rows inserted}")
+    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    //uResponse.getResponseBody must equal ("{rows inserted}")
     uResponse.getStatusCode must equal (200)
 
     //query
-    val qResponse = dispatch("GET", "resource", Some(resourceName), None, None)
+    val params = Map(("$query" -> "select *"))
+    val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
     qResponse.getResponseBody must equal ("{rows 1 and 2}")
     qResponse.getStatusCode must equal (200)
 
@@ -85,22 +86,22 @@ class SodaServerEndToEndTest extends IntegrationTest {
       JObject(Map(("col_id"->JNumber(8)), ("col_text"->JString("row 8")))),
       JObject(Map(("col_id"->JNumber(9)), ("col_text"->JString("row 9"))))
     ))
-    val rResponse = dispatch("PUT", "resource", Some(resourceName), None, Some(rBody))
+    val rResponse = dispatch("PUT", "resource", Some(resourceName), None, None,  Some(rBody))
     rResponse.getResponseBody must equal ("{rows put}")
     rResponse.getStatusCode must equal (200)
 
     //query
-    val q2Response = dispatch("GET", "resource", Some(resourceName), None, None)
+    val q2Response = dispatch("GET", "resource", Some(resourceName), None, None,  None)
     q2Response.getResponseBody must equal ("{rows 8 and 9}")
     q2Response.getStatusCode must equal (200)
 
     //truncate
-    val tResponse = dispatch("DELETE", "resource", Some(resourceName), None, None)
+    val tResponse = dispatch("DELETE", "resource", Some(resourceName), None, None,  None)
     tResponse.getResponseBody must equal ("{rows deleted}")
     tResponse.getStatusCode must equal (200)
 
     //query
-    val q3Response = dispatch("GET", "resource", Some(resourceName), None, None)
+    val q3Response = dispatch("GET", "resource", Some(resourceName), None, None,  None)
     q3Response.getResponseBody must equal ("{all rows should be truncated}")
     q3Response.getStatusCode must equal (200)
   }
@@ -116,7 +117,7 @@ class SodaServerEndToEndTest extends IntegrationTest {
       )),
       "row_identifier" -> JArray(Seq(JString("col_text")))
     ))
-    val cd = dispatch("POST", "dataset", None, None, Some(body))
+    val cd = dispatch("POST", "dataset", None, None, None,  Some(body))
 
     cd.getResponseBody must equal ("")
     cd.getStatusCode must equal (200)
@@ -127,7 +128,7 @@ class SodaServerEndToEndTest extends IntegrationTest {
       "col_text" -> JString(rowId),
       "col_num" -> JNumber(24601)
     ))
-    val ur = dispatch("POST", "resource", Some(resourceName), Some(rowId), Some(urBody))
+    val ur = dispatch("POST", "resource", Some(resourceName), Some(rowId), None,  Some(urBody))
     ur.getStatusCode must equal (200)
 
     //replace row
@@ -135,21 +136,21 @@ class SodaServerEndToEndTest extends IntegrationTest {
       "col_text" -> JString(rowId),
       "col_num" -> JNumber(101010)
     ))
-    val rr = dispatch("POST", "resource", Some(resourceName), Some(rowId), Some(rrBody))
+    val rr = dispatch("POST", "resource", Some(resourceName), Some(rowId), None,  Some(rrBody))
     rr.getStatusCode must equal (200)
 
     //get row
-    val gr = dispatch("GET", "resource", Some(resourceName), Some(rowId), None)
+    val gr = dispatch("GET", "resource", Some(resourceName), Some(rowId), None,  None)
     gr.getStatusCode must equal (200)
     gr.getResponseBody must equal ("{row get response}")
 
     //delete row
-    val dr = dispatch("DELETE", "resource", Some(resourceName), Some(rowId), None)
+    val dr = dispatch("DELETE", "resource", Some(resourceName), Some(rowId), None,  None)
     dr.getStatusCode must equal (200)
     dr.getResponseBody must equal ("{row delete response}")
 
     //get row
-    val gr2 = dispatch("GET", "resource", Some(resourceName), Some(rowId), None)
+    val gr2 = dispatch("GET", "resource", Some(resourceName), Some(rowId), None,  None)
     gr2.getStatusCode must equal (404)
     gr2.getResponseBody must equal ("{verify row deleted}")
 
