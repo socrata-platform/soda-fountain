@@ -7,7 +7,7 @@ trait QueryCoordinatorClient {
   val qchost : String
 
   def query(datasetId: String, query: String) = {
-    val request = url(qchost) <<? Map(("ds" -> datasetId), ("q" -> query))
-    Http(request)
+    val request = host(qchost) <<? Map(("ds" -> datasetId), ("q" -> query))
+    Http(request).either
   }
 }

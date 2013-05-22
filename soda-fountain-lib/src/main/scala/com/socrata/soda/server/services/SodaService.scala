@@ -1,7 +1,7 @@
 package com.socrata.soda.server.services
 
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
-import com.socrata.http.server.responses._
+import com.socrata.http.server.HttpResponse
 import scala.Some
 import com.rojoma.json.ast._
 import com.socrata.http.server.responses._
@@ -9,6 +9,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.datacoordinator.client.DataCoordinatorClient
 import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.querycoordinator.client.QueryCoordinatorClient
+import dispatch._
 
 trait SodaService {
 
@@ -32,4 +33,13 @@ trait SodaService {
   def notSupported(id:String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
   //surely this can be improved, but changing it to a String* vararg makes the router angry.
   def notSupported2(id:String, part2:String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
+
+  def withDatasetId(resourceName: String)(f: String => HttpResponse): HttpResponse = {
+    val rnf = store.translateResourceName(resourceName)
+    rnf() match {
+      case Right(datasetId) => f(datasetId)
+      case Left(err) => sendErrorResponse(err, "dataset.not.found", BadRequest, None)
+    }
+  }
+
 }

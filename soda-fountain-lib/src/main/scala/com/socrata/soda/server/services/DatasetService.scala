@@ -1,5 +1,6 @@
 package com.socrata.soda.server.services
 
+import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
@@ -11,6 +12,7 @@ import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.json.io.{JsonBadParse, JsonReader}
 import scala.collection.Map
 import scala.concurrent.ExecutionContext.Implicits.global
+import com.socrata.http.server.responses
 
 
 trait DatasetService extends SodaService {
@@ -22,30 +24,26 @@ trait DatasetService extends SodaService {
       it match {
         case Right(boundedIt) => {
           try {
-            val rnf = store.translateResourceName(resourceName)
-            rnf() match {
-              case Right(datasetId) => {
-                val sf = dc.getSchema(datasetId)
-                sf() match {
-                  case Right(schema) => {
-                    val upserts = boundedIt.map { rowjval =>
-                      rowjval match {
-                        case JObject(map) =>  UpsertRow(map)
-                        case _ => throw new Error("unexpected value")
-                      }
-                    }
-                    val r = dc.update(datasetId, None, mockUser, upserts)
-                    r() match {
-                      case Right(rr) => {
-                        DataCoordinatorClient.passThroughResponse(rr)
-                      }
-                      case Left(thr) => sendErrorResponse(thr.getMessage, "upsert.error", InternalServerError, None)
+            withDatasetId(resourceName){ datasetId =>
+              val sf = dc.getSchema(datasetId)
+              sf() match {
+                case Right(schema) => {
+                  val upserts = boundedIt.map { rowjval =>
+                    rowjval match {
+                      case JObject(map) =>  UpsertRow(map)
+                      case _ => throw new Error("unexpected value")
                     }
                   }
-                  case Left(err) => sendErrorResponse(err, "schema.not-found", NotFound, None)
+                  val r = dc.update(datasetId, None, mockUser, upserts)
+                  r() match {
+                    case Right(rr) => {
+                      DataCoordinatorClient.passThroughResponse(rr)
+                    }
+                    case Left(thr) => sendErrorResponse(thr.getMessage, "upsert.error", InternalServerError, None)
+                  }
                 }
+                case Left(err) => sendErrorResponse(err, "schema.not-found", NotFound, None)
               }
-              case Left(err) => sendErrorResponse(err, "dataset.not-found", NotFound, None)
             }
           }
           catch {
@@ -55,15 +53,23 @@ trait DatasetService extends SodaService {
         case Left(err) => sendErrorResponse("Error upserting values", err, BadRequest, None)
       }
     }
+
     def replace(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
     def truncate(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
-    def query(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
-
-      val q = Option(request.getParameter("$query")).getOrElse("select *")
-
-      sendErrorResponse("not yet implemented", "NYI", InternalServerError, None)
+    def query(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      withDatasetId(resourceName) { datasetId =>
+        val q = Option(request.getParameter("$query")).getOrElse("select *")
+        val r = qc.query(datasetId, q)()
+        r match {
+          case Right(response) => {
+            responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
+          }
+          case Left(err) => sendErrorResponse(err.getMessage, "internal.error", InternalServerError, None)
+        }
+      }
     }
-    def create()(request:HttpServletRequest): HttpServletResponse => Unit =  {
+
+   def create()(request:HttpServletRequest): HttpServletResponse => Unit =  {
       DatasetSpec(request.getReader) match {
         case Right(dspec) => {
           val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.fieldName, c.dataType))
@@ -90,17 +96,13 @@ trait DatasetService extends SodaService {
       }
     }
     def getSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
-      val ido = store.translateResourceName(resourceName)
-      ido() match {
-        case Right(id) => {
-          val f = dc.getSchema(id)
-          val r = f()
-          r match {
-            case Right(schema) => OK ~> Content(schema.toString)
-            case Left(err) => sendErrorResponse(err, "dataset.schema.notfound", NotFound, Some(JString(resourceName)))
-          }
+      withDatasetId(resourceName){ id =>
+        val f = dc.getSchema(id)
+        val r = f()
+        r match {
+          case Right(schema) => OK ~> Content(schema.toString)
+          case Left(err) => sendErrorResponse(err, "dataset.schema.notfound", NotFound, Some(JString(resourceName)))
         }
-        case Left(err) => sendErrorResponse(err, "resourceName.invalid", NotFound, Some(JString(resourceName)))
       }
     }
     def delete(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
