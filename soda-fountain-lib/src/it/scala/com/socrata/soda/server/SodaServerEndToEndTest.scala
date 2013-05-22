@@ -76,6 +76,7 @@ class SodaServerEndToEndTest extends IntegrationTest {
     uResponse.getStatusCode must equal (200)
 
     //query
+    Thread.sleep(8000) //TODO: eliminate this
     val params = Map(("$query" -> "select *"))
     val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
     qResponse.getResponseBody must equal ("{rows 1 and 2}")

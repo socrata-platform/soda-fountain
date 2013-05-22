@@ -23,10 +23,6 @@ object DataCoordinatorClient {
     override def toString = JsonUtil.renderJson(this)
   }
 
-  object MutationResponse {
-  }
-  class MutationResponse
-
   class RowOpReport(val createdCount: Int, val updatedCount: Int, val deletedCount: Int)
   object RowOpReport {
     implicit val codec = SimpleJsonCodecBuilder[RowOpReport].build("rows_created", _.createdCount , "rows_updated", _.updatedCount, "rows_deleted", _.deletedCount)
@@ -35,12 +31,6 @@ object DataCoordinatorClient {
   def passThroughResponse(response: Response): HttpServletResponse => Unit = {
     responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
   }
-  def passThroughResponse(report: RowOpReport): HttpServletResponse => Unit = {
-    val sw = new StringWriter()
-    JsonUtil.writeJson[RowOpReport](sw, report, false, false)
-    OK ~>  ContentType("application/json") ~> Content(sw.toString)
-  }
-
 }
 
 trait DataCoordinatorClient {
@@ -50,6 +40,7 @@ trait DataCoordinatorClient {
   val createUrl = host(baseUrl) / "dataset"
   def mutateUrl(datasetId: String) = host(baseUrl) / "dataset" / datasetId
   def schemaUrl(datasetId: String) = host(baseUrl) / "dataset" / datasetId / "schema"
+  def secondaryUrl(datasetId: String) = host(baseUrl) / "secondary-manifest" / "es" / datasetId
 
   protected def jsonWriter(script: MutationScript): EntityWriter = new EntityWriter {
     def writeEntity(out: OutputStream) {
@@ -62,6 +53,10 @@ trait DataCoordinatorClient {
     }
   }
 
+  def propagateToSecondary(datasetId: String) = {
+    val r = secondaryUrl(datasetId).POST
+    Http(r).either
+  }
 
   def getSchema(datasetId:String) = {
     val request = schemaUrl(datasetId).GET

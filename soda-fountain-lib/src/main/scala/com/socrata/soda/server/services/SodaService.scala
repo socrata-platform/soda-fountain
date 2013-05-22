@@ -10,6 +10,11 @@ import com.socrata.datacoordinator.client.DataCoordinatorClient
 import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.querycoordinator.client.QueryCoordinatorClient
 import dispatch._
+import com.typesafe.config.ConfigFactory
+
+object SodaService {
+  val config = ConfigFactory.load().getConfig("com.socrata.soda-fountain")
+}
 
 trait SodaService {
 
@@ -17,6 +22,7 @@ trait SodaService {
   val store : NameAndSchemaStore
   val qc : QueryCoordinatorClient
   val mockUser = "soda-server-community-edition"
+  val log = org.slf4j.LoggerFactory.getLogger(classOf[SodaService])
 
   def sendErrorResponse(message: String, errorCode: String, httpCode: HttpServletResponse => Unit = BadRequest, data: Option[JValue] = None) = {
     val messageAndCode = Map[String, JValue](

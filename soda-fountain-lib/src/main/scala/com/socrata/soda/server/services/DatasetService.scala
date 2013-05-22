@@ -19,8 +19,10 @@ trait DatasetService extends SodaService {
 
   object dataset {
 
+    val MAX_DATUM_SIZE = SodaService.config.getInt("max-dataum-size")
+
     def upsert(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
-      val it = streamJsonArrayValues(request, 1000000L)  //TODO: read this limit from config
+      val it = streamJsonArrayValues(request, MAX_DATUM_SIZE)
       it match {
         case Right(boundedIt) => {
           try {
@@ -81,6 +83,7 @@ trait DatasetService extends SodaService {
           r() match {
             case Right((datasetId, records)) => {
               store.store(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
+              dc.propagateToSecondary(datasetId)
               OK
             }
             case Left(thr) => sendErrorResponse("could not create dataset", "internal.error", InternalServerError, Some(JString(thr.getMessage)))

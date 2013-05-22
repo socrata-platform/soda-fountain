@@ -72,4 +72,13 @@ class SodaServerIntegrationTest extends IntegrationTest {
     uResponse.getStatusCode must equal (200)
   }
 
+  test("soda fountain query") {
+    val resourceName = "alpha.252" //TODO: this dataset needs to be set up!
+    //query
+    val params = Map(("$query" -> "select *"))
+    val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
+    qResponse.getResponseBody must equal ("{rows 1 and 2}")
+    qResponse.getStatusCode must equal (200)
+  }
+
 }
