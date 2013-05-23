@@ -36,8 +36,7 @@ object DataCoordinatorClient {
 trait DataCoordinatorClient {
 
   def baseUrl: String
-
-  val createUrl = host(baseUrl) / "dataset"
+  def createUrl = host(baseUrl) / "dataset"
   def mutateUrl(datasetId: String) = host(baseUrl) / "dataset" / datasetId
   def schemaUrl(datasetId: String) = host(baseUrl) / "dataset" / datasetId / "schema"
   def secondaryUrl(datasetId: String) = host(baseUrl) / "secondary-manifest" / "es" / datasetId

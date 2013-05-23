@@ -22,7 +22,7 @@ trait SodaService {
   val store : NameAndSchemaStore
   val qc : QueryCoordinatorClient
   val mockUser = "soda-server-community-edition"
-  val log = org.slf4j.LoggerFactory.getLogger(classOf[SodaService])
+  //val log = org.slf4j.LoggerFactory.getLogger(classOf[SodaService])
 
   def sendErrorResponse(message: String, errorCode: String, httpCode: HttpServletResponse => Unit = BadRequest, data: Option[JValue] = None) = {
     val messageAndCode = Map[String, JValue](

@@ -14,8 +14,11 @@ import com.socrata.querycoordinator.client.CuratedQueryCoordinatorClient
 object SodaFountainJetty {
   def main(args:Array[String]) {
 
+    println("starting server")
     val fountain = new SodaFountain with PostgresStore with CuratedDataCoordinatorClient with CuratedQueryCoordinatorClient with SodaRouter
-    val server = new SocrataServerJetty(fountain.route, port = 1950)
+    val server = new SocrataServerJetty(fountain.route, port = 8080)
+
+    fountain.curatorClient.open
     server.run
   }
 }

@@ -4,7 +4,7 @@ import dispatch._, Defaults._
 
 trait QueryCoordinatorClient {
 
-  val qchost : String
+  def qchost : String
 
   def query(datasetId: String, query: String) = {
     val request = host(qchost) <<? Map(("ds" -> datasetId), ("q" -> query))
