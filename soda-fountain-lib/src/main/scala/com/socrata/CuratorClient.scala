@@ -53,6 +53,8 @@ class CuratorClientImpl(config: Config) extends Closeable {
     }
   }
 
+  this.open
+
   def close = {
     curator.close()
     discovery.close()

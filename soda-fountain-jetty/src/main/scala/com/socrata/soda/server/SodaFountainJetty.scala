@@ -15,7 +15,6 @@ object SodaFountainJetty {
   def main(args:Array[String]) {
 
     val fountain = new SodaFountain with PostgresStore with CuratedDataCoordinatorClient with CuratedQueryCoordinatorClient with SodaRouter
-    fountain.curatorClient.open
 
     val server = new SocrataServerJetty(fountain.route, port = 8080)
     server.run

@@ -9,7 +9,6 @@ class SodaFountainIntegrationTestServlet extends HttpServlet {
 
   //val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator with LocalQueryCoordinatorClient with SodaRouter
   val fountain = new SodaFountain with MockNameAndSchemaStore with CuratedDataCoordinatorClient with CuratedQueryCoordinatorClient with SodaRouter
-  fountain.curatorClient.open
 
   override def doGet(req: HttpServletRequest, resp: HttpServletResponse)    {fountain.route(req)(resp)}
   override def doPost(req: HttpServletRequest, resp: HttpServletResponse)   {fountain.route(req)(resp)}
