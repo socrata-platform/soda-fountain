@@ -7,6 +7,6 @@ trait LocalQueryCoordinatorClient extends SodaService {
   val qc: QueryCoordinatorClient = LocalClient
 
   private object LocalClient extends QueryCoordinatorClient {
-    val qchost = "localhost:54545"
+    val qchost = "http://localhost:54545"
   }
 }

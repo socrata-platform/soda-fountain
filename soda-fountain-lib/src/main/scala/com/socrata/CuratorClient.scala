@@ -31,23 +31,26 @@ class CuratorClientImpl(config: Config) extends Closeable {
   var discovery: ServiceDiscovery[Void] = null
 
   def open = {
-    curator = CuratorFrameworkFactory.builder.
-    connectString(CuratorConfig.ensemble).
-    sessionTimeoutMs(CuratorConfig.sessionTimeout.toMillis.toInt).
-    connectionTimeoutMs(CuratorConfig.connectTimeout.toMillis.toInt).
-    retryPolicy(new retry.BoundedExponentialBackoffRetry(CuratorConfig.baseRetryWait.toMillis.toInt,
-    CuratorConfig.maxRetryWait.toMillis.toInt,
-    CuratorConfig.maxRetries)).
-    namespace(CuratorConfig.namespace).
-    build()
+    if (curator == null){
+      curator = CuratorFrameworkFactory.builder.
+        connectString(CuratorConfig.ensemble).
+        sessionTimeoutMs(CuratorConfig.sessionTimeout.toMillis.toInt).
+        connectionTimeoutMs(CuratorConfig.connectTimeout.toMillis.toInt).
+        retryPolicy(new retry.BoundedExponentialBackoffRetry(CuratorConfig.baseRetryWait.toMillis.toInt,
+        CuratorConfig.maxRetryWait.toMillis.toInt,
+        CuratorConfig.maxRetries)).
+        namespace(CuratorConfig.namespace).
+        build()
+      curator.start()
+    }
 
-    discovery = ServiceDiscoveryBuilder.builder(classOf[Void]).
-    client(curator).
-    basePath(CuratorConfig.serviceBasePath).
-    build()
-
-    curator.start()
-    discovery.start()
+    if (discovery == null){
+      discovery = ServiceDiscoveryBuilder.builder(classOf[Void]).
+        client(curator).
+        basePath(CuratorConfig.serviceBasePath).
+        build()
+      discovery.start()
+    }
   }
 
   def close = {

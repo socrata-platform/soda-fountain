@@ -8,7 +8,14 @@ trait CuratedQueryCoordinatorClient extends SodaService with CuratorClient{
   val qc: QueryCoordinatorClient  = client
 
   private object client extends QueryCoordinatorClient {
-    def qchost : String = qcProvider.getInstance().buildUriSpec()
-    def qcProvider : ServiceProvider[Void] = curatorClient.discovery.serviceProviderBuilder().providerStrategy(new strategies.RoundRobinStrategy).serviceName("data-coordinator").build()
+
+    var provider : ServiceProvider[Void] = null
+    def qchost: String = {
+      if (provider == null){
+        provider = curatorClient.discovery.serviceProviderBuilder().providerStrategy(new strategies.RoundRobinStrategy).serviceName("query-coordinator").build()
+        provider.start()
+      }
+      provider.getInstance().buildUriSpec()
+    }
   }
 }

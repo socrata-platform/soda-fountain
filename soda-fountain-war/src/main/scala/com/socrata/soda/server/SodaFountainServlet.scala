@@ -16,6 +16,7 @@ class SodaFountainServlet extends HttpServlet {
     with CuratedDataCoordinatorClient
     with CuratedQueryCoordinatorClient
     with SodaRouter
+  fountain.curatorClient.open
   override def doGet(req: HttpServletRequest, resp: HttpServletResponse)    {fountain.route(req)(resp)}
   override def doPost(req: HttpServletRequest, resp: HttpServletResponse)   {fountain.route(req)(resp)}
   override def doPut(req: HttpServletRequest, resp: HttpServletResponse)    {fountain.route(req)(resp)}

@@ -36,10 +36,10 @@ object DataCoordinatorClient {
 trait DataCoordinatorClient {
 
   def baseUrl: String
-  def createUrl = host(baseUrl) / "dataset"
-  def mutateUrl(datasetId: String) = host(baseUrl) / "dataset" / datasetId
-  def schemaUrl(datasetId: String) = host(baseUrl) / "dataset" / datasetId / "schema"
-  def secondaryUrl(datasetId: String) = host(baseUrl) / "secondary-manifest" / "es" / datasetId
+  def createUrl = url(baseUrl) / "dataset"
+  def mutateUrl(datasetId: String) = url(baseUrl) / "dataset" / datasetId
+  def schemaUrl(datasetId: String) = url(baseUrl) / "dataset" / datasetId / "schema"
+  def secondaryUrl(datasetId: String) = url(baseUrl) / "secondary-manifest" / "es" / datasetId
 
   protected def jsonWriter(script: MutationScript): EntityWriter = new EntityWriter {
     def writeEntity(out: OutputStream) {

@@ -2,12 +2,14 @@ package com.socrata.soda.server
 
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest, HttpServlet}
 import com.socrata.soda.server.mocks.{LocalDataCoordinator, MockNameAndSchemaStore}
-import com.socrata.querycoordinator.client.{LocalQueryCoordinatorClient, QueryCoordinatorClient}
+import com.socrata.querycoordinator.client.{CuratedQueryCoordinatorClient, LocalQueryCoordinatorClient, QueryCoordinatorClient}
 import com.socrata.datacoordinator.client.CuratedDataCoordinatorClient
 
 class SodaFountainIntegrationTestServlet extends HttpServlet {
 
-  val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator with LocalQueryCoordinatorClient with SodaRouter
+  //val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator with LocalQueryCoordinatorClient with SodaRouter
+  val fountain = new SodaFountain with MockNameAndSchemaStore with CuratedDataCoordinatorClient with CuratedQueryCoordinatorClient with SodaRouter
+  fountain.curatorClient.open
 
   override def doGet(req: HttpServletRequest, resp: HttpServletResponse)    {fountain.route(req)(resp)}
   override def doPost(req: HttpServletRequest, resp: HttpServletResponse)   {fountain.route(req)(resp)}

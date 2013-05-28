@@ -8,7 +8,7 @@ trait LocalDataCoordinator extends SodaService {
   val dc: DataCoordinatorClient = mock
 
   private object mock extends DataCoordinatorClient {
-    def baseUrl: String = "localhost:12345"
+    def baseUrl: String = "http://localhost:12345"
   }
 
 }
