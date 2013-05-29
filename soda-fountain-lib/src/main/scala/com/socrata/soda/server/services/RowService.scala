@@ -18,7 +18,8 @@ trait RowService extends SodaService {
         fields match {
           case Some(map) => {
             withDatasetId(resourceName){ datasetId =>
-              val response = dc.update(datasetId, None, "soda-fountain-community-edition", Array(UpsertRow(map)).iterator)
+              val schema = Option(request.getParameter("schema"))
+              val response = dc.update(datasetId, schema, mockUser, Array(UpsertRow(map)).iterator)
               response() match {
                 case Right(resp) => DataCoordinatorClient.passThroughResponse(resp)
                 case Left(th) => sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None)

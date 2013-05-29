@@ -29,6 +29,10 @@ trait SodaRouter extends SodaFountain {
     ExtractingRouter[HttpService](DELETE, "/dataset/?")        ( dataset.delete _),
     ExtractingRouter[HttpService](GET,    "/dataset/?")        ( dataset.getSchema _),
 
+    ExtractingRouter[HttpService](PUT,    "/dataset/?/copy")        ( dataset.copy _),
+    ExtractingRouter[HttpService](DELETE, "/dataset/?/copy")        ( dataset.dropCopy _),
+    ExtractingRouter[HttpService](PUT,    "/dataset/?/publish")     ( dataset.publish _),
+
     ExtractingRouter[HttpService](POST,   "/dataset/?/?")        ( columns.update _),
     ExtractingRouter[HttpService](PUT,    "/dataset/?/?")        ( notSupported2 _),
     ExtractingRouter[HttpService](DELETE, "/dataset/?/?")        ( columns.drop _),
