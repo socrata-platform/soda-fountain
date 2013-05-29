@@ -89,8 +89,7 @@ trait DataCoordinatorClient {
     response
   }
 
-  def create( resourceName: String,
-              user: String,
+  def create(  user: String,
               instructions: Option[Iterator[DataCoordinatorInstruction]],
               locale: String = "en_US") = {
     val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))

@@ -9,7 +9,7 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
 
   test("Mutation Script can add/drop column"){
     val responses = for {
-      idAndResults <- fountain.dc.create("it_col_add_drop", userName, None).right
+      idAndResults <- fountain.dc.create(userName, None).right
       colCreate <- fountain.dc.update(idAndResults._1, None, userName, Array( new AddColumnInstruction("new_col", "number")).iterator).right
       colDrop <- fountain.dc.update(idAndResults._1, None, userName, Array(DropColumnInstruction("new_col")).iterator).right
     } yield (idAndResults, colCreate, colDrop)
@@ -25,7 +25,7 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
 
   test("can set/drop row id column"){
     val responses = for {
-      idAndResults <-fountain.dc.create("it_col_set_drop_row_id", userName, None).right
+      idAndResults <-fountain.dc.create(userName, None).right
       newCol <- fountain.dc.update(idAndResults._1, None, userName, Array(new AddColumnInstruction("new_col", "number")).iterator).right
       setId <-  fountain.dc.update(idAndResults._1, None, userName, Array(SetRowIdColumnInstruction("new_col")).iterator).right
       dropId <- fountain.dc.update(idAndResults._1, None, userName, Array(DropRowIdColumnInstruction("new_col")).iterator).right
@@ -43,7 +43,7 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
 
   test("can rename column"){
     val responses = for {
-      idAndResults <-fountain.dc.create("it_col_rename", userName, None).right
+      idAndResults <-fountain.dc.create(userName, None).right
       namedCol <- fountain.dc.update(idAndResults._1, None, userName, Array(new AddColumnInstruction("named_col", "number")).iterator).right
       renamedCol <-fountain.dc.update(idAndResults._1, None, userName, Array(RenameColumnInstruction("named_col", "renamed_col")).iterator).right
     } yield (idAndResults, namedCol, renamedCol)

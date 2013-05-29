@@ -10,7 +10,7 @@ class CopyInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
   test("Mutation Script can create/delete dataset"){
 
     val responses = for {
-      idAndResults <-fountain.dc.create( "it_test_create_delete", userName, None).right
+      idAndResults <-fountain.dc.create(userName, None).right
       delete <- fountain.dc.deleteAllCopies(idAndResults._1, None,userName).right
     } yield (idAndResults, delete)
 
@@ -18,6 +18,7 @@ class CopyInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
       case Right((idAndResults, delete)) => {
         idAndResults._1.length must be > (0)
         delete.getResponseBody must equal ("""""".stripMargin)
+        println(idAndResults)
         delete.getStatusCode must equal (200)
       }
       case Left(thr) => throw thr
@@ -27,7 +28,7 @@ class CopyInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
   test("Mutation Script can copy/drop/publish dataset"){
 
     val responses = for {
-      idAndResults <-fountain.dc.create( "it_test_publish", userName, None).right
+      idAndResults <-fountain.dc.create( userName, None).right
       publish <- fountain.dc.publish(idAndResults._1, None, None, userName, None).right
       copy <- fountain.dc.copy(idAndResults._1, None, false, userName, None).right
       drop <- fountain.dc.dropCopy(idAndResults._1, None, userName, None).right

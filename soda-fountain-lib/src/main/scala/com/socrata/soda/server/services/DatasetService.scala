@@ -83,11 +83,10 @@ trait DatasetService extends SodaService {
           val rnf = store.translateResourceName(dspec.resourceName)
           rnf() match {
             case Left(err) => {
-              val r = dc.create(dspec.resourceName, mockUser, Some(instructions.iterator), dspec.locale )
+              val r = dc.create(mockUser, Some(instructions.iterator), dspec.locale )
               r() match {
                 case Right((datasetId, records)) => {
                   store.add(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
-                  dc.propagateToSecondary(datasetId)
                   OK
                 }
                 case Left(thr) => sendErrorResponse("could not create dataset", "internal.error", InternalServerError, Some(JString(thr.getMessage)))
@@ -121,7 +120,7 @@ trait DatasetService extends SodaService {
         val d = dc.deleteAllCopies(datasetId, schema, mockUser)
         d() match {
           case Right(response) => {
-            store.remove(resourceName)
+            store.remove(resourceName) //TODO: handle error case!
             DataCoordinatorClient.passThroughResponse(response)
           }
           case Left(thr) => sendErrorResponse(thr.getMessage, "failed.delete", InternalServerError, None)
@@ -158,12 +157,13 @@ trait DatasetService extends SodaService {
         val snapshowLimit = Option(request.getParameter("snapshot_limit")).flatMap( s => Some(s.toInt) )
         val p = dc.publish(datasetId, schema, snapshowLimit, mockUser, None)
         p() match {
-          case Right(response) => DataCoordinatorClient.passThroughResponse(response)
+          case Right(response) => {
+            dc.propagateToSecondary(datasetId)
+            DataCoordinatorClient.passThroughResponse(response)
+          }
           case Left(thr) => sendErrorResponse(thr.getMessage, "failed.publish", InternalServerError, None)
         }
       }
     }
-
-
   }
 }

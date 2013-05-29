@@ -29,6 +29,12 @@ trait SodaServerIntegrationTestFixture extends BeforeAndAfterAll with Integratio
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     //assert(uResponse.getStatusCode == 200)
+
+    //publish
+    val pResponse = dispatch("PUT", "dataset", Some(resourceName), Some("publish"), None, None)
+    assert(pResponse.getStatusCode == 200)
+
+    Thread.sleep(8000) //TODO: eliminate this
   }
 
   override def afterAll = {
@@ -80,7 +86,7 @@ class SodaServerIntegrationTest extends IntegrationTest with SodaServerIntegrati
     //query
     val params = Map(("$query" -> "select *"))
     val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
-    qResponse.getResponseBody must equal ("[{ \"col_text\" : \"row 3\", \"col_id\" : 3.0 },{ \"col_text\" : \"row 1\", \"col_id\" : 1.0 },{ \"col_id\" : 2.0}]")
+    jsonCompare(qResponse.getResponseBody, "[{ \"col_text\" : \"row 3\", \"col_id\" : 3.0 },{ \"col_text\" : \"row 1\", \"col_id\" : 1.0 },{ \"col_id\" : 2.0}]")
     qResponse.getStatusCode must equal (200)
   }
 

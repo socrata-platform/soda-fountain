@@ -42,6 +42,11 @@ class SodaServerEndToEndTest extends IntegrationTest with BeforeAndAfterAll with
     ))
     val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
     assert(cResponse.getStatusCode == 200)
+    //publish
+    val pResponse = dispatch("PUT", "dataset", Some(resourceOpDataset), Some("publish"), None, None)
+    assert(pResponse.getStatusCode == 200)
+
+
   }
 
   protected def removeFixtures = {
@@ -67,13 +72,10 @@ class SodaServerEndToEndTest extends IntegrationTest with BeforeAndAfterAll with
     cResponse.getStatusCode must equal (200)
 
     //set schema
-    val sBody = JObject(Map(
-      "row_identifier" -> JArray(Seq(JString("col_id"))),
-      "columns" -> JArray(Seq(
-        column("the ID column", "col_id", Some("this is the ID column"), "number"),
-        column("a text column", "col_text", Some("this is a text column"), "text"),
-        column("a boolean column", "col_bool", None, "boolean")
-      ))
+    val sBody = JArray(Seq(
+      column("the ID column", "col_id", Some("this is the ID column"), "number"),
+      column("a text column", "col_text", Some("this is a text column"), "text"),
+      column("a boolean column", "col_bool", None, "boolean")
     ))
     val sResponse = dispatch("POST", "dataset", Some(datasetOpDataset), None, None,  Some(sBody))
     sResponse.getResponseBody must equal ("")
@@ -110,8 +112,8 @@ class SodaServerEndToEndTest extends IntegrationTest with BeforeAndAfterAll with
     Thread.sleep(8000) //TODO: eliminate this
     val params = Map(("$query" -> "select *"))
     val qResponse = dispatch("GET", "resource", Some(resourceOpDataset), None, Some(params),  None)
-    qResponse.getResponseBody must equal ("{rows 1 and 2}")
     qResponse.getStatusCode must equal (200)
+    jsonCompare(qResponse.getResponseBody, "[{ \"col_text\" : \"row 1\", \"col_id\" : 1.0 },{ \"col_text\" : \"row 2\", \"col_id\" : 2.0 }]")
 
     //replace
     val rBody = JArray(Seq(
@@ -119,8 +121,8 @@ class SodaServerEndToEndTest extends IntegrationTest with BeforeAndAfterAll with
       JObject(Map(("col_id"->JNumber(9)), ("col_text"->JString("row 9"))))
     ))
     val rResponse = dispatch("PUT", "resource", Some(resourceOpDataset), None, None,  Some(rBody))
-    rResponse.getResponseBody must equal ("{rows put}")
     rResponse.getStatusCode must equal (200)
+    rResponse.getResponseBody must equal ("[]")
 
     //query
     val q2Response = dispatch("GET", "resource", Some(resourceOpDataset), None, None,  None)
