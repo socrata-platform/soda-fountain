@@ -4,7 +4,7 @@ import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
 import org.scalatest._
 
-trait SodaServerIntegrationTestFixture extends BeforeAndAfterAll { this: Suite =>
+trait SodaServerIntegrationTestFixture extends BeforeAndAfterAll with IntegrationTestHelpers { this: Suite =>
 
   val resourceName = "soda-int-test"
 
@@ -14,12 +14,12 @@ trait SodaServerIntegrationTestFixture extends BeforeAndAfterAll { this: Suite =
       "resource_name" -> JString(resourceName),
       "name" -> JString("soda integration test"),
       "columns" -> JArray(Seq(
-        IntegrationTest.column("the ID column", "col_id", Some("this is the ID column"), "number"),
-        IntegrationTest.column("a text column", "col_text", Some("this is a text column"), "text"),
-        IntegrationTest.column("a boolean column", "col_bool", None, "boolean")
+        column("the ID column", "col_id", Some("this is the ID column"), "number"),
+        column("a text column", "col_text", Some("this is a text column"), "text"),
+        column("a boolean column", "col_bool", None, "boolean")
       ))
     ))
-    val cResponse = IntegrationTest.dispatch("POST", "dataset", None, None, None,  Some(cBody))
+    val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
     //assert(cResponse.getStatusCode == 200)
 
     val uBody = JArray(Seq(
@@ -27,7 +27,7 @@ trait SodaServerIntegrationTestFixture extends BeforeAndAfterAll { this: Suite =
       JObject(Map(("col_id"->JNumber(2)), ("col_does_not_exist"->JString("row 2")))),
       JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3"))))
     ))
-    val uResponse = IntegrationTest.dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     //assert(uResponse.getStatusCode == 200)
   }
 

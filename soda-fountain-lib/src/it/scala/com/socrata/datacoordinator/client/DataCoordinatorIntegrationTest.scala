@@ -5,7 +5,7 @@ import com.socrata.soda.server.{SodaFountain, IntegrationTest}
 import com.socrata.soda.server.mocks.{MockNameAndSchemaStore, LocalDataCoordinator}
 import com.socrata.querycoordinator.client.{LocalQueryCoordinatorClient, QueryCoordinatorClient}
 
-class DataCoordinatorIntegrationTest extends IntegrationTest {
+trait DataCoordinatorIntegrationTest extends IntegrationTest {
 
   val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator with LocalQueryCoordinatorClient
 

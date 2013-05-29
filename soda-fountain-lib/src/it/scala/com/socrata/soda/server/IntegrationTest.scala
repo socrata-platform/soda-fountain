@@ -8,7 +8,7 @@ import com.rojoma.json.ast._
 import dispatch._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-object IntegrationTest {
+trait IntegrationTestHelpers {
 
   val hostname: String = "localhost:8080"
 
@@ -43,11 +43,9 @@ object IntegrationTest {
 
 }
 
-class IntegrationTest extends FunSuite with MustMatchers with ParallelTestExecution {
+trait IntegrationTest extends FunSuite with MustMatchers with IntegrationTestHelpers {
 
   def jsonCompare(actual:String, expected:String) = {
-    IntegrationTest.normalizeWhitespace(actual) must equal (IntegrationTest.normalizeWhitespace(expected))
+    normalizeWhitespace(actual) must equal (normalizeWhitespace(expected))
   }
-  def dispatch = IntegrationTest.dispatch _
-  def column = IntegrationTest.column _
 }
