@@ -86,7 +86,7 @@ trait DatasetService extends SodaService {
               val r = dc.create(dspec.resourceName, mockUser, Some(instructions.iterator), dspec.locale )
               r() match {
                 case Right((datasetId, records)) => {
-                  store.store(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
+                  store.add(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
                   dc.propagateToSecondary(datasetId)
                   OK
                 }
@@ -121,6 +121,7 @@ trait DatasetService extends SodaService {
         val d = dc.deleteAllCopies(datasetId, schema, mockUser)
         d() match {
           case Right(response) => {
+            store.remove(resourceName)
             DataCoordinatorClient.passThroughResponse(response)
           }
           case Left(thr) => sendErrorResponse(thr.getMessage, "failed.delete", InternalServerError, None)

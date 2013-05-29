@@ -21,6 +21,7 @@ trait MockNameAndSchemaStore extends SodaService {
       f
     }
 
-    def store(resourceName: String, datasetId: String) = names.put(resourceName, datasetId)
+    def add(resourceName: String, datasetId: String) = names.put(resourceName, datasetId)
+    def remove(resourceName: String) = names.remove(resourceName)
   }
 }

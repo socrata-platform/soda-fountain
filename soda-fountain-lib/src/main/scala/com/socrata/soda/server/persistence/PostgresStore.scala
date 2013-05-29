@@ -14,7 +14,10 @@ trait PostgresStore extends SodaService {
         ???
       }
     }
-    def store(resourceName: String, datasetId: String) = {
+    def add(resourceName: String, datasetId: String) = {
+      ???
+    }
+    def remove(resourceName: String) = {
       ???
     }
   }
