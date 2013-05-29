@@ -61,8 +61,8 @@ trait DatasetService extends SodaService {
     def query(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       withDatasetId(resourceName) { datasetId =>
         val q = Option(request.getParameter("$query")).getOrElse("select *")
-        val r = qc.query(datasetId, q)()
-        r match {
+        val r = qc.query(datasetId, q)
+        r() match {
           case Right(response) => {
             responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
           }
@@ -79,14 +79,26 @@ trait DatasetService extends SodaService {
             case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid)
             case None => columnInstructions
           }
-          val r = dc.create(dspec.resourceName, mockUser, Some(instructions.iterator), dspec.locale )
-          r() match {
-            case Right((datasetId, records)) => {
-              store.store(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
-              dc.propagateToSecondary(datasetId)
-              OK
+          val rnf = store.translateResourceName(dspec.resourceName)
+          rnf() match {
+            case Left(err) => {
+              val r = dc.create(dspec.resourceName, mockUser, Some(instructions.iterator), dspec.locale )
+              r() match {
+                case Right((datasetId, records)) => {
+                  store.store(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
+                  val p = dc.publish(datasetId, None, None, mockUser, None)
+                  p() match {
+                    case Right(pubResponse) => {
+                      dc.propagateToSecondary(datasetId)
+                      OK
+                    }
+                    case Left(thr) => sendErrorResponse("could not publish dataset", "internal.error", InternalServerError, Some(JString(thr.getMessage)))
+                  }
+                }
+                case Left(thr) => sendErrorResponse("could not create dataset", "internal.error", InternalServerError, Some(JString(thr.getMessage)))
+              }
             }
-            case Left(thr) => sendErrorResponse("could not create dataset", "internal.error", InternalServerError, Some(JString(thr.getMessage)))
+            case Right(datasetId) => sendErrorResponse("Dataset already exists", "dataset.already.exists", BadRequest, None)
           }
         }
         case Left(ers: Seq[String]) => sendErrorResponse( ers.mkString(" "), "dataset.specification.invalid", BadRequest, None )

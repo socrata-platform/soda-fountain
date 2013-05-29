@@ -2,35 +2,54 @@ package com.socrata.soda.server
 
 import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
+import org.scalatest._
 
-class SodaServerIntegrationTest extends IntegrationTest {
+trait SodaServerIntegrationTestFixture extends BeforeAndAfterAll { this: Suite =>
+
+  val resourceName = "soda-int-test"
+
+  override def beforeAll = {
+    println("creating dataset for integration tests")
+    val cBody = JObject(Map(
+      "resource_name" -> JString(resourceName),
+      "name" -> JString("soda integration test"),
+      "columns" -> JArray(Seq(
+        IntegrationTest.column("the ID column", "col_id", Some("this is the ID column"), "number"),
+        IntegrationTest.column("a text column", "col_text", Some("this is a text column"), "text"),
+        IntegrationTest.column("a boolean column", "col_bool", None, "boolean")
+      ))
+    ))
+    val cResponse = IntegrationTest.dispatch("POST", "dataset", None, None, None,  Some(cBody))
+    //assert(cResponse.getStatusCode == 200)
+
+    val uBody = JArray(Seq(
+      JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
+      JObject(Map(("col_id"->JNumber(2)), ("col_does_not_exist"->JString("row 2")))),
+      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3"))))
+    ))
+    val uResponse = IntegrationTest.dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    //assert(uResponse.getStatusCode == 200)
+  }
+
+  override def afterAll = {
+    println("running the afterAll block")
+  }
+}
+
+class SodaServerIntegrationTest extends IntegrationTest with SodaServerIntegrationTestFixture {
 
   test("update request malformed json returns error response"){
-    val response = dispatch("POST", "resource", Option("testDataset"), None, None,  Some(JString("this is not json")))
+    val response = dispatch("POST", "resource", Option(resourceName), None, None,  Some(JString("this is not json")))
     response.getResponseBody.length must be > (0)
     response.getStatusCode must equal (415)
   }
 
   test("update request with unexpected format json returns error response"){
-    val response = dispatch("POST", "resource", Option("testDataset"), None, None,  Some(JArray(Array(JString("this is an array"), JString("why would you post an array?")))))
+    val response = dispatch("POST", "resource", Option(resourceName), None, None,  Some(JArray(Array(JString("this is an array"), JString("why would you post an array?")))))
     response.getStatusCode must equal (400)
   }
 
   test("soda fountain getSchema"){
-    val resourceName = "soda-get-schema"
-    val cBody = JObject(Map(
-      "resource_name" -> JString(resourceName),
-      "name" -> JString("soda integration test getSchema"),
-      "columns" -> JArray(Seq(
-        column("the ID column", "col_id", Some("this is the ID column"), "number"),
-        column("a text column", "col_text", Some("this is a text column"), "text"),
-        column("a boolean column", "col_bool", None, "boolean")
-      ))
-    ))
-    val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
-    cResponse.getResponseBody must equal ("")
-    cResponse.getStatusCode must equal (200)
-
     //get schema
     val gResponse = dispatch("GET", "dataset", Some(resourceName), None, None,  None)
     gResponse.getStatusCode must equal (200)
@@ -46,26 +65,11 @@ class SodaServerIntegrationTest extends IntegrationTest {
   }
 
   test("soda fountain upsert"){
-
-    val resourceName = "soda-upsert"
-    val cBody = JObject(Map(
-      "resource_name" -> JString(resourceName),
-      "name" -> JString("soda integration test upsert"),
-      "columns" -> JArray(Seq(
-        column("the ID column", "col_id", Some("this is the ID column"), "number"),
-        column("a text column", "col_text", Some("this is a text column"), "text"),
-        column("a boolean column", "col_bool", None, "boolean")
-      ))
-    ))
-    val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
-    cResponse.getResponseBody must equal ("")
-    cResponse.getStatusCode must equal (200)
-
     //upsert
     val uBody = JArray(Seq(
-      JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
+      JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("upserted row 1")))),
       JObject(Map(("col_id"->JNumber(2)), ("col_does_not_exist"->JString("row 2")))),
-      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3"))))
+      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     //uResponse.getResponseBody must equal ("{rows inserted}")
@@ -73,11 +77,10 @@ class SodaServerIntegrationTest extends IntegrationTest {
   }
 
   test("soda fountain query") {
-    val resourceName = "alpha.252" //TODO: this dataset needs to be set up!
     //query
     val params = Map(("$query" -> "select *"))
     val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
-    qResponse.getResponseBody must equal ("{rows 1 and 2}")
+    qResponse.getResponseBody must equal ("[{ \"col_text\" : \"row 3\", \"col_id\" : 3.0 },{ \"col_text\" : \"row 1\", \"col_id\" : 1.0 },{ \"col_id\" : 2.0}]")
     qResponse.getStatusCode must equal (200)
   }
 

@@ -2,13 +2,13 @@ package com.socrata.soda.server
 
 
 import com.rojoma.json.io._
-import org.scalatest.{ParallelTestExecution, FunSuite}
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, ParallelTestExecution, FunSuite}
 import org.scalatest.matchers.MustMatchers
 import com.rojoma.json.ast._
 import dispatch._
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class IntegrationTest extends FunSuite with MustMatchers with ParallelTestExecution {
+object IntegrationTest {
 
   val hostname: String = "localhost:8080"
 
@@ -41,7 +41,13 @@ class IntegrationTest extends FunSuite with MustMatchers with ParallelTestExecut
 
   def normalizeWhitespace(fixture: String): String = CompactJsonWriter.toString(JsonReader(fixture).read())
 
+}
+
+class IntegrationTest extends FunSuite with MustMatchers with ParallelTestExecution {
+
   def jsonCompare(actual:String, expected:String) = {
-    normalizeWhitespace(actual) must equal (normalizeWhitespace(expected))
+    IntegrationTest.normalizeWhitespace(actual) must equal (IntegrationTest.normalizeWhitespace(expected))
   }
+  def dispatch = IntegrationTest.dispatch _
+  def column = IntegrationTest.column _
 }
