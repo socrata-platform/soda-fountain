@@ -16,6 +16,7 @@ import com.socrata.http.server.responses
 import com.socrata.soql.types.SoQLType
 import com.socrata.soql.environment.TypeName
 import com.socrata.soda.server.typefitting.TypeFitter
+import com.socrata.soda.server.typefitting.TypeFitter.UnexpectedTypeException
 
 
 trait DatasetService extends SodaService {
@@ -37,8 +38,9 @@ trait DatasetService extends SodaService {
                     rowjval match {
                       case JObject(map) =>  {
                         map.foreach{ pair =>
-                          val expectedTypeName = schema.schema.get(pair._1).getOrElse(throw new Error("no column " + pair._1))
-                          TypeFitter.check(expectedTypeName, pair._2)
+                          val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "column.not.found", BadRequest, Some(rowjval)))
+                          try { TypeFitter.check(expectedTypeName, pair._2) }
+                          catch { case e: UnexpectedTypeException => return sendErrorResponse(e.getMessage, "type.error", BadRequest, Some(rowjval))}
                         }
                         UpsertRow(map)
                       }

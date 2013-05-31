@@ -8,7 +8,11 @@ object TypeFitter {
     def unexpected = throw new UnexpectedTypeException("expecting " + SoQLText.toString() + " but received " + v.toString())
     val checked = typ match {
       case "text" => v match { case JString(s) => new SoQLText(s); case _ => unexpected }
-      case "number" => v match { case JNumber(n) => new SoQLNumber(n.bigDecimal); case _ => unexpected }
+      case "number" => v match {
+        case JString(n) => new SoQLNumber(BigDecimal(n).bigDecimal)
+        case JNumber(n) => new SoQLNumber(n.bigDecimal)
+        case _ => unexpected
+      }
       case _ => unexpected
     }
     checked

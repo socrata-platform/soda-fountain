@@ -24,15 +24,14 @@ trait SodaServerIntegrationTestFixture extends BeforeAndAfterAll with Integratio
 
     val uBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
-      JObject(Map(("col_id"->JNumber(2)), ("col_does_not_exist"->JString("row 2")))),
       JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3"))))
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
-    //assert(uResponse.getStatusCode == 200)
+    assert(uResponse.getStatusCode == 200)
 
     //publish
     val pResponse = dispatch("PUT", "dataset", Some(resourceName), Some("publish"), None, None)
-    assert(pResponse.getStatusCode == 200)
+    //assert(pResponse.getStatusCode == 200)
 
     Thread.sleep(8000) //TODO: eliminate this
   }
@@ -74,19 +73,28 @@ class SodaServerIntegrationTest extends IntegrationTest with SodaServerIntegrati
     //upsert
     val uBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("upserted row 1")))),
+      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
+    ))
+    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    uResponse.getStatusCode must equal (200)
+  }
+
+  test("soda fountain upsert error case: bad column"){
+    //upsert
+    val uBody = JArray(Seq(
+      JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("upserted row 1")))),
       JObject(Map(("col_id"->JNumber(2)), ("col_does_not_exist"->JString("row 2")))),
       JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
-    //uResponse.getResponseBody must equal ("{rows inserted}")
-    uResponse.getStatusCode must equal (200)
+    uResponse.getStatusCode must equal (400)
   }
 
   test("soda fountain query") {
     //query
     val params = Map(("$query" -> "select *"))
     val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
-    jsonCompare(qResponse.getResponseBody, "[{ \"col_text\" : \"row 3\", \"col_id\" : 3.0 },{ \"col_text\" : \"row 1\", \"col_id\" : 1.0 },{ \"col_id\" : 2.0}]")
+    jsonCompare(qResponse.getResponseBody, "[{ \"col_text\" : \"row 1\", \"col_id\" : 1.0 },{ \"col_text\" : \"row 3\", \"col_id\" : 3.0 }]")
     qResponse.getStatusCode must equal (200)
   }
 
