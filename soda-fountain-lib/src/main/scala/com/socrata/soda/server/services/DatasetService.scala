@@ -13,6 +13,9 @@ import com.rojoma.json.io.{JsonBadParse, JsonReader}
 import scala.collection.Map
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.socrata.http.server.responses
+import com.socrata.soql.types.SoQLType
+import com.socrata.soql.environment.TypeName
+import com.socrata.soda.server.typefitting.TypeFitter
 
 
 trait DatasetService extends SodaService {
@@ -32,12 +35,18 @@ trait DatasetService extends SodaService {
                 case Right(schema) => {
                   val upserts = boundedIt.map { rowjval =>
                     rowjval match {
-                      case JObject(map) =>  UpsertRow(map)
+                      case JObject(map) =>  {
+                        map.foreach{ pair =>
+                          val expectedTypeName = schema.schema.get(pair._1).getOrElse(throw new Error("no column " + pair._1))
+                          TypeFitter.check(expectedTypeName, pair._2)
+                        }
+                        UpsertRow(map)
+                      }
                       case _ => throw new Error("unexpected value")
                     }
                   }
-                  val schema = Option(request.getParameter("schema"))
-                  val r = dc.update(datasetId, schema, mockUser, upserts)
+                  val schemaHash = Option(request.getParameter("schema"))
+                  val r = dc.update(datasetId, schemaHash, mockUser, upserts)
                   r() match {
                     case Right(rr) => {
                       DataCoordinatorClient.passThroughResponse(rr)
@@ -116,8 +125,8 @@ trait DatasetService extends SodaService {
     }
     def delete(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       withDatasetId(resourceName){ datasetId =>
-        val schema = Option(request.getParameter("schema"))
-        val d = dc.deleteAllCopies(datasetId, schema, mockUser)
+        val schemaHash = Option(request.getParameter("schema"))
+        val d = dc.deleteAllCopies(datasetId, schemaHash, mockUser)
         d() match {
           case Right(response) => {
             store.remove(resourceName) //TODO: handle error case!
@@ -131,8 +140,8 @@ trait DatasetService extends SodaService {
     def copy(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       withDatasetId(resourceName){ datasetId =>
         val doCopyData = Option(request.getParameter("copy_data")).getOrElse("false").toBoolean
-        val schema = Option(request.getParameter("schema"))
-        val c = dc.copy(datasetId, schema, doCopyData, mockUser, None)
+        val schemaHash = Option(request.getParameter("schema"))
+        val c = dc.copy(datasetId, schemaHash, doCopyData, mockUser, None)
         c() match {
           case Right(response) => DataCoordinatorClient.passThroughResponse(response)
           case Left(thr) => sendErrorResponse(thr.getMessage, "failed.copy", InternalServerError, None)
@@ -142,8 +151,8 @@ trait DatasetService extends SodaService {
 
     def dropCopy(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       withDatasetId(resourceName){ datasetId =>
-        val schema = Option(request.getParameter("schema"))
-        val d = dc.dropCopy(datasetId, schema, mockUser, None)
+        val schemaHash = Option(request.getParameter("schema"))
+        val d = dc.dropCopy(datasetId, schemaHash, mockUser, None)
         d() match {
           case Right(response) => DataCoordinatorClient.passThroughResponse(response)
           case Left(thr) => sendErrorResponse(thr.getMessage, "failed.drop", InternalServerError, None)
@@ -153,9 +162,9 @@ trait DatasetService extends SodaService {
 
     def publish(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       withDatasetId(resourceName){ datasetId =>
-        val schema = Option(request.getParameter("schema"))
+        val schemaHash = Option(request.getParameter("schema"))
         val snapshowLimit = Option(request.getParameter("snapshot_limit")).flatMap( s => Some(s.toInt) )
-        val p = dc.publish(datasetId, schema, snapshowLimit, mockUser, None)
+        val p = dc.publish(datasetId, schemaHash, snapshowLimit, mockUser, None)
         p() match {
           case Right(response) => {
             dc.propagateToSecondary(datasetId)
