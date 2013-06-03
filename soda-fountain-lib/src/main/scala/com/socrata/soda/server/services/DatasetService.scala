@@ -1,6 +1,5 @@
 package com.socrata.soda.server.services
 
-import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
@@ -10,13 +9,8 @@ import com.rojoma.json.ast._
 import com.socrata.soda.server.services.ClientRequestExtractor._
 import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.json.io.{JsonBadParse, JsonReader}
-import scala.collection.Map
-import scala.concurrent.ExecutionContext.Implicits.global
 import com.socrata.http.server.responses
-import com.socrata.soql.types.SoQLType
-import com.socrata.soql.environment.TypeName
 import com.socrata.soda.server.typefitting.TypeFitter
-import com.socrata.soda.server.typefitting.TypeFitter.UnexpectedTypeException
 
 
 trait DatasetService extends SodaService {
@@ -37,8 +31,10 @@ trait DatasetService extends SodaService {
                     case JObject(map) =>  {
                       map.foreach{ pair =>
                         val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "column.not.found", BadRequest, Some(rowjval)))
-                        try { TypeFitter.check(expectedTypeName, pair._2) }
-                        catch { case e: UnexpectedTypeException => return sendErrorResponse(e.getMessage, "type.error", BadRequest, Some(rowjval))}
+                        TypeFitter.check(expectedTypeName, pair._2) match {
+                          case Right(v) => v
+                          case Left(msg) => return sendErrorResponse(msg, "type.error", BadRequest, Some(rowjval))
+                        }
                       }
                       UpsertRow(map)
                     }

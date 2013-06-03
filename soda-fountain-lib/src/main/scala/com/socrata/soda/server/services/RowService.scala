@@ -8,7 +8,6 @@ import com.socrata.datacoordinator.client._
 import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
 import com.socrata.soda.server.typefitting.TypeFitter
-import com.socrata.soda.server.typefitting.TypeFitter.UnexpectedTypeException
 
 trait RowService extends SodaService {
 
@@ -23,8 +22,10 @@ trait RowService extends SodaService {
               withDatasetSchema(datasetId){ schema =>
                 map.foreach{ pair =>
                   val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "column.not.found", BadRequest, Some(JObject(map))))
-                  try { TypeFitter.check(expectedTypeName, pair._2) }
-                  catch { case e: UnexpectedTypeException => return sendErrorResponse(e.getMessage, "type.error", BadRequest, Some(JObject(map)))}
+                  TypeFitter.check(expectedTypeName, pair._2) match {
+                    case Right(v) => v
+                    case Left(msg) => return sendErrorResponse(msg, "type.error", BadRequest, Some(pair._2))
+                  }
                 }
                 val schemaHash = Option(request.getParameter("schema"))
                 val response = dc.update(datasetId, schemaHash, mockUser, Array(UpsertRow(map)).iterator)
