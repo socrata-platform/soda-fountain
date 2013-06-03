@@ -9,6 +9,7 @@ object SodaFountainLib{
       "com.rojoma" %% "rojoma-json" % "[2.3.0,3.0.0)",
       "net.databinder.dispatch" %% "dispatch-core" % "0.10.0",
       "com.typesafe" % "config" % "1.0.0",
+      "com.h2database" % "h2" % "1.3.166" % "test,it",
       "com.socrata" %% "socrata-http-curator-broker" % "[1.3.0,2.0.0)",
       "javax.servlet" % "servlet-api" % "2.5" % "provided",
       "org.scalacheck" %% "scalacheck" % "1.10.0" % "test,it",
