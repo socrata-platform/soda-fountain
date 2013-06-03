@@ -31,32 +31,28 @@ trait DatasetService extends SodaService {
         case Right(boundedIt) => {
           try {
             withDatasetId(resourceName){ datasetId =>
-              val sf = dc.getSchema(datasetId)
-              sf() match {
-                case Right(schema) => {
-                  val upserts = boundedIt.map { rowjval =>
-                    rowjval match {
-                      case JObject(map) =>  {
-                        map.foreach{ pair =>
-                          val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "column.not.found", BadRequest, Some(rowjval)))
-                          try { TypeFitter.check(expectedTypeName, pair._2) }
-                          catch { case e: UnexpectedTypeException => return sendErrorResponse(e.getMessage, "type.error", BadRequest, Some(rowjval))}
-                        }
-                        UpsertRow(map)
+              withDatasetSchema(datasetId) { schema =>
+                val upserts = boundedIt.map { rowjval =>
+                  rowjval match {
+                    case JObject(map) =>  {
+                      map.foreach{ pair =>
+                        val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "column.not.found", BadRequest, Some(rowjval)))
+                        try { TypeFitter.check(expectedTypeName, pair._2) }
+                        catch { case e: UnexpectedTypeException => return sendErrorResponse(e.getMessage, "type.error", BadRequest, Some(rowjval))}
                       }
-                      case _ => throw new Error("unexpected value")
+                      UpsertRow(map)
                     }
-                  }
-                  val schemaHash = Option(request.getParameter("schema"))
-                  val r = dc.update(datasetId, schemaHash, mockUser, upserts)
-                  r() match {
-                    case Right(rr) => {
-                      DataCoordinatorClient.passThroughResponse(rr)
-                    }
-                    case Left(thr) => sendErrorResponse(thr.getMessage, "upsert.error", InternalServerError, None)
+                    case _ => throw new Error("unexpected value")
                   }
                 }
-                case Left(err) => sendErrorResponse(err, "schema.not-found", NotFound, None)
+                val schemaHash = Option(request.getParameter("schema"))
+                val r = dc.update(datasetId, schemaHash, mockUser, upserts)
+                r() match {
+                  case Right(rr) => {
+                    DataCoordinatorClient.passThroughResponse(rr)
+                  }
+                  case Left(thr) => sendErrorResponse(thr.getMessage, "upsert.error", InternalServerError, None)
+                }
               }
             }
           }

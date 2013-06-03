@@ -29,6 +29,7 @@ object TypeFitter {
         case JNumber(n) => new SoQLDouble(n.toDouble)
         case _ => unexpected
       }
+      //TODO: implement these date/time type checks
       //case "fixed_timestamp" => v match {
       //  case JString(n) => new SoQLFixedTimestamp(new DateTime(n))
       //  case JNumber(n) => new SoQLFixedTimestamp(new DateTime(n))

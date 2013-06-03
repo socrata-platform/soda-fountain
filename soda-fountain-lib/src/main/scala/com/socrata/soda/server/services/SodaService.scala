@@ -11,6 +11,7 @@ import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.querycoordinator.client.QueryCoordinatorClient
 import dispatch._
 import com.typesafe.config.ConfigFactory
+import com.socrata.datacoordinator.client.DataCoordinatorClient.SchemaSpec
 
 object SodaService {
   val config = ConfigFactory.load().getConfig("com.socrata.soda-fountain")
@@ -47,5 +48,11 @@ trait SodaService {
       case Left(err) => sendErrorResponse(err, "dataset.not.found", BadRequest, None)
     }
   }
-
+  def withDatasetSchema(datasetId: String)(f: SchemaSpec => HttpResponse): HttpResponse = {
+    val sf = dc.getSchema(datasetId)
+    sf() match {
+      case Right(schema) => f(schema)
+      case Left(err) => sendErrorResponse(err, "schema.not-found", NotFound, None)
+    }
+  }
 }
