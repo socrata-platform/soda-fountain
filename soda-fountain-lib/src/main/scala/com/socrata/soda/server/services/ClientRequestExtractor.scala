@@ -41,7 +41,7 @@ object ClientRequestExtractor {
         fields match {
           case Some(map) => {
             val dex = new DatasetExtractor(map)
-            val vals = (
+            val fields = (
               dex.resourceName,
               dex.name,
               dex.description,
@@ -49,12 +49,12 @@ object ClientRequestExtractor {
               dex.locale,
               dex.columns
               )
-            vals match {
+            fields match {
               case (Right(rn), Right(n), Right(d), Right(r), Right(loc), Right(c)) => {
                 Right(DatasetSpec(rn, n, d, r, loc, c))
               }
               case _ => {
-                val ers = vals.productIterator.collect {
+                val ers = fields.productIterator.collect {
                   case Left(msg : String) => Seq(msg)
                   case Left(msgs: Seq[String]) => msgs
                   case Left(a: Any) => Seq("error with " + a.toString)
@@ -101,7 +101,7 @@ object ClientRequestExtractor {
           vals match {
             case (Right(fieldName), Right(name), Right(description), Right(datatype)) =>
               Right(new ColumnSpec(fieldName, name, description, SoQLType.typesByName(TypeName(datatype))))
-            case _ =>  Left(vals.productIterator.collect { case Left(msg:String) => msg}.toSeq)
+            case _ =>  Left(fields.productIterator.collect { case Left(msg:String) => msg}.toSeq)
           }
         }
         case _ => Left(Seq("column specification could not be read as JSON object"))

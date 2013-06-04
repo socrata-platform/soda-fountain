@@ -12,16 +12,15 @@ trait MockNameAndSchemaStore extends SodaService {
     val names = new scala.collection.mutable.HashMap[String, String]
 
     def translateResourceName( resourceName: String) : Future[Either[String, String]] = {
-      val f = future {
+      future {
         names.get(resourceName) match {
           case Some(rn) => Right(rn)
           case None => Left("could not find dataset")
         }
       }
-      f
     }
 
-    def add(resourceName: String, datasetId: String) = names.put(resourceName, datasetId)
-    def remove(resourceName: String) = names.remove(resourceName)
+    def add(resourceName: String, datasetId: String) = future { names.put(resourceName, datasetId) }
+    def remove(resourceName: String) = future { names.remove(resourceName) }
   }
 }
