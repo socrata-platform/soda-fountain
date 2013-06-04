@@ -5,7 +5,7 @@ import org.scalatest.FunSuite
 import com.socrata.soda.server.types.TypeChecker
 import com.rojoma.json.ast._
 import com.socrata.soql.types._
-import org.joda.time.DateTime
+import org.joda.time.{LocalTime, LocalDate, LocalDateTime, DateTime}
 
 class TypeFitterTest extends FunSuite with MustMatchers {
 
@@ -58,7 +58,7 @@ class TypeFitterTest extends FunSuite with MustMatchers {
   }
 
   test("JSON type checker with number (as number)"){
-    val input = 12345
+    val input = BigDecimal(12345).bigDecimal
     TypeChecker.check("number", JNumber(input)) match {
       case Right(v) => v match {
         case t: SoQLNumber => t.value must equal (input)
@@ -80,7 +80,7 @@ class TypeFitterTest extends FunSuite with MustMatchers {
   }
 
   test("JSON type checker with money"){
-    val input = 123.45
+    val input = BigDecimal(123.45).bigDecimal
     TypeChecker.check("money", JNumber(input)) match {
       case Right(v) => v match {
         case t:SoQLMoney => t.value must equal (input)
@@ -131,7 +131,7 @@ class TypeFitterTest extends FunSuite with MustMatchers {
     val input = "2013-06-03T02:26:05.123"
     TypeChecker.check( "floating_timestamp", JString(input)) match {
       case Right(v) => v match {
-        case t: SoQLFixedTimestamp => t.value must equal (new DateTime(input))
+        case t: SoQLFloatingTimestamp => t.value must equal (new LocalDateTime(input))
         case _ => fail("received unexpected type")
       }
       case Left(msg) => fail("type check failed for valid value")
@@ -142,7 +142,7 @@ class TypeFitterTest extends FunSuite with MustMatchers {
     val input = "2013-06-03"
     TypeChecker.check( "date", JString(input)) match {
       case Right(v) => v match {
-        case t: SoQLFixedTimestamp => t.value must equal (new DateTime(input))
+        case t: SoQLDate => t.value must equal (new LocalDate(input))
         case _ => fail("received unexpected type")
       }
       case Left(msg) => fail("type check failed for valid value")
@@ -153,10 +153,20 @@ class TypeFitterTest extends FunSuite with MustMatchers {
     val input = "02:26:05.123"
     TypeChecker.check( "time", JString(input)) match {
       case Right(v) => v match {
-        case t: SoQLFixedTimestamp => t.value must equal (new DateTime(input))
+        case t: SoQLTime => t.value must equal (new LocalTime(input))
         case _ => fail("received unexpected type")
       }
       case Left(msg) => fail("type check failed for valid value")
+    }
+  }
+
+  test("JSON type checker with invalid time"){
+    val input = "@0z2:2!6:0$5.123"
+    TypeChecker.check( "time", JString(input)) match {
+      case Right(v) => v match {
+        case _ => fail("invalid type should not have passed type check")
+      }
+      case Left(msg) => {}
     }
   }
 
