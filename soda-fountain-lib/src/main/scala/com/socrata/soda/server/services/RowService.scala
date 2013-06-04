@@ -7,7 +7,7 @@ import dispatch._
 import com.socrata.datacoordinator.client._
 import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
-import com.socrata.soda.server.typefitting.TypeFitter
+import com.socrata.soda.server.types.TypeChecker
 
 trait RowService extends SodaService {
 
@@ -22,7 +22,7 @@ trait RowService extends SodaService {
               withDatasetSchema(datasetId){ schema =>
                 map.foreach{ pair =>
                   val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "column.not.found", BadRequest, Some(JObject(map))))
-                  TypeFitter.check(expectedTypeName, pair._2) match {
+                  TypeChecker.check(expectedTypeName, pair._2) match {
                     case Right(v) => v
                     case Left(msg) => return sendErrorResponse(msg, "type.error", BadRequest, Some(pair._2))
                   }

@@ -1,11 +1,11 @@
-package com.socrata.soda.server.typefitting
+package com.socrata.soda.server.types
 
 import com.socrata.soql.types._
 import com.rojoma.json.ast._
 import com.rojoma.json.ast.JString
 import org.joda.time.DateTime
 
-object TypeFitter {
+object TypeChecker {
   def check(typ: String, v: JValue) : Either[String, SoQLValue] = {
     def unexpected = Left("expecting " + SoQLText.toString() + " but received " + v.toString())
 
