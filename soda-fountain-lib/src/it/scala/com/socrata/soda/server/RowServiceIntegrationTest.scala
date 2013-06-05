@@ -1,0 +1,62 @@
+package com.socrata.soda.server
+
+import com.rojoma.json.ast._
+import com.rojoma.json.util.JsonUtil
+import org.scalatest._
+
+trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with IntegrationTestHelpers { this: Suite =>
+
+  val resourceName = "soda-int-test-row-service"
+
+  override def beforeAll = {
+    val cBody = JObject(Map(
+      "resource_name" -> JString(resourceName),
+      "name" -> JString("soda integration test for row service"),
+      "columns" -> JArray(Seq(
+        column("the ID column", "col_id", Some("this is the ID column"), "number"),
+        column("a text column", "col_text", Some("this is a text column"), "text"),
+        column("a boolean column", "col_bool", None, "boolean")
+      ))
+    ))
+    val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
+    //assert(cResponse.getStatusCode == 200)
+
+    val uBody = JArray(Seq(
+      JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
+      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 2"))))
+    ))
+    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    assert(uResponse.getStatusCode == 200)
+
+    //publish
+    val pResponse = dispatch("PUT", "dataset", Some(resourceName), Some("publish"), None, None)
+    //assert(pResponse.getStatusCode == 200)
+
+    Thread.sleep(8000) //TODO: eliminate this
+  }
+
+  override def afterAll = {
+  }
+}
+
+class RowServiceIntegrationTest extends IntegrationTest with RowServiceIntegrationTestFixture {
+
+  test("soda fountain row service upsert"){
+    val uBody = JArray(Seq(
+      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
+    ))
+    val uResponse = dispatch("POST", "resource", Some(resourceName), Some("3"), None, Some(uBody))
+    uResponse.getStatusCode must equal (200)
+  }
+
+  test("soda fountain row service get"){
+    val uResponse = dispatch("GET", "resource", Some(resourceName), Some("2"), None, None)
+    uResponse.getStatusCode must equal (200)
+  }
+
+  test("soda fountain row service remove"){
+    val uResponse = dispatch("DELETE", "resource", Some(resourceName), Some("1"), None, None)
+    uResponse.getStatusCode must equal (200)
+  }
+
+}

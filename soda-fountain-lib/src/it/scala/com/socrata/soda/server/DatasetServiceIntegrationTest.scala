@@ -4,7 +4,7 @@ import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
 import org.scalatest._
 
-trait SodaServerIntegrationTestFixture extends BeforeAndAfterAll with IntegrationTestHelpers { this: Suite =>
+trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with IntegrationTestHelpers { this: Suite =>
 
   val resourceName = "soda-int-test"
 
@@ -41,7 +41,7 @@ trait SodaServerIntegrationTestFixture extends BeforeAndAfterAll with Integratio
   }
 }
 
-class SodaServerIntegrationTest extends IntegrationTest with SodaServerIntegrationTestFixture {
+class DatasetServiceIntegrationTest extends IntegrationTest with DatasetServiceIntegrationTestFixture {
 
   test("update request malformed json returns error response"){
     val response = dispatch("POST", "resource", Option(resourceName), None, None,  Some(JString("this is not json")))
@@ -54,7 +54,7 @@ class SodaServerIntegrationTest extends IntegrationTest with SodaServerIntegrati
     response.getStatusCode must equal (400)
   }
 
-  test("soda fountain getSchema"){
+  test("soda fountain dataset service getSchema"){
     //get schema
     val gResponse = dispatch("GET", "dataset", Some(resourceName), None, None,  None)
     gResponse.getStatusCode must equal (200)
@@ -69,8 +69,7 @@ class SodaServerIntegrationTest extends IntegrationTest with SodaServerIntegrati
     }
   }
 
-  test("soda fountain upsert"){
-    //upsert
+  test("soda fountain dataset service upsert"){
     val uBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("upserted row 1")))),
       JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
@@ -79,8 +78,7 @@ class SodaServerIntegrationTest extends IntegrationTest with SodaServerIntegrati
     uResponse.getStatusCode must equal (200)
   }
 
-  test("soda fountain upsert error case: bad column"){
-    //upsert
+  test("soda fountain dataset service upsert error case: bad column"){
     val uBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("upserted row 1")))),
       JObject(Map(("col_id"->JNumber(2)), ("col_does_not_exist"->JString("row 2")))),
@@ -90,8 +88,7 @@ class SodaServerIntegrationTest extends IntegrationTest with SodaServerIntegrati
     uResponse.getStatusCode must equal (400)
   }
 
-  test("soda fountain query") {
-    //query
+  test("soda fountain dataset service  query") {
     val params = Map(("$query" -> "select *"))
     val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
     jsonCompare(qResponse.getResponseBody, "[{ \"col_text\" : \"row 1\", \"col_id\" : 1.0 },{ \"col_text\" : \"row 3\", \"col_id\" : 3.0 }]")
