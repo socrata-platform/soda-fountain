@@ -11,6 +11,7 @@ import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.json.io.{JsonBadParse, JsonReader}
 import com.socrata.http.server.responses
 import com.socrata.soda.server.types.TypeChecker
+import com.socrata.datacoordinator.client.DataCoordinatorClient.SchemaSpec
 
 
 trait DatasetService extends SodaService {
@@ -19,7 +20,7 @@ trait DatasetService extends SodaService {
 
     val MAX_DATUM_SIZE = SodaService.config.getInt("max-dataum-size")
 
-    def upsert(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+    protected def prepareForUpsert(resourceName: String, request: HttpServletRequest)(f: (String, SchemaSpec, Iterator[UpsertRow]) => HttpServletResponse => Unit) : HttpServletResponse => Unit = {
       val it = streamJsonArrayValues(request, MAX_DATUM_SIZE)
       it match {
         case Right(boundedIt) => {
@@ -41,8 +42,7 @@ trait DatasetService extends SodaService {
                     case _ => throw new Error("unexpected value")
                   }
                 }
-                val r = dc.update(datasetId, schemaHash(request), mockUser, upserts)
-                passThroughResponse(r)
+                f(datasetId, schema, upserts)
               }
             }
           }
@@ -54,8 +54,29 @@ trait DatasetService extends SodaService {
       }
     }
 
-    def replace(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
-    def truncate(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
+    def upsert(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
+        val r = dc.update(datasetId, schemaHash(request), mockUser, upserts)
+        passThroughResponse(r)
+      }
+    }
+
+    def replace(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
+        val r = dc.copy(datasetId, schemaHash(request), false, mockUser, Some(upserts))
+        //TODO: publish?
+        passThroughResponse(r)
+      }
+    }
+
+    def truncate(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      withDatasetId(resourceName) { datasetId =>
+        val c = dc.copy(datasetId, schemaHash(request), false, mockUser, None)
+        //TODO: publish?
+        passThroughResponse(c)
+      }
+    }
+
     def query(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       withDatasetId(resourceName) { datasetId =>
         val q = Option(request.getParameter("$query")).getOrElse("select *")
