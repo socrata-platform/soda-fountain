@@ -42,21 +42,19 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
 class RowServiceIntegrationTest extends IntegrationTest with RowServiceIntegrationTestFixture {
 
   test("soda fountain row service upsert"){
-    val uBody = JArray(Seq(
-      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
-    ))
+    val uBody =  JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
     val uResponse = dispatch("POST", "resource", Some(resourceName), Some("3"), None, Some(uBody))
-    uResponse.getStatusCode must equal (200)
+    assert(uResponse.getStatusCode === 200, uResponse.getResponseBody)
   }
 
   test("soda fountain row service get"){
     val uResponse = dispatch("GET", "resource", Some(resourceName), Some("2"), None, None)
-    uResponse.getStatusCode must equal (200)
+    assert(uResponse.getStatusCode === 200, uResponse.getResponseBody)
   }
 
   test("soda fountain row service remove"){
     val uResponse = dispatch("DELETE", "resource", Some(resourceName), Some("1"), None, None)
-    uResponse.getStatusCode must equal (200)
+    assert(uResponse.getStatusCode === 200, uResponse.getResponseBody)
   }
 
 }

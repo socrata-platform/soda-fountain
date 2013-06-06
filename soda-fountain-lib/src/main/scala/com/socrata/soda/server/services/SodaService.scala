@@ -1,7 +1,7 @@
 package com.socrata.soda.server.services
 
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
-import com.socrata.http.server.HttpResponse
+import com.socrata.http.server.{responses, HttpResponse}
 import scala.Some
 import com.rojoma.json.ast._
 import com.socrata.http.server.responses._
@@ -12,6 +12,7 @@ import com.socrata.querycoordinator.client.QueryCoordinatorClient
 import dispatch._
 import com.typesafe.config.ConfigFactory
 import com.socrata.datacoordinator.client.DataCoordinatorClient.SchemaSpec
+import com.ning.http.client.Response
 
 object SodaService {
   val config = ConfigFactory.load().getConfig("com.socrata.soda-fountain")
@@ -25,6 +26,8 @@ trait SodaService {
   val mockUser = "soda-server-community-edition"
   //val log = org.slf4j.LoggerFactory.getLogger(classOf[SodaService])
 
+  def schemaHash(r: HttpServletRequest) = Option(r.getParameter("schema"))
+
   def sendErrorResponse(message: String, errorCode: String, httpCode: HttpServletResponse => Unit = BadRequest, data: Option[JValue] = None) = {
     val messageAndCode = Map[String, JValue](
       "message" -> JString(message),
@@ -35,6 +38,21 @@ trait SodaService {
       case None => messageAndCode
     }
     httpCode ~> ContentType("application/json; charset=utf-8") ~> Content(JObject(errorMap).toString)
+  }
+
+  def passThroughResponse(f: Future[Either[Throwable,Response]]): HttpServletResponse => Unit = {
+    f() match {
+      case Right(response) => passThroughResponse(response)
+      case Left(th) => sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None)
+    }
+  }
+  def passThroughResponse(response: Response): HttpServletResponse => Unit = {
+    responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
+  }
+
+  def pkValue(rowId: String, schema: SchemaSpec) = {
+    val pkType = schema.schema.get(schema.pk).getOrElse(throw new Error("Primary key column not represented in schema. This should not happen."))
+    pkType match { case "text" => Left(rowId); case "number" => Right(BigDecimal(rowId)); case _ => throw new Error("Primary key column not text or number")}
   }
 
   def notSupported(id:String)(request:HttpServletRequest): HttpServletResponse => Unit = ???

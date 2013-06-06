@@ -27,12 +27,8 @@ trait RowService extends SodaService {
                     case Left(msg) => return sendErrorResponse(msg, "type.error", BadRequest, Some(pair._2))
                   }
                 }
-                val schemaHash = Option(request.getParameter("schema"))
-                val response = dc.update(datasetId, schemaHash, mockUser, Array(UpsertRow(map)).iterator)
-                response() match {
-                  case Right(resp) => DataCoordinatorClient.passThroughResponse(resp)
-                  case Left(th) => sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None)
-                }
+                val response = dc.update(datasetId, schemaHash(request), mockUser, Array(UpsertRow(map)).iterator)
+                passThroughResponse(response)
               }
             }
           }
@@ -44,7 +40,24 @@ trait RowService extends SodaService {
       }
     }
 
-    def delete(resourceName: String, rowId: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
-    def get(resourceName: String, rowId: String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
+    def delete(resourceName: String, rowId: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      withDatasetId(resourceName){ datasetId =>
+        withDatasetSchema(datasetId) { schema =>
+          val response = dc.update(datasetId, schemaHash(request), mockUser, Array(DeleteRow(pkValue(rowId, schema))).iterator)
+          passThroughResponse(response)
+        }
+      }
+    }
+    def get(resourceName: String, rowId: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      withDatasetId(resourceName){ datasetId =>
+        withDatasetSchema(datasetId) { schema =>
+          val pkVal = pkValue(rowId, schema) match { case Left(s) => s"'${s}'"; case Right(n) => n.toString}
+          val response = qc.query(datasetId, "select * where " + schema.pk + " = " + pkVal)
+          passThroughResponse(response)
+        }
+      }
+    }
+
   }
+
 }

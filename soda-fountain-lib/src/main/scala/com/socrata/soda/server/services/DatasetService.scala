@@ -41,14 +41,8 @@ trait DatasetService extends SodaService {
                     case _ => throw new Error("unexpected value")
                   }
                 }
-                val schemaHash = Option(request.getParameter("schema"))
-                val r = dc.update(datasetId, schemaHash, mockUser, upserts)
-                r() match {
-                  case Right(rr) => {
-                    DataCoordinatorClient.passThroughResponse(rr)
-                  }
-                  case Left(thr) => sendErrorResponse(thr.getMessage, "upsert.error", InternalServerError, None)
-                }
+                val r = dc.update(datasetId, schemaHash(request), mockUser, upserts)
+                passThroughResponse(r)
               }
             }
           }
@@ -119,12 +113,11 @@ trait DatasetService extends SodaService {
     }
     def delete(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       withDatasetId(resourceName){ datasetId =>
-        val schemaHash = Option(request.getParameter("schema"))
-        val d = dc.deleteAllCopies(datasetId, schemaHash, mockUser)
+        val d = dc.deleteAllCopies(datasetId, schemaHash(request), mockUser)
         d() match {
           case Right(response) => {
             store.remove(resourceName) //TODO: handle error case!
-            DataCoordinatorClient.passThroughResponse(response)
+            passThroughResponse(response)
           }
           case Left(thr) => sendErrorResponse(thr.getMessage, "failed.delete", InternalServerError, None)
         }
@@ -134,35 +127,26 @@ trait DatasetService extends SodaService {
     def copy(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       withDatasetId(resourceName){ datasetId =>
         val doCopyData = Option(request.getParameter("copy_data")).getOrElse("false").toBoolean
-        val schemaHash = Option(request.getParameter("schema"))
-        val c = dc.copy(datasetId, schemaHash, doCopyData, mockUser, None)
-        c() match {
-          case Right(response) => DataCoordinatorClient.passThroughResponse(response)
-          case Left(thr) => sendErrorResponse(thr.getMessage, "failed.copy", InternalServerError, None)
-        }
+        val c = dc.copy(datasetId, schemaHash(request), doCopyData, mockUser, None)
+        passThroughResponse(c)
       }
     }
 
     def dropCopy(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       withDatasetId(resourceName){ datasetId =>
-        val schemaHash = Option(request.getParameter("schema"))
-        val d = dc.dropCopy(datasetId, schemaHash, mockUser, None)
-        d() match {
-          case Right(response) => DataCoordinatorClient.passThroughResponse(response)
-          case Left(thr) => sendErrorResponse(thr.getMessage, "failed.drop", InternalServerError, None)
-        }
+        val d = dc.dropCopy(datasetId, schemaHash(request), mockUser, None)
+        passThroughResponse(d)
       }
     }
 
     def publish(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       withDatasetId(resourceName){ datasetId =>
-        val schemaHash = Option(request.getParameter("schema"))
         val snapshowLimit = Option(request.getParameter("snapshot_limit")).flatMap( s => Some(s.toInt) )
-        val p = dc.publish(datasetId, schemaHash, snapshowLimit, mockUser, None)
+        val p = dc.publish(datasetId, schemaHash(request), snapshowLimit, mockUser, None)
         p() match {
           case Right(response) => {
             dc.propagateToSecondary(datasetId)
-            DataCoordinatorClient.passThroughResponse(response)
+            passThroughResponse(response)
           }
           case Left(thr) => sendErrorResponse(thr.getMessage, "failed.publish", InternalServerError, None)
         }

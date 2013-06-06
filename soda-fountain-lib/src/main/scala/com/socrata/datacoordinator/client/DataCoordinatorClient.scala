@@ -28,9 +28,6 @@ object DataCoordinatorClient {
     implicit val codec = SimpleJsonCodecBuilder[RowOpReport].build("rows_created", _.createdCount , "rows_updated", _.updatedCount, "rows_deleted", _.deletedCount)
   }
 
-  def passThroughResponse(response: Response): HttpServletResponse => Unit = {
-    responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
-  }
 }
 
 trait DataCoordinatorClient {
