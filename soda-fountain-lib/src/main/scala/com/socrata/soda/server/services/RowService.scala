@@ -8,6 +8,8 @@ import com.socrata.datacoordinator.client._
 import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
 import com.socrata.soda.server.types.TypeChecker
+import java.io.IOException
+import com.rojoma.json.io.JsonReaderException
 
 trait RowService extends SodaService {
 
@@ -35,8 +37,8 @@ trait RowService extends SodaService {
           case None => sendErrorResponse("could not parse request body as single JSON object", "parse.error", BadRequest, None)
         }
       } catch {
-        case e: Exception => sendErrorResponse("could not parse request body as JSON: " + e.getMessage, "parse.error", UnsupportedMediaType, None)
-        case _: Throwable => sendErrorResponse("error processing request", "internal.error", InternalServerError, None)
+        case e: IOException => sendErrorResponse("could not read request body: " + e.getMessage, "parse.error", UnsupportedMediaType, None)
+        case e: JsonReaderException => sendErrorResponse("could not parse request body as JSON: " + e.getMessage, "parse.error", UnsupportedMediaType, None)
       }
     }
 

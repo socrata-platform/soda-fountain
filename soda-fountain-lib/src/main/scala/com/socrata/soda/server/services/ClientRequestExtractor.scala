@@ -3,7 +3,7 @@ package com.socrata.soda.server.services
 
 import com.socrata.http.server.{HttpResponse}
 import com.socrata.soql.types.SoQLType
-import java.io.{UnsupportedEncodingException, Reader}
+import java.io.{IOException, UnsupportedEncodingException, Reader}
 import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.json.ast._
 import com.socrata.soql.environment.TypeName
@@ -66,8 +66,8 @@ object ClientRequestExtractor {
           case None => Left(Seq("Could not read dataset specification as JSON object"))
         }
       } catch {
-        case e: Exception => Left(Seq("could not parse as JSON: " + e.getMessage))
-        case _: Throwable => Left(Seq("could not parse as JSON"))
+        case e: IOException => Left(Seq("could not read column specification: " + e.getMessage))
+        case e: JsonReaderException => Left(Seq("could not read column specification as JSON: " + e.getMessage))
       }
     }
   }
@@ -92,13 +92,13 @@ object ClientRequestExtractor {
       jval match {
         case JObject(map) => {
           val cex = new ColumnExtractor(map)
-          val vals = (
+          val fields = (
             cex.fieldNamme,
             cex.name,
             cex.description,
             cex.datatype
           )
-          vals match {
+          fields match {
             case (Right(fieldName), Right(name), Right(description), Right(datatype)) =>
               Right(new ColumnSpec(fieldName, name, description, SoQLType.typesByName(TypeName(datatype))))
             case _ =>  Left(fields.productIterator.collect { case Left(msg:String) => msg}.toSeq)
@@ -115,8 +115,8 @@ object ClientRequestExtractor {
         }
       }
       catch {
-        case e: Exception => Left(Seq("could not parse as JSON array: " + e.getMessage))
-        case _: Throwable => Left(Seq("could not parse as JSON array"))
+        case e: IOException => Left(Seq("could not read column specification: " + e.getMessage))
+        case e: JsonReaderException => Left(Seq("could not read column specification as JSON: " + e.getMessage))
       }
     }
     def array( jvals: Seq[JValue]) : Either[Seq[String], Seq[ColumnSpec]] = {

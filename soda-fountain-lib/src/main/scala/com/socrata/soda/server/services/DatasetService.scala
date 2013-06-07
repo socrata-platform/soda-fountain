@@ -8,7 +8,7 @@ import com.socrata.datacoordinator.client._
 import com.rojoma.json.ast._
 import com.socrata.soda.server.services.ClientRequestExtractor._
 import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
-import com.rojoma.json.io.{JsonBadParse, JsonReader}
+import com.rojoma.json.io.{JsonReaderException, JsonBadParse, JsonReader}
 import com.socrata.http.server.responses
 import com.socrata.soda.server.types.TypeChecker
 import com.socrata.datacoordinator.client.DataCoordinatorClient.SchemaSpec
@@ -39,7 +39,7 @@ trait DatasetService extends SodaService {
                       }
                       UpsertRow(map)
                     }
-                    case _ => throw new Error("unexpected value")
+                    case _ => throw new Exception("unexpected value")
                   }
                 }
                 f(datasetId, schema, upserts)
@@ -47,7 +47,7 @@ trait DatasetService extends SodaService {
             }
           }
           catch {
-            case bp: JsonBadParse => sendErrorResponse("bad JSON value: " + bp.getMessage, "json.value.invalid", BadRequest, None)
+            case bp: JsonReaderException => sendErrorResponse("bad JSON value: " + bp.getMessage, "json.value.invalid", BadRequest, None)
           }
         }
         case Left(err) => sendErrorResponse("Error upserting values", err, BadRequest, None)
@@ -100,7 +100,7 @@ trait DatasetService extends SodaService {
           }
           val rnf = store.translateResourceName(dspec.resourceName)
           rnf() match {
-            case Left(err) => {
+            case Left(err) => { //TODO: can I be more specific here?
               val r = dc.create(mockUser, Some(instructions.iterator), dspec.locale )
               r() match {
                 case Right((datasetId, records)) => {
