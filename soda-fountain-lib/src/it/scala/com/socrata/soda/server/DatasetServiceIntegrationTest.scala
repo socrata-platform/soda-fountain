@@ -30,7 +30,7 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
     assert(uResponse.getStatusCode == 200)
 
     //publish
-    val pResponse = dispatch("PUT", "dataset", Some(resourceName), Some("publish"), None, None)
+    val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
     //assert(pResponse.getStatusCode == 200)
 
     Thread.sleep(8000) //TODO: eliminate this

@@ -43,7 +43,7 @@ class SodaServerEndToEndTest extends IntegrationTest with BeforeAndAfterAll with
     val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
     assert(cResponse.getStatusCode == 200)
     //publish
-    val pResponse = dispatch("PUT", "dataset", Some(resourceOpDataset), Some("publish"), None, None)
+    val pResponse = dispatch("PUT", "dataset-copy", Some(resourceOpDataset), None, None, None)
     assert(pResponse.getStatusCode == 200)
 
 
