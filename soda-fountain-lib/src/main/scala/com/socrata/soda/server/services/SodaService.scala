@@ -52,7 +52,11 @@ trait SodaService {
 
   def pkValue(rowId: String, schema: SchemaSpec) = {
     val pkType = schema.schema.get(schema.pk).getOrElse(throw new Exception("Primary key column not represented in schema. This should not happen."))
-    pkType match { case "text" => Left(rowId); case "number" => Right(BigDecimal(rowId)); case _ => throw new Exception("Primary key column not text or number")}
+    pkType match {
+      case "text" => Left(rowId)
+      case "number" => Right(BigDecimal(rowId))
+      case "row_identifier" => Right(BigDecimal(rowId))
+      case _ => throw new Exception("Primary key column not text or number")}
   }
 
   def notSupported(id:String)(request:HttpServletRequest): HttpServletResponse => Unit = ???

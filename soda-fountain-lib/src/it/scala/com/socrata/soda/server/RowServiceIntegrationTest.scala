@@ -12,6 +12,7 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
     val cBody = JObject(Map(
       "resource_name" -> JString(resourceName),
       "name" -> JString("soda integration test for row service"),
+      "row_identifier" -> JArray(Seq(JString("col_id"))),
       "columns" -> JArray(Seq(
         column("the ID column", "col_id", Some("this is the ID column"), "number"),
         column("a text column", "col_text", Some("this is a text column"), "text"),
@@ -23,9 +24,11 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
 
     val uBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
-      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 2"))))
+      JObject(Map(("col_id"->JNumber(2)), ("col_text"->JString("row 2")))),
+      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3"))))
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    println(uResponse.getResponseBody)
     assert(uResponse.getStatusCode == 200)
 
     //publish
