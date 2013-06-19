@@ -7,8 +7,6 @@ import dispatch._
 
 class PostgresStoreIntegrationTest extends IntegrationTest {
 
-  val fountain = new SodaFountain with PostgresStore with LocalDataCoordinator with LocalQueryCoordinatorClient
-
   test("Postgress add/get/remove resourceName and datasetId"){
     val time = System.currentTimeMillis().toString
     val resourceName: String = "postgres name store integration test @" + time

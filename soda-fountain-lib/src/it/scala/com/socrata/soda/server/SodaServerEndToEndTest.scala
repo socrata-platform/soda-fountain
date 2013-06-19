@@ -99,6 +99,10 @@ class SodaServerEndToEndTest extends IntegrationTest with BeforeAndAfterAll with
 
   test("soda fountain can upsert/replace/truncate/query dataset"){
 
+    //publish
+    val pResponse = dispatch("PUT", "dataset-copy", Some(resourceOpDataset), None, None, None)
+    val v1 = getVersionInSecondaryStore(resourceOpDataset)
+
     //upsert
     val uBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
@@ -109,13 +113,14 @@ class SodaServerEndToEndTest extends IntegrationTest with BeforeAndAfterAll with
     uResponse.getStatusCode must equal (200)
 
     //query
-    Thread.sleep(8000) //TODO: eliminate this
+    waitForSecondaryStoreUpdate(resourceOpDataset, v1)
     val params = Map(("$query" -> "select *"))
     val qResponse = dispatch("GET", "resource", Some(resourceOpDataset), None, Some(params),  None)
     qResponse.getStatusCode must equal (200)
     jsonCompare(qResponse.getResponseBody, "[{ \"col_text\" : \"row 1\", \"col_id\" : 1.0 },{ \"col_text\" : \"row 2\", \"col_id\" : 2.0 }]")
 
     //replace
+    val v2 = getVersionInSecondaryStore(resourceOpDataset)
     val rBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(8)), ("col_text"->JString("row 8")))),
       JObject(Map(("col_id"->JNumber(9)), ("col_text"->JString("row 9"))))
@@ -125,16 +130,19 @@ class SodaServerEndToEndTest extends IntegrationTest with BeforeAndAfterAll with
     rResponse.getResponseBody must equal ("[]")
 
     //query
+    waitForSecondaryStoreUpdate(resourceOpDataset, v2)
     val q2Response = dispatch("GET", "resource", Some(resourceOpDataset), None, None,  None)
     q2Response.getResponseBody must equal ("{rows 8 and 9}")
     q2Response.getStatusCode must equal (200)
 
     //truncate
+    val v3 = getVersionInSecondaryStore(resourceOpDataset)
     val tResponse = dispatch("DELETE", "resource", Some(resourceOpDataset), None, None,  None)
     tResponse.getResponseBody must equal ("{rows deleted}")
     tResponse.getStatusCode must equal (200)
 
     //query
+    waitForSecondaryStoreUpdate(resourceOpDataset, v3)
     val q3Response = dispatch("GET", "resource", Some(resourceOpDataset), None, None,  None)
     q3Response.getResponseBody must equal ("{all rows should be truncated}")
     q3Response.getStatusCode must equal (200)

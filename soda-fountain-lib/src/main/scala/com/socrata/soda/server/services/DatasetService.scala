@@ -39,7 +39,7 @@ trait DatasetService extends SodaService {
                       }
                       UpsertRow(map)
                     }
-                    case _ => throw new Exception("unexpected value")
+                    case _ => return sendErrorResponse("could not deserialize into JSON object", "json.row.object.not.valid", BadRequest, Some(rowjval))
                   }
                 }
                 f(datasetId, schema, upserts)
@@ -170,6 +170,16 @@ trait DatasetService extends SodaService {
             passThroughResponse(response)
           }
           case Left(thr) => sendErrorResponse(thr.getMessage, "failed.publish", InternalServerError, None)
+        }
+      }
+    }
+
+    def checkVersionInSecondary(resourceName: String, secondaryName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      withDatasetId(resourceName) { datasetId =>
+        val response = dc.checkVersionInSecondary(datasetId, secondaryName)
+        response match {
+          case Right(response) => OK ~> Content(response.version.toString)
+          case Left(err) => InternalServerError ~> Content(err)
         }
       }
     }

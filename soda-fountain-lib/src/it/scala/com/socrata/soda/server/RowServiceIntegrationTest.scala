@@ -20,7 +20,10 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
       ))
     ))
     val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
-    //assert(cResponse.getStatusCode == 200)
+
+    //publish
+    val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
+    val v = getVersionInSecondaryStore(resourceName)
 
     val uBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
@@ -31,11 +34,7 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
     println(uResponse.getResponseBody)
     assert(uResponse.getStatusCode == 200)
 
-    //publish
-    val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
-    //assert(pResponse.getStatusCode == 200)
-
-    Thread.sleep(8000) //TODO: eliminate this
+    waitForSecondaryStoreUpdate(resourceName, v)
   }
 
   override def afterAll = {
@@ -56,8 +55,10 @@ class RowServiceIntegrationTest extends IntegrationTest with RowServiceIntegrati
   }
 
   test("soda fountain row service remove"){
+    val v = getVersionInSecondaryStore(resourceName)
     val uResponse = dispatch("DELETE", "resource", Some(resourceName), Some("1"), None, None)
     assert(uResponse.getStatusCode === 200, uResponse.getResponseBody)
+    waitForSecondaryStoreUpdate(resourceName, v)
   }
 
 }

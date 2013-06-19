@@ -33,6 +33,8 @@ trait SodaRouter extends SodaFountain {
     ExtractingRouter[HttpService](DELETE, "/dataset-copy/?")        ( dataset.dropCopy _),
     ExtractingRouter[HttpService](PUT,    "/dataset-copy/?")        ( dataset.publish _),
 
+    ExtractingRouter[HttpService](GET,    "/dataset-version/?/?")        ( dataset.checkVersionInSecondary _),
+
     ExtractingRouter[HttpService](POST,   "/dataset/?/?")        ( columns.update _),
     ExtractingRouter[HttpService](PUT,    "/dataset/?/?")        ( notSupported2 _),
     ExtractingRouter[HttpService](DELETE, "/dataset/?/?")        ( columns.drop _),

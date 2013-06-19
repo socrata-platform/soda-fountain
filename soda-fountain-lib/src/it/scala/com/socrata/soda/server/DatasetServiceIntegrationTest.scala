@@ -20,7 +20,10 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
       ))
     ))
     val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
-    //assert(cResponse.getStatusCode == 200)
+
+    //publish
+    val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
+    val v = getVersionInSecondaryStore(resourceName)
 
     val uBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
@@ -29,11 +32,7 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     assert(uResponse.getStatusCode == 200)
 
-    //publish
-    val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
-    //assert(pResponse.getStatusCode == 200)
-
-    Thread.sleep(8000) //TODO: eliminate this
+    waitForSecondaryStoreUpdate(resourceName, v)
   }
 
   override def afterAll = {

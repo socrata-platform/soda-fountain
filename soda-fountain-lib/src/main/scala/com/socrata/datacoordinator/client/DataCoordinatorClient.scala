@@ -11,7 +11,7 @@ import com.socrata.http.server.responses
 import javax.servlet.http.HttpServletResponse
 import com.rojoma.json.util.{SimpleJsonCodecBuilder, JsonUtil}
 import com.rojoma.json.ast._
-import com.socrata.datacoordinator.client.DataCoordinatorClient.{RowOpReport, SchemaSpec}
+import com.socrata.datacoordinator.client.DataCoordinatorClient.{VersionReport, RowOpReport, SchemaSpec}
 
 
 object DataCoordinatorClient {
@@ -23,10 +23,15 @@ object DataCoordinatorClient {
     override def toString = JsonUtil.renderJson(this)
   }
 
-  class RowOpReport(val createdCount: Int, val updatedCount: Int, val deletedCount: Int)
   object RowOpReport {
     implicit val codec = SimpleJsonCodecBuilder[RowOpReport].build("rows_created", _.createdCount , "rows_updated", _.updatedCount, "rows_deleted", _.deletedCount)
   }
+  class RowOpReport(val createdCount: Int, val updatedCount: Int, val deletedCount: Int)
+
+  object VersionReport{
+    implicit val codec = SimpleJsonCodecBuilder[VersionReport].build("version", _.version)
+  }
+  class VersionReport(val version: Long)
 
 }
 
@@ -136,5 +141,18 @@ trait DataCoordinatorClient {
     sendScript(mutateUrl(datasetId).DELETE, deleteScript)
   }
 
+  def checkVersionInSecondary(datasetId: String, secondaryName: String) = {
+    val request = secondaryUrl(datasetId)
+    val response = for (r <- Http(request).either.right) yield r
+    response() match {
+      case Right(response) =>
+        val oVer = JsonUtil.readJson[VersionReport](new StringReader(response.getResponseBody))
+        oVer match {
+          case Some(ver) => Right(ver)
+          case None => Left("version not found")
+        }
+      case Left(thr) => Left(thr.getMessage)
+    }
+  }
 
 }

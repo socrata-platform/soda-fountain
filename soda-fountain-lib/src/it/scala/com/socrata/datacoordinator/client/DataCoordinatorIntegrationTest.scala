@@ -7,7 +7,6 @@ import com.socrata.querycoordinator.client.{LocalQueryCoordinatorClient, QueryCo
 
 trait DataCoordinatorIntegrationTest extends IntegrationTest {
 
-  val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator with LocalQueryCoordinatorClient
 
   def coordinatorCompare(datasetId: String, ms: MutationScript, expectedResponse: String){
     val actual = coordinatorGetResponseOrError(datasetId, ms)
