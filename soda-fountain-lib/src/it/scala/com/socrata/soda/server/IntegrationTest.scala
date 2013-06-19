@@ -9,6 +9,7 @@ import dispatch._
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.socrata.soda.server.mocks.{LocalDataCoordinator, MockNameAndSchemaStore}
 import com.socrata.querycoordinator.client.LocalQueryCoordinatorClient
+import com.ning.http.client.RequestBuilder
 
 trait IntegrationTestHelpers {
 
@@ -30,10 +31,9 @@ trait IntegrationTestHelpers {
       part2o.foldLeft( url1 / part1 ) ( (url2, part2) => url2 / part2)
     }
     request.setMethod(method).addHeader("Content-Type", "application/json;charset=utf-8")
-    bodyo match {
-      case Some(body) => request.setBody(body.toString)
-      case None => request
-    }
+    for ( params <- paramso ) yield request <<? params
+    for ( body <- bodyo ) yield request.setBody(body.toString)
+
     val response = for (r <- Http(request).either.right) yield r
     response() match {
       case Right(response) => response
