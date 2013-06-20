@@ -8,6 +8,8 @@ trait ColumnService {
 
   object columns {
 
+    val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnService])
+
     def update(datasetResourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       ImATeapot ~> ContentType("text/plain; charset=utf-8") ~> Content("resource request not implemented")
     }
