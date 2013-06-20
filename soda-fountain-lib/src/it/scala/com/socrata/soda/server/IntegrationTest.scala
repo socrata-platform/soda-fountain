@@ -50,7 +50,7 @@ trait IntegrationTestHelpers {
 
   def waitForSecondaryStoreUpdate(resourceName: String, minVersion: Long = 0): Unit = {
     val start = System.currentTimeMillis()
-    val limit = 5000
+    val limit = 10000
     while ( start + limit > System.currentTimeMillis()) {
       val currentVersion = getVersionInSecondaryStore(resourceName)
       if (currentVersion > minVersion) return
