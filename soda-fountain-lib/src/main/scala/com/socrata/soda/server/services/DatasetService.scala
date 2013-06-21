@@ -22,6 +22,7 @@ trait DatasetService extends SodaService {
     val MAX_DATUM_SIZE = SodaService.config.getInt("max-dataum-size")
 
     protected def prepareForUpsert(resourceName: String, request: HttpServletRequest)(f: (String, SchemaSpec, Iterator[UpsertRow]) => HttpServletResponse => Unit) : HttpServletResponse => Unit = {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       val it = streamJsonArrayValues(request, MAX_DATUM_SIZE)
       it match {
         case Right(boundedIt) => {
@@ -56,6 +57,7 @@ trait DatasetService extends SodaService {
     }
 
     def upsert(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
         val r = dc.update(datasetId, schemaHash(request), mockUser, upserts)
         passThroughResponse(r, "DatasetService.upsert", resourceName, datasetId)
@@ -63,6 +65,7 @@ trait DatasetService extends SodaService {
     }
 
     def replace(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
         val r = dc.copy(datasetId, schemaHash(request), false, mockUser, Some(upserts))
         passThroughResponse(r, "DatasetService.replace", resourceName, datasetId)
@@ -70,6 +73,7 @@ trait DatasetService extends SodaService {
     }
 
     def truncate(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName) { datasetId =>
         val c = dc.copy(datasetId, schemaHash(request), false, mockUser, None)
         passThroughResponse(c, "DatasetService.truncate", resourceName, datasetId)
@@ -77,6 +81,7 @@ trait DatasetService extends SodaService {
     }
 
     def query(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName) { datasetId =>
         val q = Option(request.getParameter("$query")).getOrElse("select *")
         val r = qc.query(datasetId, q)
@@ -94,6 +99,7 @@ trait DatasetService extends SodaService {
    def create()(request:HttpServletRequest): HttpServletResponse => Unit =  {
       DatasetSpec(request.getReader) match {
         case Right(dspec) => {
+          if (!validName(dspec.resourceName)) { return sendInvalidNameError(dspec.resourceName, request)}
           val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.fieldName, c.dataType))
           val instructions = dspec.rowId match{
             case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid)
@@ -119,12 +125,14 @@ trait DatasetService extends SodaService {
       }
     }
     def setSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       ColumnSpec.array(request.getReader) match {
         case Right(specs) => ???
         case Left(ers) => sendErrorResponse( ers.mkString(" "), "column.specification.invalid", BadRequest, None, resourceName )
       }
     }
     def getSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ id =>
         val f = dc.getSchema(id)
         val r = f()
@@ -137,6 +145,7 @@ trait DatasetService extends SodaService {
       }
     }
     def delete(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         val d = dc.deleteAllCopies(datasetId, schemaHash(request), mockUser)
         d() match {
@@ -150,6 +159,7 @@ trait DatasetService extends SodaService {
     }
 
     def copy(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         val doCopyData = Option(request.getParameter("copy_data")).getOrElse("false").toBoolean
         val c = dc.copy(datasetId, schemaHash(request), doCopyData, mockUser, None)
@@ -158,6 +168,7 @@ trait DatasetService extends SodaService {
     }
 
     def dropCopy(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         val d = dc.dropCopy(datasetId, schemaHash(request), mockUser, None)
         passThroughResponse(d, "DatasetSerivce.dropCopy", resourceName, datasetId)
@@ -165,6 +176,7 @@ trait DatasetService extends SodaService {
     }
 
     def publish(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         val snapshowLimit = Option(request.getParameter("snapshot_limit")).flatMap( s => Some(s.toInt) )
         val p = dc.publish(datasetId, schemaHash(request), snapshowLimit, mockUser, None)
@@ -179,6 +191,7 @@ trait DatasetService extends SodaService {
     }
 
     def checkVersionInSecondary(resourceName: String, secondaryName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName) { datasetId =>
         val response = dc.checkVersionInSecondary(datasetId, secondaryName)
         response match {

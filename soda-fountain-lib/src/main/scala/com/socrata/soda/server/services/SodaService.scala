@@ -15,6 +15,7 @@ import com.socrata.datacoordinator.client.DataCoordinatorClient.SchemaSpec
 import com.ning.http.client.Response
 import org.apache.log4j.PropertyConfigurator
 import com.socrata.thirdparty.typesafeconfig.Propertizer
+import com.socrata.soql.brita.IdentifierFilter
 
 object SodaService {
   val config = ConfigFactory.load().getConfig("com.socrata.soda-fountain")
@@ -43,6 +44,9 @@ trait SodaService {
     log.info(s"${logTags.mkString(" ")} responding with error ${errorCode}")
     httpCode ~> ContentType("application/json; charset=utf-8") ~> Content(JObject(errorMap).toString)
   }
+
+  def validName(name: String) = IdentifierFilter(name).equals(name)
+  def sendInvalidNameError(name:String, request: HttpServletRequest) = sendErrorResponse("invalid name", "invalid.name", BadRequest, Some(JString(name)), request.getRequestURI, request.getMethod)
 
   def passThroughResponse(f: Future[Either[Throwable,Response]], logTags: String*): HttpServletResponse => Unit = {
     f() match {
