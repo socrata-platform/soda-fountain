@@ -28,7 +28,7 @@ class SodaServerEndToEndTest extends IntegrationTest with BeforeAndAfterAll with
     assert(cRowOpD.getStatusCode == 200)
     //publish
     val pRowOpD = dispatch("PUT", "dataset-copy", Some(rowOpDataset), None, None, None)
-    assert(pRowOpD.getStatusCode == 200)
+    if (pRowOpD.getStatusCode != 200) throw new Exception( "publish failed with " + pRowOpD.getStatusText + " " + pRowOpD.getResponseBody)
 
 
     val cBody = JObject(Map(
@@ -42,10 +42,10 @@ class SodaServerEndToEndTest extends IntegrationTest with BeforeAndAfterAll with
       ))
     ))
     val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
-    assert(cResponse.getStatusCode == 200)
+    if (cResponse.getStatusCode != 200) throw new Exception( "create failed with " + cResponse.getStatusText + " " + cResponse.getResponseBody)
     //publish
     val pResponse = dispatch("PUT", "dataset-copy", Some(resourceOpDataset), None, None, None)
-    assert(pResponse.getStatusCode == 200)
+    if (pResponse.getStatusCode != 200) throw new Exception( "publish failed with " + pResponse.getStatusText + " " + pResponse.getResponseBody)
 
 
   }
