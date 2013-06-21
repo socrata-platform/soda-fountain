@@ -52,6 +52,13 @@ class RowServiceIntegrationTest extends IntegrationTest with RowServiceIntegrati
   test("soda fountain row service get"){
     val uResponse = dispatch("GET", "resource", Some(resourceName), Some("2"), None, None)
     assert(uResponse.getStatusCode === 200, uResponse.getResponseBody)
+    jsonCompare(uResponse.getResponseBody, """{ col_text:'row 2', col_id:2.0}""")
+  }
+
+  test("soda fountain row service 404"){
+    val uResponse = dispatch("GET", "resource", Some(resourceName), Some("787878"), None, None)
+    assert(uResponse.getStatusCode === 404, uResponse.getResponseBody)
+    jsonCompare(uResponse.getResponseBody, """not found response""")
   }
 
   test("soda fountain row service remove"){
