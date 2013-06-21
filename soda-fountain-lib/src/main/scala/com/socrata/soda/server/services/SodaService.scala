@@ -48,14 +48,14 @@ trait SodaService {
   def validName(name: String) = IdentifierFilter(name).equals(name)
   def sendInvalidNameError(name:String, request: HttpServletRequest) = sendErrorResponse("invalid name", "invalid.name", BadRequest, Some(JString(name)), request.getRequestURI, request.getMethod)
 
-  def passThroughResponse(f: Future[Either[Throwable,Response]], logTags: String*): HttpServletResponse => Unit = {
+  def passThroughResponse(f: Future[Either[Throwable,Response]], startTime: Long, logTags: String*): HttpServletResponse => Unit = {
     f() match {
-      case Right(response) => passThroughResponse(response, logTags:_*)
+      case Right(response) => passThroughResponse(response, startTime, logTags:_*)
       case Left(th) => sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None, logTags:_*)
     }
   }
-  def passThroughResponse(response: Response, logTags: String*): HttpServletResponse => Unit = {
-    log.info(s"${logTags.mkString(" ")} returning ${response.getStatusText} - ${response.getStatusCode}")
+  def passThroughResponse(response: Response, startTime: Long, logTags: String*): HttpServletResponse => Unit = {
+    log.info(s"${logTags.mkString(" ")} took ${System.currentTimeMillis - startTime} returning ${response.getStatusText} - ${response.getStatusCode}")
     responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
   }
 

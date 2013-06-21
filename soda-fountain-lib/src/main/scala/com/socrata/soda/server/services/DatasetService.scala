@@ -57,30 +57,34 @@ trait DatasetService extends SodaService {
     }
 
     def upsert(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
         val r = dc.update(datasetId, schemaHash(request), mockUser, upserts)
-        passThroughResponse(r, "DatasetService.upsert", resourceName, datasetId)
+        passThroughResponse(r, start, "DatasetService.upsert", resourceName, datasetId)
       }
     }
 
     def replace(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
         val r = dc.copy(datasetId, schemaHash(request), false, mockUser, Some(upserts))
-        passThroughResponse(r, "DatasetService.replace", resourceName, datasetId)
+        passThroughResponse(r, start, "DatasetService.replace", resourceName, datasetId)
       }
     }
 
     def truncate(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName) { datasetId =>
         val c = dc.copy(datasetId, schemaHash(request), false, mockUser, None)
-        passThroughResponse(c, "DatasetService.truncate", resourceName, datasetId)
+        passThroughResponse(c, start, "DatasetService.truncate", resourceName, datasetId)
       }
     }
 
     def query(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName) { datasetId =>
         val q = Option(request.getParameter("$query")).getOrElse("select *")
@@ -88,7 +92,7 @@ trait DatasetService extends SodaService {
         r() match {
           case Right(response) => {
             val r = responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
-            log.info(s"query.response: ${resourceName} ${q} returned ${response.getStatusText} - ${response.getStatusCode} ")
+            log.info(s"query.response: ${resourceName} ${q} took ${System.currentTimeMillis - start}ms returned ${response.getStatusText} - ${response.getStatusCode} ")
             r
           }
           case Left(err) => sendErrorResponse(err.getMessage, "internal.error", InternalServerError, None, "query", resourceName, datasetId, q)
@@ -97,34 +101,36 @@ trait DatasetService extends SodaService {
     }
 
    def create()(request:HttpServletRequest): HttpServletResponse => Unit =  {
-      DatasetSpec(request.getReader) match {
-        case Right(dspec) => {
-          if (!validName(dspec.resourceName)) { return sendInvalidNameError(dspec.resourceName, request)}
-          val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.fieldName, c.dataType))
-          val instructions = dspec.rowId match{
-            case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid)
-            case None => columnInstructions
-          }
-          val rnf = store.translateResourceName(dspec.resourceName)
-          rnf() match {
-            case Left(err) => { //TODO: can I be more specific here?
-              val r = dc.create(mockUser, Some(instructions.iterator), dspec.locale )
-              r() match {
-                case Right((datasetId, records)) => {
-                  store.add(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
-                  log.info(s"create.response ${dspec.resourceName} as ${datasetId} created OK - 200")
-                  OK
-                }
-                case Left(thr) => sendErrorResponse("could not create dataset", "dataset.create.internal.error", InternalServerError, Some(JString(thr.getMessage)), dspec.resourceName)
-              }
-            }
-            case Right(datasetId) => sendErrorResponse("Dataset already exists", "dataset.already.exists", BadRequest, None, dspec.resourceName, datasetId)
-          }
+     val start = System.currentTimeMillis
+     DatasetSpec(request.getReader) match {
+      case Right(dspec) => {
+        if (!validName(dspec.resourceName)) { return sendInvalidNameError(dspec.resourceName, request)}
+        val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.fieldName, c.dataType))
+        val instructions = dspec.rowId match{
+          case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid)
+          case None => columnInstructions
         }
-        case Left(ers: Seq[String]) => sendErrorResponse( ers.mkString(" "), "dataset.specification.invalid", BadRequest, None )
+        val rnf = store.translateResourceName(dspec.resourceName)
+        rnf() match {
+          case Left(err) => { //TODO: can I be more specific here?
+            val r = dc.create(mockUser, Some(instructions.iterator), dspec.locale )
+            r() match {
+              case Right((datasetId, records)) => {
+                store.add(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
+                log.info(s"create.response ${dspec.resourceName} as ${datasetId} took ${System.currentTimeMillis - start}ms created OK - 200")
+                OK
+              }
+              case Left(thr) => sendErrorResponse("could not create dataset", "dataset.create.internal.error", InternalServerError, Some(JString(thr.getMessage)), dspec.resourceName)
+            }
+          }
+          case Right(datasetId) => sendErrorResponse("Dataset already exists", "dataset.already.exists", BadRequest, None, dspec.resourceName, datasetId)
+        }
       }
+      case Left(ers: Seq[String]) => sendErrorResponse( ers.mkString(" "), "dataset.specification.invalid", BadRequest, None )
+    }
     }
     def setSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       ColumnSpec.array(request.getReader) match {
         case Right(specs) => ???
@@ -132,26 +138,28 @@ trait DatasetService extends SodaService {
       }
     }
     def getSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ id =>
         val f = dc.getSchema(id)
         val r = f()
         r match {
           case Right(schema) =>
-            log.info(s"getSchema for ${resourceName} ${id} OK - 200")
+            log.info(s"getSchema for ${resourceName} ${id} took ${System.currentTimeMillis - start} OK - 200")
             OK ~> Content(schema.toString)
           case Left(err) => sendErrorResponse(err, "dataset.schema.notfound", NotFound, Some(JString(resourceName)), resourceName)
         }
       }
     }
     def delete(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         val d = dc.deleteAllCopies(datasetId, schemaHash(request), mockUser)
         d() match {
           case Right(response) => {
             store.remove(resourceName) //TODO: handle error case!
-            passThroughResponse(response, "DatasetService.delete", resourceName, datasetId)
+            passThroughResponse(response, start, "DatasetService.delete", resourceName, datasetId)
           }
           case Left(thr) => sendErrorResponse(thr.getMessage, "failed.delete", InternalServerError, None, resourceName, datasetId)
         }
@@ -159,23 +167,26 @@ trait DatasetService extends SodaService {
     }
 
     def copy(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         val doCopyData = Option(request.getParameter("copy_data")).getOrElse("false").toBoolean
         val c = dc.copy(datasetId, schemaHash(request), doCopyData, mockUser, None)
-        passThroughResponse(c, "DatasetService.copy", resourceName, datasetId)
+        passThroughResponse(c, start, "DatasetService.copy", resourceName, datasetId)
       }
     }
 
     def dropCopy(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         val d = dc.dropCopy(datasetId, schemaHash(request), mockUser, None)
-        passThroughResponse(d, "DatasetSerivce.dropCopy", resourceName, datasetId)
+        passThroughResponse(d, start, "DatasetSerivce.dropCopy", resourceName, datasetId)
       }
     }
 
     def publish(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         val snapshowLimit = Option(request.getParameter("snapshot_limit")).flatMap( s => Some(s.toInt) )
@@ -183,7 +194,7 @@ trait DatasetService extends SodaService {
         p() match {
           case Right(response) => {
             dc.propagateToSecondary(datasetId)
-            passThroughResponse(response, "DatasetService.publish", resourceName, datasetId)
+            passThroughResponse(response, start, "DatasetService.publish", resourceName, datasetId)
           }
           case Left(thr) => sendErrorResponse(thr.getMessage, "failed.publish", InternalServerError, None, resourceName, datasetId)
         }

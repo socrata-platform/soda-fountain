@@ -18,6 +18,7 @@ trait RowService extends SodaService {
     val log = org.slf4j.LoggerFactory.getLogger(classOf[RowService])
 
     def upsert(resourceName: String, rowId: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       try {
         val fields = JsonUtil.readJson[Map[String,JValue]](request.getReader)
@@ -33,7 +34,7 @@ trait RowService extends SodaService {
                   }
                 }
                 val response = dc.update(datasetId, schemaHash(request), mockUser, Array(UpsertRow(map)).iterator)
-                passThroughResponse(response, "RowService.upsert", resourceName, datasetId)
+                passThroughResponse(response, start, "RowService.upsert", resourceName, datasetId)
               }
             }
           }
@@ -46,21 +47,23 @@ trait RowService extends SodaService {
     }
 
     def delete(resourceName: String, rowId: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         withDatasetSchema(datasetId) { schema =>
           val response = dc.update(datasetId, schemaHash(request), mockUser, Array(DeleteRow(pkValue(rowId, schema))).iterator)
-          passThroughResponse(response, "RowService.delete", resourceName, datasetId)
+          passThroughResponse(response, start, "RowService.delete", resourceName, datasetId)
         }
       }
     }
     def get(resourceName: String, rowId: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
+      val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         withDatasetSchema(datasetId) { schema =>
           val pkVal = pkValue(rowId, schema) match { case Left(s) => s"'${s}'"; case Right(n) => n.toString}
           val response = qc.query(datasetId, "select * where " + schema.pk + " = " + pkVal)
-          passThroughResponse(response, "RowService.get", resourceName, datasetId)
+          passThroughResponse(response, start, "RowService.get", resourceName, datasetId)
         }
       }
     }
