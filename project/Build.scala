@@ -7,7 +7,7 @@ object Build extends sbt.Build {
     file("."),
     settings = BuildSettings.buildSettings,
     configurations = BuildSettings.configurations
-  ) aggregate( sodaFountainLib, sodaFountainWAR, sodaFountainJetty, sodaFountainPostgres )
+  ) aggregate( sodaFountainLib, sodaFountainWAR, sodaFountainJetty )
 
   lazy val sodaFountainLib = Project(
     "soda-fountain-lib",

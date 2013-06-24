@@ -1,5 +1,6 @@
 import sbt._
 import Keys._
+import sbtassembly.Plugin._
 
 object BuildSettings {
   val buildSettings: Seq[Setting[_]] =
@@ -18,6 +19,7 @@ object BuildSettings {
         <dependencies>
           <conflict org="com.socrata" manager="latest-compatible"/>
           <conflict org="com.rojoma" manager="latest-compatible"/>
+          <exclude org="org.jboss.netty" module="netty" />
         </dependencies>,
       libraryDependencies ++= Seq(
         "org.slf4j" % "slf4j-api" % slf4jVersion,
@@ -30,6 +32,7 @@ object BuildSettings {
 
   def projectSettings(assembly: Boolean = false): Seq[Setting[_]] =
     BuildSettings.buildSettings ++
+      sbtassembly.Plugin.assemblySettings  ++
       Seq(
         fork in test := true
       )
