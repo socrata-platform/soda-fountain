@@ -9,7 +9,6 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
   val resourceName = "soda-dataset-service-int-test-0"
 
   override def beforeAll = {
-    println("creating dataset for integration tests")
     val cBody = JObject(Map(
       "resource_name" -> JString(resourceName),
       "name" -> JString("soda integration test"),
@@ -97,6 +96,33 @@ class DatasetServiceIntegrationTest extends IntegrationTest with DatasetServiceI
     val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
     jsonCompare(qResponse.getResponseBody, """[{col_text:"row 2", col_id: 2.0}]""".stripMargin )
     qResponse.getStatusCode must equal (200)
+  }
+
+  test("soda fountain create, upsert, and publish in same request") {
+    val rn = "int-test-create-pub-upsert"
+    val cBody = JObject(Map(
+      "resource_name" -> JString(rn),
+      "name" -> JString("soda integration test"),
+      "row_identifier" -> JArray(Seq(JString("col_id"))),
+      "columns" -> JArray(Seq(
+        column("the ID column", "col_id", Some("this is the ID column"), "number"),
+        column("a text column", "col_text", Some("this is a text column"), "text"),
+        column("a boolean column", "col_bool", None, "boolean")
+      )),
+      "published" -> JBoolean(true),
+      "rows" -> JArray(Seq(
+          JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
+          JObject(Map(("col_id"->JNumber(2)), ("col_text"->JString("row 2")))),
+          JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3 " + System.currentTimeMillis()))))
+      ))
+    ))
+    val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
+    cResponse.getStatusCode must equal (200)
+    assert(cResponse.getStatusCode == 200, s"${cResponse.getStatusCode} not OK: ${cResponse.getResponseBody}")
+    pendingUntilFixed{
+      jsonCompare(cResponse.getResponseBody, """{upsert results}""")
+      waitForSecondaryStoreUpdate(rn)
+    }
   }
 
 }

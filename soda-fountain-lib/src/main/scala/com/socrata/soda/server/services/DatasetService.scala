@@ -69,7 +69,8 @@ trait DatasetService extends SodaService {
       val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
-        val r = dc.copy(datasetId, schemaHash(request), false, mockUser, Some(upserts))
+        val instructions: Iterator[DataCoordinatorInstruction] = Iterator.single(RowUpdateOptionChange(truncate = true)) ++ upserts
+        val r = dc.update(datasetId, schemaHash(request), mockUser, instructions)
         passThroughResponse(r, start, "DatasetService.replace", resourceName, datasetId)
       }
     }
@@ -78,7 +79,7 @@ trait DatasetService extends SodaService {
       val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName) { datasetId =>
-        val c = dc.copy(datasetId, schemaHash(request), false, mockUser, None)
+        val c = dc.update(datasetId, schemaHash(request), mockUser, Array(RowUpdateOptionChange(truncate = true)).iterator)
         passThroughResponse(c, start, "DatasetService.truncate", resourceName, datasetId)
       }
     }
@@ -100,7 +101,7 @@ trait DatasetService extends SodaService {
       }
     }
 
-   def create()(request:HttpServletRequest): HttpServletResponse => Unit =  {
+  def create()(request:HttpServletRequest): HttpServletResponse => Unit =  {
      val start = System.currentTimeMillis
      DatasetSpec(request.getReader) match {
       case Right(dspec) => {
@@ -127,8 +128,8 @@ trait DatasetService extends SodaService {
         }
       }
       case Left(ers: Seq[String]) => sendErrorResponse( ers.mkString(" "), "dataset.specification.invalid", BadRequest, None )
-    }
-    }
+     }
+  }
     def setSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}

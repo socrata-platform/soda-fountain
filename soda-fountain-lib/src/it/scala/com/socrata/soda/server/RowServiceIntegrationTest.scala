@@ -63,7 +63,8 @@ class RowServiceIntegrationTest extends IntegrationTest with RowServiceIntegrati
   test("soda fountain row service remove"){
     val v = getVersionInSecondaryStore(resourceName)
     val uResponse = dispatch("DELETE", "resource", Some(resourceName), Some("1"), None, None)
-    assert(uResponse.getStatusCode === 200, uResponse.getResponseBody)
+    assert(uResponse.getStatusCode === 204, uResponse.getResponseBody)
+    assert(uResponse.getResponseBody == "", uResponse.getResponseBody)
     waitForSecondaryStoreUpdate(resourceName, v)
   }
 
