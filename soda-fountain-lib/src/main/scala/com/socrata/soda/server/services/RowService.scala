@@ -8,8 +8,10 @@ import com.socrata.datacoordinator.client._
 import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
 import com.socrata.soda.server.types.TypeChecker
-import java.io.IOException
+import java.io.{StringReader, IOException}
 import com.rojoma.json.io.JsonReaderException
+import com.ning.http.client.Response
+import com.socrata.http.server.responses
 
 trait RowService extends SodaService {
 
@@ -52,7 +54,7 @@ trait RowService extends SodaService {
       withDatasetId(resourceName){ datasetId =>
         withDatasetSchema(datasetId) { schema =>
           val response = dc.update(datasetId, schemaHash(request), mockUser, Array(DeleteRow(pkValue(rowId, schema))).iterator)
-          passThroughResponse(response, start, "RowService.delete", resourceName, datasetId)
+          transformRowResponse(response, start, "RowService.delete", resourceName, datasetId)
         }
       }
     }
@@ -63,8 +65,31 @@ trait RowService extends SodaService {
         withDatasetSchema(datasetId) { schema =>
           val pkVal = pkValue(rowId, schema) match { case Left(s) => s"'${s}'"; case Right(n) => n.toString}
           val response = qc.query(datasetId, "select * where " + schema.pk + " = " + pkVal)
-          passThroughResponse(response, start, "RowService.get", resourceName, datasetId)
+          transformRowResponse(response, start, "RowService.get", resourceName, datasetId)
         }
+      }
+    }
+
+    def transformRowResponse(f: Future[Either[Throwable,Response]], startTime: Long, logTags: String*): HttpServletResponse => Unit = {
+      f() match {
+        case Right(response) => response.getStatusCode match {
+          case 200 => {
+            val oRows = JsonUtil.readJson[Seq[JValue]](new StringReader(response.getResponseBody))
+            val rows = oRows.getOrElse{ return sendErrorResponse("error executing row query", "row.query.internal.error", InternalServerError, None, logTags:_*)  }
+            rows.headOption match {
+              case Some(head) => {
+                log.info(s"${logTags.mkString(" ")} took ${System.currentTimeMillis - startTime} returning 200 - OK")
+                OK ~>  ContentType(response.getContentType) ~> Content(head.toString)
+              }
+              case None => {
+                log.info(s"${logTags.mkString(" ")} took ${System.currentTimeMillis - startTime} returning Not Found - 404")
+                sendErrorResponse("row not found", "row.not.found", NotFound, None, logTags:_*)
+              }
+            }
+          }
+          case _ => sendErrorResponse("error executing row query", "row.query.internal.error", InternalServerError, None, logTags:_*)
+        }
+        case Left(th) => sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None, logTags:_*)
       }
     }
   }

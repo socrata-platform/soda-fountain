@@ -31,7 +31,6 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
       JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3"))))
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
-    println(uResponse.getResponseBody)
     assert(uResponse.getStatusCode == 200)
 
     waitForSecondaryStoreUpdate(resourceName, v)
@@ -58,7 +57,7 @@ class RowServiceIntegrationTest extends IntegrationTest with RowServiceIntegrati
   test("soda fountain row service 404"){
     val uResponse = dispatch("GET", "resource", Some(resourceName), Some("787878"), None, None)
     assert(uResponse.getStatusCode === 404, uResponse.getResponseBody)
-    jsonCompare(uResponse.getResponseBody, """not found response""")
+    jsonCompare(uResponse.getResponseBody, """{"message":"row not found","errorCode":"row.not.found"}""")
   }
 
   test("soda fountain row service remove"){
