@@ -28,7 +28,8 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
     val uBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
       JObject(Map(("col_id"->JNumber(2)), ("col_text"->JString("row 2")))),
-      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3"))))
+      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3")))),
+      JObject(Map(("col_id"->JNumber(4)), ("col_text"->JString("row 4 at " + System.currentTimeMillis.toString)))) //current time ensures data version increments
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     assert(uResponse.getStatusCode == 200)
