@@ -40,9 +40,7 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
     waitForSecondaryStoreUpdate(resourceName, v)
   }
 
-  override def afterAll = {
-    println("running the afterAll block")
-  }
+  override def afterAll = {}
 }
 
 class DatasetServiceIntegrationTest extends IntegrationTest with DatasetServiceIntegrationTestFixture {
