@@ -21,7 +21,7 @@ trait DatasetService extends SodaService {
     val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetService])
     val MAX_DATUM_SIZE = SodaService.config.getInt("max-dataum-size")
 
-    protected def prepareForUpsert(resourceName: String, request: HttpServletRequest)(f: (String, SchemaSpec, Iterator[UpsertRow]) => HttpServletResponse => Unit) : HttpServletResponse => Unit = {
+    protected def prepareForUpsert(resourceName: String, request: HttpServletRequest)(f: (String, SchemaSpec, Iterator[RowUpdate]) => HttpServletResponse => Unit) : HttpServletResponse => Unit = {
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       val it = streamJsonArrayValues(request, MAX_DATUM_SIZE)
       it match {
@@ -41,7 +41,16 @@ trait DatasetService extends SodaService {
                       }
                       UpsertRow(map)
                     }
-                    case _ => return sendErrorResponse("could not deserialize into JSON object", "json.row.object.not.valid", BadRequest, Some(rowjval), "DatasetService.prepareForUpsert", "row.object.iterator", resourceName, datasetId)
+                    case JArray(Seq(id)) => {
+                      val idString = id match {
+                        case JNumber(num) => num.toString
+                        case JString(str) => str
+                        case _ => return sendErrorResponse("incorrect type for row ID for delete operation", "identifier.error", BadRequest, Some(id), "DatasetService.prepareForUpsert", "type.checking", resourceName, datasetId)
+                      }
+                      val pk = pkValue(idString, schema)
+                      DeleteRow(pk)
+                    }
+                    case _ => return sendErrorResponse("could not deserialize into JSON row operation", "json.row.object.not.valid", BadRequest, Some(rowjval), "DatasetService.prepareForUpsert", "row.object.iterator", resourceName, datasetId)
                   }
                 }
                 f(datasetId, schema, upserts)

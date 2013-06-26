@@ -29,7 +29,10 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
     val uBody = JArray(Seq(
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
       JObject(Map(("col_id"->JNumber(2)), ("col_text"->JString("row 2")))),
-      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3 " + System.currentTimeMillis()))))
+      JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3 " + System.currentTimeMillis())))),
+      JObject(Map(("col_id"->JNumber(100)), ("col_text"->JString("row 1")))),
+      JObject(Map(("col_id"->JNumber(102)), ("col_text"->JString("row 2")))),
+      JObject(Map(("col_id"->JNumber(103)), ("col_text"->JString("row 3 " + System.currentTimeMillis()))))
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     assert(uResponse.getStatusCode == 200)
@@ -79,6 +82,27 @@ class DatasetServiceIntegrationTest extends IntegrationTest with DatasetServiceI
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     uResponse.getStatusCode must equal (200)
+  }
+
+  test("soda fountain dataset service upsert with row deletes"){
+    //verify row exists
+    val gResponse = dispatch("GET", "resource", Some(resourceName), Some("102"), None, None)
+    assert(gResponse.getStatusCode === 200, gResponse.getResponseBody)
+
+    //upsert with row delete
+    val v = getVersionInSecondaryStore(resourceName)
+    val uBody = JArray(Seq(
+      JObject(Map(("col_id"->JNumber(100)), ("col_text"->JString("upserted row 100")))),
+      JArray(Seq(JNumber(102))),
+      JObject(Map(("col_id"->JNumber(103)), ("col_text"->JString("upserted row 300"))))
+    ))
+    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    uResponse.getStatusCode must equal (200)
+    waitForSecondaryStoreUpdate(resourceName, v)
+
+    //verify row deleted
+    val g2Response = dispatch("GET", "resource", Some(resourceName), Some("102"), None, None)
+    assert(g2Response.getStatusCode === 404, g2Response.getResponseBody)
   }
 
   test("soda fountain dataset service upsert error case: bad column"){
