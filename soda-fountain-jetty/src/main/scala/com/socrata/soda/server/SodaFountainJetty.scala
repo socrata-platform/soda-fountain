@@ -10,13 +10,13 @@ import javax.servlet.http.HttpServletRequest
 import com.socrata.datacoordinator.client.{CuratedDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.soda.server.persistence.PostgresStore
 import com.socrata.querycoordinator.client.CuratedQueryCoordinatorClient
+import services.SodaService
 
 object SodaFountainJetty {
   def main(args:Array[String]) {
 
     val fountain = new SodaFountain with PostgresStore with CuratedDataCoordinatorClient with CuratedQueryCoordinatorClient with SodaRouter
-
-    val server = new SocrataServerJetty(fountain.route, port = 8080)
+    val server = new SocrataServerJetty(fountain.route, port = SodaService.config.getConfig("network").getInt("port"))
     server.run
   }
 }
