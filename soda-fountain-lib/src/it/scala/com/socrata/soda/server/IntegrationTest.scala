@@ -45,6 +45,7 @@ trait IntegrationTestHelpers {
 
   def getVersionInSecondaryStore(resourceName: String) : Long = {
     val response = dispatch("GET", "dataset-version", Some(resourceName), Some("es"), None, None)
+    if (response.getStatusCode != 200){throw new Exception(s"could not read version in secondary store: ${response.getResponseBody}")}
     response.getResponseBody.toLong
   }
 
