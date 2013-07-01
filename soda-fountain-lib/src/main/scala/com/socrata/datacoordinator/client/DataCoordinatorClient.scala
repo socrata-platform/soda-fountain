@@ -100,9 +100,10 @@ trait DataCoordinatorClient {
         val body = r.getResponseBody
         r.getStatusCode match {
           case 200 => {
-            JsonUtil.readJson[JArray](new StringReader(body)) match {
-              case Some(JArray(Seq(JString(datasetId), JArray(rowReports)))) => {
-                Right((datasetId, rowReports))
+            val idAndReports = JsonUtil.readJson[JArray](new StringReader(body))
+            idAndReports match {
+              case Some(JArray(Seq(JString(datasetId), _*))) => {
+                Right((datasetId, idAndReports.get.tail))
               }
               case None => Left(new Error("unexpected response from data coordinator: " + body))
             }
