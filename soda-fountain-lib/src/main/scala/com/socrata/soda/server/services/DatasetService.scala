@@ -126,7 +126,8 @@ trait DatasetService extends SodaService {
             val r = dc.create(mockUser, Some(instructions.iterator), dspec.locale )
             r() match {
               case Right((datasetId, records)) => {
-                store.add(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
+                val f = store.add(dspec.resourceName, datasetId)  // TODO: handle failure here, see list of errors from DC.
+                f()
                 log.info(s"create.response ${dspec.resourceName} as ${datasetId} took ${System.currentTimeMillis - start}ms created OK - 200")
                 OK
               }
