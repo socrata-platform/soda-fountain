@@ -6,6 +6,7 @@ import com.socrata.soda.server.mocks.LocalDataCoordinator
 import com.socrata.soda.server.mocks.MockNameAndSchemaStore
 import com.socrata.soda.server.mocks.{LocalDataCoordinator, MockNameAndSchemaStore}
 import com.socrata.querycoordinator.client.LocalQueryCoordinatorClient
+import com.socrata.soda.server.services.SodaService
 
 object SodaFountainItegrationTestServerJetty {
   def main(args:Array[String]) {
@@ -15,7 +16,7 @@ object SodaFountainItegrationTestServerJetty {
       with LocalDataCoordinator
       with LocalQueryCoordinatorClient
       with SodaRouter
-    val server = new SocrataServerJetty(fountain.route, port = 8080)
+    val server = new SocrataServerJetty(fountain.route, port = SodaService.config.getConfig("network").getInt("port"))
     server.run
   }
 }
