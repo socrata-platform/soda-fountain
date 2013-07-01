@@ -102,7 +102,7 @@ trait DatasetService extends SodaService {
         r() match {
           case Right(response) => {
             val r = responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
-            log.info(s"query.response: ${resourceName} ${q} took ${System.currentTimeMillis - start}ms returned ${response.getStatusText} - ${response.getStatusCode} ")
+            log.info(s"query.response: ${resourceName} ${datasetId} ${q} took ${System.currentTimeMillis - start}ms returned ${response.getStatusText} - ${response.getStatusCode} ")
             r
           }
           case Left(err) => sendErrorResponse(err.getMessage, "internal.error", InternalServerError, None, "query", resourceName, datasetId, q)

@@ -100,9 +100,7 @@ class DatasetServiceIntegrationTest extends IntegrationTest with DatasetServiceI
 
     //verify row deleted
     val g2Response = dispatch("GET", "resource", Some(resourceName), Some("102"), None, None)
-    pendingUntilFixed{
-      assert(g2Response.getStatusCode === 404, g2Response.getResponseBody)
-    }
+    assert(g2Response.getStatusCode === 404, g2Response.getResponseBody)
   }
 
   test("soda fountain dataset service upsert error case: bad column"){
