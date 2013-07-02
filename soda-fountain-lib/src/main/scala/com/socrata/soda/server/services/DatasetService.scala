@@ -105,7 +105,7 @@ trait DatasetService extends SodaService {
             log.info(s"query.response: ${resourceName} ${datasetId} ${q} took ${System.currentTimeMillis - start}ms returned ${response.getStatusText} - ${response.getStatusCode} ")
             r
           }
-          case Left(err) => sendErrorResponse(err.getMessage, "dataset.query.internal.error", InternalServerError, None, resourceName, datasetId, q)
+          case Left(err) => sendErrorResponse(err, "internal error during dataset query", "dataset.query.internal.error", InternalServerError, None, resourceName, datasetId, q)
         }
       }
     }
@@ -131,7 +131,7 @@ trait DatasetService extends SodaService {
                 log.info(s"create.response ${dspec.resourceName} as ${datasetId} took ${System.currentTimeMillis - start}ms created OK - 200")
                 OK
               }
-              case Left(thr) => sendErrorResponse("could not create dataset", "dataset.create.internal.error", InternalServerError, Some(JString(thr.getMessage)), dspec.resourceName)
+              case Left(thr) => sendErrorResponse(thr, "internal error during dataset creation", "dataset.create.internal.error", InternalServerError, Some(JString(thr.getMessage)), dspec.resourceName)
             }
           }
           case Right(datasetId) => sendErrorResponse("Dataset already exists", "dataset.create.resourceName.conflict", BadRequest, None, dspec.resourceName, datasetId)
@@ -172,7 +172,7 @@ trait DatasetService extends SodaService {
             store.remove(resourceName) //TODO: handle error case!
             passThroughResponse(response, start, "dataset.delete", resourceName, datasetId)
           }
-          case Left(thr) => sendErrorResponse(thr.getMessage, "dataset.delete.internal.error", InternalServerError, None, resourceName, datasetId)
+          case Left(thr) => sendErrorResponse(thr, "internal error during dataset delete", "dataset.delete.internal.error", InternalServerError, None, resourceName, datasetId)
         }
       }
     }
@@ -207,7 +207,7 @@ trait DatasetService extends SodaService {
             dc.propagateToSecondary(datasetId)
             passThroughResponse(response, start, "dataset.publish", resourceName, datasetId)
           }
-          case Left(thr) => sendErrorResponse(thr.getMessage, "dataset.publish.internal.error", InternalServerError, None, resourceName, datasetId)
+          case Left(thr) => sendErrorResponse(thr, "internal error during dataset publish", "dataset.publish.internal.error", InternalServerError, None, resourceName, datasetId)
         }
       }
     }

@@ -60,7 +60,7 @@ trait ColumnService extends SodaService {
         f() match {
           case Right(response) =>
             passThroughResponse(response, start, "column.drop", columnName, resourceName, datasetId)
-          case Left(err) => sendErrorResponse(err.getMessage, "column.drop.internal.error", InternalServerError, Some(JString(columnName)), resourceName)
+          case Left(err) => sendErrorResponse(err, "internal error during column drop", "column.drop.internal.error", InternalServerError, Some(JString(columnName)), resourceName)
         }
       }
     }
@@ -80,7 +80,7 @@ trait ColumnService extends SodaService {
               "datatype" -> JString(colType)
             ))
             OK ~> ContentType("application/json; charset=utf-8") ~> Content(obj.toString)
-          case Left(err) => sendErrorResponse(err, "column.getSchema.internal.error", NotFound, Some(JString(resourceName)), resourceName)
+          case Left(err) => sendErrorResponse(new Exception(s"no schema found for dataset ${resourceName} ${datasetId}"), "internal error requesting dataset schema", "column.getSchema.internal.error", NotFound, Some(JString(resourceName)), resourceName)
         }
       }
     }

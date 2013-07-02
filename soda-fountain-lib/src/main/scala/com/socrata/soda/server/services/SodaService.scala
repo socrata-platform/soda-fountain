@@ -32,6 +32,11 @@ trait SodaService {
 
   def schemaHash(r: HttpServletRequest) = Option(r.getParameter("schema"))
 
+  def sendErrorResponse(th: Throwable, message: String, errorCode: String, httpCode: HttpServletResponse => Unit, data: Option[JValue], logTags: String*): HttpServletResponse => Unit  = {
+    val resp = sendErrorResponse(message, errorCode, httpCode, data, logTags:_*)
+    log.error(message, th)
+    resp
+  }
   def sendErrorResponse(message: String, errorCode: String, httpCode: HttpServletResponse => Unit, data: Option[JValue], logTags: String*) = {
     val messageAndCode = Map[String, JValue](
       "message" -> JString(message),

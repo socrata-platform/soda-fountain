@@ -63,7 +63,7 @@ trait RowService extends SodaService {
                 NoContent
               case _ => sendErrorResponse("internal error during row delete", "row.delete.unsuccessful", InternalServerError, None, logTags:_*)
             }
-            case Left(th) => sendErrorResponse(th.getMessage, "row.delete.internal.error", InternalServerError, None, logTags:_*)
+            case Left(th) => sendErrorResponse(th, "internal error during row delete", "row.delete.internal.error", InternalServerError, None, logTags:_*)
           }
         }
       }
@@ -92,7 +92,7 @@ trait RowService extends SodaService {
               }
               case _ => sendErrorResponse("error executing row query", "row.get.unsuccessful", InternalServerError, None, logTags:_*)
             }
-            case Left(th) => sendErrorResponse(th.getMessage, "row.get.internal.error", InternalServerError, None, logTags:_*)
+            case Left(th) => sendErrorResponse(th, "internal error during row get", "row.get.internal.error", InternalServerError, None, logTags:_*)
           }
         }
       }
