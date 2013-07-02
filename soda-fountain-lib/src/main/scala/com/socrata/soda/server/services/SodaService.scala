@@ -46,12 +46,12 @@ trait SodaService {
   }
 
   def validName(name: String) = IdentifierFilter(name).equals(name)
-  def sendInvalidNameError(name:String, request: HttpServletRequest) = sendErrorResponse("invalid name", "invalid.name", BadRequest, Some(JString(name)), request.getRequestURI, request.getMethod)
+  def sendInvalidNameError(name:String, request: HttpServletRequest) = sendErrorResponse("resource name invalid", "soda.resourceName.invalid", BadRequest, Some(JString(name)), request.getRequestURI, request.getMethod)
 
   def passThroughResponse(f: Future[Either[Throwable,Response]], startTime: Long, logTags: String*): HttpServletResponse => Unit = {
     f() match {
       case Right(response) => passThroughResponse(response, startTime, logTags:_*)
-      case Left(th) => sendErrorResponse(th.getMessage, "internal.error", InternalServerError, None, logTags:_*)
+      case Left(th) => sendErrorResponse(th.getMessage, "soda.internal.error", InternalServerError, None, logTags:_*)
     }
   }
   def passThroughResponse(response: Response, startTime: Long, logTags: String*): HttpServletResponse => Unit = {
@@ -76,14 +76,14 @@ trait SodaService {
     val rnf = store.translateResourceName(resourceName)
     rnf() match {
       case Right(datasetId) => f(datasetId)
-      case Left(err) => sendErrorResponse(err, "dataset.not.found", BadRequest, None, resourceName)
+      case Left(err) => sendErrorResponse(err, "soda.resourceName.notfound", BadRequest, None, resourceName)
     }
   }
   def withDatasetSchema(datasetId: String)(f: SchemaSpec => HttpResponse): HttpResponse = {
     val sf = dc.getSchema(datasetId)
     sf() match {
       case Right(schema) => f(schema)
-      case Left(err) => sendErrorResponse(err, "schema.not-found", NotFound, None, datasetId)
+      case Left(err) => sendErrorResponse(err, "soda.dataset.schema.notfound", NotFound, None, datasetId)
     }
   }
 }

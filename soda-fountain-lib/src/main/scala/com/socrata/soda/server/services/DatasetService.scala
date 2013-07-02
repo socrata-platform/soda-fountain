@@ -33,10 +33,10 @@ trait DatasetService extends SodaService {
                   rowjval match {
                     case JObject(map) =>  {
                       map.foreach{ pair =>
-                        val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "column.not.found", BadRequest, Some(rowjval), "DatasetService.prepareForUpsert", "JSON.row.mapping", resourceName, datasetId))
+                        val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "dataset.prepareForUpsert.upsert.column.not.found", BadRequest, Some(rowjval), "JSON.row.mapping", resourceName, datasetId))
                         TypeChecker.check(expectedTypeName, pair._2) match {
                           case Right(v) => v
-                          case Left(msg) => return sendErrorResponse(msg, "type.error", BadRequest, Some(rowjval), "DatasetService.prepareForUpsert", "type.checking", resourceName, datasetId)
+                          case Left(msg) => return sendErrorResponse(msg, "dataset.prepareForUpsert.upsert.type.error", BadRequest, Some(rowjval), "type.checking", resourceName, datasetId)
                         }
                       }
                       UpsertRow(map)
@@ -45,12 +45,12 @@ trait DatasetService extends SodaService {
                       val idString = id match {
                         case JNumber(num) => num.toString
                         case JString(str) => str
-                        case _ => return sendErrorResponse("incorrect type for row ID for delete operation", "identifier.error", BadRequest, Some(id), "DatasetService.prepareForUpsert", "type.checking", resourceName, datasetId)
+                        case _ => return sendErrorResponse("row ID for delete operation must be number or string", "dataset.prepareForUpsert.identifier.notNumberOrString", BadRequest, Some(id), resourceName, datasetId)
                       }
                       val pk = pkValue(idString, schema)
                       DeleteRow(pk)
                     }
-                    case _ => return sendErrorResponse("could not deserialize into JSON row operation", "json.row.object.not.valid", BadRequest, Some(rowjval), "DatasetService.prepareForUpsert", "row.object.iterator", resourceName, datasetId)
+                    case _ => return sendErrorResponse("could not deserialize into JSON row operation", "dataset.prepareForUpsert.json.row.object.notvalid", BadRequest, Some(rowjval), resourceName, datasetId)
                   }
                 }
                 f(datasetId, schema, upserts)
@@ -58,10 +58,10 @@ trait DatasetService extends SodaService {
             }
           }
           catch {
-            case bp: JsonReaderException => sendErrorResponse("bad JSON value: " + bp.getMessage, "json.value.invalid", BadRequest, None, "DatasetService.prepareForUpsert", resourceName)
+            case bp: JsonReaderException => sendErrorResponse("invalid JSON: " + bp.getMessage, "dataset.prepareForUpsert.json.invalid", BadRequest, None, resourceName)
           }
         }
-        case Left(err) => sendErrorResponse("Error upserting values: " + err, "not.json.array", BadRequest, None, "DatasetService.prepareForUpsert", resourceName)
+        case Left(err) => sendErrorResponse("Error reading JSON: " + err, "dataset.prepareForUpsert.json.iterator.error", BadRequest, None, resourceName)
       }
     }
 
@@ -70,7 +70,7 @@ trait DatasetService extends SodaService {
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
         val r = dc.update(datasetId, schemaHash(request), mockUser, upserts)
-        passThroughResponse(r, start, "DatasetService.upsert", resourceName, datasetId)
+        passThroughResponse(r, start, "dataset.upsert", resourceName, datasetId)
       }
     }
 
@@ -80,7 +80,7 @@ trait DatasetService extends SodaService {
       prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
         val instructions: Iterator[DataCoordinatorInstruction] = Iterator.single(RowUpdateOptionChange(truncate = true)) ++ upserts
         val r = dc.update(datasetId, schemaHash(request), mockUser, instructions)
-        passThroughResponse(r, start, "DatasetService.replace", resourceName, datasetId)
+        passThroughResponse(r, start, "dataset.replace", resourceName, datasetId)
       }
     }
 
@@ -89,7 +89,7 @@ trait DatasetService extends SodaService {
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName) { datasetId =>
         val c = dc.update(datasetId, schemaHash(request), mockUser, Array(RowUpdateOptionChange(truncate = true)).iterator)
-        passThroughResponse(c, start, "DatasetService.truncate", resourceName, datasetId)
+        passThroughResponse(c, start, "dataset.truncate", resourceName, datasetId)
       }
     }
 
@@ -105,7 +105,7 @@ trait DatasetService extends SodaService {
             log.info(s"query.response: ${resourceName} ${datasetId} ${q} took ${System.currentTimeMillis - start}ms returned ${response.getStatusText} - ${response.getStatusCode} ")
             r
           }
-          case Left(err) => sendErrorResponse(err.getMessage, "internal.error", InternalServerError, None, "query", resourceName, datasetId, q)
+          case Left(err) => sendErrorResponse(err.getMessage, "dataset.query.internal.error", InternalServerError, None, resourceName, datasetId, q)
         }
       }
     }
@@ -134,10 +134,10 @@ trait DatasetService extends SodaService {
               case Left(thr) => sendErrorResponse("could not create dataset", "dataset.create.internal.error", InternalServerError, Some(JString(thr.getMessage)), dspec.resourceName)
             }
           }
-          case Right(datasetId) => sendErrorResponse("Dataset already exists", "dataset.already.exists", BadRequest, None, dspec.resourceName, datasetId)
+          case Right(datasetId) => sendErrorResponse("Dataset already exists", "dataset.create.resourceName.conflict", BadRequest, None, dspec.resourceName, datasetId)
         }
       }
-      case Left(ers: Seq[String]) => sendErrorResponse( ers.mkString(" "), "dataset.specification.invalid", BadRequest, None )
+      case Left(ers: Seq[String]) => sendErrorResponse( ers.mkString(" "), "dataset.create.specification.invalid", BadRequest, None )
      }
   }
     def setSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
@@ -145,7 +145,7 @@ trait DatasetService extends SodaService {
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       ColumnSpec.array(request.getReader) match {
         case Right(specs) => ???
-        case Left(ers) => sendErrorResponse( ers.mkString(" "), "column.specification.invalid", BadRequest, None, resourceName )
+        case Left(ers) => sendErrorResponse( ers.mkString(" "), "dataset.setSchema.column.specification.invalid", BadRequest, None, resourceName )
       }
     }
     def getSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
@@ -158,7 +158,7 @@ trait DatasetService extends SodaService {
           case Right(schema) =>
             log.info(s"getSchema for ${resourceName} ${id} took ${System.currentTimeMillis - start} OK - 200")
             OK ~> Content(schema.toString)
-          case Left(err) => sendErrorResponse(err, "dataset.schema.notfound", NotFound, Some(JString(resourceName)), resourceName)
+          case Left(err) => sendErrorResponse(err, "dataset.getSchema.notfound", NotFound, Some(JString(resourceName)), resourceName)
         }
       }
     }
@@ -170,9 +170,9 @@ trait DatasetService extends SodaService {
         d() match {
           case Right(response) => {
             store.remove(resourceName) //TODO: handle error case!
-            passThroughResponse(response, start, "DatasetService.delete", resourceName, datasetId)
+            passThroughResponse(response, start, "dataset.delete", resourceName, datasetId)
           }
-          case Left(thr) => sendErrorResponse(thr.getMessage, "failed.delete", InternalServerError, None, resourceName, datasetId)
+          case Left(thr) => sendErrorResponse(thr.getMessage, "dataset.delete.internal.error", InternalServerError, None, resourceName, datasetId)
         }
       }
     }
@@ -183,7 +183,7 @@ trait DatasetService extends SodaService {
       withDatasetId(resourceName){ datasetId =>
         val doCopyData = Option(request.getParameter("copy_data")).getOrElse("false").toBoolean
         val c = dc.copy(datasetId, schemaHash(request), doCopyData, mockUser, None)
-        passThroughResponse(c, start, "DatasetService.copy", resourceName, datasetId)
+        passThroughResponse(c, start, "dataset.copy", resourceName, datasetId)
       }
     }
 
@@ -192,7 +192,7 @@ trait DatasetService extends SodaService {
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName){ datasetId =>
         val d = dc.dropCopy(datasetId, schemaHash(request), mockUser, None)
-        passThroughResponse(d, start, "DatasetSerivce.dropCopy", resourceName, datasetId)
+        passThroughResponse(d, start, "dataset.dropCopy", resourceName, datasetId)
       }
     }
 
@@ -205,9 +205,9 @@ trait DatasetService extends SodaService {
         p() match {
           case Right(response) => {
             dc.propagateToSecondary(datasetId)
-            passThroughResponse(response, start, "DatasetService.publish", resourceName, datasetId)
+            passThroughResponse(response, start, "dataset.publish", resourceName, datasetId)
           }
-          case Left(thr) => sendErrorResponse(thr.getMessage, "failed.publish", InternalServerError, None, resourceName, datasetId)
+          case Left(thr) => sendErrorResponse(thr.getMessage, "dataset.publish.internal.error", InternalServerError, None, resourceName, datasetId)
         }
       }
     }
