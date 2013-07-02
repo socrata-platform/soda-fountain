@@ -89,8 +89,9 @@ class ColumnServiceIntegrationTest extends IntegrationTest with ColumnServiceInt
     val newCol = column("column to test renaming", id, Some("new col for add drop col int test"), "text")
     val updatedCol = column("renamed column to test renaming", id2, Some("new col for add drop col int test"), "text")
 
-    //delete column (in case it's left over by accident)
+    //delete columns (in case it's left over by accident)
     val d1Response = dispatch("DELETE", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
+    val d2Response = dispatch("DELETE", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id2), None,  None)
 
     //verify it's not there
     val g1Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
@@ -119,8 +120,8 @@ class ColumnServiceIntegrationTest extends IntegrationTest with ColumnServiceInt
     g4Response.getStatusCode must equal (404)
 
     //delete column
-    val d2Response = dispatch("DELETE", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id2), None,  None)
-    d2Response.getStatusCode must equal (204)
+    val d3Response = dispatch("DELETE", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id2), None,  None)
+    d3Response.getStatusCode must equal (200)
   }
 
   test("column service update - change column type") (pending)
