@@ -40,7 +40,7 @@ trait ColumnService extends SodaService {
                   }
                 }
                 case None => {
-                  val f = dc.update(datasetId, schemaHash(request), mockUser, Array(DropColumnInstruction(columnName), AddColumnInstruction(newCol.fieldName, newCol.dataType)).iterator)
+                  val f = dc.update(datasetId, schemaHash(request), mockUser, Array(AddColumnInstruction(newCol.fieldName, newCol.dataType)).iterator)
                   passThroughResponse(f, start, "column.add", newCol.fieldName, "in", resourceName, datasetId)
                 }
               }
@@ -59,14 +59,7 @@ trait ColumnService extends SodaService {
         val f = dc.update(datasetId, schemaHash(request), mockUser, Array(DropColumnInstruction(columnName)).iterator)
         f() match {
           case Right(response) =>
-            response.getStatusCode match {
-              case 200 => {
-                passThroughResponse(response, start, "column.drop", columnName, resourceName, datasetId)
-              }
-              case _ => {
-                passThroughResponse(response, start, "column.drop", columnName, resourceName, datasetId)
-              }
-            }
+            passThroughResponse(response, start, "column.drop", columnName, resourceName, datasetId)
           case Left(err) => sendErrorResponse(err.getMessage, "column.drop", InternalServerError, Some(JString(columnName)), resourceName)
         }
       }

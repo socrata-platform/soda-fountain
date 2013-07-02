@@ -52,6 +52,7 @@ class ColumnServiceIntegrationTest extends IntegrationTest with ColumnServiceInt
     assert(body.contains(""""field_name" : "col_id""""))
     assert(body.contains(""""datatype" : "number""""))
   }
+
   test("column service - add/drop column") {
     val id = "new_col"
     val newCol = column("new column", id, Some("new col for add drop col int test"), "text")
@@ -65,16 +66,17 @@ class ColumnServiceIntegrationTest extends IntegrationTest with ColumnServiceInt
 
     //add column
     val pResponse = dispatch("POST", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  Some(newCol))
-    pResponse.getStatusCode must equal (200)
+    assert(pResponse.getStatusCode == 200, pResponse.getResponseBody)
 
     //verify it's been created
     val g2Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
-    g2Response.getStatusCode must equal (200)
-    jsonCompare(g2Response.getResponseBody, "{ verify:'column schema'}")
+    assert( g2Response.getStatusCode == 200, s"${g2Response.getStatusCode} ${g2Response.getResponseBody}")
+    assert( g2Response.getResponseBody.contains(""""field_name" : "new_col""""), s"${g2Response.getStatusCode} ${g2Response.getResponseBody}")
+    assert( g2Response.getResponseBody.contains(""""datatype" : "text""""), s"${g2Response.getStatusCode} ${g2Response.getResponseBody}")
 
     //delete column
     val d2Response = dispatch("DELETE", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
-    d2Response.getStatusCode must equal (204)
+    d2Response.getStatusCode must equal (200)
 
     //verify it's been deleted
     val g3Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
@@ -113,7 +115,7 @@ class ColumnServiceIntegrationTest extends IntegrationTest with ColumnServiceInt
     assert(g3Response.getResponseBody.contains(""""field_name" : "name_rename_renamed""""))
 
     //verify old column doesn't exist
-    val g4Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id2), None,  None)
+    val g4Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
     g4Response.getStatusCode must equal (404)
 
     //delete column
