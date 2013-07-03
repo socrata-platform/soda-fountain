@@ -94,7 +94,7 @@ trait SodaService {
     val sf = dc.getSchema(datasetId)
     sf() match {
       case Right(schema) => f(schema)
-      case Left(err) => sendErrorResponse(err, "soda.dataset.schema.notfound", NotFound, None, datasetId)
+      case Left(err) => sendErrorResponse(err, "internal error requesting dataset schema", "soda.dataset.schema.notfound", NotFound, None, datasetId)
     }
   }
 }

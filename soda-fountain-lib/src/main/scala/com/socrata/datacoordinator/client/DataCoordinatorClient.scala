@@ -37,11 +37,18 @@ object DataCoordinatorClient {
 
 trait DataCoordinatorClient {
 
-  def baseUrl: String
-  def createUrl = url(baseUrl) / "dataset"
-  def mutateUrl(datasetId: String) = url(baseUrl) / "dataset" / datasetId
-  def schemaUrl(datasetId: String) = url(baseUrl) / "dataset" / datasetId / "schema"
-  def secondaryUrl(datasetId: String) = url(baseUrl) / "secondary-manifest" / "es" / datasetId
+  def hostO: Option[String]
+  def createUrl(host: String) = url(host) / "dataset"
+  def mutateUrl(host: String, datasetId: String) = url(host) / "dataset" / datasetId
+  def schemaUrl(host: String, datasetId: String) = url(host) / "dataset" / datasetId / "schema"
+  def secondaryUrl(host: String, datasetId: String) = url(host) / "secondary-manifest" / "es" / datasetId
+
+  def withHost[T]( f: (String) => Future[Either[Throwable, T]]) : Future[Either[Throwable, T]] = {
+    hostO match {
+      case Some(host) => f(host)
+      case None => Future(Left(new Exception("could not connect to data coordinator")))
+    }
+  }
 
   protected def jsonWriter(script: MutationScript): EntityWriter = new EntityWriter {
     def writeEntity(out: OutputStream) {
@@ -55,28 +62,34 @@ trait DataCoordinatorClient {
   }
 
   def propagateToSecondary(datasetId: String) = {
-    val r = secondaryUrl(datasetId).POST
-    Http(r).either
+    withHost { host =>
+      val r = secondaryUrl(host, datasetId).POST
+      Http(r).either
+    }
   }
 
   def getSchema(datasetId:String) = {
-    val request = schemaUrl(datasetId).GET
-    for ( response <- Http(request) ) yield {
-      val osch = JsonUtil.readJson[SchemaSpec](new StringReader(response.getResponseBody))
-      osch match {
-        case Some(sch) => Right(sch)
-        case None => Left("schema not found")
+    withHost { host =>
+      val request = schemaUrl(host, datasetId).GET
+      for ( response <- Http(request) ) yield {
+        val osch = JsonUtil.readJson[SchemaSpec](new StringReader(response.getResponseBody))
+        osch match {
+          case Some(sch) => Right(sch)
+          case None => Left(new Exception("schema not found"))
+        }
       }
     }
   }
 
   def sendMutateRequest(datasetId: String, script: MutationScript) = {
-    val request = mutateUrl(datasetId).
-      POST.
-      addHeader("Content-Type", "application/json").
-      setBody(jsonWriter(script))
-    val response = Http(request).either
-    response
+    withHost { host =>
+      val request = mutateUrl(host, datasetId).
+        POST.
+        addHeader("Content-Type", "application/json").
+        setBody(jsonWriter(script))
+      val response = Http(request).either
+      response
+    }
   }
 
 //  So it seems that Dispatch doesn't support streaming/chunked requests.  I'll have to find (or write) a way to do this.
@@ -94,66 +107,76 @@ trait DataCoordinatorClient {
   def create(  user: String,
               instructions: Option[Iterator[DataCoordinatorInstruction]],
               locale: String = "en_US") = {
-    val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
-    for(response <- sendScript(createUrl.POST, createScript)) yield response match {
-      case Right(r) => {
-        val body = r.getResponseBody
-        r.getStatusCode match {
-          case 200 => {
-            val idAndReports = JsonUtil.readJson[JArray](new StringReader(body))
-            idAndReports match {
-              case Some(JArray(Seq(JString(datasetId), _*))) => {
-                Right((datasetId, idAndReports.get.tail))
+    withHost { host =>
+      val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
+      for(response <- sendScript(createUrl(host).POST, createScript)) yield response match {
+        case Right(r) => {
+          val body = r.getResponseBody
+          r.getStatusCode match {
+            case 200 => {
+              val idAndReports = JsonUtil.readJson[JArray](new StringReader(body))
+              idAndReports match {
+                case Some(JArray(Seq(JString(datasetId), _*))) => {
+                  Right((datasetId, idAndReports.get.tail))
+                }
+                case None => Left(new Error("unexpected response from data coordinator: " + body))
               }
-              case None => Left(new Error("unexpected response from data coordinator: " + body))
             }
+            case _ => Left(new Error(body))
           }
-          case _ => Left(new Error(body))
         }
+        case Left(t) => Left(t)
       }
-      case Left(t) => Left(t)
     }
   }
   def update(datasetId: String, schema: Option[String], user: String, instructions: Iterator[DataCoordinatorInstruction]) = {
-    val updateScript = new MutationScript(user, UpdateDataset(schema), instructions)
-    val future = sendScript(mutateUrl(datasetId).POST, updateScript)
-    for (r <- future) yield r match {
-      case Right(response) => Right(response) //JsonUtil.readJson[RowOpReport](new StringReader(response.getResponseBody)) match {
-        //case Some(rr) => Right(rr)
-        //case None => Left(new Exception("could not read row report"))
-      //}
-      case Left(thr) => Left(thr)
+    withHost { host =>
+      val updateScript = new MutationScript(user, UpdateDataset(schema), instructions)
+      val future = sendScript(mutateUrl(host, datasetId).POST, updateScript)
+      for (r <- future) yield r match {
+        case Right(response) => Right(response) //JsonUtil.readJson[RowOpReport](new StringReader(response.getResponseBody)) match {
+          //case Some(rr) => Right(rr)
+          //case None => Left(new Exception("could not read row report"))
+        //}
+        case Left(thr) => Left(thr)
+      }
     }
   }
   def copy(datasetId: String, schema: Option[String], copyData: Boolean, user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
-    val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Array().iterator))
-    sendScript(mutateUrl(datasetId).POST, createScript)
+    withHost { host =>
+      val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Array().iterator))
+      sendScript(mutateUrl(host, datasetId).POST, createScript)
+    }
   }
   def publish(datasetId: String, schema: Option[String], snapshotLimit:Option[Int], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
-    val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions.getOrElse(Array().iterator))
-    sendScript(mutateUrl(datasetId).POST, pubScript)
+    withHost { host =>
+      val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions.getOrElse(Array().iterator))
+      sendScript(mutateUrl(host, datasetId).POST, pubScript)
+    }
   }
   def dropCopy(datasetId: String, schema: Option[String], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
-    val dropScript = new MutationScript(user, DropDataset(schema), instructions.getOrElse(Array().iterator))
-    sendScript(mutateUrl(datasetId).POST, dropScript)
+    withHost { host =>
+      val dropScript = new MutationScript(user, DropDataset(schema), instructions.getOrElse(Array().iterator))
+      sendScript(mutateUrl(host, datasetId).POST, dropScript)
+    }
   }
   def deleteAllCopies(datasetId: String, schema: Option[String], user: String) = {
-    val deleteScript = new MutationScript(user, DropDataset(schema), Array().iterator)
-    sendScript(mutateUrl(datasetId).DELETE, deleteScript)
-  }
-
-  def checkVersionInSecondary(datasetId: String, secondaryName: String) = {
-    val request = secondaryUrl(datasetId)
-    val response = for (r <- Http(request).either.right) yield r
-    response() match {
-      case Right(response) =>
-        val oVer = JsonUtil.readJson[VersionReport](new StringReader(response.getResponseBody))
-        oVer match {
-          case Some(ver) => Right(ver)
-          case None => Left("version not found")
-        }
-      case Left(thr) => Left(thr.getMessage)
+    withHost { host =>
+      val deleteScript = new MutationScript(user, DropDataset(schema), Array().iterator)
+      sendScript(mutateUrl(host, datasetId).DELETE, deleteScript)
     }
   }
 
+  def checkVersionInSecondary(datasetId: String, secondaryName: String): Future[Either[Throwable, VersionReport]] = {
+    withHost { host =>
+      val request = secondaryUrl(host, datasetId)
+      Http(request).map { r =>
+        val oVer = JsonUtil.readJson[VersionReport](new StringReader(r.getResponseBody))
+        oVer match {
+          case Some(ver) => ver
+          case None => throw new Exception("version not found")
+        }
+      }.either
+    }
+  }
 }

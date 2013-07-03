@@ -158,7 +158,7 @@ trait DatasetService extends SodaService {
           case Right(schema) =>
             log.info(s"getSchema for ${resourceName} ${id} took ${System.currentTimeMillis - start} OK - 200")
             OK ~> Content(schema.toString)
-          case Left(err) => sendErrorResponse(err, "dataset.getSchema.notfound", NotFound, Some(Map(("resource_name" -> JString(resourceName)))), resourceName)
+          case Left(err) => sendErrorResponse(err, "internal error requesting dataset schema", "dataset.getSchema.notfound", NotFound, Some(Map(("resource_name" -> JString(resourceName)))), resourceName)
         }
       }
     }
@@ -216,9 +216,11 @@ trait DatasetService extends SodaService {
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName) { datasetId =>
         val response = dc.checkVersionInSecondary(datasetId, secondaryName)
-        response match {
-          case Right(response) => OK ~> Content(response.version.toString)
-          case Left(err) => InternalServerError ~> Content(err)
+        response() match {
+          case Right(report) =>
+            OK ~> Content(report.version.toString)
+          case Left(err) =>
+            InternalServerError ~> Content(err.getMessage)
         }
       }
     }

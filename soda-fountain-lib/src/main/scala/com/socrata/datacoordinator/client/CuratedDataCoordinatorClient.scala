@@ -14,18 +14,17 @@ trait CuratedDataCoordinatorClient extends SodaService with CuratorClient {
     val serviceName = config.getString("service-name")
     val instanceName = config.getString("instance")
     val log = org.slf4j.LoggerFactory.getLogger(classOf[CuratedDataCoordinatorClient])
-    var provider : ServiceProvider[Void] = null
-    def baseUrl: String = {
+
+    lazy val provider : ServiceProvider[Void] = curatorClient.discovery.serviceProviderBuilder().providerStrategy(new strategies.RoundRobinStrategy).serviceName(serviceName + "." + instanceName).build()
+    provider.start()
+
+    def hostO: Option[String] = {
       try{
-        if (provider == null){
-          provider = curatorClient.discovery.serviceProviderBuilder().providerStrategy(new strategies.RoundRobinStrategy).serviceName(serviceName + "." + instanceName).build()
-          provider.start()
-        }
-        provider.getInstance().buildUriSpec()
+        Some(provider.getInstance().buildUriSpec())
       }
       catch {
         case e: Exception => log.error( "error finding data coordinator service endpoint", e)
-        throw e
+        None
       }
     }
   }
