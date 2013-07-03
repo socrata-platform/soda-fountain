@@ -27,12 +27,8 @@ class CuratorClientImpl(config: Config) extends Closeable {
     val namespace = config.getString("namespace")
     val serviceBasePath = config.getString("service-base-path")
   }
-  var curator: CuratorFramework = null
-  var discovery: ServiceDiscovery[Void] = null
 
-  def open = {
-    if (curator == null){
-      curator = CuratorFrameworkFactory.builder.
+  lazy val curator: CuratorFramework = CuratorFrameworkFactory.builder.
         connectString(CuratorConfig.ensemble).
         sessionTimeoutMs(CuratorConfig.sessionTimeout.toMillis.toInt).
         connectionTimeoutMs(CuratorConfig.connectTimeout.toMillis.toInt).
@@ -41,19 +37,13 @@ class CuratorClientImpl(config: Config) extends Closeable {
         CuratorConfig.maxRetries)).
         namespace(CuratorConfig.namespace).
         build()
-      curator.start()
-    }
+  curator.start()
 
-    if (discovery == null){
-      discovery = ServiceDiscoveryBuilder.builder(classOf[Void]).
-        client(curator).
-        basePath(CuratorConfig.serviceBasePath).
-        build()
-      discovery.start()
-    }
-  }
-
-  this.open
+  lazy val discovery: ServiceDiscovery[Void] = ServiceDiscoveryBuilder.builder(classOf[Void]).
+      client(curator).
+      basePath(CuratorConfig.serviceBasePath).
+      build()
+  discovery.start()
 
   def close = {
     curator.close()
