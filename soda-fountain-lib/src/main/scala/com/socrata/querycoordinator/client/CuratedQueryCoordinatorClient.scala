@@ -9,13 +9,17 @@ trait CuratedQueryCoordinatorClient extends SodaService with CuratorClient{
 
   private object client extends QueryCoordinatorClient {
 
-    var provider : ServiceProvider[Void] = null
-    def qchost: String = {
-      if (provider == null){
-        provider = curatorClient.discovery.serviceProviderBuilder().providerStrategy(new strategies.RoundRobinStrategy).serviceName("query-coordinator").build()
-        provider.start()
+    val log = org.slf4j.LoggerFactory.getLogger(classOf[CuratedQueryCoordinatorClient])
+    lazy val provider : ServiceProvider[Void] = curatorClient.discovery.serviceProviderBuilder().providerStrategy(new strategies.RoundRobinStrategy).serviceName("query-coordinator").build()
+    provider.start()
+    def qchost: Option[String] = {
+      try{
+        Some(provider.getInstance().buildUriSpec())
       }
-      provider.getInstance().buildUriSpec()
+      catch {
+        case e: Exception => log.error( "error finding query coordinator service endpoint", e)
+        None
+      }
     }
   }
 }
