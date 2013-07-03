@@ -30,10 +30,10 @@ trait RowService extends SodaService {
             withDatasetId(resourceName){ datasetId =>
               withDatasetSchema(datasetId){ schema =>
                 map.foreach{ pair =>
-                  val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "row.upsert.column.notfound", BadRequest, Some(JObject(map)), resourceName, datasetId))
+                  val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "row.upsert.column.notfound", BadRequest, Some(map), resourceName, datasetId))
                   TypeChecker.check(expectedTypeName, pair._2) match {
                     case Right(v) => v
-                    case Left(msg) => return sendErrorResponse(msg, "row.upsert.type.error", BadRequest, Some(pair._2), resourceName, datasetId)
+                    case Left(msg) => return sendErrorResponse(msg, "row.upsert.type.error", BadRequest, Some(Map(pair)), resourceName, datasetId)
                   }
                 }
                 val response = dc.update(datasetId, schemaHash(request), mockUser, Array(UpsertRow(map)).iterator)

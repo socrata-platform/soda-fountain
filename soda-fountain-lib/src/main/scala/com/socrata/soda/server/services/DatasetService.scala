@@ -33,10 +33,10 @@ trait DatasetService extends SodaService {
                   rowjval match {
                     case JObject(map) =>  {
                       map.foreach{ pair =>
-                        val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "dataset.prepareForUpsert.upsert.column.not.found", BadRequest, Some(rowjval), "JSON.row.mapping", resourceName, datasetId))
+                        val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "dataset.prepareForUpsert.upsert.column.not.found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId))
                         TypeChecker.check(expectedTypeName, pair._2) match {
                           case Right(v) => v
-                          case Left(msg) => return sendErrorResponse(msg, "dataset.prepareForUpsert.upsert.type.error", BadRequest, Some(rowjval), "type.checking", resourceName, datasetId)
+                          case Left(msg) => return sendErrorResponse(msg, "dataset.prepareForUpsert.upsert.type.error", BadRequest, Some(Map(pair)), "type.checking", resourceName, datasetId)
                         }
                       }
                       UpsertRow(map)
@@ -45,12 +45,12 @@ trait DatasetService extends SodaService {
                       val idString = id match {
                         case JNumber(num) => num.toString
                         case JString(str) => str
-                        case _ => return sendErrorResponse("row ID for delete operation must be number or string", "dataset.prepareForUpsert.identifier.notNumberOrString", BadRequest, Some(id), resourceName, datasetId)
+                        case _ => return sendErrorResponse("row ID for delete operation must be number or string", "dataset.prepareForUpsert.identifier.notNumberOrString", BadRequest, Some(Map(("row_id" -> id))), resourceName, datasetId)
                       }
                       val pk = pkValue(idString, schema)
                       DeleteRow(pk)
                     }
-                    case _ => return sendErrorResponse("could not deserialize into JSON row operation", "dataset.prepareForUpsert.json.row.object.notvalid", BadRequest, Some(rowjval), resourceName, datasetId)
+                    case _ => return sendErrorResponse("could not deserialize into JSON row operation", "dataset.prepareForUpsert.json.row.object.notvalid", BadRequest, Some(Map("row" -> rowjval)), resourceName, datasetId)
                   }
                 }
                 f(datasetId, schema, upserts)
@@ -131,7 +131,7 @@ trait DatasetService extends SodaService {
                 log.info(s"create.response ${dspec.resourceName} as ${datasetId} took ${System.currentTimeMillis - start}ms created OK - 200")
                 OK
               }
-              case Left(thr) => sendErrorResponse(thr, "internal error during dataset creation", "dataset.create.internal.error", InternalServerError, Some(JString(thr.getMessage)), dspec.resourceName)
+              case Left(thr) => sendErrorResponse(thr, "internal error during dataset creation", "dataset.create.internal.error", InternalServerError, Some(Map(("resource_name" -> JString(dspec.resourceName)))), dspec.resourceName)
             }
           }
           case Right(datasetId) => sendErrorResponse("Dataset already exists", "dataset.create.resourceName.conflict", BadRequest, None, dspec.resourceName, datasetId)
@@ -158,7 +158,7 @@ trait DatasetService extends SodaService {
           case Right(schema) =>
             log.info(s"getSchema for ${resourceName} ${id} took ${System.currentTimeMillis - start} OK - 200")
             OK ~> Content(schema.toString)
-          case Left(err) => sendErrorResponse(err, "dataset.getSchema.notfound", NotFound, Some(JString(resourceName)), resourceName)
+          case Left(err) => sendErrorResponse(err, "dataset.getSchema.notfound", NotFound, Some(Map(("resource_name" -> JString(resourceName)))), resourceName)
         }
       }
     }

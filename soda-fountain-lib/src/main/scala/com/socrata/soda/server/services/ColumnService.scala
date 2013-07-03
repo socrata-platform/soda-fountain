@@ -46,7 +46,7 @@ trait ColumnService extends SodaService {
               }
             }
           }
-          case Left(errs) => sendErrorResponse("bad column definition", "column.update.definition.invalid", BadRequest, Some(JArray(errs.map(JString(_)))), resourceName, columnName)
+          case Left(errs) => sendErrorResponse("bad column definition", "column.update.definition.invalid", BadRequest, Some(Map(("errors" -> JArray(errs.map(JString(_)))))), resourceName, columnName)
         }
         case None => sendErrorResponse("could not read JSON column definition", "column.update.bad.json", BadRequest, None, resourceName, columnName)
       }
@@ -60,7 +60,7 @@ trait ColumnService extends SodaService {
         f() match {
           case Right(response) =>
             passThroughResponse(response, start, "column.drop", columnName, resourceName, datasetId)
-          case Left(err) => sendErrorResponse(err, "internal error during column drop", "column.drop.internal.error", InternalServerError, Some(JString(columnName)), resourceName)
+          case Left(err) => sendErrorResponse(err, "internal error during column drop", "column.drop.internal.error", InternalServerError, Some(Map(("column_name" -> JString(columnName)))), resourceName)
         }
       }
     }
@@ -72,7 +72,7 @@ trait ColumnService extends SodaService {
         val f = dc.getSchema(datasetId)
         f() match {
           case Right(schema) =>
-            val colType = schema.schema.get(columnName).getOrElse{ return sendErrorResponse(s"column ${columnName} not found in schema for ${resourceName}", "column.getSchema.notfound", NotFound, Some(JString(columnName)), resourceName, columnName) }
+            val colType = schema.schema.get(columnName).getOrElse{ return sendErrorResponse(s"column ${columnName} not found in schema for ${resourceName}", "column.getSchema.notfound", NotFound, Some(Map(("column_name" -> JString(columnName)))), resourceName, columnName) }
             log.info(s"getSchema for ${columnName} (type ${colType}) in ${resourceName} ${datasetId} took ${System.currentTimeMillis - start} OK - 200")
             val obj = JObject(Map(
               "hash" -> JString(schema.hash),
@@ -80,7 +80,7 @@ trait ColumnService extends SodaService {
               "datatype" -> JString(colType)
             ))
             OK ~> ContentType("application/json; charset=utf-8") ~> Content(obj.toString)
-          case Left(err) => sendErrorResponse(new Exception(s"no schema found for dataset ${resourceName} ${datasetId}"), "internal error requesting dataset schema", "column.getSchema.internal.error", NotFound, Some(JString(resourceName)), resourceName)
+          case Left(err) => sendErrorResponse(new Exception(s"no schema found for dataset ${resourceName} ${datasetId}"), "internal error requesting dataset schema", "column.getSchema.internal.error", NotFound, Some(Map(("resource_name" -> JString(resourceName)))), resourceName)
         }
       }
     }

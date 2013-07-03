@@ -16,6 +16,7 @@ import com.ning.http.client.Response
 import org.apache.log4j.PropertyConfigurator
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import com.socrata.soql.brita.IdentifierFilter
+import java.util.UUID
 
 object SodaService {
   val config = ConfigFactory.load().getConfig("com.socrata.soda-fountain")
@@ -32,18 +33,23 @@ trait SodaService {
 
   def schemaHash(r: HttpServletRequest) = Option(r.getParameter("schema"))
 
-  def sendErrorResponse(th: Throwable, message: String, errorCode: String, httpCode: HttpServletResponse => Unit, data: Option[JValue], logTags: String*): HttpServletResponse => Unit  = {
-    val resp = sendErrorResponse(message, errorCode, httpCode, data, logTags:_*)
-    log.error(message, th)
+  def sendErrorResponse(th: Throwable, message: String, errorCode: String, httpCode: HttpServletResponse => Unit, data: Option[Map[String, JValue]], logTags: String*): HttpServletResponse => Unit  = {
+    val tag = UUID.randomUUID
+    val taggedData = data match {
+      case Some(map) => map + ("tag" -> JString(tag.toString))
+      case None => Map("tag" -> JString(tag.toString))
+    }
+    val resp = sendErrorResponse(message, errorCode, httpCode, Some(taggedData), logTags:_*)
+    log.error(tag + message, th)
     resp
   }
-  def sendErrorResponse(message: String, errorCode: String, httpCode: HttpServletResponse => Unit, data: Option[JValue], logTags: String*) = {
+  def sendErrorResponse(message: String, errorCode: String, httpCode: HttpServletResponse => Unit, data: Option[Map[String, JValue]], logTags: String*) = {
     val messageAndCode = Map[String, JValue](
       "message" -> JString(message),
       "errorCode" -> JString(errorCode)
     )
     val errorMap = data match {
-      case Some(d) => messageAndCode + ("data" -> d)
+      case Some(d) => messageAndCode + ("data" -> JObject(d))
       case None => messageAndCode
     }
     log.info(s"${logTags.mkString(" ")} responding with error ${errorCode}")
@@ -51,7 +57,7 @@ trait SodaService {
   }
 
   def validName(name: String) = IdentifierFilter(name).equals(name)
-  def sendInvalidNameError(name:String, request: HttpServletRequest) = sendErrorResponse("resource name invalid", "soda.resourceName.invalid", BadRequest, Some(JString(name)), request.getRequestURI, request.getMethod)
+  def sendInvalidNameError(name:String, request: HttpServletRequest) = sendErrorResponse("resource name invalid", "soda.resourceName.invalid", BadRequest, Some(Map("resource_name" -> JString(name))), request.getRequestURI, request.getMethod)
 
   def passThroughResponse(f: Future[Either[Throwable,Response]], startTime: Long, logTags: String*): HttpServletResponse => Unit = {
     f() match {
