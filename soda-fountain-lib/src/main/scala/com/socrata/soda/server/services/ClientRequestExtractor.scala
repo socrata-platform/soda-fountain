@@ -194,7 +194,7 @@ object ClientRequestExtractor {
     }
   }
 
-  def streamJsonArrayValues(req: HttpServletRequest, approximateMaxDatumBound: Long): Either[String, Iterator[JValue]] = {
+  private def streamJson(req: HttpServletRequest, approximateMaxDatumBound: Long): Either[String, BoundedReader] = {
     val nullableContentType = req.getContentType
     if(nullableContentType == null)
       return Left("req.content-type.missing")
@@ -211,10 +211,28 @@ object ClientRequestExtractor {
       catch { case _: UnsupportedEncodingException =>
         return Left("req.content-type.unknown-charset")
       }
-    val boundedReader = new BoundedReader(reader, approximateMaxDatumBound)
-    val it = JsonArrayIterator[JValue](new JsonEventIterator(new BlockJsonTokenIterator(boundedReader)))
-    val boundedIt = it.map { ev => boundedReader.resetCount(); ev }
-    Right(boundedIt)
+    Right(new BoundedReader(reader, approximateMaxDatumBound))
+  }
+
+  def jsonSingleObjectStream(req: HttpServletRequest, approximateMaxDatumBound: Long): Either[String, JObject] = {
+    streamJson(req, approximateMaxDatumBound) match {
+      case Right(boundedReader) =>
+        JsonReader.fromEvents(new JsonEventIterator(new BlockJsonTokenIterator(boundedReader))) match {
+          case obj: JObject => Right(obj)
+          case _ => Left("req.content.json.not-single-object")
+        }
+      case Left(e) => Left(e)
+    }
+  }
+
+  def jsonArrayValuesStream(req: HttpServletRequest, approximateMaxDatumBound: Long): Either[String, Iterator[JValue]] = {
+    streamJson(req, approximateMaxDatumBound) match {
+      case Right(boundedReader) =>
+        val it = JsonArrayIterator[JValue](new JsonEventIterator(new BlockJsonTokenIterator(boundedReader)))
+        val boundedIt = it.map { ev => boundedReader.resetCount(); ev }
+        Right(boundedIt)
+      case Left(e) => Left(e)
+    }
   }
 
   class ReaderExceededBound(val bytesRead: Long) extends Exception

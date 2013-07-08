@@ -1,12 +1,12 @@
 package com.socrata.soda.server.services
 
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
-import com.socrata.http.server.{responses, HttpResponse}
+import com.socrata.http.server._
 import scala.Some
 import com.rojoma.json.ast._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
-import com.socrata.datacoordinator.client.DataCoordinatorClient
+import com.socrata.datacoordinator.client._
 import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.querycoordinator.client.QueryCoordinatorClient
 import dispatch._
@@ -17,6 +17,9 @@ import org.apache.log4j.PropertyConfigurator
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import com.socrata.soql.brita.IdentifierFilter
 import java.util.UUID
+import com.rojoma.json.io.JsonReaderException
+import com.socrata.soda.server.types.TypeChecker
+import com.socrata.soda.server.services.ClientRequestExtractor._
 
 object SodaService {
   val config = ConfigFactory.load().getConfig("com.socrata.soda-fountain")
@@ -100,4 +103,45 @@ trait SodaService {
       case Left(err) => sendErrorResponse(err, "internal error requesting dataset schema", "soda.dataset.schema.not-found", NotFound, None, datasetId)
     }
   }
+
+  protected def prepareForUpsert(resourceName: String, it: Iterator[JValue], callerTag: String)(f: (String, SchemaSpec, Iterator[RowUpdate]) => HttpServletResponse => Unit) : HttpServletResponse => Unit = {
+    try {
+      withDatasetId(resourceName){ datasetId =>
+        withDatasetSchema(datasetId) { schema =>
+          val upserts = it.map { rowjval =>
+            rowjval match {
+              case JObject(map) =>
+                map.foreach{ pair =>
+                  schema.schema.get(pair._1) match {
+                    case Some(expectedTypeName) =>
+                      TypeChecker.check(expectedTypeName, pair._2) match {
+                        case Right(v) => v
+                        case Left(msg) => return sendErrorResponse(msg, "soda.prepareForUpsert.upsert.type.error", BadRequest, Some(Map(pair)), "type.checking", resourceName, datasetId, callerTag )
+                      }
+                    case None => if (!IGNORE_EXTRA_COLUMNS) { return sendErrorResponse("no column " + pair._1, "soda.prepareForUpsert.upsert.column-not-found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId)}
+                  }
+                }
+                //if ( .size == 0) { return sendErrorResponse("no keys in upsert row object are recognized as columns in dataset", "soda.prepareForUpsert.zero-columns-found", BadRequest, Some(Map(("row" -> rowjval))), "JSON.row.mapping", resourceName, datasetId)}
+                UpsertRow(map)
+              case JArray(Seq(id)) => {
+                val idString = id match {
+                  case JNumber(num) => num.toString
+                  case JString(str) => str
+                  case _ => return sendErrorResponse("row ID for delete operation must be number or string", "soda.prepareForUpsert.identifier.notNumberOrString", BadRequest, Some(Map(("row_id" -> id))), resourceName, datasetId)
+                }
+                val pk = pkValue(idString, schema)
+                DeleteRow(pk)
+              }
+              case _ => return sendErrorResponse("could not deserialize into JSON row operation", "soda.prepareForUpsert.json.row.object.notvalid", BadRequest, Some(Map("row" -> rowjval)), resourceName, datasetId)
+            }
+          }
+          f(datasetId, schema, upserts)
+        }
+      }
+    }
+    catch {
+      case bp: JsonReaderException => sendErrorResponse("invalid JSON: " + bp.getMessage, "soda.prepareForUpsert.json.invalid", BadRequest, None, resourceName)
+    }
+  }
+
 }

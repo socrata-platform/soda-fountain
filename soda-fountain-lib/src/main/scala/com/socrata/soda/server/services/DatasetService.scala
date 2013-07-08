@@ -7,11 +7,7 @@ import dispatch._
 import com.socrata.datacoordinator.client._
 import com.rojoma.json.ast._
 import com.socrata.soda.server.services.ClientRequestExtractor._
-import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
-import com.rojoma.json.io.{JsonReaderException, JsonBadParse, JsonReader}
 import com.socrata.http.server.responses
-import com.socrata.soda.server.types.TypeChecker
-import com.socrata.datacoordinator.client.DataCoordinatorClient.SchemaSpec
 
 
 trait DatasetService extends SodaService {
@@ -20,68 +16,30 @@ trait DatasetService extends SodaService {
 
     val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetService])
 
-    protected def prepareForUpsert(resourceName: String, request: HttpServletRequest)(f: (String, SchemaSpec, Iterator[RowUpdate]) => HttpServletResponse => Unit) : HttpServletResponse => Unit = {
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
-      val it = streamJsonArrayValues(request, MAX_DATUM_SIZE)
-      it match {
-        case Right(boundedIt) =>
-          try {
-            withDatasetId(resourceName){ datasetId =>
-              withDatasetSchema(datasetId) { schema =>
-                val upserts = boundedIt.map { rowjval =>
-                  rowjval match {
-                    case JObject(map) =>
-                      map.foreach{ pair =>
-                        schema.schema.get(pair._1) match {
-                          case Some(expectedTypeName) =>
-                            TypeChecker.check(expectedTypeName, pair._2) match {
-                              case Right(v) => v
-                              case Left(msg) => return sendErrorResponse(msg, "dataset.prepareForUpsert.upsert.type.error", BadRequest, Some(Map(pair)), "type.checking", resourceName, datasetId)
-                            }
-                          case None => if (!IGNORE_EXTRA_COLUMNS) { return sendErrorResponse("no column " + pair._1, "dataset.prepareForUpsert.upsert.column-not-found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId)}
-                        }
-                      }
-                      //if ( .size == 0) { return sendErrorResponse("no keys in upsert row object are recognized as columns in dataset", "dataset.prepareForUpsert.zero-columns-found", BadRequest, Some(Map(("row" -> rowjval))), "JSON.row.mapping", resourceName, datasetId)}
-                      UpsertRow(map)
-                    case JArray(Seq(id)) => {
-                      val idString = id match {
-                        case JNumber(num) => num.toString
-                        case JString(str) => str
-                        case _ => return sendErrorResponse("row ID for delete operation must be number or string", "dataset.prepareForUpsert.identifier.notNumberOrString", BadRequest, Some(Map(("row_id" -> id))), resourceName, datasetId)
-                      }
-                      val pk = pkValue(idString, schema)
-                      DeleteRow(pk)
-                    }
-                    case _ => return sendErrorResponse("could not deserialize into JSON row operation", "dataset.prepareForUpsert.json.row.object.notvalid", BadRequest, Some(Map("row" -> rowjval)), resourceName, datasetId)
-                  }
-                }
-                f(datasetId, schema, upserts)
-              }
-            }
-          }
-          catch {
-            case bp: JsonReaderException => sendErrorResponse("invalid JSON: " + bp.getMessage, "dataset.prepareForUpsert.json.invalid", BadRequest, None, resourceName)
-          }
-        case Left(err) => sendErrorResponse("Error reading JSON: " + err, "dataset.prepareForUpsert.json.iterator.error", BadRequest, None, resourceName)
-      }
-    }
-
     def upsert(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
-      prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
-        val r = dc.update(datasetId, schemaHash(request), mockUser, upserts)
-        passThroughResponse(r, start, "dataset.upsert", resourceName, datasetId)
+      jsonArrayValuesStream(request, MAX_DATUM_SIZE) match {
+        case Right(boundedIt) =>
+          prepareForUpsert(resourceName, boundedIt, "dataset.upsert"){ (datasetId, schema, upserts) =>
+            val r = dc.update(datasetId, schemaHash(request), mockUser, upserts)
+            passThroughResponse(r, start, "dataset.upsert", resourceName, datasetId)
+          }
+        case Left(err) => return sendErrorResponse("Error reading JSON: " + err, "dataset.upsert.json.iterator.error", BadRequest, None, resourceName)
       }
     }
 
     def replace(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
-      prepareForUpsert(resourceName, request){ (datasetId, schema, upserts) =>
-        val instructions: Iterator[DataCoordinatorInstruction] = Iterator.single(RowUpdateOptionChange(truncate = true)) ++ upserts
-        val r = dc.update(datasetId, schemaHash(request), mockUser, instructions)
-        passThroughResponse(r, start, "dataset.replace", resourceName, datasetId)
+      jsonArrayValuesStream(request, MAX_DATUM_SIZE) match {
+        case Right(boundedIt) =>
+          prepareForUpsert(resourceName, boundedIt, "dataset.replace"){ (datasetId, schema, upserts) =>
+            val instructions: Iterator[DataCoordinatorInstruction] = Iterator.single(RowUpdateOptionChange(truncate = true)) ++ upserts
+            val r = dc.update(datasetId, schemaHash(request), mockUser, instructions)
+            passThroughResponse(r, start, "dataset.replace", resourceName, datasetId)
+          }
+        case Left(err) => sendErrorResponse("Error reading JSON: " + err, "dataset.replace.json.iterator.error", BadRequest, None, resourceName)
       }
     }
 
