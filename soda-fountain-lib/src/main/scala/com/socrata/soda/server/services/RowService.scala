@@ -30,12 +30,16 @@ trait RowService extends SodaService {
             withDatasetId(resourceName){ datasetId =>
               withDatasetSchema(datasetId){ schema =>
                 map.foreach{ pair =>
-                  val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "row.upsert.column.notfound", BadRequest, Some(map), resourceName, datasetId))
-                  TypeChecker.check(expectedTypeName, pair._2) match {
-                    case Right(v) => v
-                    case Left(msg) => return sendErrorResponse(msg, "row.upsert.type.error", BadRequest, Some(Map(pair)), resourceName, datasetId)
+                  schema.schema.get(pair._1) match {
+                    case Some(expectedTypeName) =>
+                      TypeChecker.check(expectedTypeName, pair._2) match {
+                        case Right(v) => v
+                        case Left(msg) => return sendErrorResponse(msg, "row.upsert.type.error", BadRequest, Some(Map(pair)), resourceName, datasetId)
+                      }
+                    case None => if (!IGNORE_EXTRA_COLUMNS) { return sendErrorResponse("no column " + pair._1, "row.upsert.column.not-found", BadRequest, Some(map), resourceName, datasetId) }
                   }
                 }
+                //if ( .size == 0) { return sendErrorResponse("no keys in upsert row object are recognized as columns in dataset", "dataset.prepareForUpsert.zero-columns-found", BadRequest, Some(Map(("row" -> rowjval))), "JSON.row.mapping", resourceName, datasetId)}
                 val response = dc.update(datasetId, schemaHash(request), mockUser, Array(UpsertRow(map)).iterator)
                 passThroughResponse(response, start, "RowService.upsert", resourceName, datasetId)
               }
@@ -86,7 +90,7 @@ trait RowService extends SodaService {
                     OK ~>  ContentType(response.getContentType) ~> Content(head.toString)
                   }
                   case None => {
-                    sendErrorResponse("row not found", "row.get.notfound", NotFound, None, logTags:_*)
+                    sendErrorResponse("row not found", "row.get.not-found", NotFound, None, logTags:_*)
                   }
                 }
               }

@@ -72,7 +72,7 @@ trait ColumnService extends SodaService {
         val f = dc.getSchema(datasetId)
         f() match {
           case Right(schema) =>
-            val colType = schema.schema.get(columnName).getOrElse{ return sendErrorResponse(s"column ${columnName} not found in schema for ${resourceName}", "column.getSchema.notfound", NotFound, Some(Map(("column_name" -> JString(columnName)))), resourceName, columnName) }
+            val colType = schema.schema.get(columnName).getOrElse{ return sendErrorResponse(s"column ${columnName} not found in schema for ${resourceName}", "column.getSchema.not-found", NotFound, Some(Map(("column_name" -> JString(columnName)))), resourceName, columnName) }
             log.info(s"getSchema for ${columnName} (type ${colType}) in ${resourceName} ${datasetId} took ${System.currentTimeMillis - start} OK - 200")
             val obj = JObject(Map(
               "hash" -> JString(schema.hash),

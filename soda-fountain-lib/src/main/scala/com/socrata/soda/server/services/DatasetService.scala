@@ -19,28 +19,30 @@ trait DatasetService extends SodaService {
   object dataset {
 
     val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetService])
-    val MAX_DATUM_SIZE = SodaService.config.getInt("max-dataum-size")
 
     protected def prepareForUpsert(resourceName: String, request: HttpServletRequest)(f: (String, SchemaSpec, Iterator[RowUpdate]) => HttpServletResponse => Unit) : HttpServletResponse => Unit = {
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       val it = streamJsonArrayValues(request, MAX_DATUM_SIZE)
       it match {
-        case Right(boundedIt) => {
+        case Right(boundedIt) =>
           try {
             withDatasetId(resourceName){ datasetId =>
               withDatasetSchema(datasetId) { schema =>
                 val upserts = boundedIt.map { rowjval =>
                   rowjval match {
-                    case JObject(map) =>  {
+                    case JObject(map) =>
                       map.foreach{ pair =>
-                        val expectedTypeName = schema.schema.get(pair._1).getOrElse( return sendErrorResponse("no column " + pair._1, "dataset.prepareForUpsert.upsert.column.not.found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId))
-                        TypeChecker.check(expectedTypeName, pair._2) match {
-                          case Right(v) => v
-                          case Left(msg) => return sendErrorResponse(msg, "dataset.prepareForUpsert.upsert.type.error", BadRequest, Some(Map(pair)), "type.checking", resourceName, datasetId)
+                        schema.schema.get(pair._1) match {
+                          case Some(expectedTypeName) =>
+                            TypeChecker.check(expectedTypeName, pair._2) match {
+                              case Right(v) => v
+                              case Left(msg) => return sendErrorResponse(msg, "dataset.prepareForUpsert.upsert.type.error", BadRequest, Some(Map(pair)), "type.checking", resourceName, datasetId)
+                            }
+                          case None => if (!IGNORE_EXTRA_COLUMNS) { return sendErrorResponse("no column " + pair._1, "dataset.prepareForUpsert.upsert.column-not-found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId)}
                         }
                       }
+                      //if ( .size == 0) { return sendErrorResponse("no keys in upsert row object are recognized as columns in dataset", "dataset.prepareForUpsert.zero-columns-found", BadRequest, Some(Map(("row" -> rowjval))), "JSON.row.mapping", resourceName, datasetId)}
                       UpsertRow(map)
-                    }
                     case JArray(Seq(id)) => {
                       val idString = id match {
                         case JNumber(num) => num.toString
@@ -60,7 +62,6 @@ trait DatasetService extends SodaService {
           catch {
             case bp: JsonReaderException => sendErrorResponse("invalid JSON: " + bp.getMessage, "dataset.prepareForUpsert.json.invalid", BadRequest, None, resourceName)
           }
-        }
         case Left(err) => sendErrorResponse("Error reading JSON: " + err, "dataset.prepareForUpsert.json.iterator.error", BadRequest, None, resourceName)
       }
     }
@@ -158,7 +159,7 @@ trait DatasetService extends SodaService {
           case Right(schema) =>
             log.info(s"getSchema for ${resourceName} ${id} took ${System.currentTimeMillis - start} OK - 200")
             OK ~> Content(schema.toString)
-          case Left(err) => sendErrorResponse(err, "internal error requesting dataset schema", "dataset.getSchema.notfound", NotFound, Some(Map(("resource_name" -> JString(resourceName)))), resourceName)
+          case Left(err) => sendErrorResponse(err, "internal error requesting dataset schema", "dataset.getSchema.not-found", NotFound, Some(Map(("resource_name" -> JString(resourceName)))), resourceName)
         }
       }
     }

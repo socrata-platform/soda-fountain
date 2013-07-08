@@ -24,6 +24,9 @@ object SodaService {
 
 trait SodaService {
 
+  val MAX_DATUM_SIZE = SodaService.config.getInt("max-dataum-size")
+  val IGNORE_EXTRA_COLUMNS = SodaService.config.getBoolean("upsert-ignore-extra-columns")
+
   PropertyConfigurator.configure(Propertizer("log4j", SodaService.config.getConfig("log4j")))
   val dc : DataCoordinatorClient
   val store : NameAndSchemaStore
@@ -87,14 +90,14 @@ trait SodaService {
     val rnf = store.translateResourceName(resourceName)
     rnf() match {
       case Right(datasetId) => f(datasetId)
-      case Left(err) => sendErrorResponse(err, "soda.resourceName.notfound", BadRequest, None, resourceName)
+      case Left(err) => sendErrorResponse(err, "soda.resourceName.not-found", BadRequest, None, resourceName)
     }
   }
   def withDatasetSchema(datasetId: String)(f: SchemaSpec => HttpResponse): HttpResponse = {
     val sf = dc.getSchema(datasetId)
     sf() match {
       case Right(schema) => f(schema)
-      case Left(err) => sendErrorResponse(err, "internal error requesting dataset schema", "soda.dataset.schema.notfound", NotFound, None, datasetId)
+      case Left(err) => sendErrorResponse(err, "internal error requesting dataset schema", "soda.dataset.schema.not-found", NotFound, None, datasetId)
     }
   }
 }
