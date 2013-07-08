@@ -43,10 +43,24 @@ trait IntegrationTestHelpers {
 
   val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator with LocalQueryCoordinatorClient
 
-  def getVersionInSecondaryStore(resourceName: String) : Long = {
+  private def requestVersionInSecondaryStore(resourceName: String) = {
     val response = dispatch("GET", "dataset-version", Some(resourceName), Some("es"), None, None)
-    if (response.getStatusCode != 200){throw new Exception(s"could not read version in secondary store: ${response.getResponseBody}")}
-    response.getResponseBody.toLong
+    response.getStatusCode match {
+      case 200 => Right(response.getResponseBody.toLong)
+      case _ => Left(s"could not read version in secondary store: ${response.getResponseBody}")
+    }
+  }
+
+  def getVersionInSecondaryStore(resourceName: String) : Long = {
+    val start = System.currentTimeMillis()
+    val limit = 1000
+    while ( start + limit > System.currentTimeMillis()) {
+      requestVersionInSecondaryStore(resourceName) match {
+        case Right(version) => return version
+        case Left(err) => Thread.sleep(100)
+      }
+    }
+    throw new Exception(s"${resourceName} not found in secondary store (after waiting ${limit}ms)")
   }
 
   def waitForSecondaryStoreUpdate(resourceName: String, minVersion: Long = 0): Unit = {
