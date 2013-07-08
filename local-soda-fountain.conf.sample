@@ -1,0 +1,10 @@
+com.socrata.soda-fountain  {
+
+ database {
+   host = "localhost"
+   port = 5432
+   database = "soda_fountain_dev"
+   username = "blist"
+   password = "blist"
+ }
+}
