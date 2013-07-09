@@ -71,7 +71,7 @@ trait DatasetService extends SodaService {
 
   def create()(request:HttpServletRequest): HttpServletResponse => Unit =  {
      val start = System.currentTimeMillis
-     DatasetSpec(request.getReader) match {
+     DatasetSpec(request, MAX_DATUM_SIZE) match {
       case Right(dspec) => {
         if (!validName(dspec.resourceName)) { return sendInvalidNameError(dspec.resourceName, request)}
         val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.fieldName, c.dataType))
@@ -102,7 +102,7 @@ trait DatasetService extends SodaService {
     def setSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
-      ColumnSpec.array(request.getReader) match {
+      ColumnSpec.array(request, MAX_DATUM_SIZE) match {
         case Right(specs) => ???
         case Left(ers) => sendErrorResponse( ers.mkString(" "), "dataset.setSchema.column.specification.invalid", BadRequest, None, resourceName )
       }

@@ -35,12 +35,11 @@ object ClientRequestExtractor {
                           dataType:SoQLType)
 
   object DatasetSpec {
-    def apply(reader: Reader) : Either[Seq[String], DatasetSpec] = {
+    def apply(request: HttpServletRequest, approxLimit: Long) : Either[Seq[String], DatasetSpec] = {
       try {
-        val fields = JsonUtil.readJson[Map[String,JValue]](reader)
-        fields match {
-          case Some(map) => {
-            val dex = new DatasetExtractor(map)
+        jsonSingleObjectStream(request, approxLimit) match {
+          case Right(obj) =>
+            val dex = new DatasetExtractor(obj.fields)
             val fields = (
               dex.resourceName,
               dex.name,
@@ -62,19 +61,19 @@ object ClientRequestExtractor {
                 Left(ers.toArray.flatten.toSeq)
               }
             }
-          }
-          case None => Left(Seq("Could not read dataset specification as JSON object"))
+          case Left(err) => Left(Seq(err))
         }
       } catch {
         case e: IOException => Left(Seq("could not read column specification: " + e.getMessage))
         case e: JsonReaderException => Left(Seq("could not read column specification as JSON: " + e.getMessage))
+        case e: ReaderExceededBound => Left(Seq(e.MSG))
       }
     }
   }
 
   object ColumnSpec {
 
-    implicit class EitherPartition[A](underlying: Seq[A]) {
+    implicit class EitherPartition[A](underlying: Iterator[A]) {
       def divide[B, C](f: A => Either[B, C]): (Seq[B], Seq[C]) = {
         val lefts = new VectorBuilder[B]
         val rights = new VectorBuilder[C]
@@ -107,19 +106,20 @@ object ClientRequestExtractor {
         case _ => Left(Seq("column specification could not be read as JSON object"))
       }
     }
-    def array(reader: Reader) : Either[Seq[String], Seq[ColumnSpec]] = {
+    def array(request: HttpServletRequest, approxLimit: Long) : Either[Seq[String], Seq[ColumnSpec]] = {
       try {
-        JsonUtil.readJson[Seq[JValue]](reader) match {
-          case Some(cjvals) => array(cjvals)
-          case None => Left(Seq("could not parse as JSON array"))
+        jsonArrayValuesStream(request, approxLimit) match {
+          case Right(boundedIt) => array(boundedIt)
+          case Left(err) => Left(Seq(err))
         }
       }
       catch {
         case e: IOException => Left(Seq("could not read column specification: " + e.getMessage))
         case e: JsonReaderException => Left(Seq("could not read column specification as JSON: " + e.getMessage))
+        case e: ReaderExceededBound => Left(Seq(e.MSG))
       }
     }
-    def array( jvals: Seq[JValue]) : Either[Seq[String], Seq[ColumnSpec]] = {
+    def array( jvals: Iterator[JValue]) : Either[Seq[String], Seq[ColumnSpec]] = {
       val mapped = jvals.map(ColumnSpec(_))
       val (badColumns, goodColumns) = mapped.divide(identity)
       if (badColumns.flatten.nonEmpty ) {
@@ -165,7 +165,7 @@ object ClientRequestExtractor {
     def columns: Either[Seq[String], Seq[ColumnSpec]] = {
       map.get("columns") match {
         case Some(JArray(jvals)) => {
-          ColumnSpec.array(jvals)
+          ColumnSpec.array(jvals.iterator)
         }
         case _ => Left(Seq("Dataset columns specification not found: 'columns' is a required key, and its value must be a json array"))
       }
@@ -235,7 +235,7 @@ object ClientRequestExtractor {
     }
   }
 
-  class ReaderExceededBound(val bytesRead: Long) extends Exception
+  class ReaderExceededBound(val bytesRead: Long) extends Exception { val MSG = "input length exceeded allowable limit" }
   class BoundedReader(underlying: Reader, bound: Long) extends Reader {
     private var count = 0L
     private def inc(n: Int) {

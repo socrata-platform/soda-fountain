@@ -7,6 +7,7 @@ import com.rojoma.json.ast._
 import dispatch._
 import com.socrata.datacoordinator.client.{AddColumnInstruction, RenameColumnInstruction, DropColumnInstruction}
 import com.socrata.soda.server.services.ClientRequestExtractor.ColumnSpec
+import com.socrata.soda.server.services.ClientRequestExtractor._
 import com.rojoma.json.util.JsonUtil
 
 trait ColumnService extends SodaService {
@@ -18,37 +19,37 @@ trait ColumnService extends SodaService {
     def update(resourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
-      JsonUtil.readJson[JValue](request.getReader) match {
-        case Some(jval) =>  ColumnSpec(jval) match {
-          case Right(newCol) =>  withDatasetId(resourceName) { datasetId =>
-            withDatasetSchema(datasetId) { schema =>
-              schema.schema.get(columnName) match {
-                case Some(oldColType) => {
-                  if (oldColType.equals(newCol.dataType.toString)){
-                    if (columnName.equals(newCol.fieldName)) {
-                      log.info(s"column.update for ${columnName} in ${resourceName} ${datasetId} no change OK - 204")
-                      NoContent
+      jsonSingleObjectStream(request, MAX_DATUM_SIZE) match {
+        case Right(obj) => ColumnSpec(obj) match {
+            case Right(newCol) =>  withDatasetId(resourceName) { datasetId =>
+              withDatasetSchema(datasetId) { schema =>
+                schema.schema.get(columnName) match {
+                  case Some(oldColType) => {
+                    if (oldColType.equals(newCol.dataType.toString)){
+                      if (columnName.equals(newCol.fieldName)) {
+                        log.info(s"column.update for ${columnName} in ${resourceName} ${datasetId} no change OK - 204")
+                        NoContent
+                      }
+                      else { //rename
+                      val f = dc.update(datasetId, schemaHash(request), mockUser, Array(RenameColumnInstruction(columnName, newCol.fieldName)).iterator)
+                        passThroughResponse(f, start, "column.rename", columnName, "to", newCol.fieldName, "in", resourceName, datasetId)
+                      }
                     }
-                    else { //rename
-                    val f = dc.update(datasetId, schemaHash(request), mockUser, Array(RenameColumnInstruction(columnName, newCol.fieldName)).iterator)
-                      passThroughResponse(f, start, "column.rename", columnName, "to", newCol.fieldName, "in", resourceName, datasetId)
-                    }
-                  }
-                  else { //drop and create
+                    else { //drop and create
                     val f = dc.update(datasetId, schemaHash(request), mockUser, Array(DropColumnInstruction(columnName), AddColumnInstruction(newCol.fieldName, newCol.dataType)).iterator)
-                    passThroughResponse(f, start, "column.drop.add", columnName, "dropped", newCol.fieldName, "added in", resourceName, datasetId)
+                      passThroughResponse(f, start, "column.drop.add", columnName, "dropped", newCol.fieldName, "added in", resourceName, datasetId)
+                    }
                   }
-                }
-                case None => {
-                  val f = dc.update(datasetId, schemaHash(request), mockUser, Array(AddColumnInstruction(newCol.fieldName, newCol.dataType)).iterator)
-                  passThroughResponse(f, start, "column.add", newCol.fieldName, "in", resourceName, datasetId)
+                  case None => {
+                    val f = dc.update(datasetId, schemaHash(request), mockUser, Array(AddColumnInstruction(newCol.fieldName, newCol.dataType)).iterator)
+                    passThroughResponse(f, start, "column.add", newCol.fieldName, "in", resourceName, datasetId)
+                  }
                 }
               }
             }
+            case Left(errs) => sendErrorResponse("bad column definition", "column.update.definition.invalid", BadRequest, Some(Map(("errors" -> JArray(errs.map(JString(_)))))), resourceName, columnName)
           }
-          case Left(errs) => sendErrorResponse("bad column definition", "column.update.definition.invalid", BadRequest, Some(Map(("errors" -> JArray(errs.map(JString(_)))))), resourceName, columnName)
-        }
-        case None => sendErrorResponse("could not read JSON column definition", "column.update.bad.json", BadRequest, None, resourceName, columnName)
+        case Left(err) => sendErrorResponse("bad column definition", "column.update.definition.invalid", BadRequest, Some(Map(("error" -> JString(err)))), resourceName, columnName)
       }
     }
 
