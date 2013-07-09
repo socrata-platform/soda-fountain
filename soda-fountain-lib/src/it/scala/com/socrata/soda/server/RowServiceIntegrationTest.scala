@@ -29,7 +29,10 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))),
       JObject(Map(("col_id"->JNumber(2)), ("col_text"->JString("row 2")))),
       JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("row 3")))),
-      JObject(Map(("col_id"->JNumber(4)), ("col_text"->JString("row 4 at " + System.currentTimeMillis.toString)))) //current time ensures data version increments
+      JObject(Map(("col_id"->JNumber(4)), ("col_text"->JString("row 4 at " + System.currentTimeMillis.toString)))), //current time ensures data version increments
+
+      JObject(Map(("col_id"->JNumber(111)), ("col_text"->JString("row 111")))),
+      JObject(Map(("col_id"->JNumber(222)), ("col_text"->JString("row 222"))))
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     assert(uResponse.getStatusCode == 200)
@@ -67,6 +70,13 @@ class RowServiceIntegrationTest extends IntegrationTest with RowServiceIntegrati
     assert(uResponse.getStatusCode === 204, uResponse.getResponseBody)
     assert(uResponse.getResponseBody == "", uResponse.getResponseBody)
     waitForSecondaryStoreUpdate(resourceName, v)
+  }
+
+  test("soda fountain row service upsert - types coerced"){
+    //note that we're upserting a string (not a number) for col_id
+    val uBody =  JObject(Map(("col_id"->JString("333")), ("col_text"->JString("upserted row 333" + System.currentTimeMillis.toString))))
+    val uResponse = dispatch("POST", "resource", Some(resourceName), Some("333"), None, Some(uBody))
+    assert(uResponse.getStatusCode === 200, uResponse.getResponseBody)
   }
 
 }
