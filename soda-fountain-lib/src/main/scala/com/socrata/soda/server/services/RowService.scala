@@ -24,7 +24,7 @@ trait RowService extends SodaService {
       jsonSingleObjectStream(request, MAX_DATUM_SIZE) match {
         case Right(obj) =>
           prepareForUpsert(resourceName, Iterator.single(obj), "row.upsert"){ (datasetId, schema, upserts) =>
-            val response = dc.update(datasetId, schemaHash(request), mockUser, Array(UpsertRow(obj.fields)).iterator)
+            val response = dc.update(datasetId, schemaHash(request), mockUser, upserts)
             passThroughResponse(response, start, "row.upsert", resourceName, datasetId)
           }
         case Left(err) => return sendErrorResponse("Error reading JSON: " + err, "row.upsert.json.iterator.error", BadRequest, None, resourceName)

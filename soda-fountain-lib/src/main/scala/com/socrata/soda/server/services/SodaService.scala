@@ -111,18 +111,21 @@ trait SodaService {
           val upserts = it.map { rowjval =>
             rowjval match {
               case JObject(map) =>
-                map.foreach{ pair =>
-                  schema.schema.get(pair._1) match {
+                val row = map.flatMap{ case pair@(uKey, uVal) =>
+                  schema.schema.get(uKey) match {
                     case Some(expectedTypeName) =>
-                      TypeChecker.check(expectedTypeName, pair._2) match {
-                        case Right(v) => v
+                      TypeChecker.check(expectedTypeName, uVal) match {
+                        case Right(v) => Some(uKey -> TypeChecker.encode(v))
                         case Left(msg) => return sendErrorResponse(msg, "soda.prepareForUpsert.upsert.type.error", BadRequest, Some(Map(pair)), "type.checking", resourceName, datasetId, callerTag )
                       }
-                    case None => if (!IGNORE_EXTRA_COLUMNS) { return sendErrorResponse("no column " + pair._1, "soda.prepareForUpsert.upsert.column-not-found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId)}
+                    case None => IGNORE_EXTRA_COLUMNS match {
+                      case true => None
+                      case false => return sendErrorResponse("no column " + uKey, "soda.prepareForUpsert.upsert.column-not-found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId)
+                    }
                   }
                 }
                 //if ( .size == 0) { return sendErrorResponse("no keys in upsert row object are recognized as columns in dataset", "soda.prepareForUpsert.zero-columns-found", BadRequest, Some(Map(("row" -> rowjval))), "JSON.row.mapping", resourceName, datasetId)}
-                UpsertRow(map)
+                UpsertRow(row)
               case JArray(Seq(id)) => {
                 val idString = id match {
                   case JNumber(num) => num.toString

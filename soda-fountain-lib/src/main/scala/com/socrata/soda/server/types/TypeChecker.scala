@@ -64,4 +64,14 @@ object TypeChecker {
       case e: Exception => Left(e.getMessage)
     }
   }
+
+
+  def encode( value: SoQLValue) : JValue = {
+    value match {
+      case num: SoQLNumber => JNumber(num.value)
+      case str: SoQLText   => JString(str.value)
+
+      case _ => JString(value.toString)
+    }
+  }
 }
