@@ -69,6 +69,7 @@ object TypeChecker {
   def encode( value: SoQLValue) : JValue = {
     value match {
       case num: SoQLNumber => JNumber(num.value)
+      case dub: SoQLDouble => JNumber(dub.value)
       case str: SoQLText   => JString(str.value)
 
       case _ => JString(value.toString)
