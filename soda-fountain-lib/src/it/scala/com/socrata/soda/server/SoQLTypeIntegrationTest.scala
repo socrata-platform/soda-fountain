@@ -5,6 +5,7 @@ import com.rojoma.json.ast._
 
 trait SoQLTypeIntegrationTestFixture extends BeforeAndAfterAll with IntegrationTestHelpers { this: Suite =>
 
+  //TODO: when these tests are stable, the rn can be refactored to be stable, and the fixture can simply truncate and replace rows, to reduce dataset churn.
   val resourceName = "soql-type-integration-test" + System.currentTimeMillis.toString
 
   override def beforeAll = {
@@ -15,8 +16,9 @@ trait SoQLTypeIntegrationTestFixture extends BeforeAndAfterAll with IntegrationT
       "row_identifier" -> JArray(Seq(JString("test_id"))),
       "columns" -> JArray(Seq(
         column("the ID column", "test_id", Some("this is the ID column"), "number"),
-        column("the ID column", "test_double", Some("type double"), "double"),
-        column("a text column", "test_text", Some("this is a text column"), "text"),
+        column("the double type column",  "test_double", Some("type double"), "double"),
+        column("the money type column",   "test_money", Some("type money"), "money"),
+        column("a text column",           "test_text", Some("this is a text column"), "text"),
         column("a boolean column", "test_bool", None, "boolean")
       ))
     ))
@@ -24,40 +26,25 @@ trait SoQLTypeIntegrationTestFixture extends BeforeAndAfterAll with IntegrationT
 
     //publish
     val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
-
-    /*
-    val v = getVersionInSecondaryStore(resourceName)
-    val uBody = JArray(Seq(
-      JObject(Map(("test_id"->JNumber(1)))),
-      //JObject(Map(("test_id"->JNumber(2)), ("test_double"-> JNumber(0.33333)))),
-      JObject(Map(("test_id"->JNumber(3)), ("test_text"->JString("row 3")))),
-      JObject(Map(("test_id"->JNumber(4)), ("test_text"->JString("row 4"))))
-    ))
-    val uResponse = dispatch("PUT", "resource", Some(resourceName), None, None,  Some(uBody))
-    assert(uResponse.getStatusCode == 200)
-
-    waitForSecondaryStoreUpdate(resourceName, v)
-    */
-
   }
 }
 
 class SoQLTypeIntegrationTest extends IntegrationTest with SoQLTypeIntegrationTestFixture  {
 
-  test("upsert type double"){
+  def testType( row: Map[String, JValue], query: String, expectedResult: String) = {
     val v = getVersionInSecondaryStore(resourceName)
-    val uBody = JArray(Seq(
-      JObject(Map(("test_id"->JNumber(100)), ("test_double"-> JNumber(0.333))))
-    ))
+    val uBody = JArray(Seq( JObject(row) ))
     val uResponse = dispatch("PUT", "resource", Some(resourceName), None, None,  Some(uBody))
     assert(uResponse.getStatusCode == 200, uResponse.getResponseBody)
 
-    val params = Map(("$query" -> "select * where test_double = 0.333"))
+    waitForSecondaryStoreUpdate(resourceName, v)
+    val params = Map(("$query" -> query))
     val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
-    pendingUntilFixed{
-      jsonCompare(qResponse.getResponseBody, """[{test_double:0.333, col_id: 100.0}]""".stripMargin )
-      qResponse.getStatusCode must equal (200)
-    }
+    jsonCompare(qResponse.getResponseBody, expectedResult )
+    qResponse.getStatusCode must equal (200)
   }
+
+  test("upsert type double"){ testType(Map(("test_id"->JNumber(100)), ("test_double"-> JNumber(0.333))), "select * where test_double = 0.333", """[{test_double:0.333, col_id: 100.0}]""".stripMargin) }
+  test("upsert type money") { testType(Map(("test_id"->JNumber(101)), ("test_money" -> JNumber(0.55))),  "select * where test_money  = 0.55",  """[{test_money:0.333,  col_id: 101.0}]""".stripMargin) }
 }
 
