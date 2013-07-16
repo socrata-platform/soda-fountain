@@ -117,10 +117,10 @@ class DatasetServiceIntegrationTest extends IntegrationTest with DatasetServiceI
 
     //verify row deleted
     val g2Response = dispatch("GET", "resource", Some(resourceName), Some("101"), None, None)
-    //pendingUntilFixed{ //secondary store race condition will often cause this check to fail
+    pendingUntilFixed{ //secondary store race condition will often cause this check to fail
       assert(g2Response.getStatusCode === 404, g2Response.getResponseBody)
-      //fail("remove this line when the row deletes can guarantee consistency") //this + pendingUntilFixed disables the test until they're removed.
-    //}
+      fail("remove this line when the row deletes can guarantee consistency") //this + pendingUntilFixed disables the test until they're removed.
+    }
   }
 
   test("soda fountain dataset service upsert error case: bad column"){

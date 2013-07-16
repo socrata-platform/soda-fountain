@@ -39,7 +39,7 @@ trait SodaService {
 
   def schemaHash(r: HttpServletRequest) = Option(r.getParameter("schema"))
 
-  def sendErrorResponse(th: Throwable, message: String, errorCode: String, httpCode: HttpServletResponse => Unit, data: Option[Map[String, JValue]], logTags: String*): HttpServletResponse => Unit  = {
+  def sendErrorResponse(th: Throwable, message: String, errorCode: String, httpCode: HttpServletResponse => Unit, data: Option[scala.collection.Map[String, JValue]], logTags: String*): HttpServletResponse => Unit  = {
     val tag = UUID.randomUUID
     val taggedData = data match {
       case Some(map) => map + ("tag" -> JString(tag.toString))
@@ -49,7 +49,7 @@ trait SodaService {
     log.error(tag + message, th)
     resp
   }
-  def sendErrorResponse(message: String, errorCode: String, httpCode: HttpServletResponse => Unit, data: Option[Map[String, JValue]], logTags: String*) = {
+  def sendErrorResponse(message: String, errorCode: String, httpCode: HttpServletResponse => Unit, data: Option[scala.collection.Map[String, JValue]], logTags: String*) = {
     val messageAndCode = Map[String, JValue](
       "message" -> JString(message),
       "errorCode" -> JString(errorCode)
@@ -76,13 +76,23 @@ trait SodaService {
     responses.Status(response.getStatusCode) ~>  ContentType(response.getContentType) ~> Content(response.getResponseBody)
   }
 
-  def pkValue(rowId: String, schema: SchemaSpec) = {
-    val pkType = schema.schema.get(schema.pk).getOrElse(throw new Exception("Primary key column not represented in schema. This should not happen."))
+  class PrimaryKeyException(message: String, val rowId: String) extends Exception(message)
+
+  def pkValue(rowId: JValue, schema: SchemaSpec): Either[String, BigDecimal] = {
+    rowId match {
+      case JNumber(num) => pkValue(num.toString, schema)
+      case JString(str) => pkValue(str, schema)
+      case _ => throw new PrimaryKeyException("row ID for delete operation must be number or string", rowId.toString)
+    }
+  }
+
+  def pkValue(rowId: String, schema: SchemaSpec): Either[String, BigDecimal] = {
+    val pkType = schema.schema.get(schema.pk).getOrElse(throw new PrimaryKeyException("Primary key column not represented in schema. This should not happen.", rowId))
     pkType match {
       case "text" => Left(rowId)
       case "number" => Right(BigDecimal(rowId))
       case "row_identifier" => Right(BigDecimal(rowId))
-      case _ => throw new Exception("Primary key column not text or number")}
+      case _ => throw new PrimaryKeyException("Primary key column not text or number", rowId)}
   }
 
   def notSupported(id:String)(request:HttpServletRequest): HttpServletResponse => Unit = ???
@@ -111,6 +121,7 @@ trait SodaService {
           val upserts = it.map { rowjval =>
             rowjval match {
               case JObject(map) =>
+                var rowHasLegacyDeleteFlag = false
                 val row = map.flatMap{ case pair@(uKey, uVal) =>
                   schema.schema.get(uKey) match {
                     case Some(expectedTypeName) =>
@@ -118,21 +129,28 @@ trait SodaService {
                         case Right(v) => Some(uKey -> TypeChecker.encode(v))
                         case Left(msg) => return sendErrorResponse(msg, "soda.prepareForUpsert.upsert.type.error", BadRequest, Some(Map(pair)), "type.checking", resourceName, datasetId, callerTag )
                       }
-                    case None => IGNORE_EXTRA_COLUMNS match {
-                      case true => None
-                      case false => return sendErrorResponse("no column " + uKey, "soda.prepareForUpsert.upsert.column-not-found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId)
-                    }
+                    case None =>
+                      pair match {
+                        case (":deleted", JBoolean(true)) =>
+                          rowHasLegacyDeleteFlag = true
+                          None
+                        case _ => IGNORE_EXTRA_COLUMNS match {
+                          case true => None
+                          case false => return sendErrorResponse("no column " + uKey, "soda.prepareForUpsert.upsert.column-not-found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId)
+                        }
+                      }
                   }
                 }
                 //if ( .size == 0) { return sendErrorResponse("no keys in upsert row object are recognized as columns in dataset", "soda.prepareForUpsert.zero-columns-found", BadRequest, Some(Map(("row" -> rowjval))), "JSON.row.mapping", resourceName, datasetId)}
-                UpsertRow(row)
-              case JArray(Seq(id)) => {
-                val idString = id match {
-                  case JNumber(num) => num.toString
-                  case JString(str) => str
-                  case _ => return sendErrorResponse("row ID for delete operation must be number or string", "soda.prepareForUpsert.identifier.notNumberOrString", BadRequest, Some(Map(("row_id" -> id))), resourceName, datasetId)
+                rowHasLegacyDeleteFlag match {
+                  case false => UpsertRow(row)
+                  case true => row.get(schema.pk) match {
+                    case Some(pkVal) => DeleteRow(pkValue(pkVal, schema))
+                    case None => return sendErrorResponse("row with option :deleted:true does not have a primary key value", "soda.prepareForUpsert.deleteflag.noprimarykey", BadRequest, Some(row))
+                  }
                 }
-                val pk = pkValue(idString, schema)
+              case JArray(Seq(id)) => {
+                val pk = pkValue(id, schema)
                 DeleteRow(pk)
               }
               case _ => return sendErrorResponse("could not deserialize into JSON row operation", "soda.prepareForUpsert.json.row.object.notvalid", BadRequest, Some(Map("row" -> rowjval)), resourceName, datasetId)
@@ -143,7 +161,8 @@ trait SodaService {
       }
     }
     catch {
-      case bp: JsonReaderException => sendErrorResponse("invalid JSON: " + bp.getMessage, "soda.prepareForUpsert.json.invalid", BadRequest, None, resourceName)
+      case pke: PrimaryKeyException => sendErrorResponse("invalid primary key: " + pke.getMessage, "soda.prepareForUpsert.primarykey.invalid", BadRequest, Some(Map("rowId" -> JString(pke.rowId))), resourceName, callerTag)
+      case bp: JsonReaderException => sendErrorResponse("invalid JSON: " + bp.getMessage, "soda.prepareForUpsert.json.invalid", BadRequest, None, resourceName, callerTag)
     }
   }
 
