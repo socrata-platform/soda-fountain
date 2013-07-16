@@ -68,9 +68,18 @@ object TypeChecker {
 
   def encode( value: SoQLValue) : JValue = {
     value match {
-      case num: SoQLNumber => JNumber(num.value)
-      case dub: SoQLDouble => JNumber(dub.value)
-      case str: SoQLText   => JString(str.value)
+      case num: SoQLNumber  => JNumber(num.value)
+      case dub: SoQLDouble  => JNumber(dub.value)
+      case mon: SoQLMoney   => JNumber(mon.value)
+      case str: SoQLText    => JString(str.value)
+      case obj: SoQLObject  => obj.value
+      case arr: SoQLArray   => arr.value
+      case loc: SoQLLocation=> JArray(Seq(JNumber(loc.latitude), JNumber(loc.longitude)))
+      case boo: SoQLBoolean => JBoolean(boo.value)
+      case dat: SoQLDate    => JString(dat.value.toString)
+      case tim: SoQLTime    => JString(tim.value.toString)
+      case xts: SoQLFixedTimestamp    => JString(xts.value.toString)
+      case lts: SoQLFloatingTimestamp => JString(lts.value.toString)
 
       case _ => JString(value.toString)
     }
