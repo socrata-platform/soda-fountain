@@ -6,7 +6,7 @@ import com.socrata.soql.types.SoQLType
 import java.io.{IOException, UnsupportedEncodingException, Reader}
 import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.json.ast._
-import com.socrata.soql.environment.TypeName
+import com.socrata.soql.environment.{ColumnName, TypeName}
 import scala.collection.Map
 import scala.collection.immutable.VectorBuilder
 import scala.Some
@@ -29,7 +29,7 @@ object ClientRequestExtractor {
                           rowId:Option[String],
                           locale:String,
                           columns:Seq[ColumnSpec])
-  case class ColumnSpec(  fieldName:String,
+  case class ColumnSpec(  fieldName:ColumnName,
                           name:String,
                           description:Option[String],
                           dataType:SoQLType)
@@ -99,7 +99,7 @@ object ClientRequestExtractor {
           )
           fields match {
             case (Right(fieldName), Right(name), Right(description), Right(datatype)) =>
-              Right(new ColumnSpec(fieldName, name, description, SoQLType.typesByName(TypeName(datatype))))
+              Right(new ColumnSpec(ColumnName(fieldName), name, description, SoQLType.typesByName(TypeName(datatype))))
             case _ =>  Left(fields.productIterator.collect { case Left(msg:String) => msg}.toSeq)
           }
         }

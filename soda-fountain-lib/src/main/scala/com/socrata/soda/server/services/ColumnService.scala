@@ -9,6 +9,7 @@ import com.socrata.datacoordinator.client.{AddColumnInstruction, RenameColumnIns
 import com.socrata.soda.server.services.ClientRequestExtractor.ColumnSpec
 import com.socrata.soda.server.services.ClientRequestExtractor._
 import com.rojoma.json.util.JsonUtil
+import com.socrata.soql.environment.ColumnName
 
 trait ColumnService extends SodaService {
 
@@ -16,9 +17,10 @@ trait ColumnService extends SodaService {
 
     val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnService])
 
-    def update(resourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
+    def update(resourceName: String, cnString:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      val columnName = ColumnName(cnString)
       jsonSingleObjectStream(request, MAX_DATUM_SIZE) match {
         case Right(obj) => ColumnSpec(obj) match {
             case Right(newCol) =>  withDatasetId(resourceName) { datasetId =>
@@ -31,25 +33,25 @@ trait ColumnService extends SodaService {
                         NoContent
                       }
                       else { //rename
-                      val f = dc.update(datasetId, schemaHash(request), mockUser, Array(RenameColumnInstruction(columnName, newCol.fieldName)).iterator)
-                        passThroughResponse(f, start, "column.rename", columnName, "to", newCol.fieldName, "in", resourceName, datasetId)
+                        val f = dc.update(datasetId, schemaHash(request), mockUser, Array(RenameColumnInstruction(columnName.toString, newCol.fieldName.toString)).iterator)
+                        passThroughResponse(f, start, "column.rename", columnName.toString, "to", newCol.fieldName.toString, "in", resourceName, datasetId)
                       }
                     }
                     else { //drop and create
-                    val f = dc.update(datasetId, schemaHash(request), mockUser, Array(DropColumnInstruction(columnName), AddColumnInstruction(newCol.fieldName, newCol.dataType)).iterator)
-                      passThroughResponse(f, start, "column.drop.add", columnName, "dropped", newCol.fieldName, "added in", resourceName, datasetId)
+                      val f = dc.update(datasetId, schemaHash(request), mockUser, Array(DropColumnInstruction(columnName.toString), AddColumnInstruction(newCol.fieldName.toString, newCol.dataType)).iterator)
+                      passThroughResponse(f, start, "column.drop.add", columnName.toString, "dropped", newCol.fieldName.toString, "added in", resourceName, datasetId)
                     }
                   }
                   case None => {
-                    val f = dc.update(datasetId, schemaHash(request), mockUser, Array(AddColumnInstruction(newCol.fieldName, newCol.dataType)).iterator)
-                    passThroughResponse(f, start, "column.add", newCol.fieldName, "in", resourceName, datasetId)
+                    val f = dc.update(datasetId, schemaHash(request), mockUser, Array(AddColumnInstruction(newCol.fieldName.toString, newCol.dataType)).iterator)
+                    passThroughResponse(f, start, "column.add", newCol.fieldName.toString, "in", resourceName, datasetId)
                   }
                 }
               }
             }
-            case Left(errs) => sendErrorResponse("bad column definition", "column.update.definition.invalid", BadRequest, Some(Map(("errors" -> JArray(errs.map(JString(_)))))), resourceName, columnName)
+            case Left(errs) => sendErrorResponse("bad column definition", "column.update.definition.invalid", BadRequest, Some(Map(("errors" -> JArray(errs.map(JString(_)))))), resourceName, columnName.toString)
           }
-        case Left(err) => sendErrorResponse("bad column definition", "column.update.definition.invalid", BadRequest, Some(Map(("error" -> JString(err)))), resourceName, columnName)
+        case Left(err) => sendErrorResponse("bad column definition", "column.update.definition.invalid", BadRequest, Some(Map(("error" -> JString(err)))), resourceName, columnName.toString)
       }
     }
 
@@ -66,19 +68,20 @@ trait ColumnService extends SodaService {
       }
     }
 
-    def getSchema(resourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
+    def getSchema(resourceName: String, cnString:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val start = System.currentTimeMillis
       if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
       withDatasetId(resourceName) { datasetId =>
         val f = dc.getSchema(datasetId)
+        val columnName = ColumnName(cnString)
         f() match {
           case Right(schema) =>
-            val colType = schema.schema.get(columnName).getOrElse{ return sendErrorResponse(s"column ${columnName} not found in schema for ${resourceName}", "column.getSchema.not-found", NotFound, Some(Map(("column_name" -> JString(columnName)))), resourceName, columnName) }
+            val colType = schema.schema.get(columnName).getOrElse{ return sendErrorResponse(s"column ${columnName} not found in schema for ${resourceName}", "column.getSchema.not-found", NotFound, Some(Map(("column_name" -> JString(columnName.toString)))), resourceName, columnName.toString) }
             log.info(s"getSchema for ${columnName} (type ${colType}) in ${resourceName} ${datasetId} took ${System.currentTimeMillis - start} OK - 200")
             val obj = JObject(Map(
               "hash" -> JString(schema.hash),
-              "field_name" -> JString(columnName),
-              "datatype" -> JString(colType)
+              "field_name" -> JString(columnName.toString),
+              "datatype" -> JString(colType.toString)
             ))
             OK ~> ContentType("application/json; charset=utf-8") ~> Content(obj.toString)
           case Left(err) => sendErrorResponse(new Exception(s"no schema found for dataset ${resourceName} ${datasetId}"), "internal error requesting dataset schema", "column.getSchema.internal.error", NotFound, Some(Map(("resource_name" -> JString(resourceName)))), resourceName)

@@ -20,6 +20,8 @@ import java.util.UUID
 import com.rojoma.json.io.JsonReaderException
 import com.socrata.soda.server.types.TypeChecker
 import com.socrata.soda.server.services.ClientRequestExtractor._
+import com.socrata.soql.types.{SoQLID, SoQLNumber, SoQLText}
+import com.socrata.soql.environment.ColumnName
 
 object SodaService {
   val config = ConfigFactory.load().getConfig("com.socrata.soda-fountain")
@@ -89,9 +91,9 @@ trait SodaService {
   def pkValue(rowId: String, schema: SchemaSpec): Either[String, BigDecimal] = {
     val pkType = schema.schema.get(schema.pk).getOrElse(throw new PrimaryKeyException("Primary key column not represented in schema. This should not happen.", rowId))
     pkType match {
-      case "text" => Left(rowId)
-      case "number" => Right(BigDecimal(rowId))
-      case "row_identifier" => Right(BigDecimal(rowId))
+      case SoQLText => Left(rowId)
+      case SoQLNumber => Right(BigDecimal(rowId))
+      case SoQLID => Right(BigDecimal(rowId))
       case _ => throw new PrimaryKeyException("Primary key column not text or number", rowId)}
   }
 
@@ -118,14 +120,21 @@ trait SodaService {
     try {
       withDatasetId(resourceName){ datasetId =>
         withDatasetSchema(datasetId) { schema =>
+          val cnDict = scala.collection.mutable.Map[String, ColumnName]()
+          def getColumnName(cnString: String) = cnDict.get(cnString).getOrElse{
+            val newName = ColumnName(cnString)
+            cnDict.put(cnString, newName)
+            newName
+          }
           val upserts = it.map { rowjval =>
             rowjval match {
               case JObject(map) =>
                 var rowHasLegacyDeleteFlag = false
                 val row = map.flatMap{ case pair@(uKey, uVal) =>
-                  schema.schema.get(uKey) match {
+                  val uName = getColumnName(uKey)
+                  schema.schema.get(uName) match {
                     case Some(expectedTypeName) =>
-                      TypeChecker.check(expectedTypeName, uVal) match {
+                      TypeChecker.check(expectedTypeName.toString, uVal) match {
                         case Right(v) => Some(uKey -> TypeChecker.encode(v))
                         case Left(msg) => return sendErrorResponse(msg, "soda.prepareForUpsert.upsert.type.error", BadRequest, Some(Map(pair)), "type.checking", resourceName, datasetId, callerTag )
                       }
@@ -134,17 +143,15 @@ trait SodaService {
                         case (":deleted", JBoolean(true)) =>
                           rowHasLegacyDeleteFlag = true
                           None
-                        case _ => IGNORE_EXTRA_COLUMNS match {
-                          case true => None
-                          case false => return sendErrorResponse("no column " + uKey, "soda.prepareForUpsert.upsert.column-not-found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId)
-                        }
+                        case _ if IGNORE_EXTRA_COLUMNS => None
+                        case _ => return sendErrorResponse("no column " + uKey, "soda.prepareForUpsert.upsert.column-not-found", BadRequest, Some(Map(pair)), "JSON.row.mapping", resourceName, datasetId)
                       }
                   }
                 }
                 //if ( .size == 0) { return sendErrorResponse("no keys in upsert row object are recognized as columns in dataset", "soda.prepareForUpsert.zero-columns-found", BadRequest, Some(Map(("row" -> rowjval))), "JSON.row.mapping", resourceName, datasetId)}
                 rowHasLegacyDeleteFlag match {
                   case false => UpsertRow(row)
-                  case true => row.get(schema.pk) match {
+                  case true => row.get(schema.pk.toString) match {
                     case Some(pkVal) => DeleteRow(pkValue(pkVal, schema))
                     case None => return sendErrorResponse("row with option :deleted:true does not have a primary key value", "soda.prepareForUpsert.deleteflag.noprimarykey", BadRequest, Some(row))
                   }

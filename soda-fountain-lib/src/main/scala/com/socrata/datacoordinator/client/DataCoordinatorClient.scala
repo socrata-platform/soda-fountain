@@ -9,17 +9,46 @@ import com.socrata.http.server.implicits._
 import com.ning.http.client.{RequestBuilder, Response}
 import com.socrata.http.server.responses
 import javax.servlet.http.HttpServletResponse
-import com.rojoma.json.util.{SimpleJsonCodecBuilder, JsonUtil}
+import com.rojoma.json.util._
+import com.rojoma.json.codec._
 import com.rojoma.json.ast._
 import com.socrata.datacoordinator.client.DataCoordinatorClient.{VersionReport, RowOpReport, SchemaSpec}
-
+import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.types.SoQLType
+import com.socrata.soql.environment._
+import scala.collection.Map
 
 object DataCoordinatorClient {
+
+  implicit object columnNameCodec extends JsonCodec[ColumnName] {
+    def encode(x: ColumnName) = JString(x.toString)
+    def decode(x: JValue) = x match {
+      case JString(s) => Some(ColumnName(s))
+      case _ => None
+    }
+  }
+
+  class JsonInvalidSchemaException(pair: (String, JValue)) extends Exception
+
+  implicit object anotherMapCodec extends JsonCodec[Map[ColumnName, SoQLType]] {
+    def encode(x: Map[ColumnName, SoQLType]) = JObject(x.map(pair => (pair._1.toString, JString(pair._2.name.name))))
+    def decode(x: JValue): Option[Map[ColumnName, SoQLType]] = x match {
+      case JObject(m) =>
+        val map = m.map{ pair =>
+          pair._2 match {
+            case JString(t) => (ColumnName(pair._1), SoQLType.typesByName.get(TypeName(t)).getOrElse(throw new JsonInvalidSchemaException(pair)))
+            case _ => return None
+          }
+        }
+        Some(map)
+      case _ => None
+    }
+  }
 
   object SchemaSpec {
     implicit val codec = SimpleJsonCodecBuilder[SchemaSpec].build("hash", _.hash, "pk", _.pk, "schema", _.schema)
   }
-  class SchemaSpec(val hash: String, val pk: String, val schema: Map[String,String]) {
+  class SchemaSpec(val hash: String, val pk: ColumnName, val schema: Map[ColumnName,SoQLType]) {
     override def toString = JsonUtil.renderJson(this)
   }
 
@@ -32,6 +61,7 @@ object DataCoordinatorClient {
     implicit val codec = SimpleJsonCodecBuilder[VersionReport].build("version", _.version)
   }
   class VersionReport(val version: Long)
+
 
 }
 

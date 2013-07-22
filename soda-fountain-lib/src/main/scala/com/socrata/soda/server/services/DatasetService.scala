@@ -74,7 +74,7 @@ trait DatasetService extends SodaService {
      DatasetSpec(request, MAX_DATUM_SIZE) match {
       case Right(dspec) => {
         if (!validName(dspec.resourceName)) { return sendInvalidNameError(dspec.resourceName, request)}
-        val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.fieldName, c.dataType))
+        val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.fieldName.toString, c.dataType))
         val instructions = dspec.rowId match{
           case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid)
           case None => columnInstructions
