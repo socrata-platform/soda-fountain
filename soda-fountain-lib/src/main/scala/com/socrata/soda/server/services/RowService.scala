@@ -19,7 +19,7 @@ trait RowService extends SodaService {
 
     def upsert(resourceName: String, rowId: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
 
       jsonSingleObjectStream(request, MAX_DATUM_SIZE) match {
         case Right(obj) =>
@@ -33,7 +33,7 @@ trait RowService extends SodaService {
 
     def delete(resourceName: String, rowId: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       withDatasetId(resourceName){ datasetId =>
         withDatasetSchema(datasetId) { schema =>
           val r = dc.update(datasetId, schemaHash(request), mockUser, Array(DeleteRow(pkValue(rowId, schema))).iterator)
@@ -52,7 +52,7 @@ trait RowService extends SodaService {
     }
     def get(resourceName: String, rowId: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val startTime = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       withDatasetId(resourceName){ datasetId =>
         withDatasetSchema(datasetId) { schema =>
           val pkVal = pkValue(rowId, schema) match { case Left(s) => s"'${s}'"; case Right(n) => n.toString}

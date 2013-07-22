@@ -19,7 +19,8 @@ trait ColumnService extends SodaService {
 
     def update(resourceName: String, cnString:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
+      if (!validName(cnString)) { return sendInvalidNameError(cnString, "column_field_name", request)}
       val columnName = ColumnName(cnString)
       jsonSingleObjectStream(request, MAX_DATUM_SIZE) match {
         case Right(obj) => ColumnSpec(obj) match {
@@ -57,7 +58,8 @@ trait ColumnService extends SodaService {
 
     def drop(resourceName: String, columnName:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
+      if (!validName(columnName)) { return sendInvalidNameError(columnName, "column_field_name", request)}
       withDatasetId(resourceName) { datasetId =>
         val f = dc.update(datasetId, schemaHash(request), mockUser, Array(DropColumnInstruction(columnName)).iterator)
         f() match {
@@ -70,7 +72,8 @@ trait ColumnService extends SodaService {
 
     def getSchema(resourceName: String, cnString:String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
+      if (!validName(cnString)) { return sendInvalidNameError(cnString, "column_field_name", request)}
       withDatasetId(resourceName) { datasetId =>
         val f = dc.getSchema(datasetId)
         val columnName = ColumnName(cnString)

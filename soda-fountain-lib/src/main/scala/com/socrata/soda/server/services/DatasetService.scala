@@ -18,7 +18,7 @@ trait DatasetService extends SodaService {
 
     def upsert(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       jsonArrayValuesStream(request, MAX_DATUM_SIZE) match {
         case Right(boundedIt) =>
           prepareForUpsert(resourceName, boundedIt, "dataset.upsert"){ (datasetId, schema, upserts) =>
@@ -31,7 +31,7 @@ trait DatasetService extends SodaService {
 
     def replace(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       jsonArrayValuesStream(request, MAX_DATUM_SIZE) match {
         case Right(boundedIt) =>
           prepareForUpsert(resourceName, boundedIt, "dataset.replace"){ (datasetId, schema, upserts) =>
@@ -45,7 +45,7 @@ trait DatasetService extends SodaService {
 
     def truncate(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       withDatasetId(resourceName) { datasetId =>
         val c = dc.update(datasetId, schemaHash(request), mockUser, Array(RowUpdateOptionChange(truncate = true)).iterator)
         passThroughResponse(c, start, "dataset.truncate", resourceName, datasetId)
@@ -54,7 +54,7 @@ trait DatasetService extends SodaService {
 
     def query(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       withDatasetId(resourceName) { datasetId =>
         val q = Option(request.getParameter("$query")).getOrElse("select *")
         val r = qc.query(datasetId, q)
@@ -73,7 +73,7 @@ trait DatasetService extends SodaService {
      val start = System.currentTimeMillis
      DatasetSpec(request, MAX_DATUM_SIZE) match {
       case Right(dspec) => {
-        if (!validName(dspec.resourceName)) { return sendInvalidNameError(dspec.resourceName, request)}
+        if (!validName(dspec.resourceName)) { return sendInvalidNameError(dspec.resourceName, "resource_name", request)}
         val columnInstructions = dspec.columns.map(c => new AddColumnInstruction(c.fieldName.toString, c.dataType))
         val instructions = dspec.rowId match{
           case Some(rid) => columnInstructions :+ SetRowIdColumnInstruction(rid)
@@ -101,7 +101,7 @@ trait DatasetService extends SodaService {
   }
     def setSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       ColumnSpec.array(request, MAX_DATUM_SIZE) match {
         case Right(specs) => ???
         case Left(ers) => sendErrorResponse( ers.mkString(" "), "dataset.setSchema.column.specification.invalid", BadRequest, None, resourceName )
@@ -109,7 +109,7 @@ trait DatasetService extends SodaService {
     }
     def getSchema(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit =  {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       withDatasetId(resourceName){ id =>
         val f = dc.getSchema(id)
         val r = f()
@@ -123,7 +123,7 @@ trait DatasetService extends SodaService {
     }
     def delete(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       withDatasetId(resourceName){ datasetId =>
         val d = dc.deleteAllCopies(datasetId, schemaHash(request), mockUser)
         d() match {
@@ -138,7 +138,7 @@ trait DatasetService extends SodaService {
 
     def copy(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       withDatasetId(resourceName){ datasetId =>
         val doCopyData = Option(request.getParameter("copy_data")).getOrElse("false").toBoolean
         val c = dc.copy(datasetId, schemaHash(request), doCopyData, mockUser, None)
@@ -148,7 +148,7 @@ trait DatasetService extends SodaService {
 
     def dropCopy(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       withDatasetId(resourceName){ datasetId =>
         val d = dc.dropCopy(datasetId, schemaHash(request), mockUser, None)
         passThroughResponse(d, start, "dataset.dropCopy", resourceName, datasetId)
@@ -157,7 +157,7 @@ trait DatasetService extends SodaService {
 
     def publish(resourceName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
       val start = System.currentTimeMillis
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       withDatasetId(resourceName){ datasetId =>
         val snapshowLimit = Option(request.getParameter("snapshot_limit")).flatMap( s => Some(s.toInt) )
         val p = dc.publish(datasetId, schemaHash(request), snapshowLimit, mockUser, None)
@@ -172,7 +172,7 @@ trait DatasetService extends SodaService {
     }
 
     def checkVersionInSecondary(resourceName: String, secondaryName: String)(request:HttpServletRequest): HttpServletResponse => Unit = {
-      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, request)}
+      if (!validName(resourceName)) { return sendInvalidNameError(resourceName, "resource_name", request)}
       withDatasetId(resourceName) { datasetId =>
         val response = dc.checkVersionInSecondary(datasetId, secondaryName)
         response() match {

@@ -65,7 +65,7 @@ trait SodaService {
   }
 
   def validName(name: String) = IdentifierFilter(name).equals(name)
-  def sendInvalidNameError(name:String, request: HttpServletRequest) = sendErrorResponse("resource name invalid", "soda.resourceName.invalid", BadRequest, Some(Map("resource_name" -> JString(name))), request.getRequestURI, request.getMethod)
+  def sendInvalidNameError(name:String, nameName: String, request: HttpServletRequest) = sendErrorResponse("invalid name for " + nameName, s"soda.${nameName}.invalid", BadRequest, Some(Map(nameName -> JString(name))), request.getRequestURI, request.getMethod)
 
   def passThroughResponse(f: Future[Either[Throwable,Response]], startTime: Long, logTags: String*): HttpServletResponse => Unit = {
     f() match {
