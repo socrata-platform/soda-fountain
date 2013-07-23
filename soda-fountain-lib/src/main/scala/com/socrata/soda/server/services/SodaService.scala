@@ -134,7 +134,7 @@ trait SodaService {
                   val uName = getColumnName(uKey)
                   schema.schema.get(uName) match {
                     case Some(expectedTypeName) =>
-                      TypeChecker.check(expectedTypeName.toString, uVal) match {
+                      TypeChecker.check(expectedTypeName, uVal) match {
                         case Right(v) => Some(uKey -> TypeChecker.encode(v))
                         case Left(msg) => return sendErrorResponse(msg, "soda.prepareForUpsert.upsert.type.error", BadRequest, Some(Map(pair)), "type.checking", resourceName, datasetId, callerTag )
                       }
