@@ -42,20 +42,32 @@ object TypeChecker {
         }}),
     (SoQLBoolean          , {v => v match { case JBoolean(b) => Right(new SoQLBoolean(b)) ; case _ => unexpected(v) }}),
     (SoQLDate             , {v => v match {
-          case JString(n) => Right(new SoQLDate(new LocalDate(n)))
+          case JString(n) => SoQLDate.StringRep.unapply(n) match {
+            case Some(t) => Right(SoQLDate(t))
+            case None => unexpected(v)
+          }
           case _ => unexpected(v)
         }}),
     (SoQLTime             , {v => v match {
-          case JString(n) => Right(new SoQLTime(new LocalTime(n)))
+          case JString(n) => SoQLTime.StringRep.unapply(n) match {
+            case Some(t) => Right(SoQLTime(t))
+            case None => unexpected(v)
+          }
           case _ => unexpected(v)
         }}),
     (SoQLFixedTimestamp   , {v => v match {
-          case JString(n) => Right(new SoQLFixedTimestamp(new DateTime(n)))
+          case JString(n) => SoQLFixedTimestamp.StringRep.unapply(n) match {
+            case Some(t) => Right(SoQLFixedTimestamp(t))
+            case None => unexpected(v)
+          }
           case JNumber(n) => Right(new SoQLFixedTimestamp(new DateTime(n)))
           case _ => unexpected(v)
         }}),
     (SoQLFloatingTimestamp, {v => v match {
-          case JString(n) => Right(new SoQLFloatingTimestamp(new LocalDateTime(n)))
+          case JString(n) => SoQLFloatingTimestamp.StringRep.unapply(n) match {
+            case Some(t) => Right(SoQLFloatingTimestamp(t))
+            case None => unexpected(v)
+          }
           case _ => unexpected(v)
         }})
   )
@@ -69,10 +81,10 @@ object TypeChecker {
     (SoQLArray            , {arr => arr.asInstanceOf[SoQLArray].value                 }),
     (SoQLLocation         , {loc => JArray(Seq(JNumber(loc.asInstanceOf[SoQLLocation].latitude), JNumber(loc.asInstanceOf[SoQLLocation].longitude)))}),
     (SoQLBoolean          , {boo => JBoolean(boo.asInstanceOf[SoQLBoolean].value)       }),
-    (SoQLDate             , {dat => JString(dat.asInstanceOf[SoQLDate].value.toString)}),
-    (SoQLTime             , {tim => JString(tim.asInstanceOf[SoQLTime].value.toString)}),
-    (SoQLFixedTimestamp   , {xts => JString(xts.asInstanceOf[SoQLFixedTimestamp].value.toString)}),
-    (SoQLFloatingTimestamp, {lts => JString(lts.asInstanceOf[SoQLFloatingTimestamp].value.toString)})
+    (SoQLDate             , {dat => JString( SoQLDate.StringRep.apply( dat.asInstanceOf[SoQLDate].value))}),
+    (SoQLTime             , {tim => JString( SoQLTime.StringRep.apply( tim.asInstanceOf[SoQLTime].value))}),
+    (SoQLFixedTimestamp   , {xts => JString( SoQLFixedTimestamp.StringRep.apply( xts.asInstanceOf[SoQLFixedTimestamp].value))}),
+    (SoQLFloatingTimestamp, {lts => JString( SoQLFloatingTimestamp.StringRep.apply( lts.asInstanceOf[SoQLFloatingTimestamp].value))})
   )
 
   def encode( value: SoQLValue) : JValue = encoders.get( value.typ ).get.apply(value) // flatMap{enc => enc(value)}
