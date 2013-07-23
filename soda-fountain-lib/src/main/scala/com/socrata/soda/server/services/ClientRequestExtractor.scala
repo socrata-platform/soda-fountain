@@ -38,35 +38,38 @@ object ClientRequestExtractor {
     def apply(request: HttpServletRequest, approxLimit: Long) : Either[Seq[String], DatasetSpec] = {
       try {
         jsonSingleObjectStream(request, approxLimit) match {
-          case Right(obj) =>
-            val dex = new DatasetExtractor(obj.fields)
-            val fields = (
-              dex.resourceName,
-              dex.name,
-              dex.description,
-              dex.rowId,
-              dex.locale,
-              dex.columns
-              )
-            fields match {
-              case (Right(rn), Right(n), Right(d), Right(r), Right(loc), Right(c)) => {
-                Right(DatasetSpec(rn, n, d, r, loc, c))
-              }
-              case _ => {
-                val ers = fields.productIterator.collect {
-                  case Left(msg : String) => Seq(msg)
-                  case Left(msgs: Seq[String]) => msgs
-                  case Left(a: Any) => Seq("error with " + a.toString)
-                }
-                Left(ers.toArray.flatten.toSeq)
-              }
-            }
+          case Right(obj) => apply(obj)
           case Left(err) => Left(Seq(err))
         }
       } catch {
         case e: IOException => Left(Seq("could not read column specification: " + e.getMessage))
         case e: JsonReaderException => Left(Seq("could not read column specification as JSON: " + e.getMessage))
         case e: ReaderExceededBound => Left(Seq(e.MSG))
+      }
+    }
+
+    def apply( obj: JObject) : Either[Seq[String], DatasetSpec] = {
+      val dex = new DatasetExtractor(obj.fields)
+      val fields = (
+        dex.resourceName,
+        dex.name,
+        dex.description,
+        dex.rowId,
+        dex.locale,
+        dex.columns
+        )
+      fields match {
+        case (Right(rn), Right(n), Right(d), Right(r), Right(loc), Right(c)) => {
+          Right(DatasetSpec(rn, n, d, r, loc, c))
+        }
+        case _ => {
+          val ers = fields.productIterator.collect {
+            case Left(msg : String) => Seq(msg)
+            case Left(msgs: Seq[String]) => msgs
+            case Left(a: Any) => Seq("error with " + a.toString)
+          }
+          Left(ers.toArray.flatten.toSeq)
+        }
       }
     }
   }

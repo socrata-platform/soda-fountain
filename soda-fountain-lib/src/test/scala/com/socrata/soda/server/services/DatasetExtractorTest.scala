@@ -5,12 +5,16 @@ import org.scalatest.matchers.MustMatchers
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import java.io.StringReader
 import com.socrata.soda.server.services.ClientRequestExtractor.DatasetSpec
+import com.rojoma.json.util.JsonUtil
+import com.rojoma.json.ast.JObject
 
 class DatasetExtractorTest extends FunSuite with MustMatchers {
   def normalizeWhitespace(fixture: String): String = CompactJsonWriter.toString(JsonReader(fixture).read())
 
-  def extract(input: String) = DatasetSpec(new StringReader(input))
+  def extract(input: String) = DatasetSpec(JsonUtil.parseJson[JObject](input).get)
 
+  //TODO: enable these tests with a mock http request
+  /*
   test("Dataset Extractor blank input"){
     val spec = extract("""""")
     spec.isRight must be (false)
@@ -19,6 +23,8 @@ class DatasetExtractorTest extends FunSuite with MustMatchers {
     val spec = extract("""[]""")
     spec.isRight must be (false)
   }
+  */
+
   test("Dataset Extractor works in the simple case"){
     val spec = extract("""{
                          |  resource_name: "hotdog",
