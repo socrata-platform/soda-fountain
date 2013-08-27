@@ -3,73 +3,68 @@ package com.socrata.soda.server.types
 import com.socrata.soql.types._
 import com.rojoma.json.ast._
 import com.rojoma.json.ast.JString
-import org.joda.time.{LocalDate, LocalTime, LocalDateTime, DateTime}
+import org.joda.time.DateTime
+import com.socrata.soql.types.obfuscation.CryptProvider
 
 object TypeChecker {
+  // this is used to en/decrypt row IDs and values.  The key DOESN'T MATTER,
+  // because this system doesn't care about the actual values in a SoQLID or
+  // a SoQLValue; it just cares that it can recognize and reproduce them.
+  //
+  // It would be better to not care about the decrypted values at all, but alas
+  // that is not how SoQLID and SoQLVersion work.
+  private[this] val cryptProvider = new CryptProvider(Array[Byte](0))
+  private[this] val IdStringRep = new SoQLID.StringRep(cryptProvider)
+  private[this] val VersionStringRep = new SoQLVersion.StringRep(cryptProvider)
 
   def unexpected(v: JValue) = Left("expecting " + SoQLText.toString() + " but received " + v.toString())
 
-  //TODO: handle JNulls
-  def check(typ: SoQLType, v: JValue) : Either[String, SoQLValue] = { decoders.get(typ).get.apply(v) }
+  def check(typ: SoQLType, v: JValue) : Either[String, SoQLValue] = v match {
+    case JNull => Right(SoQLNull)
+    case nonNull => decoders(typ).applyOrElse(nonNull, unexpected)
+  }
 
-
-  val decoders : Map[SoQLType, JValue => Either[String,SoQLValue]] = Map(
-    (SoQLNumber           , {v => v match {
-          case JString(n) => Right(new SoQLNumber(BigDecimal(n).bigDecimal))
-          case JNumber(n) => Right(new SoQLNumber(n.bigDecimal))
-          case _ => unexpected(v)
-        }}),
-    (SoQLDouble           , {v =>v match {
-          case JString(n) => Right(new SoQLDouble(n.toDouble))
-          case JNumber(n) => Right(new SoQLDouble(n.toDouble))
-          case _ => unexpected(v)
-        }}),
-    (SoQLMoney            , {v => v match {
-          case JString(n) => Right(new SoQLMoney(BigDecimal(n).bigDecimal))
-          case JNumber(n) => Right(new SoQLMoney(n.bigDecimal))
-          case _ => unexpected(v)
-        }}),
-    (SoQLText             , {v => v match { case JString(s) => Right(new SoQLText(s)); case _ => unexpected(v) }}),
-    (SoQLObject           , {v =>v match { case obj: JObject =>  Right(new SoQLObject(obj)); case _ => unexpected(v) }}),
-    (SoQLArray            , {v => v match { case  arr:JArray =>  Right(new SoQLArray(arr)); case _ => unexpected(v) }}),
-    (SoQLLocation         , {v => v match {
-          case JArray(arr) =>  arr match {
-            case Seq(JNumber(lat), JNumber(lon), _) => Right(new SoQLLocation(lat.toDouble, lon.toDouble))
-            case Seq(_, _, JObject(map)) => ???
-            case _ => unexpected(v)
-          }
-          case _ => unexpected(v)
-        }}),
-    (SoQLBoolean          , {v => v match { case JBoolean(b) => Right(new SoQLBoolean(b)) ; case _ => unexpected(v) }}),
-    (SoQLDate             , {v => v match {
-          case JString(n) => SoQLDate.StringRep.unapply(n) match {
-            case Some(t) => Right(SoQLDate(t))
-            case None => unexpected(v)
-          }
-          case _ => unexpected(v)
-        }}),
-    (SoQLTime             , {v => v match {
-          case JString(n) => SoQLTime.StringRep.unapply(n) match {
-            case Some(t) => Right(SoQLTime(t))
-            case None => unexpected(v)
-          }
-          case _ => unexpected(v)
-        }}),
-    (SoQLFixedTimestamp   , {v => v match {
-          case JString(n) => SoQLFixedTimestamp.StringRep.unapply(n) match {
-            case Some(t) => Right(SoQLFixedTimestamp(t))
-            case None => unexpected(v)
-          }
-          case JNumber(n) => Right(new SoQLFixedTimestamp(new DateTime(n)))
-          case _ => unexpected(v)
-        }}),
-    (SoQLFloatingTimestamp, {v => v match {
-          case JString(n) => SoQLFloatingTimestamp.StringRep.unapply(n) match {
-            case Some(t) => Right(SoQLFloatingTimestamp(t))
-            case None => unexpected(v)
-          }
-          case _ => unexpected(v)
-        }})
+  // The functions return an Either so that they can produce errors
+  // of their own, other than `unexpected`.  This isn't actually used
+  // at the moment but I think it's a good idea.
+  val decoders : Map[SoQLType, PartialFunction[JValue, Either[String,SoQLValue]]] = Map(
+    (SoQLNumber           , {
+      case JString(n) => Right(new SoQLNumber(BigDecimal(n).bigDecimal)) // FIXME: NumberFormatException
+      case JNumber(n) => Right(new SoQLNumber(n.bigDecimal))
+    }),
+    (SoQLDouble           , {
+      case JString(n) => Right(new SoQLDouble(n.toDouble)) // FIXME: NumberFormatException, NaN, infinities
+      case JNumber(n) => Right(new SoQLDouble(n.toDouble))
+    }),
+    (SoQLMoney            , {
+      case JString(n) => Right(new SoQLMoney(BigDecimal(n).bigDecimal)) // FIXME: NumberFormatException
+      case JNumber(n) => Right(new SoQLMoney(n.bigDecimal))
+    }),
+    (SoQLText             , { case JString(s) => Right(new SoQLText(s)) }),
+    (SoQLObject           , { case obj: JObject => Right(new SoQLObject(obj)) }),
+    (SoQLArray            , { case arr:JArray => Right(new SoQLArray(arr)) }),
+    (SoQLLocation         , {
+      case JArray(Seq(JNumber(lat), JNumber(lon), _)) =>
+        Right(new SoQLLocation(lat.toDouble, lon.toDouble))
+      case JArray(Seq(_, _, JObject(map))) =>
+        ???
+    }),
+    (SoQLBoolean          , { case JBoolean(b) => Right(new SoQLBoolean(b)) }),
+    (SoQLDate             , { case JString(SoQLDate.StringRep(t)) => Right(SoQLDate(t)) }),
+    (SoQLTime             , { case JString(SoQLTime.StringRep(t)) => Right(SoQLTime(t)) }),
+    (SoQLFixedTimestamp   , {
+      case JString(SoQLFixedTimestamp.StringRep(t)) =>
+        Right(SoQLFixedTimestamp(t))
+      case JNumber(n) =>
+        Right(new SoQLFixedTimestamp(new DateTime(n))) // FIXME: This will not work.  Yay typeless interfaces!
+    }),
+    (SoQLFloatingTimestamp, {
+      case JString(SoQLFloatingTimestamp.StringRep(t)) =>
+        Right(SoQLFloatingTimestamp(t))
+    }),
+    (SoQLID,                { case JString(IdStringRep(id)) => Right(id) }),
+    (SoQLVersion,           { case JString(VersionStringRep(ver)) => Right(ver) }),
+    (SoQLJson,              { case v => Right(SoQLJson(v)) })
   )
 
   val encoders : Map[SoQLType, SoQLValue => JValue] = Map(
@@ -84,9 +79,14 @@ object TypeChecker {
     (SoQLDate             , {dat => JString( SoQLDate.StringRep.apply( dat.asInstanceOf[SoQLDate].value))}),
     (SoQLTime             , {tim => JString( SoQLTime.StringRep.apply( tim.asInstanceOf[SoQLTime].value))}),
     (SoQLFixedTimestamp   , {xts => JString( SoQLFixedTimestamp.StringRep.apply( xts.asInstanceOf[SoQLFixedTimestamp].value))}),
-    (SoQLFloatingTimestamp, {lts => JString( SoQLFloatingTimestamp.StringRep.apply( lts.asInstanceOf[SoQLFloatingTimestamp].value))})
+    (SoQLFloatingTimestamp, {lts => JString( SoQLFloatingTimestamp.StringRep.apply( lts.asInstanceOf[SoQLFloatingTimestamp].value))}),
+    (SoQLID               , {rid => JString(IdStringRep(rid.asInstanceOf[SoQLID]))}),
+    (SoQLVersion          , {ver => JString(VersionStringRep(ver.asInstanceOf[SoQLVersion]))}),
+    (SoQLJson             , {jsn => jsn.asInstanceOf[SoQLJson].value})
   )
 
-  def encode( value: SoQLValue) : JValue = encoders.get( value.typ ).get.apply(value) // flatMap{enc => enc(value)}
+  def encode(value: SoQLValue) : JValue =
+    if(value eq SoQLNull) JNull
+    else encoders(value.typ)(value) // flatMap{enc => enc(value)}
 
 }
