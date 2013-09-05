@@ -13,6 +13,7 @@ object SodaFountainLib {
       "javax.servlet" % "servlet-api" % "2.5" % "provided",
       "com.rojoma" %% "simple-arm" % "1.1.10",
       "com.socrata" %% "socrata-http-server" % "2.0.0-SNAPSHOT",
+      "com.socrata" %% "socrata-http-client" % "2.0.0-SNAPSHOT",
       "com.typesafe" % "config" % "1.0.2",
       "com.netflix.curator" % "curator-x-discovery" % "1.3.3"
     )
