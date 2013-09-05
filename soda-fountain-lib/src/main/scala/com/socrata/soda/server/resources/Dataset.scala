@@ -34,6 +34,14 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
   }
 
+  object createService extends SodaResource {
+    override def post = { req =>
+      withDatasetSpec(req) { spec =>
+        response(datasetDAO.createDataset(spec))
+      }
+    }
+  }
+
   case class service(resourceName: ResourceName) extends SodaResource {
     override def put = { req =>
       withDatasetSpec(req, resourceName) { spec =>
