@@ -1,6 +1,6 @@
 package com.socrata.soda.server
 
-import com.socrata.soda.server.errors.SodaError
+import com.socrata.soda.server.errors.{InternalError, SodaError}
 import com.socrata.http.server.HttpResponse
 import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.responses._
@@ -10,22 +10,26 @@ import com.rojoma.json.io.CompactJsonWriter
 import com.socrata.soql.environment.AbstractName
 import com.socrata.soda.server.id.AbstractId
 import com.rojoma.json.codec.JsonCodec
+import java.nio.charset.{StandardCharsets, Charset}
 
 object SodaUtils {
   val errorLog = org.slf4j.LoggerFactory.getLogger("com.socrata.soda.server.Error")
 
-  val jsonContentType = "application/json; charset=utf-8"
+  val jsonContentTypeBase = "application/json"
+  val jsonContentTypeUtf8 = jsonContentTypeBase + "; charset=utf-8"
 
-  // Note: this does NOT set the content-type!  That's deliberate, because
-  // the content-type depends on the charset, which needs to be negotiated.
-  def JsonContent[T : JsonCodec](thing: T) = {
+  def JsonContent[T : JsonCodec](thing: T, charset: Charset): HttpResponse = {
     val j = JsonCodec[T].encode(thing)
-    Write { out =>
+    ContentType(jsonContentTypeBase + "; charset=" + charset.name) ~> Write { out =>
       val jw = new CompactJsonWriter(out)
       jw.write(j)
       out.write('\n')
     }
   }
+
+  @deprecated(message = "Need to negotiate a charset", since = "forever")
+  def JsonContent[T : JsonCodec](thing: T): HttpResponse =
+    JsonContent(thing, StandardCharsets.UTF_8)
 
   def errorResponse(req: HttpServletRequest, error: SodaError, logTags: LogTag*): HttpResponse = {
     import com.rojoma.json.ast._
@@ -37,7 +41,7 @@ object SodaUtils {
     ))
 
     errorLog.info(s"${logTags.mkString(" ")} responding with error ${error.errorCode}")
-    Status(error.httpResponseCode) ~> ContentType(jsonContentType) ~> JsonContent(content)
+    Status(error.httpResponseCode) ~> JsonContent(content)
   }
 
   def internalError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {

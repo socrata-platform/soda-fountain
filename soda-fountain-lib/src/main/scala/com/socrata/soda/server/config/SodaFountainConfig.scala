@@ -3,6 +3,7 @@ package com.socrata.soda.server.config
 import com.typesafe.config.Config
 
 class SodaFountainConfig(config: Config) extends ConfigClass(config, "com.socrata.soda-fountain") {
+  val maxDatumSize = getInt("max-datum-size")
   val curator = getConfig("curator", new CuratorConfig(_, _))
   val network = getConfig("network", new NetworkConfig(_, _))
   val log4j = getRawConfig("log4j")

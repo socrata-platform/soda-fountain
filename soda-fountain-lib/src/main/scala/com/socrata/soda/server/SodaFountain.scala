@@ -91,6 +91,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     basePath(config.curator.serviceBasePath).
     build())
 
+  val datasetDAO = ???
+  val columnDAO = ???
+
   val router = i {
     import com.socrata.soda.server.resources._
     new SodaRouter(
@@ -98,8 +101,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       resourceResource = Resource().service,
       resourceRowResource = ResourceRow().service,
       datasetCreateResource = DatasetCreate().service,
-      datasetResource = Dataset().service,
-      datasetColumnResource = DatasetColumn().service
+      datasetResource = Dataset(datasetDAO, config.maxDatumSize).service,
+      datasetColumnResource = DatasetColumn(columnDAO, config.maxDatumSize).service
     )
   }
 
