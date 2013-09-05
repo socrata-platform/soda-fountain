@@ -7,7 +7,6 @@ import com.netflix.curator.framework.CuratorFrameworkFactory
 import com.netflix.curator.{retry => retryPolicies}
 import com.netflix.curator.x.discovery.ServiceDiscoveryBuilder
 import com.socrata.http.common.AuxiliaryData
-import com.socrata.soda.server.resources.VersionService
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -23,10 +22,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   // either go ABOVE the declaration of "cleanup" or be guarded
   // by i() or si() to ensure things are cleaned up if something
   // goes wrong.
-
-  val router = new SodaRouter(
-    versionService = VersionService
-  )
 
   private val cleanup = new mutable.Stack[Closeable]
 
@@ -70,6 +65,18 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     client(curator).
     basePath(config.curator.serviceBasePath).
     build())
+
+  val router = i {
+    import com.socrata.soda.server.resources._
+    new SodaRouter(
+      versionResource = Version.service,
+      resourceResource = Resource().service,
+      resourceRowResource = ResourceRow().service,
+      datasetCreateResource = DatasetCreate().service,
+      datasetResource = Dataset().service,
+      datasetColumnResource = DatasetColumn().service
+    )
+  }
 
   def close() {
     while(!cleanup.isEmpty) cleanup.pop().close()
