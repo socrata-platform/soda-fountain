@@ -9,6 +9,8 @@ import com.netflix.curator.x.discovery.ServiceDiscoveryBuilder
 import com.socrata.http.common.AuxiliaryData
 import org.apache.log4j.PropertyConfigurator
 import com.socrata.thirdparty.typesafeconfig.Propertizer
+import javax.servlet.http.HttpServletRequest
+import com.socrata.http.server.HttpResponse
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -20,6 +22,25 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[SodaFountain])
 
   PropertyConfigurator.configure(Propertizer("log4j", config.log4j))
+
+  def handle(req: HttpServletRequest): HttpResponse = {
+    val httpResponse = try {
+      router.route(req)
+    } catch {
+      case e: Throwable if !e.isInstanceOf[Error] =>
+        SodaUtils.internalError(req, e)
+    }
+
+    { resp =>
+      try {
+        httpResponse(resp)
+      } catch {
+        case e: Throwable if !e.isInstanceOf[Error] =>
+          resp.reset()
+          SodaUtils.internalError(req, e)(resp)
+      }
+    }
+  }
 
   // Below this line is all setup.
   // Note: all initialization that can possibly throw should

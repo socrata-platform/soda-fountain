@@ -8,7 +8,7 @@ import com.socrata.http.server.SocrataServerJetty
 object SodaFountainJetty extends App {
   val config = new SodaFountainConfig(ConfigFactory.load())
   using(new SodaFountain(config)) { sodaFountain =>
-    val server = new SocrataServerJetty(sodaFountain.router.route, port = config.network.port)
+    val server = new SocrataServerJetty(sodaFountain.handle, port = config.network.port)
     server.run()
   }
 }

@@ -39,6 +39,12 @@ object SodaUtils {
     errorLog.info(s"${logTags.mkString(" ")} responding with error ${error.errorCode}")
     Status(error.httpResponseCode) ~> ContentType(jsonContentType) ~> JsonContent(content)
   }
+
+  def internalError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {
+    val tag = java.util.UUID.randomUUID.toString
+    errorLog.error("Internal error: " + tag, th)
+    errorResponse(request, InternalError(tag), logTags:_*)
+  }
 }
 
 class LogTag(s: String) {

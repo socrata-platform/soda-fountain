@@ -19,6 +19,6 @@ class SodaFountainServlet extends HttpServlet {
 
   // just cut out all the doGet etc nonsense and handle the request ourselves.
   override def service(req: HttpServletRequest, resp: HttpServletResponse) {
-    fountain.router.route(req)(resp)
+    fountain.handle(req)(resp)
   }
 }
