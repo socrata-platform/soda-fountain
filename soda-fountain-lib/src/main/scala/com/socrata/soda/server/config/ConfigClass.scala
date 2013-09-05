@@ -11,4 +11,5 @@ class ConfigClass(config: Config, root: String) {
   def getStringList(key: String) = config.getStringList(p(key)).asScala
   def getDuration(key: String) = config.getMilliseconds(p(key)).longValue.millis
   def getConfig[T](key: String, decoder: (Config, String) => T) = decoder(config, p(key))
+  def getRawConfig(key: String) = config.getConfig(p(key))
 }

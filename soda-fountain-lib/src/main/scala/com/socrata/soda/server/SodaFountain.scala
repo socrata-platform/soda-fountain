@@ -7,6 +7,8 @@ import com.netflix.curator.framework.CuratorFrameworkFactory
 import com.netflix.curator.{retry => retryPolicies}
 import com.netflix.curator.x.discovery.ServiceDiscoveryBuilder
 import com.socrata.http.common.AuxiliaryData
+import org.apache.log4j.PropertyConfigurator
+import com.socrata.thirdparty.typesafeconfig.Propertizer
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -16,6 +18,8 @@ import com.socrata.http.common.AuxiliaryData
  */
 class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[SodaFountain])
+
+  PropertyConfigurator.configure(Propertizer("log4j", config.log4j))
 
   // Below this line is all setup.
   // Note: all initialization that can possibly throw should
