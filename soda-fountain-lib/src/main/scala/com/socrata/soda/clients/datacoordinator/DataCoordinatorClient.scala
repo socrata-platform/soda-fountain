@@ -8,7 +8,6 @@ import com.socrata.soql.environment._
 import scala.collection.Map
 import com.socrata.http.client._
 import com.socrata.http.server.routing.HttpMethods._
-import scala.util._
 import com.rojoma.json.ast.JString
 import com.socrata.soda.server.id.{SecondaryId, DatasetId}
 
@@ -69,44 +68,40 @@ trait DataCoordinatorClient {
   def schemaUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "schema")
   def secondaryUrl(host: RequestBuilder, secondaryId: SecondaryId, datasetId: DatasetId) = host.p("secondary-manifest", secondaryId.underlying, datasetId.underlying)
 
-  def withHost[T]( f: (RequestBuilder) => T) : Try[T] = {
-    Try {
-      hostO match {
-        case Some(host) => f(host)
-        case None => throw new Exception("could not connect to data coordinator")
-      }
+  def withHost[T]( f: (RequestBuilder) => T): T = {
+    hostO match {
+      case Some(host) => f(host)
+      case None => throw new Exception("could not connect to data coordinator")
     }
   }
 
-  def propagateToSecondary(datasetId: DatasetId, secondaryId: SecondaryId) = {
+  def propagateToSecondary(datasetId: DatasetId, secondaryId: SecondaryId): Unit =
     withHost { host =>
       val r = secondaryUrl(host, secondaryId, datasetId).method(POST).get
       for (response <- internalHttpClient.execute(r)) yield {
         response.resultCode match {
-          case 200 => Right(Unit)
-          case _ => Left(new Exception("could not propagate to secondary"))
+          case 200 => // ok
+          case _ => throw new Exception("could not propagate to secondary")
         }
       }
     }
-  }
 
-  def getSchema(datasetId: DatasetId) = {
+  def getSchema(datasetId: DatasetId): SchemaSpec =
     withHost { host =>
       val request = schemaUrl(host, datasetId).get
       for (response <- internalHttpClient.execute(request)) yield {
         response.asValue[SchemaSpec]().getOrElse(throw new Exception("schema not found"))
       }
     }
-  }
 
-  protected def sendScript[T]( rb: RequestBuilder, script: MutationScript) (f: ((Response) => T)) : T = {
+  protected def sendScript[T]( rb: RequestBuilder, script: MutationScript) (f: ((Response) => T)): T = {
     val request = rb.method(POST).json(script.it)
     for (r <- internalHttpClient.execute(request)) yield f(r)
   }
 
-  def create(  user: String,
-              instructions: Option[Iterator[DataCoordinatorInstruction]],
-              locale: String = "en_US") : Try[(DatasetId, Iterable[JValue])] = {
+  def create(user: String,
+             instructions: Option[Iterator[DataCoordinatorInstruction]],
+             locale: String = "en_US") : (DatasetId, Iterable[JValue]) = {
     withHost { host =>
       val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
       sendScript(createUrl(host).method(POST), createScript){ response : Response =>
@@ -118,12 +113,14 @@ trait DataCoordinatorClient {
       }
     }
   }
-  def update(datasetId: DatasetId, schema: Option[String], user: String, instructions: Iterator[DataCoordinatorInstruction]) = {
+
+  def update(datasetId: DatasetId, schema: Option[String], user: String, instructions: Iterator[DataCoordinatorInstruction]): Vector[RowOpReport] = {
     withHost { host =>
       val updateScript = new MutationScript(user, UpdateDataset(schema), instructions)
-      sendScript(mutateUrl(host, datasetId).method(POST), updateScript){ r => r.asArray[RowOpReport]() }
+      sendScript(mutateUrl(host, datasetId).method(POST), updateScript){ r => r.asArray[RowOpReport]().toVector }
     }
   }
+
   def copy(datasetId: DatasetId, schema: Option[String], copyData: Boolean, user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
     withHost { host =>
       val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Array().iterator))
@@ -149,7 +146,7 @@ trait DataCoordinatorClient {
     }
   }
 
-  def checkVersionInSecondary(datasetId: DatasetId, secondaryId: SecondaryId): Try[VersionReport] = {
+  def checkVersionInSecondary(datasetId: DatasetId, secondaryId: SecondaryId): VersionReport = {
     withHost { host =>
       val request = secondaryUrl(host, secondaryId, datasetId).get
       for (r <- internalHttpClient.execute(request)) yield {

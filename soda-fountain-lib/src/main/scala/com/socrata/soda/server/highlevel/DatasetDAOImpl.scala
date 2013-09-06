@@ -55,13 +55,9 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
         val instructions = columnInstructions ++ addRidInstruction
 
-        dc.create(user, Some(instructions.iterator), spec.locale) match {
-          case Success((datasetId, _)) =>
-            store.addResource(datasetId, spec)
-            Created(spec)
-          case Failure(t) =>
-            throw t
-        }
+        val (datasetId, _) = dc.create(user, Some(instructions.iterator), spec.locale)
+        store.addResource(datasetId, spec)
+        Created(spec)
       case Some(_) =>
         DatasetAlreadyExists(spec.resourceName)
     }
