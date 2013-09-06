@@ -1,7 +1,7 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator.{SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.highlevel.DatasetDAO.Result
 import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
 import com.socrata.soda.server.persistence.NameAndSchemaStore
@@ -9,6 +9,7 @@ import com.socrata.soql.brita.IdentifierFilter
 import DatasetDAO._
 import scala.util.{Success, Failure}
 import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.types.{SoQLFixedTimestamp, SoQLID, SoQLType}
 
 class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils, instanceForCreate: () => String) extends DatasetDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetDAOImpl])
@@ -56,9 +57,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         val instructions = columnInstructions ++ addRidInstruction
 
         val (datasetId, _) = dc.create(instanceForCreate(), user, Some(instructions.iterator), spec.locale)
-        // TODO: we should store system column info too
-        store.addResource(datasetId, spec)
-        Created(spec)
+
+        val trueSpec = spec.copy(columns = spec.columns ++ systemColumns)
+        store.addResource(datasetId, trueSpec)
+        Created(trueSpec)
       case Some(_) =>
         DatasetAlreadyExists(spec.resourceName)
     }
@@ -117,4 +119,16 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       case None =>
         NotFound(dataset)
     }
+
+
+  private[this] val _systemColumns = Seq(
+    ColumnName(":id") -> ColumnSpec(ColumnId(":id"), ColumnName(":id"), ":id", "", SoQLID),
+    ColumnName(":created_at") -> ColumnSpec(ColumnId(":created_at"), ColumnName(":created_at"), ":created_at", "", SoQLFixedTimestamp),
+    ColumnName(":updated_at") -> ColumnSpec(ColumnId(":updated_at"), ColumnName(":updated_at"), ":updated_at", "", SoQLFixedTimestamp)
+  )
+
+  private[this] def systemColumns = {
+    log.info("TODO: Grovel system columns out of the data coordinator instead of hardcoding")
+    _systemColumns
+  }
 }
