@@ -9,27 +9,19 @@ import scala.collection.Map
 import com.socrata.http.client._
 import com.socrata.http.server.routing.HttpMethods._
 import com.rojoma.json.ast.JString
-import com.socrata.soda.server.id.{SecondaryId, DatasetId}
+import com.socrata.soda.server.id.{ColumnId, SecondaryId, DatasetId}
 
 object DataCoordinatorClient {
 
-  implicit object columnNameCodec extends JsonCodec[ColumnName] {
-    def encode(x: ColumnName) = JString(x.toString)
-    def decode(x: JValue) = x match {
-      case JString(s) => Some(ColumnName(s))
-      case _ => None
-    }
-  }
-
   class JsonInvalidSchemaException(pair: (String, JValue)) extends Exception
 
-  implicit object anotherMapCodec extends JsonCodec[Map[ColumnName, SoQLType]] {
-    def encode(x: Map[ColumnName, SoQLType]) = JObject(x.map(pair => (pair._1.toString, JString(pair._2.name.name))))
-    def decode(x: JValue): Option[Map[ColumnName, SoQLType]] = x match {
+  implicit object anotherMapCodec extends JsonCodec[Map[ColumnId, SoQLType]] {
+    def encode(x: Map[ColumnId, SoQLType]) = JObject(x.map(pair => (pair._1.underlying, JString(pair._2.name.name))))
+    def decode(x: JValue): Option[Map[ColumnId, SoQLType]] = x match {
       case JObject(m) =>
         val map = m.map{ pair =>
           pair._2 match {
-            case JString(t) => (ColumnName(pair._1), SoQLType.typesByName.get(TypeName(t)).getOrElse(throw new JsonInvalidSchemaException(pair)))
+            case JString(t) => (new ColumnId(pair._1), SoQLType.typesByName.get(TypeName(t)).getOrElse(throw new JsonInvalidSchemaException(pair)))
             case _ => return None
           }
         }
@@ -39,9 +31,9 @@ object DataCoordinatorClient {
   }
 
   object SchemaSpec {
-    implicit val codec = SimpleJsonCodecBuilder[SchemaSpec].build("hash", _.hash, "pk", _.pk, "schema", _.schema)
+    implicit val codec = SimpleJsonCodecBuilder[SchemaSpec].build("hash", _.hash, "pk", _.pk, "schema", _.schema, "locale", _.locale)
   }
-  class SchemaSpec(val hash: String, val pk: ColumnName, val schema: Map[ColumnName,SoQLType]) {
+  class SchemaSpec(val hash: String, val pk: ColumnId, val schema: Map[ColumnId,SoQLType], val locale: String) {
     override def toString = JsonUtil.renderJson(this)
   }
 
@@ -86,11 +78,19 @@ trait DataCoordinatorClient {
       }
     }
 
-  def getSchema(datasetId: DatasetId): SchemaSpec =
+  def getSchema(datasetId: DatasetId): Option[SchemaSpec] =
     withHost { host =>
       val request = schemaUrl(host, datasetId).get
       for (response <- internalHttpClient.execute(request)) yield {
-        response.asValue[SchemaSpec]().getOrElse(throw new Exception("schema not found"))
+        if(response.resultCode == 200) {
+          val result = response.asValue[SchemaSpec]()
+          if(!result.isDefined) throw new Exception("Unable to interpret response as a schemaspec?")
+          result
+        } else if(response.resultCode == 404) {
+          None
+        } else {
+          throw new Exception("Unexpected result from server: " + response.resultCode)
+        }
       }
     }
 

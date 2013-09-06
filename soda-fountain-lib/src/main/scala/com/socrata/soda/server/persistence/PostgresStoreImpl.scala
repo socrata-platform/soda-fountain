@@ -6,6 +6,7 @@ import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import scala.{collection => sc}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.wiremodels.DatasetSpec
+import java.sql.Connection
 
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   using(dataSource.getConnection()){ connection =>
@@ -36,6 +37,45 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             }
           case false => None
         }
+      }
+    }
+  }
+
+  def lookupDataset(resourceName: ResourceName): Option[DatasetRecord] =
+    using(dataSource.getConnection()) { conn =>
+      conn.setAutoCommit(false)
+      using(conn.prepareStatement("select resource_name, dataset_system_id, name, description from datasets where resource_name_casefolded = ?")) { dsQuery =>
+        dsQuery.setString(1, resourceName.caseFolded)
+        using(dsQuery.executeQuery()) { dsResult =>
+          if(dsResult.next()) {
+            val datasetId = DatasetId(dsResult.getString("dataset_system_id"))
+            Some(DatasetRecord(
+              new ResourceName(dsResult.getString("resource_name")),
+              datasetId,
+              dsResult.getString("name"),
+              dsResult.getString("description"),
+              fetchColumns(conn, datasetId)))
+          } else {
+            None
+          }
+        }
+      }
+    }
+
+  def fetchColumns(conn: Connection, datasetId: DatasetId): Seq[ColumnRecord] = {
+    using(conn.prepareStatement("select column_name, column_id, name, description from columns where dataset_system_id = ?")) { colQuery =>
+      colQuery.setString(1, datasetId.underlying)
+      using(colQuery.executeQuery()) { rs =>
+        val result = Vector.newBuilder[ColumnRecord]
+        while(rs.next()) {
+          result += ColumnRecord(
+            ColumnId(rs.getString("column_id")),
+            new ColumnName(rs.getString("column_name")),
+            rs.getString("name"),
+            rs.getString("description")
+          )
+        }
+        result.result()
       }
     }
   }

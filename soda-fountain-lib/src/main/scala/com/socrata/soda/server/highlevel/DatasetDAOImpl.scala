@@ -56,6 +56,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         val instructions = columnInstructions ++ addRidInstruction
 
         val (datasetId, _) = dc.create(user, Some(instructions.iterator), spec.locale)
+        // TODO: we should store system column info too
         store.addResource(datasetId, spec)
         Created(spec)
       case Some(_) =>
@@ -91,5 +92,29 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def deleteDataset(dataset: ResourceName): Result = ???
 
-  def getDataset(dataset: ResourceName): Result = ???
+  def getDataset(dataset: ResourceName): Result =
+    store.lookupDataset(dataset) match {
+      case Some(datasetRecord) =>
+        // TODO: Figure out what happens in the event of inconsistency!!!
+        dc.getSchema(datasetRecord.systemId) match {
+          case Some(schemaSpec) =>
+            val spec = DatasetSpec(
+              datasetRecord.resourceName,
+              datasetRecord.name,
+              datasetRecord.description,
+              datasetRecord.columnsById.get(schemaSpec.pk).map(_.fieldName), // TODO this is one of the potential inconsistencies
+              schemaSpec.locale,
+              datasetRecord.columnsByName.mapValues { cr =>
+                ColumnSpec(cr.id, cr.fieldName, cr.name, cr.description, schemaSpec.schema(cr.id)) // TODO this is another
+              })
+            Found(spec)
+          case None =>
+            // this is one of those inconsistencies.
+            // we should probably delete the dataset.
+            // But for now just scream and die
+            throw new Exception("Cannot find " + datasetRecord.systemId + " (" + dataset + ") in data-coordinator?!")
+        }
+      case None =>
+        NotFound(dataset)
+    }
 }
