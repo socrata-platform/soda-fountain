@@ -17,7 +17,7 @@ case class ColumnSpec(id: ColumnId,
                       fieldName: ColumnName,
                       name:String,
                       description:String,
-                      dataType: SoQLType)
+                      datatype: SoQLType)
 
 object ColumnSpec {
   implicit val jsonCodec = AutomaticJsonCodecBuilder[ColumnSpec]
@@ -30,7 +30,7 @@ case class UserProvidedColumnSpec(id: Option[ColumnId],
                                   fieldName: Option[ColumnName],
                                   name: Option[String],
                                   description:Option[String],
-                                  dataType:Option[SoQLType],
+                                  datatype:Option[SoQLType],
                                   delete: Option[Boolean])
 
 object UserProvidedColumnSpec {

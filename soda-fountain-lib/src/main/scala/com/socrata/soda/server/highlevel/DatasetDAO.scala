@@ -24,4 +24,5 @@ object DatasetDAO {
   case class NonexistantColumn(name: ColumnName) extends Result
   case class InvalidColumnName(name: ColumnName) extends Result
   case class DatasetAlreadyExists(name: ResourceName) extends Result
+  case object LocaleChanged extends Result
 }

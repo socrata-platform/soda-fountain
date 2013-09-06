@@ -21,7 +21,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def validResourceName(rn: ResourceName) = IdentifierFilter(rn.name) == rn.name
 
-  def createDataset(spec: UserProvidedDatasetSpec): Result = spec match {
+  def freezeForCreation(spec: UserProvidedDatasetSpec): Either[Result, DatasetSpec] = spec match {
     case UserProvidedDatasetSpec(Some(resourceName), Some(name), description, rowIdentifier, locale, columns) =>
       val trueDesc = description.getOrElse(defaultDescription)
       val trueRID = rowIdentifier.flatten
@@ -29,11 +29,18 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       val trueColumns = columns.getOrElse(Seq.empty).foldLeft(Map.empty[ColumnName, ColumnSpec]) { (acc, userColumnSpec) =>
         columnSpecUtils.freezeForCreation(acc.mapValues(_.id), userColumnSpec) match {
           case ColumnSpecUtils.Success(cSpec) => acc + (cSpec.fieldName -> cSpec)
+          // TODO: not-success case
         }
       }
-
-      createDataset(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, trueColumns))
+      Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, trueColumns))
+    // TODO: Not-success case
   }
+
+  def createDataset(spec: UserProvidedDatasetSpec): Result =
+    freezeForCreation(spec) match {
+      case Right(frozenSpec) => createDataset(frozenSpec)
+      case Left(result) => result
+    }
 
   def createDataset(spec: DatasetSpec): Result = {
     if(!validResourceName(spec.resourceName)) return InvalidDatasetName(spec.resourceName)
@@ -44,15 +51,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           new SetRowIdColumnInstruction(spec.columns(ridFieldName).id)
         }
         // ok cool.  First send it upstream, then if that works stick it in the store.
-        val columnInstructions = spec.columns.values.map { c => new AddColumnInstruction(c.dataType, c.fieldName.name, Some(c.id)) }
+        val columnInstructions = spec.columns.values.map { c => new AddColumnInstruction(c.datatype, c.fieldName.name, Some(c.id)) }
 
         val instructions = columnInstructions ++ addRidInstruction
 
         dc.create(user, Some(instructions.iterator), spec.locale) match {
           case Success((datasetId, _)) =>
-            log.info("TODO: Need to store the name and description somewhere too!")
-            log.info("TODO: Also need to store column names and descriptions somewhere!")
-            store.addResource(spec.resourceName, datasetId, spec.columns.mapValues(_.id))
+            store.addResource(datasetId, spec)
             Created(spec)
           case Failure(t) =>
             throw t
@@ -62,7 +67,29 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     }
   }
 
-  def replaceOrCreateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result = ???
+  def replaceOrCreateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result =
+    store.translateResourceName(dataset) match {
+      case None =>
+        NotFound(dataset)
+      case Some((datasetId, schemaIsh)) =>
+        val oldLocale = log.info("TODO: Need to get the locale from somewhere")
+        freezeForCreation(spec) match {
+          case Right(frozenSpec) =>
+            if(oldLocale != frozenSpec.locale) return LocaleChanged
+            // ok.  What we need to do now is turn this into a list of operations to hand
+            // off to the data coordinator and/or our database.  This will include:
+            //  1. getting the current schema from the D.C. or cache
+            //  2. Figuring out what columns need to be renamed (note: this may include cycles!) and/or added or deleted.
+            //  3. Issuing column updates (add/delete) to the D.C.  This may fail with a "schema out of date"
+            //     error; if so go back to step 1.
+            //  4. update our representation of the schema (i.e., rename columns) and save name, description changes.
+            //
+            // TODO: Figure out what happens in the event of inconsistency!!!
+            ???
+          case Left(result) =>
+            result
+        }
+    }
 
   def updateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result = ???
 
