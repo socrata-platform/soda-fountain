@@ -44,8 +44,12 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
         httpResponse(resp)
       } catch {
         case e: Throwable if !e.isInstanceOf[Error] =>
-          resp.reset()
-          SodaUtils.internalError(req, e)(resp)
+          if(!resp.isCommitted) {
+            resp.reset()
+            SodaUtils.internalError(req, e)(resp)
+          } else {
+            log.warn("Caught exception but the response is already committed; just cutting the client off", e)
+          }
       }
     }
   }
