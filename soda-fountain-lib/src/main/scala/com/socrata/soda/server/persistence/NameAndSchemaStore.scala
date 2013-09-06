@@ -1,6 +1,5 @@
 package com.socrata.soda.server.persistence
 
-import scala.{collection => sc}
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.wiremodels.DatasetSpec
@@ -9,7 +8,7 @@ import com.socrata.soda.server.wiremodels.DatasetSpec
 trait NameAndSchemaStore {
   def addResource(datasetId: DatasetId, datasetSpec: DatasetSpec)
   def removeResource(resourceName: ResourceName)
-  def translateResourceName(resourceName: ResourceName): Option[(DatasetId, sc.Map[ColumnName, ColumnId])]
+  def translateResourceName(resourceName: ResourceName): Option[(DatasetId, Map[ColumnName, ColumnId])]
   def lookupDataset(resourceName: ResourceName): Option[DatasetRecord]
 
   def addColumn(datasetId: DatasetId, columnSystemId: ColumnId, columnFieldName: ColumnName) : Unit

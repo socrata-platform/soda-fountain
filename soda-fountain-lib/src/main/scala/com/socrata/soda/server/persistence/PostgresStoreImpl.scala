@@ -18,7 +18,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def translateResourceName( resourceName: ResourceName): Option[(DatasetId, sc.Map[ColumnName, ColumnId])] = {
+  def translateResourceName(resourceName: ResourceName): Option[(DatasetId, Map[ColumnName, ColumnId])] = {
     using(dataSource.getConnection()){ connection =>
       using(connection.prepareStatement("select dataset_system_id from datasets where resource_name_casefolded = ?")){ translator =>
         translator.setString(1, resourceName.caseFolded)
@@ -29,11 +29,11 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             using(connection.prepareStatement("select column_name, column_id from columns where dataset_system_id = ?")){ translator =>
               translator.setString(1, datasetId)
               val columnRS = translator.executeQuery()
-              val columns = new scala.collection.mutable.HashMap[ColumnName, ColumnId]
+              val columns = Map.newBuilder[ColumnName, ColumnId]
               while (columnRS.next()){
-                columns.put(ColumnName(columnRS.getString(1)), ColumnId(columnRS.getString(2)))
+                columns += ColumnName(columnRS.getString(1)) -> ColumnId(columnRS.getString(2))
               }
-              Some((DatasetId(datasetId), columns))
+              Some((DatasetId(datasetId), columns.result()))
             }
           case false => None
         }

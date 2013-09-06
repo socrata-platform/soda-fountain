@@ -11,7 +11,7 @@ import org.apache.log4j.PropertyConfigurator
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.HttpResponse
-import com.socrata.soda.server.highlevel.{ColumnSpecUtils, DatasetDAOImpl}
+import com.socrata.soda.server.highlevel.{RowDAOImpl, ColumnSpecUtils, DatasetDAOImpl}
 import java.security.SecureRandom
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient, HttpClient}
@@ -131,11 +131,12 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
   val columnDAO = null
+  val rowDAO = i(new RowDAOImpl(store, dc, qc))
 
   val router = i {
     import com.socrata.soda.server.resources._
 
-    val resource = Resource()
+    val resource = Resource(rowDAO)
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
     val column = DatasetColumn(columnDAO, config.maxDatumSize)
 
