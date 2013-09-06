@@ -7,7 +7,9 @@ trait AbstractId {
   def underlying: String
 }
 
-case class DatasetId(underlying: String) extends AbstractId
+case class DatasetId(underlying: String) extends AbstractId {
+  def nativeDataCoordinator = underlying.substring(0, underlying.lastIndexOf('.'))
+}
 
 case class ColumnId(underlying: String) extends AbstractId
 object ColumnId {

@@ -54,21 +54,23 @@ trait DataCoordinatorClient {
   import DataCoordinatorClient._
 
   val internalHttpClient : HttpClient
-  def hostO: Option[RequestBuilder]
+  def hostO(instance: String): Option[RequestBuilder]
   def createUrl(host: RequestBuilder) = host.p("dataset")
   def mutateUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
   def schemaUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "schema")
   def secondaryUrl(host: RequestBuilder, secondaryId: SecondaryId, datasetId: DatasetId) = host.p("secondary-manifest", secondaryId.underlying, datasetId.underlying)
 
-  def withHost[T]( f: (RequestBuilder) => T): T = {
-    hostO match {
+  def withHost[T](instance: String)(f: RequestBuilder => T): T =
+    hostO(instance) match {
       case Some(host) => f(host)
       case None => throw new Exception("could not connect to data coordinator")
     }
-  }
 
-  def propagateToSecondary(datasetId: DatasetId, secondaryId: SecondaryId): Unit =
-    withHost { host =>
+  def withHost[T](datasetId: DatasetId)(f: RequestBuilder => T): T =
+    withHost(datasetId.nativeDataCoordinator)(f)
+
+    def propagateToSecondary(datasetId: DatasetId, secondaryId: SecondaryId): Unit =
+    withHost(datasetId) { host =>
       val r = secondaryUrl(host, secondaryId, datasetId).method(POST).get
       for (response <- internalHttpClient.execute(r)) yield {
         response.resultCode match {
@@ -79,7 +81,7 @@ trait DataCoordinatorClient {
     }
 
   def getSchema(datasetId: DatasetId): Option[SchemaSpec] =
-    withHost { host =>
+    withHost(datasetId) { host =>
       val request = schemaUrl(host, datasetId).get
       for (response <- internalHttpClient.execute(request)) yield {
         if(response.resultCode == 200) {
@@ -99,10 +101,11 @@ trait DataCoordinatorClient {
     for (r <- internalHttpClient.execute(request)) yield f(r)
   }
 
-  def create(user: String,
+  def create(instance: String,
+             user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
              locale: String = "en_US") : (DatasetId, Iterable[JValue]) = {
-    withHost { host =>
+    withHost(instance) { host =>
       val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
       sendScript(createUrl(host).method(POST), createScript){ response : Response =>
         val idAndReports = response.asValue[JArray]()
@@ -115,39 +118,39 @@ trait DataCoordinatorClient {
   }
 
   def update(datasetId: DatasetId, schema: Option[String], user: String, instructions: Iterator[DataCoordinatorInstruction]): Vector[RowOpReport] = {
-    withHost { host =>
+    withHost(datasetId) { host =>
       val updateScript = new MutationScript(user, UpdateDataset(schema), instructions)
       sendScript(mutateUrl(host, datasetId).method(POST), updateScript){ r => r.asArray[RowOpReport]().toVector }
     }
   }
 
   def copy(datasetId: DatasetId, schema: Option[String], copyData: Boolean, user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
-    withHost { host =>
+    withHost(datasetId) { host =>
       val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Array().iterator))
       sendScript(mutateUrl(host, datasetId).method(POST), createScript){ r => r.asArray[RowOpReport]() }
     }
   }
   def publish(datasetId: DatasetId, schema: Option[String], snapshotLimit:Option[Int], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
-    withHost { host =>
+    withHost(datasetId) { host =>
       val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions.getOrElse(Array().iterator))
       sendScript(mutateUrl(host, datasetId).method(POST), pubScript){ r => r.asArray[RowOpReport]() }
     }
   }
   def dropCopy(datasetId: DatasetId, schema: Option[String], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
-    withHost { host =>
+    withHost(datasetId) { host =>
       val dropScript = new MutationScript(user, DropDataset(schema), instructions.getOrElse(Array().iterator))
       sendScript(mutateUrl(host, datasetId).method(POST), dropScript){ r => r.asArray[RowOpReport]() }
     }
   }
   def deleteAllCopies(datasetId: DatasetId, schema: Option[String], user: String) = {
-    withHost { host =>
+    withHost(datasetId) { host =>
       val deleteScript = new MutationScript(user, DropDataset(schema), Array().iterator)
       sendScript(mutateUrl(host, datasetId).method(DELETE), deleteScript){ r => r.asArray[RowOpReport]() }
     }
   }
 
   def checkVersionInSecondary(datasetId: DatasetId, secondaryId: SecondaryId): VersionReport = {
-    withHost { host =>
+    withHost(datasetId) { host =>
       val request = secondaryUrl(host, secondaryId, datasetId).get
       for (r <- internalHttpClient.execute(request)) yield {
         val oVer = r.asValue[VersionReport]()

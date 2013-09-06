@@ -121,14 +121,15 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val httpClient = i(new HttpClientHttpClient(livenessChecker, executor, userAgent = "soda fountain"))
 
-  val dc: DataCoordinatorClient = si(new CuratedDataCoordinatorClient(httpClient, discovery, config.dataCoordinatorClient.serviceName, config.dataCoordinatorClient.instance, config.dataCoordinatorClient.connectTimeout))
+  val dc: DataCoordinatorClient = i(new CuratedDataCoordinatorClient(httpClient, discovery, config.dataCoordinatorClient.serviceName, config.dataCoordinatorClient.instance, config.dataCoordinatorClient.connectTimeout))
+
   val qc: QueryCoordinatorClient = si(new CuratedQueryCoordinatorClient(httpClient, discovery, config.queryCoordinatorClient.serviceName, config.queryCoordinatorClient.connectTimeout))
 
   val dataSource = i(DataSourceFromConfig(config.database))
 
   val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
 
-  val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils))
+  val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
   val columnDAO = null
 
   val router = i {

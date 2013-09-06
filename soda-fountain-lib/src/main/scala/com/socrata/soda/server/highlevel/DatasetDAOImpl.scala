@@ -10,7 +10,7 @@ import DatasetDAO._
 import scala.util.{Success, Failure}
 import com.socrata.soql.environment.ColumnName
 
-class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils) extends DatasetDAO {
+class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils, instanceForCreate: () => String) extends DatasetDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetDAOImpl])
   val defaultDescription = ""
   val defaultLocale = "en_US"
@@ -55,7 +55,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
         val instructions = columnInstructions ++ addRidInstruction
 
-        val (datasetId, _) = dc.create(user, Some(instructions.iterator), spec.locale)
+        val (datasetId, _) = dc.create(instanceForCreate(), user, Some(instructions.iterator), spec.locale)
         // TODO: we should store system column info too
         store.addResource(datasetId, spec)
         Created(spec)
