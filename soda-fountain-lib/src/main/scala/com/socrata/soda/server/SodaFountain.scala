@@ -19,6 +19,7 @@ import java.util.concurrent.Executors
 import com.socrata.soda.server.util.CloseableExecutorService
 import com.socrata.soda.server.lowlevel.CuratedDataCoordinatorClient
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -91,15 +92,22 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     res
   }
 
-  val curator = si(CuratorFrameworkFactory.builder.
-    connectString(config.curator.ensemble).
-    sessionTimeoutMs(config.curator.sessionTimeout.toMillis.toInt).
-    connectionTimeoutMs(config.curator.connectTimeout.toMillis.toInt).
-    retryPolicy(new retryPolicies.BoundedExponentialBackoffRetry(config.curator.baseRetryWait.toMillis.toInt,
-      config.curator.maxRetryWait.toMillis.toInt,
-      config.curator.maxRetries)).
-    namespace(config.curator.namespace)
-    build())
+  val curator = si {
+    def ms(value: String, d: FiniteDuration) = {
+      val m = d.toMillis.toInt
+      if(m != d.toMillis) throw new IllegalArgumentException(value + " out of range (milliseconds must fit in an int)")
+      m
+    }
+    CuratorFrameworkFactory.builder.
+      connectString(config.curator.ensemble).
+      sessionTimeoutMs(ms("Session timeout", config.curator.sessionTimeout)).
+      connectionTimeoutMs(ms("Connect timeout", config.curator.connectTimeout)).
+      retryPolicy(new retryPolicies.BoundedExponentialBackoffRetry(ms("Base retry wait", config.curator.baseRetryWait),
+        ms("Max retry wait", config.curator.maxRetryWait),
+        config.curator.maxRetries)).
+      namespace(config.curator.namespace).
+      build()
+  }
 
   val discovery = si(ServiceDiscoveryBuilder.builder(classOf[AuxiliaryData]).
     client(curator).

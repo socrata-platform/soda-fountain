@@ -15,6 +15,9 @@ class CuratedDataCoordinatorClient(val internalHttpClient: HttpClient,
                                    connectTimeout: FiniteDuration)
   extends DataCoordinatorClient with Closeable
 {
+  private[this] val connectTimeoutMS = connectTimeout.toMillis.toInt
+  if(connectTimeoutMS != connectTimeout.toMillis) throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")
+
   val provider = discovery.serviceProviderBuilder().
     providerStrategy(new providerStrategies.RoundRobinStrategy).
     serviceName(serviceName + "." + targetInstance).
@@ -29,6 +32,6 @@ class CuratedDataCoordinatorClient(val internalHttpClient: HttpClient,
   def hostO: Option[RequestBuilder] = Option(provider.getInstance()).map { serv =>
     RequestBuilder(new java.net.URI(serv.buildUriSpec())).
       livenessCheckInfo(Option(serv.getPayload).flatMap(_.livenessCheckInfo)).
-      connectTimeoutMS(connectTimeout.toMillis.toInt)
+      connectTimeoutMS(connectTimeoutMS)
   }
 }
