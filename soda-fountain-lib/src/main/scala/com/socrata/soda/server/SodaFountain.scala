@@ -108,7 +108,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val executor = i(new CloseableExecutorService(Executors.newCachedThreadPool()))
 
-  val livenessChecker = i(new InetLivenessChecker(config.network.httpclient.liveness.interval, config.network.httpclient.liveness.range, config.network.httpclient.liveness.missable, executor, rng))
+  val livenessChecker = si(new InetLivenessChecker(config.network.httpclient.liveness.interval, config.network.httpclient.liveness.range, config.network.httpclient.liveness.missable, executor, rng))
 
   val httpClient = i(new HttpClientHttpClient(livenessChecker, executor, userAgent = "soda fountain"))
 

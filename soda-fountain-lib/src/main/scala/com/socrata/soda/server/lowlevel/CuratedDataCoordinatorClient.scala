@@ -20,6 +20,6 @@ class CuratedDataCoordinatorClient(discovery: ServiceDiscovery[AuxiliaryData], v
   }
 
   def hostO: Option[RequestBuilder] = Option(provider.getInstance()).map { serv =>
-    RequestBuilder(new java.net.URI(serv.buildUriSpec()))
+    RequestBuilder(new java.net.URI(serv.buildUriSpec())).livenessCheckInfo(Option(serv.getPayload).flatMap(_.livenessCheckInfo))
   }
 }
