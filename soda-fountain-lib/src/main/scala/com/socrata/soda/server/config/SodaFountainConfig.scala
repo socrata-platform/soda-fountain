@@ -6,14 +6,15 @@ class SodaFountainConfig(config: Config) extends ConfigClass(config, "com.socrat
   val maxDatumSize = getInt("max-datum-size")
   val curator = getConfig("curator", new CuratorConfig(_, _))
   val network = getConfig("network", new NetworkConfig(_, _))
-  val dataCoordinatorClient = getConfig("data-coordinator-client", new DataCoordinatorClient(_, _))
+  val dataCoordinatorClient = getConfig("data-coordinator-client", new DataCoordinatorClientConfig(_, _))
   val database = getConfig("database", new DataSourceConfig(_, _))
   val log4j = getRawConfig("log4j")
 }
 
-class DataCoordinatorClient(config: Config, root: String) extends ConfigClass(config, root) {
+class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val serviceName = getString("service-name")
   val instance = getString("instance")
+  val connectTimeout = getDuration("connect-timeout")
 }
 
 class NetworkConfig(config: Config, root: String) extends ConfigClass(config, root) {
