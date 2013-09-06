@@ -10,12 +10,14 @@ object SodaFountainLib {
     libraryDependencies ++= Seq(
       "com.socrata" %% "socrata-thirdparty-utils" % "[2.0.0,3.0.0)",
       "com.socrata" %% "soql-types" % "0.0.16-SNAPSHOT",
+      "com.socrata" %% "soql-brita" % "[1.2.1,2.0.0)",
       "javax.servlet" % "servlet-api" % "2.5" % "provided",
       "com.rojoma" %% "simple-arm" % "1.1.10",
       "com.socrata" %% "socrata-http-server" % "2.0.0-SNAPSHOT",
       "com.socrata" %% "socrata-http-client" % "2.0.0-SNAPSHOT",
       "com.typesafe" % "config" % "1.0.2",
-      "com.netflix.curator" % "curator-x-discovery" % "1.3.3"
+      "com.netflix.curator" % "curator-x-discovery" % "1.3.3",
+      "postgresql" % "postgresql" % "9.1-901-1.jdbc4"
     )
   )
 

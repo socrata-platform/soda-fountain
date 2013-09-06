@@ -11,6 +11,14 @@ import org.apache.log4j.PropertyConfigurator
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.HttpResponse
+import com.socrata.soda.server.highlevel.{ColumnSpecUtils, DatasetDAOImpl}
+import java.security.SecureRandom
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
+import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient, HttpClient}
+import java.util.concurrent.Executors
+import com.socrata.soda.server.util.CloseableExecutorService
+import com.socrata.soda.server.lowlevel.CuratedDataCoordinatorClient
+import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -47,6 +55,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   // either go ABOVE the declaration of "cleanup" or be guarded
   // by i() or si() to ensure things are cleaned up if something
   // goes wrong.
+
+  val rng = new scala.util.Random(new SecureRandom())
+  val columnSpecUtils = new ColumnSpecUtils(rng)
 
   private val cleanup = new mutable.Stack[Closeable]
 
@@ -91,8 +102,20 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     basePath(config.curator.serviceBasePath).
     build())
 
-  val datasetDAO = ???
-  val columnDAO = ???
+  val executor = i(new CloseableExecutorService(Executors.newCachedThreadPool()))
+
+  val livenessChecker = i(new InetLivenessChecker(config.network.httpclient.liveness.interval, config.network.httpclient.liveness.range, config.network.httpclient.liveness.missable, executor, rng))
+
+  val httpClient = i(new HttpClientHttpClient(livenessChecker, executor, userAgent = "soda fountain"))
+
+  val dc: DataCoordinatorClient = si(new CuratedDataCoordinatorClient(discovery, httpClient, config.dataCoordinatorClient.serviceName, config.dataCoordinatorClient.instance))
+
+  val dataSource = i(DataSourceFromConfig(config.database))
+
+  val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
+
+  val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils))
+  val columnDAO = null
 
   val router = i {
     import com.socrata.soda.server.resources._
@@ -111,7 +134,12 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     )
   }
 
-  def close() {
-    while(!cleanup.isEmpty) cleanup.pop().close()
+  def close() { // simulate a cascade of "finally" blocks
+    var pendingException: Throwable = null
+    while(!cleanup.isEmpty) {
+      try { cleanup.pop().close() }
+      catch { case t: Throwable => pendingException = t }
+    }
+    if(pendingException != null) throw pendingException
   }
 }

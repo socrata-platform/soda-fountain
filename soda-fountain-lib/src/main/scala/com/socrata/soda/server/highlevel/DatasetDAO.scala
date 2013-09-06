@@ -21,5 +21,7 @@ object DatasetDAO {
   case object Deleted extends Result
   case class NotFound(name: ResourceName) extends Result
   case class InvalidDatasetName(name: ResourceName) extends Result
+  case class NonexistantColumn(name: ColumnName) extends Result
   case class InvalidColumnName(name: ColumnName) extends Result
+  case class DatasetAlreadyExists(name: ResourceName) extends Result
 }

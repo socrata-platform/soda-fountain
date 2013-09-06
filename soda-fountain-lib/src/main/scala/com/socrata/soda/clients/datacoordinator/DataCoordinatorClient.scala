@@ -63,13 +63,13 @@ trait DataCoordinatorClient {
   import DataCoordinatorClient._
 
   val internalHttpClient : HttpClient
-  def hostO: Option[String]
-  def createUrl(host: String) = RequestBuilder(host).p("dataset")
-  def mutateUrl(host: String, datasetId: DatasetId) = RequestBuilder(host).p("dataset", datasetId.underlying)
-  def schemaUrl(host: String, datasetId: DatasetId) = RequestBuilder(host).p("dataset", datasetId.underlying, "schema")
-  def secondaryUrl(host: String, secondaryId: SecondaryId, datasetId: DatasetId) = RequestBuilder(host).p("secondary-manifest", secondaryId.underlying, datasetId.underlying)
+  def hostO: Option[RequestBuilder]
+  def createUrl(host: RequestBuilder) = host.p("dataset")
+  def mutateUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
+  def schemaUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "schema")
+  def secondaryUrl(host: RequestBuilder, secondaryId: SecondaryId, datasetId: DatasetId) = host.p("secondary-manifest", secondaryId.underlying, datasetId.underlying)
 
-  def withHost[T]( f: (String) => T) : Try[T] = {
+  def withHost[T]( f: (RequestBuilder) => T) : Try[T] = {
     Try {
       hostO match {
         case Some(host) => f(host)
@@ -106,14 +106,14 @@ trait DataCoordinatorClient {
 
   def create(  user: String,
               instructions: Option[Iterator[DataCoordinatorInstruction]],
-              locale: String = "en_US") = {
+              locale: String = "en_US") : Try[(DatasetId, Iterable[JValue])] = {
     withHost { host =>
       val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
       sendScript(createUrl(host).method(POST), createScript){ response : Response =>
         val idAndReports = response.asValue[JArray]()
         idAndReports match {
           case Some(JArray(Seq(JString(datasetId), _*))) => (DatasetId(datasetId), idAndReports.get.tail)
-          case None => throw new Error("unexpected response from data coordinator")
+          case None => throw new Exception("unexpected response from data coordinator")
         }
       }
     }

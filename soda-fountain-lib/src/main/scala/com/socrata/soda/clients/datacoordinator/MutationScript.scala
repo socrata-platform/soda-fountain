@@ -54,6 +54,7 @@ class MutationScript(
 
     val streamableInstructions : Iterator[JsonEvent] =
       Iterator.single(StartOfArrayEvent()) ++
+      com.rojoma.json.io.JValueEventIterator(JObject(topLevelCommand)) ++
       dcInstructions.flatMap{ lbuf => lbuf.flatMap{ jval => JValueEventIterator(jval)}} ++
       Iterator.single(EndOfArrayEvent())
 
