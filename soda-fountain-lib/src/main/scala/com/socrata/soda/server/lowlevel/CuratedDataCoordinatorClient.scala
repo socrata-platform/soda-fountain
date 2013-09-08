@@ -52,9 +52,8 @@ class ProviderCache[T](discovery: ServiceDiscovery[T], strategy: ProviderStrateg
         serviceName(serviceName).
         build()
 
-      newProvider.start()
-
       try {
+        newProvider.start()
         serviceProviders.put(serviceName, newProvider)
       } catch {
         case e: Throwable =>
