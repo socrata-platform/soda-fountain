@@ -3,9 +3,7 @@ package com.socrata.soda.server.persistence
 import javax.sql.DataSource
 import com.rojoma.simplearm.util._
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
-import scala.{collection => sc}
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soda.server.wiremodels.DatasetSpec
 import java.sql.Connection
 
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
@@ -80,20 +78,20 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def addResource(datasetId: DatasetId, datasetSpec: DatasetSpec): Unit =
+  def addResource(newRecord: DatasetRecord): Unit =
     using(dataSource.getConnection()){ connection =>
       connection.setAutoCommit(false)
       using(connection.prepareStatement("insert into datasets (resource_name_casefolded, resource_name, dataset_system_id, name, description) values(?, ?, ?, ?, ?)")){ adder =>
-        adder.setString(1, datasetSpec.resourceName.caseFolded)
-        adder.setString(2, datasetSpec.resourceName.name)
-        adder.setString(3, datasetId.underlying)
-        adder.setString(4, datasetSpec.name)
-        adder.setString(5, datasetSpec.description)
+        adder.setString(1, newRecord.resourceName.caseFolded)
+        adder.setString(2, newRecord.resourceName.name)
+        adder.setString(3, newRecord.systemId.underlying)
+        adder.setString(4, newRecord.name)
+        adder.setString(5, newRecord.description)
         adder.execute()
       }
       using(connection.prepareStatement("insert into columns (dataset_system_id, column_name_casefolded, column_name, column_id, name, description) values (?, ?, ?, ?, ?, ?)")) { colAdder =>
-        for(cspec <- datasetSpec.columns.values) {
-          colAdder.setString(1, datasetId.underlying)
+        for(cspec <- newRecord.columns) {
+          colAdder.setString(1, newRecord.systemId.underlying)
           colAdder.setString(2, cspec.fieldName.caseFolded)
           colAdder.setString(3, cspec.fieldName.name)
           colAdder.setString(4, cspec.id.underlying)

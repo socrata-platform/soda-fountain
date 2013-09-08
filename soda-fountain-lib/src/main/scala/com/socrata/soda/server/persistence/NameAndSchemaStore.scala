@@ -2,11 +2,10 @@ package com.socrata.soda.server.persistence
 
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soda.server.wiremodels.DatasetSpec
 
 // TODO: this needs to expose a notion of transactions
 trait NameAndSchemaStore {
-  def addResource(datasetId: DatasetId, datasetSpec: DatasetSpec)
+  def addResource(newRecord: DatasetRecord)
   def removeResource(resourceName: ResourceName)
   def translateResourceName(resourceName: ResourceName): Option[(DatasetId, Map[ColumnName, ColumnId])]
   def lookupDataset(resourceName: ResourceName): Option[DatasetRecord]

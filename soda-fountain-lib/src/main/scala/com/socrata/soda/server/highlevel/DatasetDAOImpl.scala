@@ -59,7 +59,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         val (datasetId, _) = dc.create(instanceForCreate(), user, Some(instructions.iterator), spec.locale)
 
         val trueSpec = spec.copy(columns = spec.columns ++ systemColumns)
-        store.addResource(datasetId, trueSpec)
+        store.addResource(trueSpec.asRecord(datasetId))
         Created(trueSpec)
       case Some(_) =>
         DatasetAlreadyExists(spec.resourceName)
