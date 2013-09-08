@@ -154,7 +154,10 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     var pendingException: Throwable = null
     while(!cleanup.isEmpty) {
       try { cleanup.pop().close() }
-      catch { case t: Throwable => pendingException = t }
+      catch { case t: Throwable =>
+        if(pendingException != null) pendingException.addSuppressed(t)
+        else pendingException = t
+      }
     }
     if(pendingException != null) throw pendingException
   }
