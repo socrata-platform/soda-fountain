@@ -12,11 +12,8 @@ case class UpsertRow(rowData: Map[String, JValue]) extends RowUpdate {
   def asJson = JObject(rowData)
 }
 
-case class DeleteRow(rowId: Either[String,BigDecimal]) extends RowUpdate {
-  def asJson = JArray(Seq(rowId match {
-    case Left(id) => JString(id)
-    case Right(id) => JNumber(id)
-  }))
+case class DeleteRow(rowId: JValue) extends RowUpdate {
+  def asJson = rowId
 }
 
 case class RowUpdateOptionChange(truncate: Boolean = false,

@@ -37,11 +37,6 @@ object DataCoordinatorClient {
     override def toString = JsonUtil.renderJson(this)
   }
 
-  object RowOpReport {
-    implicit val codec = SimpleJsonCodecBuilder[RowOpReport].build("rows_created", _.createdCount , "rows_updated", _.updatedCount, "rows_deleted", _.deletedCount)
-  }
-  class RowOpReport(val createdCount: Int, val updatedCount: Int, val deletedCount: Int)
-
   object VersionReport{
     implicit val codec = SimpleJsonCodecBuilder[VersionReport].build("version", _.version)
   }
@@ -52,6 +47,8 @@ object DataCoordinatorClient {
 
 trait DataCoordinatorClient {
   import DataCoordinatorClient._
+
+  val log = org.slf4j.LoggerFactory.getLogger(classOf[DataCoordinatorClient])
 
   val internalHttpClient : HttpClient
   def hostO(instance: String): Option[RequestBuilder]
@@ -117,35 +114,40 @@ trait DataCoordinatorClient {
     }
   }
 
-  def update(datasetId: DatasetId, schema: Option[String], user: String, instructions: Iterator[DataCoordinatorInstruction]): Vector[RowOpReport] = {
+  def update[T](datasetId: DatasetId, schema: Option[String], user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Iterator[JValue] => T): T = {
+    log.info("TODO: update should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val updateScript = new MutationScript(user, UpdateDataset(schema), instructions)
-      sendScript(mutateUrl(host, datasetId).method(POST), updateScript){ r => r.asArray[RowOpReport]().toVector }
+      sendScript(mutateUrl(host, datasetId).method(POST), updateScript){ r => f(r.asArray[JValue]()) }
     }
   }
 
-  def copy(datasetId: DatasetId, schema: Option[String], copyData: Boolean, user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
+  def copy[T](datasetId: DatasetId, schema: Option[String], copyData: Boolean, user: String, instructions: Option[Iterator[DataCoordinatorInstruction]])(f: Iterator[JValue] => T): T = {
+    log.info("TODO: copy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Array().iterator))
-      sendScript(mutateUrl(host, datasetId).method(POST), createScript){ r => r.asArray[RowOpReport]() }
+      val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Iterator.empty))
+      sendScript(mutateUrl(host, datasetId).method(POST), createScript){ r => f(r.asArray[JValue]()) }
     }
   }
-  def publish(datasetId: DatasetId, schema: Option[String], snapshotLimit:Option[Int], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
+  def publish[T](datasetId: DatasetId, schema: Option[String], snapshotLimit:Option[Int], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]])(f: Iterator[JValue] => T): T = {
+    log.info("TODO: publish should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions.getOrElse(Array().iterator))
-      sendScript(mutateUrl(host, datasetId).method(POST), pubScript){ r => r.asArray[RowOpReport]() }
+      val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions.getOrElse(Iterator.empty))
+      sendScript(mutateUrl(host, datasetId).method(POST), pubScript){ r => f(r.asArray[JValue]()) }
     }
   }
-  def dropCopy(datasetId: DatasetId, schema: Option[String], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]]) = {
+  def dropCopy[T](datasetId: DatasetId, schema: Option[String], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]])(f: Iterator[JValue] => T): T = {
+    log.info("TODO: dropCopy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val dropScript = new MutationScript(user, DropDataset(schema), instructions.getOrElse(Array().iterator))
-      sendScript(mutateUrl(host, datasetId).method(POST), dropScript){ r => r.asArray[RowOpReport]() }
+      val dropScript = new MutationScript(user, DropDataset(schema), instructions.getOrElse(Iterator.empty))
+      sendScript(mutateUrl(host, datasetId).method(POST), dropScript){ r => f(r.asArray[JValue]()) }
     }
   }
-  def deleteAllCopies(datasetId: DatasetId, schema: Option[String], user: String) = {
+  def deleteAllCopies[T](datasetId: DatasetId, schema: Option[String], user: String)(f: Iterator[JValue] => T): T = {
+    log.info("TODO: deleteAllCopies should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val deleteScript = new MutationScript(user, DropDataset(schema), Array().iterator)
-      sendScript(mutateUrl(host, datasetId).method(DELETE), deleteScript){ r => r.asArray[RowOpReport]() }
+      val deleteScript = new MutationScript(user, DropDataset(schema), Iterator.empty)
+      sendScript(mutateUrl(host, datasetId).method(DELETE), deleteScript){ r => f(r.asArray[JValue]()) }
     }
   }
 
