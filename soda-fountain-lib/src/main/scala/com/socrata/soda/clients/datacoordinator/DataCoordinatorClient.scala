@@ -93,6 +93,10 @@ trait DataCoordinatorClient {
       }
     }
 
+  // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+  // TODO: ALL THESE NEED TO HANDLE ERRORS FROM THE DATA COORDINATOR
+  // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+
   protected def sendScript[T]( rb: RequestBuilder, script: MutationScript) (f: ((Response) => T)): T = {
     val request = rb.method(POST).json(script.it)
     for (r <- internalHttpClient.execute(request)) yield f(r)

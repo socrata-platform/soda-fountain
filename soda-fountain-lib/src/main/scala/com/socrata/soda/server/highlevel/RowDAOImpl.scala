@@ -34,16 +34,23 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
 
   val LegacyDeleteFlag = new ColumnName(":deleted")
 
-  class RowDataTranslator(datasetId: DatasetId, columns: Map[ColumnName, ColumnId], schema: SchemaSpec) {
-    sealed abstract class ColumnResult
-    case class NoColumn(columnName: ColumnName) extends ColumnResult
-    case class ColumnInfo(id: ColumnId, typ: SoQLType) extends ColumnResult
+  private case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends Exception
+  private case class UnknownColumnEx(col: ColumnName) extends Exception
+  private case class DeleteNoPKEx() extends Exception
+  private case class NotAnObjectEx(obj: JValue) extends Exception
+
+  class RowDataTranslator(datasetId: DatasetId, columns: Map[ColumnName, ColumnId], schema: SchemaSpec, ignoreUnknownColumns: Boolean) {
+    private[this] sealed abstract class ColumnResult {
+      val columnName: ColumnName
+    }
+    private[this] case class NoColumn(columnName: ColumnName) extends ColumnResult
+    private[this] case class ColumnInfo(columnName: ColumnName, id: ColumnId, typ: SoQLType) extends ColumnResult
 
     // A cache from the keys of the JSON objects which are rows to values
     // which represent either the fact that the key does not represent
     // a known column or the column's ID and type.
-    val columnInfos = new java.util.HashMap[String, ColumnResult]
-    def ciFor(rawColumnName: String): ColumnResult = columnInfos.get(rawColumnName) match {
+    private[this] val columnInfos = new java.util.HashMap[String, ColumnResult]
+    private[this] def ciFor(rawColumnName: String): ColumnResult = columnInfos.get(rawColumnName) match {
       case null =>
         val cn = ColumnName(rawColumnName)
         columns.get(cn) match {
@@ -52,7 +59,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
               columnInfos.clear() // bad user, but I'd rather spend CPU than memory
             schema.schema.get(cid) match {
               case Some(typ) =>
-                val ci = ColumnInfo(cid, typ)
+                val ci = ColumnInfo(cn, cid, typ)
                 columnInfos.put(rawColumnName, ci)
                 ci
               case None => // TODO: INCONSISTENCY ALERT
@@ -74,32 +81,32 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         var rowHasLegacyDeleteFlag = false
         val row: scala.collection.Map[String, JValue] = map.flatMap { case (uKey, uVal) =>
           ciFor(uKey) match {
-            case ColumnInfo(cid, typ) =>
+            case ColumnInfo(colName, cid, typ) =>
               TypeChecker.check(typ, uVal) match {
                 case Right(v) => (cid.underlying -> uVal) :: Nil
-                case Left(err) => ??? // TODO
+                case Left(TypeChecker.Error(expected, got)) => throw MaltypedDataEx(colName, expected, got)
               }
             case NoColumn(colName) =>
               if(colName == LegacyDeleteFlag && JBoolean.canonicalTrue == uVal) {
                 rowHasLegacyDeleteFlag = true
                 Nil
+              } else if(ignoreUnknownColumns) {
+                Nil
               } else {
-                // TODO: Either ignore the column or send unknown-column error
-                ???
+                throw UnknownColumnEx(colName)
               }
           }
         }
         if(rowHasLegacyDeleteFlag) {
           row.get(schema.pk.underlying) match {
             case Some(pkVal) => DeleteRow(pkVal)
-            case None => ??? // TODO: Error: delete not told what row
+            case None => throw DeleteNoPKEx()
           }
         } else {
           UpsertRow(row)
         }
-      case _ =>
-        // TODO: not-an-object error
-        ???
+      case other =>
+        throw NotAnObjectEx(other)
     }
   }
 
@@ -108,13 +115,24 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
       case Some((datasetId, columns)) =>
         dc.getSchema(datasetId) match {
           case Some(schema) =>
-            val trans = new RowDataTranslator(datasetId, columns, schema)
+            val trans = new RowDataTranslator(datasetId, columns, schema, ignoreUnknownColumns = false)
             val upserts = data.map(trans.convert)
-            dc.update(datasetId, None, user, instructions ++ upserts) { result =>
-              f(StreamSuccess(result))
+            try {
+              dc.update(datasetId, None, user, instructions ++ upserts) { result =>
+                f(StreamSuccess(result))
+              }
+            } catch {
+              case UnknownColumnEx(col) =>
+                f(UnknownColumn(col))
+              case DeleteNoPKEx() =>
+                f(DeleteWithoutPrimaryKey)
+              case NotAnObjectEx(v) =>
+                f(RowNotAnObject(v))
+              case MaltypedDataEx(cn, expected, got) =>
+                f(MaltypedData(cn, expected, got))
             }
           case None =>
-            ??? // TODO: More precise internal error
+            ??? // TODO: More precise internal error due to inconsitency
         }
       case None =>
         f(NotFound(resourceName))
