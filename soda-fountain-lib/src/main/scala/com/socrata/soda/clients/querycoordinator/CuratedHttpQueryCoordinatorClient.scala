@@ -7,7 +7,9 @@ import scala.concurrent.duration.FiniteDuration
 import com.socrata.http.common.AuxiliaryData
 import java.io.Closeable
 
-class CuratedQueryCoordinatorClient(val internalHttpClient: HttpClient, discovery: ServiceDiscovery[AuxiliaryData], serviceName: String, connectTimeout: FiniteDuration) extends QueryCoordinatorClient with Closeable {
+class CuratedHttpQueryCoordinatorClient(val httpClient: HttpClient, discovery: ServiceDiscovery[AuxiliaryData], serviceName: String, connectTimeout: FiniteDuration)
+  extends HttpQueryCoordinatorClient(httpClient) with Closeable
+{
   private[this] val connectTimeoutMS = connectTimeout.toMillis.toInt
   if(connectTimeoutMS != connectTimeout.toMillis) throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")
 

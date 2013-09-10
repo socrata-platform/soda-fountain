@@ -18,7 +18,7 @@ import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import java.util.concurrent.Executors
 import com.socrata.soda.server.util.CloseableExecutorService
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
-import com.socrata.soda.clients.querycoordinator.{CuratedQueryCoordinatorClient, QueryCoordinatorClient}
+import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import scala.concurrent.duration.FiniteDuration
 
 /**
@@ -122,7 +122,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val dc: DataCoordinatorClient = i(new CuratedHttpDataCoordinatorClient(httpClient, discovery, config.dataCoordinatorClient.serviceName, config.dataCoordinatorClient.instance, config.dataCoordinatorClient.connectTimeout))
 
-  val qc: QueryCoordinatorClient = si(new CuratedQueryCoordinatorClient(httpClient, discovery, config.queryCoordinatorClient.serviceName, config.queryCoordinatorClient.connectTimeout))
+  val qc: QueryCoordinatorClient = si(new CuratedHttpQueryCoordinatorClient(httpClient, discovery, config.queryCoordinatorClient.serviceName, config.queryCoordinatorClient.connectTimeout))
 
   val dataSource = i(DataSourceFromConfig(config.database))
 
