@@ -12,9 +12,9 @@ trait DatasetDAO {
   def deleteDataset(dataset: ResourceName): Result
   def getDataset(dataset: ResourceName): Result
 
-  def makeCopy(dataset: ResourceName, copyData: Boolean, schemaHash: Option[String]): Result
-  def dropCurrentWorkingCopy(dataset: ResourceName, schemaHash: Option[String]): Result
-  def publish(dataset: ResourceName, schemaHash: Option[String], snapshotLimit: Option[Int]): Result
+  def makeCopy(dataset: ResourceName, copyData: Boolean): Result
+  def dropCurrentWorkingCopy(dataset: ResourceName): Result
+  def publish(dataset: ResourceName, snapshotLimit: Option[Int]): Result
 }
 
 object DatasetDAO {

@@ -120,30 +120,30 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         NotFound(dataset)
     }
 
-  def makeCopy(dataset: ResourceName, copyData: Boolean, schemaHash: Option[String]): Result =
+  def makeCopy(dataset: ResourceName, copyData: Boolean): Result =
     store.translateResourceName(dataset) match {
       case Some((datasetId, _)) =>
-        dc.copy(datasetId, schemaHash, copyData, user) { resultIt =>
+        dc.copy(datasetId, copyData, user) { resultIt =>
           WorkingCopyCreated
         }
       case None =>
         NotFound(dataset)
     }
 
-  def dropCurrentWorkingCopy(dataset: ResourceName, schemaHash: Option[String]): Result =
+  def dropCurrentWorkingCopy(dataset: ResourceName): Result =
     store.translateResourceName(dataset) match {
       case Some((datasetId, _)) =>
-        dc.dropCopy(datasetId, schemaHash, user) { resultIt =>
+        dc.dropCopy(datasetId, user) { resultIt =>
           WorkingCopyDropped
         }
       case None =>
         NotFound(dataset)
     }
 
-  def publish(dataset: ResourceName, schemaHash: Option[String], snapshotLimit: Option[Int]): Result =
+  def publish(dataset: ResourceName, snapshotLimit: Option[Int]): Result =
     store.translateResourceName(dataset) match {
       case Some((datasetId, _)) =>
-        dc.publish(datasetId, schemaHash, snapshotLimit, user) { resultIt =>
+        dc.publish(datasetId, snapshotLimit, user) { resultIt =>
           WorkingCopyPublished
         }
       case None =>

@@ -118,7 +118,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val trans = new RowDataTranslator(datasetId, columns, schema, ignoreUnknownColumns = false)
             val upserts = data.map(trans.convert)
             try {
-              dc.update(datasetId, None, user, instructions ++ upserts) { result =>
+              dc.update(datasetId, schema.hash, user, instructions ++ upserts) { result =>
                 f(StreamSuccess(result))
               }
             } catch {

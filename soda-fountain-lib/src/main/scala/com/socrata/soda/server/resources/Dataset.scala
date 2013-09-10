@@ -68,7 +68,6 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   }
 
   case class copyService(resourceName: ResourceName) extends SodaResource {
-    def schemaHash(req: HttpServletRequest) = Option(req.getParameter("schema"))
     def snapshotLimit(req: HttpServletRequest) =
       try { Option(req.getParameter("schema")).map(_.toInt) }
       catch { case e: NumberFormatException => ??? /* TODO: Proper error */ }
@@ -76,14 +75,14 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     // TODO: not GET
     override def get = { req =>
       val doCopyData = req.getParameter("copy_data") == "true"
-      response(datasetDAO.makeCopy(resourceName, copyData = doCopyData, schemaHash = schemaHash(req)))
+      response(datasetDAO.makeCopy(resourceName, copyData = doCopyData))
     }
 
     override def delete = { req =>
-      response(datasetDAO.dropCurrentWorkingCopy(resourceName, schemaHash = schemaHash(req)))
+      response(datasetDAO.dropCurrentWorkingCopy(resourceName))
     }
     override def put = { req =>
-      response(datasetDAO.publish(resourceName, schemaHash = schemaHash(req), snapshotLimit = snapshotLimit(req)))
+      response(datasetDAO.publish(resourceName, snapshotLimit = snapshotLimit(req)))
     }
   }
 }

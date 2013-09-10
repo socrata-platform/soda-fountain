@@ -13,11 +13,10 @@ import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.HttpResponse
 import com.socrata.soda.server.highlevel.{RowDAOImpl, ColumnSpecUtils, DatasetDAOImpl}
 import java.security.SecureRandom
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
-import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient, HttpClient}
+import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
+import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import java.util.concurrent.Executors
 import com.socrata.soda.server.util.CloseableExecutorService
-import com.socrata.soda.server.lowlevel.CuratedDataCoordinatorClient
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
 import com.socrata.soda.clients.querycoordinator.{CuratedQueryCoordinatorClient, QueryCoordinatorClient}
 import scala.concurrent.duration.FiniteDuration
@@ -121,7 +120,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val httpClient = i(new HttpClientHttpClient(livenessChecker, executor, userAgent = "soda fountain"))
 
-  val dc: DataCoordinatorClient = i(new CuratedDataCoordinatorClient(httpClient, discovery, config.dataCoordinatorClient.serviceName, config.dataCoordinatorClient.instance, config.dataCoordinatorClient.connectTimeout))
+  val dc: DataCoordinatorClient = i(new CuratedHttpDataCoordinatorClient(httpClient, discovery, config.dataCoordinatorClient.serviceName, config.dataCoordinatorClient.instance, config.dataCoordinatorClient.connectTimeout))
 
   val qc: QueryCoordinatorClient = si(new CuratedQueryCoordinatorClient(httpClient, discovery, config.queryCoordinatorClient.serviceName, config.queryCoordinatorClient.connectTimeout))
 
