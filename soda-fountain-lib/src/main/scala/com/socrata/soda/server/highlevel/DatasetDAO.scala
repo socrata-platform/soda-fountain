@@ -11,6 +11,10 @@ trait DatasetDAO {
   def updateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result
   def deleteDataset(dataset: ResourceName): Result
   def getDataset(dataset: ResourceName): Result
+
+  def makeCopy(dataset: ResourceName, copyData: Boolean, schemaHash: Option[String]): Result
+  def dropCurrentWorkingCopy(dataset: ResourceName, schemaHash: Option[String]): Result
+  def publish(dataset: ResourceName, schemaHash: Option[String], snapshotLimit: Option[Int]): Result
 }
 
 object DatasetDAO {
@@ -25,4 +29,7 @@ object DatasetDAO {
   case class InvalidColumnName(name: ColumnName) extends Result
   case class DatasetAlreadyExists(name: ResourceName) extends Result
   case object LocaleChanged extends Result
+  case object WorkingCopyCreated extends Result
+  case object WorkingCopyDropped extends Result
+  case object WorkingCopyPublished extends Result
 }

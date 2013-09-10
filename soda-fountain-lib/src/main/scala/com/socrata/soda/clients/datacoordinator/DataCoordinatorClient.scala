@@ -93,9 +93,11 @@ trait DataCoordinatorClient {
       }
     }
 
-  // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-  // TODO: ALL THESE NEED TO HANDLE ERRORS FROM THE DATA COORDINATOR
-  // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+  // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+  // TODO                                                                  TODO
+  // TODO :: ALL THESE NEED TO HANDLE ERRORS FROM THE DATA COORDINATOR! :: TODO
+  // TODO                                                                  TODO
+  // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 
   protected def sendScript[T]( rb: RequestBuilder, script: MutationScript) (f: ((Response) => T)): T = {
     val request = rb.method(POST).json(script.it)
@@ -109,6 +111,7 @@ trait DataCoordinatorClient {
     withHost(instance) { host =>
       val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
       sendScript(createUrl(host).method(POST), createScript){ response : Response =>
+        log.info("TODO: Handle errors from the data-coordinator")
         val idAndReports = response.asValue[JArray]()
         idAndReports match {
           case Some(JArray(Seq(JString(datasetId), _*))) => (DatasetId(datasetId), idAndReports.get.tail)
@@ -122,36 +125,51 @@ trait DataCoordinatorClient {
     log.info("TODO: update should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val updateScript = new MutationScript(user, UpdateDataset(schema), instructions)
-      sendScript(mutateUrl(host, datasetId).method(POST), updateScript){ r => f(r.asArray[JValue]()) }
+      sendScript(mutateUrl(host, datasetId).method(POST), updateScript) { r =>
+        log.info("TODO: Handle errors from the data-coordinator")
+        f(r.asArray[JValue]())
+      }
     }
   }
 
-  def copy[T](datasetId: DatasetId, schema: Option[String], copyData: Boolean, user: String, instructions: Option[Iterator[DataCoordinatorInstruction]])(f: Iterator[JValue] => T): T = {
+  def copy[T](datasetId: DatasetId, schema: Option[String], copyData: Boolean, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T = {
     log.info("TODO: copy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions.getOrElse(Iterator.empty))
-      sendScript(mutateUrl(host, datasetId).method(POST), createScript){ r => f(r.asArray[JValue]()) }
+      val createScript = new MutationScript(user, CopyDataset(copyData, schema), instructions)
+      sendScript(mutateUrl(host, datasetId).method(POST), createScript) { r =>
+        log.info("TODO: Handle errors from the data-coordinator")
+        f(r.asArray[JValue]())
+      }
     }
   }
-  def publish[T](datasetId: DatasetId, schema: Option[String], snapshotLimit:Option[Int], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]])(f: Iterator[JValue] => T): T = {
+  def publish[T](datasetId: DatasetId, schema: Option[String], snapshotLimit:Option[Int], user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T = {
     log.info("TODO: publish should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions.getOrElse(Iterator.empty))
-      sendScript(mutateUrl(host, datasetId).method(POST), pubScript){ r => f(r.asArray[JValue]()) }
+      val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schema), instructions)
+      sendScript(mutateUrl(host, datasetId).method(POST), pubScript) { r =>
+        log.info("TODO: Handle errors from the data-coordinator")
+        f(r.asArray[JValue]())
+      }
     }
   }
-  def dropCopy[T](datasetId: DatasetId, schema: Option[String], user: String, instructions: Option[Iterator[DataCoordinatorInstruction]])(f: Iterator[JValue] => T): T = {
+  def dropCopy[T](datasetId: DatasetId, schema: Option[String], user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T = {
     log.info("TODO: dropCopy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val dropScript = new MutationScript(user, DropDataset(schema), instructions.getOrElse(Iterator.empty))
-      sendScript(mutateUrl(host, datasetId).method(POST), dropScript){ r => f(r.asArray[JValue]()) }
+      val dropScript = new MutationScript(user, DropDataset(schema), instructions)
+      sendScript(mutateUrl(host, datasetId).method(POST), dropScript) { r =>
+        log.info("TODO: Handle errors from the data-coordinator")
+        f(r.asArray[JValue]())
+      }
     }
   }
   def deleteAllCopies[T](datasetId: DatasetId, schema: Option[String], user: String)(f: Iterator[JValue] => T): T = {
     log.info("TODO: deleteAllCopies should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val deleteScript = new MutationScript(user, DropDataset(schema), Iterator.empty)
-      sendScript(mutateUrl(host, datasetId).method(DELETE), deleteScript){ r => f(r.asArray[JValue]()) }
+      sendScript(mutateUrl(host, datasetId).method(DELETE), deleteScript) { r =>
+        log.info("TODO: Handle errors from the data-coordinator")
+        f(r.asArray[JValue]())
+      }
     }
   }
 
@@ -159,6 +177,7 @@ trait DataCoordinatorClient {
     withHost(datasetId) { host =>
       val request = secondaryUrl(host, secondaryId, datasetId).get
       for (r <- internalHttpClient.execute(request)) yield {
+        log.info("TODO: Handle errors from the data-coordinator")
         val oVer = r.asValue[VersionReport]()
         oVer match {
           case Some(ver) => ver

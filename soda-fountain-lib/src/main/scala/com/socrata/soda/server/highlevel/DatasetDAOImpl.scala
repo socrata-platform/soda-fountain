@@ -120,6 +120,35 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         NotFound(dataset)
     }
 
+  def makeCopy(dataset: ResourceName, copyData: Boolean, schemaHash: Option[String]): Result =
+    store.translateResourceName(dataset) match {
+      case Some((datasetId, _)) =>
+        dc.copy(datasetId, schemaHash, copyData, user) { resultIt =>
+          WorkingCopyCreated
+        }
+      case None =>
+        NotFound(dataset)
+    }
+
+  def dropCurrentWorkingCopy(dataset: ResourceName, schemaHash: Option[String]): Result =
+    store.translateResourceName(dataset) match {
+      case Some((datasetId, _)) =>
+        dc.dropCopy(datasetId, schemaHash, user) { resultIt =>
+          WorkingCopyDropped
+        }
+      case None =>
+        NotFound(dataset)
+    }
+
+  def publish(dataset: ResourceName, schemaHash: Option[String], snapshotLimit: Option[Int]): Result =
+    store.translateResourceName(dataset) match {
+      case Some((datasetId, _)) =>
+        dc.publish(datasetId, schemaHash, snapshotLimit, user) { resultIt =>
+          WorkingCopyPublished
+        }
+      case None =>
+        NotFound(dataset)
+    }
 
   private[this] val _systemColumns = Seq(
     ColumnName(":id") -> ColumnSpec(ColumnId(":id"), ColumnName(":id"), ":id", "", SoQLID),
