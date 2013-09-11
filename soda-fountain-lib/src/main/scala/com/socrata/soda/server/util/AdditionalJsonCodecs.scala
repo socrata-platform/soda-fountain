@@ -1,4 +1,4 @@
-package com.socrata.soda.server.wiremodels
+package com.socrata.soda.server.util
 
 import com.rojoma.json.codec.JsonCodec
 import com.socrata.soql.environment.{TypeName, ColumnName}

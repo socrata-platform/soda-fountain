@@ -8,6 +8,7 @@ import com.socrata.soql.types.SoQLType
 import com.rojoma.json.ast.{JValue, JObject}
 import javax.servlet.http.HttpServletRequest
 
+import com.socrata.soda.server.util.AdditionalJsonCodecs
 import AdditionalJsonCodecs._
 import InputUtils._
 import com.socrata.soda.server.errors.{ColumnSpecMaltyped, ColumnSpecUnknownType}

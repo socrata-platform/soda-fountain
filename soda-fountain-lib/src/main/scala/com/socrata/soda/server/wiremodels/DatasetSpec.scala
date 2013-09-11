@@ -8,6 +8,7 @@ import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.ast.{JObject, JValue}
 import javax.servlet.http.HttpServletRequest
 
+import com.socrata.soda.server.util.AdditionalJsonCodecs
 import AdditionalJsonCodecs._
 import InputUtils._
 import com.socrata.soda.server.errors.DatasetSpecMaltyped
@@ -16,7 +17,7 @@ import com.socrata.soda.server.errors.DatasetSpecMaltyped
 case class DatasetSpec(resourceName: ResourceName,
                        name:String,
                        description: String,
-                       rowIdentifier:Option[ColumnName],
+                       rowIdentifier: ColumnName,
                        locale:String,
                        columns:Map[ColumnName, ColumnSpec])
 object DatasetSpec {
@@ -45,7 +46,7 @@ object DatasetSpec {
 case class UserProvidedDatasetSpec(resourceName: Option[ResourceName],
                                    name: Option[String],
                                    description: Option[String],
-                                   rowIdentifier: Option[Option[ColumnName]],
+                                   rowIdentifier: Option[ColumnName],
                                    locale: Option[Option[String]],
                                    columns: Option[Seq[UserProvidedColumnSpec]])
 
@@ -83,7 +84,7 @@ object UserProvidedDatasetSpec {
     def resourceName= e[ResourceName]("resource_name")
     def name = e[String]("name")
     def description = e[String]("description")
-    def rowId = e[Option[ColumnName]]("row_identifier")
+    def rowId = e[ColumnName]("row_identifier")
     def locale = e[Option[String]]("locale")
     def columns: ExtractResult[Option[Seq[UserProvidedColumnSpec]]] =
       e[Seq[JObject]]("columns") flatMap {

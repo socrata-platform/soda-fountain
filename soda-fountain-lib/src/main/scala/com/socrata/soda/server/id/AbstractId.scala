@@ -10,6 +10,15 @@ trait AbstractId {
 case class DatasetId(underlying: String) extends AbstractId {
   def nativeDataCoordinator = underlying.substring(0, underlying.lastIndexOf('.'))
 }
+object DatasetId {
+  implicit val jCodec = new JsonCodec[DatasetId] {
+    def encode(x: DatasetId): JValue = JString(x.underlying)
+    def decode(x: JValue): Option[DatasetId] = x match {
+      case JString(n) => Some(DatasetId(n))
+      case _ => None
+    }
+  }
+}
 
 case class ColumnId(underlying: String) extends AbstractId
 object ColumnId {
@@ -20,6 +29,9 @@ object ColumnId {
       case JString(n) => Some(ColumnId(n))
       case _ => None
     }
+  }
+  implicit val ordering = new Ordering[ColumnId] {
+    def compare(x: ColumnId, y: ColumnId): Int = x.underlying.compareTo(y.underlying)
   }
 }
 

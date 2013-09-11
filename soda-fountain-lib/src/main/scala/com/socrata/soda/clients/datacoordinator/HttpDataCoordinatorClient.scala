@@ -4,6 +4,7 @@ import com.socrata.http.client.{Response, RequestBuilder, HttpClient}
 import com.socrata.soda.server.id.{SecondaryId, DatasetId}
 import com.socrata.http.server.routing.HttpMethods
 import com.rojoma.json.ast.{JString, JArray, JValue}
+import com.socrata.soda.server.util.schema.SchemaSpec
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
   import DataCoordinatorClient._
@@ -42,7 +43,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       for (response <- httpClient.execute(request)) yield {
         if(response.resultCode == 200) {
           val result = response.asValue[SchemaSpec]()
-          if(!result.isDefined) throw new Exception("Unable to interpret response as a schemaspec?")
+          if(!result.isDefined) throw new Exception("Unable to interpret data coordinator's response for " + datasetId + " as a schemaspec?")
           result
         } else if(response.resultCode == 404) {
           None

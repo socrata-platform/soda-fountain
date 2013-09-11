@@ -9,11 +9,12 @@ import com.socrata.soql.brita.IdentifierFilter
 import DatasetDAO._
 import scala.util.{Success, Failure}
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.{SoQLFixedTimestamp, SoQLID, SoQLType}
+import com.socrata.soql.types.{SoQLVersion, SoQLFixedTimestamp, SoQLID, SoQLType}
 
 class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils, instanceForCreate: () => String) extends DatasetDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetDAOImpl])
   val defaultDescription = ""
+  val defaultPrimaryKey = ColumnName(":id")
   val defaultLocale = "en_US"
   def user = {
     log.info("Actually get user info from somewhere")
@@ -25,7 +26,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   def freezeForCreation(spec: UserProvidedDatasetSpec): Either[Result, DatasetSpec] = spec match {
     case UserProvidedDatasetSpec(Some(resourceName), Some(name), description, rowIdentifier, locale, columns) =>
       val trueDesc = description.getOrElse(defaultDescription)
-      val trueRID = rowIdentifier.flatten
+      val trueRID = rowIdentifier.getOrElse(defaultPrimaryKey)
       val trueLocale = locale.flatten.getOrElse(defaultLocale)
       val trueColumns = columns.getOrElse(Seq.empty).foldLeft(Map.empty[ColumnName, ColumnSpec]) { (acc, userColumnSpec) =>
         columnSpecUtils.freezeForCreation(acc.mapValues(_.id), userColumnSpec) match {
@@ -47,10 +48,19 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     if(!validResourceName(spec.resourceName)) return InvalidDatasetName(spec.resourceName)
     store.translateResourceName(spec.resourceName) match {
       case None =>
-        val addRidInstruction = spec.rowIdentifier.map { ridFieldName =>
-          if(!spec.columns.contains(ridFieldName)) return NonexistantColumn(ridFieldName)
-          new SetRowIdColumnInstruction(spec.columns(ridFieldName).id)
-        }
+        // sid col is a little painful; if it's ":id" we want to do NOTHING.
+        // If it's a system column OTHER THAN :id we want to add the set-row-id instruction but NOT look it up in the spec
+        // If it's anythign else we want to ensure it's in the spec AND issue the set-row-id-instruction
+        val ridFieldName = spec.rowIdentifier
+        val addRidInstruction =
+          if(ridFieldName == defaultPrimaryKey) {
+            Nil
+          } else if(systemColumns.contains(ridFieldName)) {
+            List(new SetRowIdColumnInstruction(systemColumns(ridFieldName).id))
+          } else {
+            if(!spec.columns.contains(ridFieldName)) return NonexistantColumn(ridFieldName)
+            List(new SetRowIdColumnInstruction(spec.columns(ridFieldName).id))
+          }
         // ok cool.  First send it upstream, then if that works stick it in the store.
         val columnInstructions = spec.columns.values.map { c => new AddColumnInstruction(c.datatype, c.fieldName.name, Some(c.id)) }
 
@@ -59,7 +69,16 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         val (datasetId, _) = dc.create(instanceForCreate(), user, Some(instructions.iterator), spec.locale)
 
         val trueSpec = spec.copy(columns = spec.columns ++ systemColumns)
-        store.addResource(trueSpec.asRecord(datasetId))
+        val record = trueSpec.asRecord(datasetId)
+
+        // sanity-check
+        locally {
+          val dcSchema = dc.getSchema(datasetId)
+          val mySchema = record.schemaSpec
+          assert(dcSchema == Some(mySchema), "Schema spec differs between DC and me!:\n" + dcSchema + "\n" + mySchema)
+        }
+
+        store.addResource(record)
         Created(trueSpec)
       case Some(_) =>
         DatasetAlreadyExists(spec.resourceName)
@@ -70,11 +89,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     store.translateResourceName(dataset) match {
       case None =>
         NotFound(dataset)
-      case Some((datasetId, schemaIsh)) =>
-        val oldLocale = log.info("TODO: Need to get the locale from somewhere")
+      case Some(datasetRecord) =>
         freezeForCreation(spec) match {
           case Right(frozenSpec) =>
-            if(oldLocale != frozenSpec.locale) return LocaleChanged
+            if(datasetRecord.locale != frozenSpec.locale) return LocaleChanged
             // ok.  What we need to do now is turn this into a list of operations to hand
             // off to the data coordinator and/or our database.  This will include:
             //  1. getting the current schema from the D.C. or cache
@@ -97,33 +115,24 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   def getDataset(dataset: ResourceName): Result =
     store.lookupDataset(dataset) match {
       case Some(datasetRecord) =>
-        // TODO: Figure out what happens in the event of inconsistency!!!
-        dc.getSchema(datasetRecord.systemId) match {
-          case Some(schemaSpec) =>
-            val spec = DatasetSpec(
-              datasetRecord.resourceName,
-              datasetRecord.name,
-              datasetRecord.description,
-              datasetRecord.columnsById.get(schemaSpec.pk).map(_.fieldName), // TODO this is one of the potential inconsistencies
-              schemaSpec.locale,
-              datasetRecord.columnsByName.mapValues { cr =>
-                ColumnSpec(cr.id, cr.fieldName, cr.name, cr.description, schemaSpec.schema(cr.id)) // TODO this is another
-              })
-            Found(spec)
-          case None =>
-            // this is one of those inconsistencies.
-            // we should probably delete the dataset.
-            // But for now just scream and die
-            throw new Exception("Cannot find " + datasetRecord.systemId + " (" + dataset + ") in data-coordinator?!")
-        }
+        val spec = DatasetSpec(
+          datasetRecord.resourceName,
+          datasetRecord.name,
+          datasetRecord.description,
+          datasetRecord.columnsById(datasetRecord.primaryKey).fieldName,
+          datasetRecord.locale,
+          datasetRecord.columnsByName.mapValues { cr =>
+            ColumnSpec(cr.id, cr.fieldName, cr.name, cr.description, cr.typ)
+          })
+        Found(spec)
       case None =>
         NotFound(dataset)
     }
 
   def makeCopy(dataset: ResourceName, copyData: Boolean): Result =
     store.translateResourceName(dataset) match {
-      case Some((datasetId, _)) =>
-        dc.copy(datasetId, copyData, user) { resultIt =>
+      case Some(datasetRecord) =>
+        dc.copy(datasetRecord.systemId, copyData, user) { resultIt =>
           WorkingCopyCreated
         }
       case None =>
@@ -132,8 +141,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def dropCurrentWorkingCopy(dataset: ResourceName): Result =
     store.translateResourceName(dataset) match {
-      case Some((datasetId, _)) =>
-        dc.dropCopy(datasetId, user) { resultIt =>
+      case Some(datasetRecord) =>
+        dc.dropCopy(datasetRecord.systemId, user) { resultIt =>
           WorkingCopyDropped
         }
       case None =>
@@ -142,16 +151,17 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def publish(dataset: ResourceName, snapshotLimit: Option[Int]): Result =
     store.translateResourceName(dataset) match {
-      case Some((datasetId, _)) =>
-        dc.publish(datasetId, snapshotLimit, user) { resultIt =>
+      case Some(datasetRecord) =>
+        dc.publish(datasetRecord.systemId, snapshotLimit, user) { resultIt =>
           WorkingCopyPublished
         }
       case None =>
         NotFound(dataset)
     }
 
-  private[this] val _systemColumns = Seq(
+  private[this] val _systemColumns = Map(
     ColumnName(":id") -> ColumnSpec(ColumnId(":id"), ColumnName(":id"), ":id", "", SoQLID),
+    ColumnName(":version") -> ColumnSpec(ColumnId(":version"), ColumnName(":version"), ":version", "", SoQLVersion),
     ColumnName(":created_at") -> ColumnSpec(ColumnId(":created_at"), ColumnName(":created_at"), ":created_at", "", SoQLFixedTimestamp),
     ColumnName(":updated_at") -> ColumnSpec(ColumnId(":updated_at"), ColumnName(":updated_at"), ":updated_at", "", SoQLFixedTimestamp)
   )
