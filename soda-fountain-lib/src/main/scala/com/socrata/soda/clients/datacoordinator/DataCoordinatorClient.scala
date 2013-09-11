@@ -23,9 +23,9 @@ trait DataCoordinatorClient {
              instructions: Option[Iterator[DataCoordinatorInstruction]],
              locale: String = "en_US") : (DatasetId, Iterable[JValue])
   def update[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Iterator[JValue] => T): T
-  def copy[T](datasetId: DatasetId, copyData: Boolean, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T
-  def publish[T](datasetId: DatasetId, snapshotLimit:Option[Int], user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T
-  def dropCopy[T](datasetId: DatasetId, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T
-  def deleteAllCopies[T](datasetId: DatasetId, schema: Option[String], user: String)(f: Iterator[JValue] => T): T
+  def copy[T](datasetId: DatasetId, schemaHash: String, copyData: Boolean, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T
+  def publish[T](datasetId: DatasetId, schemaHash: String, snapshotLimit:Option[Int], user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T
+  def dropCopy[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T
+  def deleteAllCopies[T](datasetId: DatasetId, schemaHash: String, user: String)(f: Iterator[JValue] => T): T
   def checkVersionInSecondary(datasetId: DatasetId, secondaryId: SecondaryId): VersionReport
 }

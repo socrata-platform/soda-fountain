@@ -132,7 +132,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   def makeCopy(dataset: ResourceName, copyData: Boolean): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.copy(datasetRecord.systemId, copyData, user) { resultIt =>
+        dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user) { resultIt =>
           WorkingCopyCreated
         }
       case None =>
@@ -142,7 +142,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   def dropCurrentWorkingCopy(dataset: ResourceName): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.dropCopy(datasetRecord.systemId, user) { resultIt =>
+        dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user) { resultIt =>
           WorkingCopyDropped
         }
       case None =>
@@ -152,7 +152,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   def publish(dataset: ResourceName, snapshotLimit: Option[Int]): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.publish(datasetRecord.systemId, snapshotLimit, user) { resultIt =>
+        dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user) { resultIt =>
           WorkingCopyPublished
         }
       case None =>

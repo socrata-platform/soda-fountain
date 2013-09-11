@@ -115,14 +115,8 @@ class MutationScript(
     out.flush()
   }
 
-  private def topLevelCommandBase(schema: Option[String]) = {
-    val base = Map( "c" -> JString(copyInstruction.command), "user" -> JString(user))
-    val baseAndSchema = schema match {
-      case Some(s) => base + ("schema" -> JString(s))
-      case None => base
-    }
-    baseAndSchema
-  }
+  private def topLevelCommandBase(schema: String) =
+    Map( "c" -> JString(copyInstruction.command), "user" -> JString(user), "schema" -> JString(schema))
 
   def topLevelCommand: Map[String, JValue] = {
     copyInstruction match {

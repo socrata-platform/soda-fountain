@@ -84,7 +84,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def update[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Iterator[JValue] => T): T = {
     log.info("TODO: update should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val updateScript = new MutationScript(user, UpdateDataset(Some(schemaHash)), instructions)
+      val updateScript = new MutationScript(user, UpdateDataset(schemaHash), instructions)
       sendScript(mutateUrl(host, datasetId), updateScript) { r =>
         log.info("TODO: Handle errors from the data-coordinator")
         log.info("TODO: particularly \"schema mismatch\"")
@@ -93,30 +93,30 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
-  def copy[T](datasetId: DatasetId, copyData: Boolean, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Iterator[JValue] => T): T = {
+  def copy[T](datasetId: DatasetId, schemaHash: String, copyData: Boolean, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Iterator[JValue] => T): T = {
     log.info("TODO: copy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val createScript = new MutationScript(user, CopyDataset(copyData, None), instructions)
+      val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash), instructions)
       sendScript(mutateUrl(host, datasetId), createScript) { r =>
         log.info("TODO: Handle errors from the data-coordinator")
         f(r.asArray[JValue]())
       }
     }
   }
-  def publish[T](datasetId: DatasetId, snapshotLimit:Option[Int], user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Iterator[JValue] => T): T = {
+  def publish[T](datasetId: DatasetId, schemaHash: String, snapshotLimit:Option[Int], user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Iterator[JValue] => T): T = {
     log.info("TODO: publish should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, None), instructions)
+      val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schemaHash), instructions)
       sendScript(mutateUrl(host, datasetId), pubScript) { r =>
         log.info("TODO: Handle errors from the data-coordinator")
         f(r.asArray[JValue]())
       }
     }
   }
-  def dropCopy[T](datasetId: DatasetId, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Iterator[JValue] => T): T = {
+  def dropCopy[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Iterator[JValue] => T): T = {
     log.info("TODO: dropCopy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val dropScript = new MutationScript(user, DropDataset(None), instructions)
+      val dropScript = new MutationScript(user, DropDataset(schemaHash), instructions)
       sendScript(mutateUrl(host, datasetId), dropScript) { r =>
         log.info("TODO: Handle errors from the data-coordinator")
         f(r.asArray[JValue]())
@@ -125,10 +125,10 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   }
 
   // Pretty sure this is completely wrong
-  def deleteAllCopies[T](datasetId: DatasetId, schema: Option[String], user: String)(f: Iterator[JValue] => T): T = {
+  def deleteAllCopies[T](datasetId: DatasetId, schemaHash: String, user: String)(f: Iterator[JValue] => T): T = {
     log.info("TODO: deleteAllCopies should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
-      val deleteScript = new MutationScript(user, DropDataset(schema), Iterator.empty)
+      val deleteScript = new MutationScript(user, DropDataset(schemaHash), Iterator.empty)
       sendScript(mutateUrl(host, datasetId).method(HttpMethods.DELETE), deleteScript) { r =>
         log.info("TODO: Handle errors from the data-coordinator")
         f(r.asArray[JValue]())
