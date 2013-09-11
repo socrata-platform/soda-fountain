@@ -10,6 +10,10 @@ object DataCoordinatorClient {
     implicit val codec = SimpleJsonCodecBuilder[VersionReport].build("version", _.version)
   }
   class VersionReport(val version: Long)
+
+  sealed abstract class Result
+  case class SchemaOutOfDate(newSchema: SchemaSpec) extends Result
+  case class Success(report: Iterator[JValue]) extends Result
 }
 
 trait DataCoordinatorClient {
@@ -22,10 +26,10 @@ trait DataCoordinatorClient {
              user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
              locale: String = "en_US") : (DatasetId, Iterable[JValue])
-  def update[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Iterator[JValue] => T): T
-  def copy[T](datasetId: DatasetId, schemaHash: String, copyData: Boolean, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T
-  def publish[T](datasetId: DatasetId, schemaHash: String, snapshotLimit:Option[Int], user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T
-  def dropCopy[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Iterator[JValue] => T): T
-  def deleteAllCopies[T](datasetId: DatasetId, schemaHash: String, user: String)(f: Iterator[JValue] => T): T
+  def update[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Result => T): T
+  def copy[T](datasetId: DatasetId, schemaHash: String, copyData: Boolean, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Result => T): T
+  def publish[T](datasetId: DatasetId, schemaHash: String, snapshotLimit:Option[Int], user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Result => T): T
+  def dropCopy[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Result => T): T
+  def deleteAllCopies[T](datasetId: DatasetId, schemaHash: String, user: String)(f: Result => T): T
   def checkVersionInSecondary(datasetId: DatasetId, secondaryId: SecondaryId): VersionReport
 }

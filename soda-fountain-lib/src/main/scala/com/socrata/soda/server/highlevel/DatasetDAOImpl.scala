@@ -87,8 +87,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def replaceOrCreateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result =
     store.translateResourceName(dataset) match {
-      case None =>
-        NotFound(dataset)
       case Some(datasetRecord) =>
         freezeForCreation(spec) match {
           case Right(frozenSpec) =>
@@ -106,6 +104,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           case Left(result) =>
             result
         }
+      case None =>
+        NotFound(dataset)
     }
 
   def updateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result = ???
@@ -132,8 +132,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   def makeCopy(dataset: ResourceName, copyData: Boolean): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user) { resultIt =>
-          WorkingCopyCreated
+        dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user) {
+          case DataCoordinatorClient.Success(_) => WorkingCopyCreated
         }
       case None =>
         NotFound(dataset)
@@ -142,8 +142,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   def dropCurrentWorkingCopy(dataset: ResourceName): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user) { resultIt =>
-          WorkingCopyDropped
+        dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user) {
+          case DataCoordinatorClient.Success(_) => WorkingCopyDropped
         }
       case None =>
         NotFound(dataset)
@@ -152,8 +152,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   def publish(dataset: ResourceName, snapshotLimit: Option[Int]): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user) { resultIt =>
-          WorkingCopyPublished
+        dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user) {
+          case DataCoordinatorClient.Success(_) => WorkingCopyPublished
         }
       case None =>
         NotFound(dataset)

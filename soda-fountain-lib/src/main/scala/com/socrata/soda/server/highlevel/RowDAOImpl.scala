@@ -106,8 +106,9 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         val trans = new RowDataTranslator(datasetRecord, ignoreUnknownColumns = false)
         val upserts = data.map(trans.convert)
         try {
-          dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ upserts) { result =>
-            f(StreamSuccess(result))
+          dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ upserts) {
+            case DataCoordinatorClient.Success(result) =>
+              f(StreamSuccess(result))
           }
         } catch {
           case UnknownColumnEx(col) =>
