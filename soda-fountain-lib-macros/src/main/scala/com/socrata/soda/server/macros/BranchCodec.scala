@@ -40,8 +40,6 @@ object BranchCodec {
       q"$expr.branch[$cls](${tag(cls)})(_root_.com.rojoma.json.util.AutomaticJsonCodecBuilder[$cls], _root_.scala.Predef.implicitly[_root_.scala.reflect.ClassTag[$cls]])"
     }
 
-    println(codecBuilderBuilt)
-
     c.Expr[SimpleHierarchyCodecBuilder[T]](codecBuilderBuilt)
   }
 }

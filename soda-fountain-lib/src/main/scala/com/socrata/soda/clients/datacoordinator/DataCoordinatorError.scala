@@ -7,12 +7,7 @@ import com.socrata.soda.server.util.schema.SchemaSpec
 import com.rojoma.json.ast.JValue
 
 sealed abstract class PossiblyUnknownDataCoordinatorError
-
 case class UnknownDataCoordinatorError(errorCode: String, data: Map[String, JValue]) extends PossiblyUnknownDataCoordinatorError
-object UnknownDataCoordinatorError {
-  implicit val jCodec = AutomaticJsonCodecBuilder[UnknownDataCoordinatorError]
-}
-
 sealed abstract class DataCoordinatorError extends PossiblyUnknownDataCoordinatorError
 
 @Tag("req.script.header.mismatched-schema")
@@ -21,8 +16,14 @@ case class SchemaMismatch(dataset: DatasetId, schema: SchemaSpec) extends DataCo
 @Tag("req.script.header.missing")
 case class EmptyCommandStream() extends DataCoordinatorError
 
+// Below this is the boring machinery that makes the above stuff work
+
 object DataCoordinatorError {
   implicit val jCodec = BranchCodec(SimpleHierarchyCodecBuilder[DataCoordinatorError](TagAndValue("errorCode", "data"))).build
+}
+
+object UnknownDataCoordinatorError {
+  implicit val jCodec = AutomaticJsonCodecBuilder[UnknownDataCoordinatorError]
 }
 
 object PossiblyUnknownDataCoordinatorError {
