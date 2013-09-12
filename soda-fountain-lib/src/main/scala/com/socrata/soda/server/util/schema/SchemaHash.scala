@@ -5,6 +5,7 @@ import com.socrata.soda.server.persistence.ColumnRecordLike
 import java.security.MessageDigest
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.Comparator
+import com.socrata.soql.types.SoQLType
 
 object SchemaHash {
   private val hexDigit = "0123456789abcdef".toCharArray
@@ -21,7 +22,7 @@ object SchemaHash {
     new String(cs)
   }
 
-  def computeHash(locale: String, pk: ColumnId, columns: Seq[ColumnRecordLike]): String = {
+  def computeHash(locale: String, pk: ColumnId, columns: TraversableOnce[(ColumnId, SoQLType)]): String = {
     val sha1 = MessageDigest.getInstance("SHA-1")
 
     sha1.update(locale.getBytes(UTF_8))
@@ -31,18 +32,23 @@ object SchemaHash {
     sha1.update(255.toByte)
 
     val cols = columns.toArray
-    java.util.Arrays.sort(cols, new Comparator[ColumnRecordLike] {
+    java.util.Arrays.sort(cols, new Comparator[(ColumnId, SoQLType)] {
       val o = Ordering[ColumnId]
-      def compare(a: ColumnRecordLike, b: ColumnRecordLike) =
-        o.compare(a.id, b.id)
+      def compare(a: (ColumnId, SoQLType), b: (ColumnId, SoQLType)) =
+        o.compare(a._1, b._1)
     })
-    for(col <- cols) {
-      sha1.update(col.id.underlying.getBytes(UTF_8))
+
+    for((id, typ) <- cols) {
+      sha1.update(id.underlying.getBytes(UTF_8))
       sha1.update(255.toByte)
-      sha1.update(col.typ.name.caseFolded.getBytes(UTF_8))
+      sha1.update(typ.name.caseFolded.getBytes(UTF_8))
       sha1.update(255.toByte)
     }
 
     hexString(sha1.digest())
+  }
+
+  def computeHash(locale: String, pk: ColumnId, columns: Seq[ColumnRecordLike]): String = {
+    computeHash(locale, pk, columns.iterator.map { cr => (cr.id, cr.typ) })
   }
 }

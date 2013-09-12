@@ -14,6 +14,8 @@ trait NameAndSchemaStore {
   def translateResourceName(resourceName: ResourceName): Option[MinimalDatasetRecord]
   def lookupDataset(resourceName: ResourceName): Option[DatasetRecord]
 
+  def resolveSchemaInconsistency(datasetId: DatasetId, newSchema: SchemaSpec)
+
   def addColumn(datasetId: DatasetId, columnSystemId: ColumnId, columnFieldName: ColumnName) : Unit
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnName, newFieldName: ColumnName) : Unit
   def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit
