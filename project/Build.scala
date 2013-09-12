@@ -15,7 +15,10 @@ object Build extends sbt.Build {
   private def p(name: String, settings: { def settings: Seq[Setting[_]] }, dependencies: ClasspathDep[ProjectReference]*) =
     Project(name, file(name)).settings(settings.settings : _*).dependsOn(dependencies: _*)
 
-  val sodaFountainLib = p("soda-fountain-lib", SodaFountainLib)
+  val sodaFountainLibMacros = p("soda-fountain-lib-macros", SodaFountainLibMacros)
+
+  val sodaFountainLib = p("soda-fountain-lib", SodaFountainLib,
+    sodaFountainLibMacros)
 
   val sodaFountainJetty = p("soda-fountain-jetty", SodaFountainJetty,
     sodaFountainLib)
