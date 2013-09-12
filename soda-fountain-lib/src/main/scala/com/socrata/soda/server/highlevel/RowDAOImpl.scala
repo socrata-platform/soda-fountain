@@ -109,6 +109,14 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ upserts) {
             case DataCoordinatorClient.Success(result) =>
               f(StreamSuccess(result))
+            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+              // hm, if we get schema out of date here, we're pretty much out of luck, since we'll
+              // have used up "upserts".  Unless we want to spool it to disk, but for something
+              // that SHOULD occur with only low probability that's pretty expensive.
+              //
+              // I guess we'll refresh our own schema and then toss an error to the user?
+              store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
+              f(SchemaOutOfSync)
           }
         } catch {
           case UnknownColumnEx(col) =>

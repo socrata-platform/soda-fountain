@@ -3,9 +3,11 @@ package com.socrata.soda.clients.datacoordinator
 import com.socrata.http.client.{Response, RequestBuilder, HttpClient}
 import com.socrata.soda.server.id.{SecondaryId, DatasetId}
 import com.socrata.http.server.routing.HttpMethods
-import com.rojoma.json.ast.{JString, JArray, JValue}
+import com.rojoma.json.ast.{JObject, JString, JArray, JValue}
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
+import com.rojoma.json.util.AutomaticJsonCodecBuilder
+import com.rojoma.json.codec.JsonCodec
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
   import DataCoordinatorClient._
@@ -60,12 +62,28 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   // TODO                                                                  TODO
   // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 
+  case class DCError(errorCode: String, data: Option[Map[String, JValue]])
+  object DCError {
+    implicit val jValue = AutomaticJsonCodecBuilder[DCError]
+  }
+
   protected def sendScript[T](rb: RequestBuilder, script: MutationScript)(f: Result => T): T = {
     val request = rb.json(script.it)
     for (r <- httpClient.execute(request)) yield {
       r.resultCode match {
         case HttpServletResponse.SC_OK =>
           f(Success(r.asArray[JValue]()))
+        case HttpServletResponse.SC_CONFLICT =>
+          r.asValue[DCError]() match {
+            case Some(DCError("req.script.header.mismatched-schema", Some(data))) =>
+              val schemaJson = data("schema")
+              f(SchemaOutOfDate(JsonCodec[SchemaSpec].decode(schemaJson).get))
+            case Some(DCError(e, _)) =>
+              log.info("TODO: Handle error " + e)
+              ???
+            case None =>
+              throw new Exception("Unable to decode error response from data coordinator")
+          }
         case other =>
           log.info("TODO: Handle errors from the data-coordinator")
           log.info("TODO: particularly \"schema mismatch\"")

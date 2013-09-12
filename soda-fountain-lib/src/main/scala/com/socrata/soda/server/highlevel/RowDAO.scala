@@ -22,4 +22,5 @@ object RowDAO {
   case object DeleteWithoutPrimaryKey extends UpsertResult
   case class MaltypedData(column: ColumnName, expected: SoQLType, got: JValue) extends UpsertResult
   case class RowNotAnObject(value: JValue) extends UpsertResult
+  case object SchemaOutOfSync extends UpsertResult
 }
