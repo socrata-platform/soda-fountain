@@ -10,6 +10,7 @@ import DatasetDAO._
 import scala.util.{Success, Failure}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLVersion, SoQLFixedTimestamp, SoQLID, SoQLType}
+import scala.util.control.ControlThrowable
 
 class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils, instanceForCreate: () => String) extends DatasetDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetDAOImpl])
@@ -129,34 +130,72 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         NotFound(dataset)
     }
 
+  class Retry extends ControlThrowable
+
+  def retryable[T](limit: Int /* does not include the initial try */)(f: => T): T = {
+    var count = 0
+    var done = false
+    var result: T = null.asInstanceOf[T]
+    do {
+      try {
+        result = f
+        done = true
+      } catch {
+        case _: Retry =>
+          count += 1
+          if(count > limit) throw new Exception("Retried too many times")
+      }
+    } while(!done)
+    result
+  }
+  def retry() = throw new Retry
+
   def makeCopy(dataset: ResourceName, copyData: Boolean): Result =
-    store.translateResourceName(dataset) match {
-      case Some(datasetRecord) =>
-        dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user) {
-          case DataCoordinatorClient.Success(_) => WorkingCopyCreated
-        }
-      case None =>
-        NotFound(dataset)
+    retryable(limit = 5) {
+      store.translateResourceName(dataset) match {
+        case Some(datasetRecord) =>
+          dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user) {
+            case DataCoordinatorClient.Success(_) =>
+              WorkingCopyCreated
+            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+              store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
+              retry()
+          }
+        case None =>
+          NotFound(dataset)
+      }
     }
 
   def dropCurrentWorkingCopy(dataset: ResourceName): Result =
-    store.translateResourceName(dataset) match {
-      case Some(datasetRecord) =>
-        dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user) {
-          case DataCoordinatorClient.Success(_) => WorkingCopyDropped
-        }
-      case None =>
-        NotFound(dataset)
+    retryable(limit = 5) {
+      store.translateResourceName(dataset) match {
+        case Some(datasetRecord) =>
+          dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user) {
+            case DataCoordinatorClient.Success(_) =>
+              WorkingCopyDropped
+            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+              store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
+              retry()
+          }
+        case None =>
+          NotFound(dataset)
+      }
     }
 
   def publish(dataset: ResourceName, snapshotLimit: Option[Int]): Result =
-    store.translateResourceName(dataset) match {
-      case Some(datasetRecord) =>
-        dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user) {
-          case DataCoordinatorClient.Success(_) => WorkingCopyPublished
-        }
-      case None =>
-        NotFound(dataset)
+    retryable(limit = 5) {
+      store.translateResourceName(dataset) match {
+        case Some(datasetRecord) =>
+          dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user) {
+            case DataCoordinatorClient.Success(_) =>
+              WorkingCopyPublished
+            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+              store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
+              retry()
+          }
+        case None =>
+          NotFound(dataset)
+      }
     }
 
   private[this] val _systemColumns = Map(

@@ -62,32 +62,21 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   // TODO                                                                  TODO
   // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 
-  case class DCError(errorCode: String, data: Option[Map[String, JValue]])
-  object DCError {
-    implicit val jValue = AutomaticJsonCodecBuilder[DCError]
-  }
-
   protected def sendScript[T](rb: RequestBuilder, script: MutationScript)(f: Result => T): T = {
     val request = rb.json(script.it)
     for (r <- httpClient.execute(request)) yield {
       r.resultCode match {
         case HttpServletResponse.SC_OK =>
           f(Success(r.asArray[JValue]()))
-        case HttpServletResponse.SC_CONFLICT =>
-          r.asValue[DCError]() match {
-            case Some(DCError("req.script.header.mismatched-schema", Some(data))) =>
-              val schemaJson = data("schema")
-              f(SchemaOutOfDate(JsonCodec[SchemaSpec].decode(schemaJson).get))
-            case Some(DCError(e, _)) =>
-              log.info("TODO: Handle error " + e)
-              ???
-            case None =>
-              throw new Exception("Unable to decode error response from data coordinator")
+        case _ =>
+          r.asValue[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")) match {
+            case SchemaMismatch(_, schema) =>
+              f(SchemaOutOfDate(schema))
+            case UnknownDataCoordinatorError(code, data) =>
+              log.error("Unknown data coordinator error " + code)
+              log.error("Aux info: " + data)
+              throw new Exception("Unknown data coordinator error " + code)
           }
-        case other =>
-          log.info("TODO: Handle errors from the data-coordinator")
-          log.info("TODO: particularly \"schema mismatch\"")
-          ???
       }
     }
   }
