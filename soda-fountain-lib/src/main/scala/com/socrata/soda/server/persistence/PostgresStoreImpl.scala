@@ -42,7 +42,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   def lookupDataset(resourceName: ResourceName): Option[DatasetRecord] =
     using(dataSource.getConnection()) { conn =>
       conn.setAutoCommit(false)
-      using(conn.prepareStatement("select resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id, from datasets where resource_name_casefolded = ?")) { dsQuery =>
+      using(conn.prepareStatement("select resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id from datasets where resource_name_casefolded = ?")) { dsQuery =>
         dsQuery.setString(1, resourceName.caseFolded)
         using(dsQuery.executeQuery()) { dsResult =>
           if(dsResult.next()) {
