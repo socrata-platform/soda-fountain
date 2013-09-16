@@ -19,11 +19,12 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def mutateUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
   def schemaUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "schema")
   def secondaryUrl(host: RequestBuilder, secondaryId: SecondaryId, datasetId: DatasetId) = host.p("secondary-manifest", secondaryId.underlying, datasetId.underlying)
+  def exportUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
 
   def withHost[T](instance: String)(f: RequestBuilder => T): T =
     hostO(instance) match {
       case Some(host) => f(host)
-      case None => throw new Exception("could not connect to data coordinator")
+      case None => throw new Exception("could not find data coordinator")
     }
 
   def withHost[T](datasetId: DatasetId)(f: RequestBuilder => T): T =
@@ -146,6 +147,17 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
           case Some(ver) => ver
           case None => throw new Exception("version not found")
         }
+      }
+    }
+  }
+
+  def export[T](datasetId: DatasetId, schemaHash: String)(f: Result => T): T = {
+    log.info("TODO TODO TODO send the schema-hash and handle the mismatches")
+    withHost(datasetId) { host =>
+      val request = exportUrl(host, datasetId).get
+      for(r <- httpClient.execute(request)) yield {
+        log.info("TODO: Handle errors from the data-coordinator")
+        f(Success(r.asArray[JValue]()))
       }
     }
   }
