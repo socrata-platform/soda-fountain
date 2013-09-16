@@ -12,6 +12,7 @@ import com.rojoma.simplearm.util._
 import com.rojoma.json.ast.JString
 import com.rojoma.json.io.CompactJsonWriter
 import com.socrata.soda.server.wiremodels.{CsvColumnRep, CsvColumnWriteRep, JsonColumnRep, JsonColumnWriteRep}
+import java.io.BufferedWriter
 
 case class Export(exportDAO: ExportDAO) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Export])
@@ -21,7 +22,10 @@ case class Export(exportDAO: ExportDAO) {
   def jsonExporter(resp: HttpServletResponse, schema: Seq[ExportDAO.ColumnInfo], rows: Iterator[Array[SoQLValue]]) {
     log.info("TODO: Negotiate charset")
     resp.setContentType(SodaUtils.jsonContentTypeUtf8)
-    using(resp.getWriter) { w =>
+    for {
+      rawWriter <- managed(resp.getWriter)
+      w <- managed(new BufferedWriter(rawWriter, 65536))
+    } {
       class Processor {
         val writer = w
         val jsonWriter = new CompactJsonWriter(writer)
