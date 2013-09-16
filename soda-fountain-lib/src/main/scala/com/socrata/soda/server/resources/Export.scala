@@ -68,35 +68,45 @@ case class Export(exportDAO: ExportDAO) {
   def csvExporter(resp: HttpServletResponse, schema: Seq[ExportDAO.ColumnInfo], rows: Iterator[Array[SoQLValue]]) {
     log.info("TODO: Negotiate charset")
     resp.setContentType("text/csv; charset=utf-8")
-    using(resp.getWriter) { w =>
+    for {
+      rawWriter <- managed(resp.getWriter)
+      w <- managed(new BufferedWriter(rawWriter, 65536))
+    } yield {
       class Processor {
         val writer = w
         val reps: Array[CsvColumnWriteRep] = schema.map { f => CsvColumnRep.forType(f.typ) }.toArray
         val sb = new java.lang.StringBuilder
 
-        def writeCSVRow(row: Array[String]) {
-          sb.setLength(0)
-          var i = 0
-          while(i != row.length) {
-            val cell = row(i)
-            if(cell != null) {
-              sb.append('"')
-              var j = 0
-              while(j != cell.length) {
-                val c = cell.charAt(j)
-                if(c == '"') sb.append(c)
-                sb.append(c)
-                j += 1
-              }
-              sb.append('"')
+        // somewhat surprisingly, writing cells into a stringbuilder and then
+        // dumping the result to the writer is slightly faster than writing
+        // straight to the writer, even though it's a BufferedWriter.
+        def writeCell(cell: String) {
+          if(cell != null) {
+            sb.setLength(0)
+            sb.append('"')
+            var j = 0
+            while(j != cell.length) {
+              val c = cell.charAt(j)
+              if(c == '"') sb.append(c)
+              sb.append(c)
+              j += 1
             }
-
-            sb.append(',')
-            i += 1
+            sb.append('"')
+            writer.write(sb.toString)
           }
-          if(i != 0) sb.setLength(sb.length - 1) // remove last comma
-          sb.append('\n')
-          writer.write(sb.toString)
+        }
+
+        def writeCSVRow(row: Array[String]) {
+          if(row.length != 0) {
+            writeCell(row(0))
+            var i = 1
+            while(i != row.length) {
+              writer.write(',')
+              writeCell(row(i))
+              i += 1
+            }
+          }
+          writer.write('\n')
         }
 
         def convertInto(out: Array[String], row: Array[SoQLValue]) {
