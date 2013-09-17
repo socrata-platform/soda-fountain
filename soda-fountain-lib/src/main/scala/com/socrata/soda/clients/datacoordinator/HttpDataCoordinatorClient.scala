@@ -63,14 +63,22 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   // TODO                                                                  TODO
   // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 
+  def errorFrom[T](r: Response): Option[PossiblyUnknownDataCoordinatorError] =
+    r.resultCode match {
+      case HttpServletResponse.SC_OK =>
+        None
+      case _ =>
+        Some(r.asValue[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")))
+    }
+
   protected def sendScript[T](rb: RequestBuilder, script: MutationScript)(f: Result => T): T = {
     val request = rb.json(script.it)
     for (r <- httpClient.execute(request)) yield {
-      r.resultCode match {
-        case HttpServletResponse.SC_OK =>
+      errorFrom(r) match {
+        case None =>
           f(Success(r.asArray[JValue]()))
-        case _ =>
-          r.asValue[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")) match {
+        case Some(err) =>
+          err match {
             case SchemaMismatch(_, schema) =>
               f(SchemaOutOfDate(schema))
             case UnknownDataCoordinatorError(code, data) =>
@@ -152,12 +160,18 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   }
 
   def export[T](datasetId: DatasetId, schemaHash: String)(f: Result => T): T = {
-    log.info("TODO TODO TODO send the schema-hash and handle the mismatches")
     withHost(datasetId) { host =>
-      val request = exportUrl(host, datasetId).get
+      val request = exportUrl(host, datasetId).q("schemaHash" -> schemaHash).get
       for(r <- httpClient.execute(request)) yield {
-        log.info("TODO: Handle errors from the data-coordinator")
-        f(Success(r.asArray[JValue]()))
+        errorFrom(r) match {
+          case None =>
+            f(Success(r.asArray[JValue]()))
+          case Some(err) =>
+            err match {
+              case SchemaMismatchForExport(_, newSchema) =>
+                f(SchemaOutOfDate(newSchema))
+            }
+        }
       }
     }
   }

@@ -13,6 +13,9 @@ sealed abstract class DataCoordinatorError extends PossiblyUnknownDataCoordinato
 @Tag("req.script.header.mismatched-schema")
 case class SchemaMismatch(dataset: DatasetId, schema: SchemaSpec) extends DataCoordinatorError
 
+@Tag("req.export.mismatched-schema")
+case class SchemaMismatchForExport(dataset: DatasetId, schema: SchemaSpec) extends DataCoordinatorError
+
 @Tag("req.script.header.missing")
 case class EmptyCommandStream() extends DataCoordinatorError
 

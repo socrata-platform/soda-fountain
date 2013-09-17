@@ -11,6 +11,7 @@ import com.rojoma.json.codec.JsonCodec
 import scala.runtime.AbstractFunction1
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnReadRep}
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
+import scala.util.control.ControlThrowable
 
 object CJson {
   case class Field(c: ColumnId, t: SoQLType)
@@ -60,21 +61,44 @@ object CJson {
 }
 
 class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extends ExportDAO {
+
+  class Retry extends ControlThrowable
+
+  def retryable[T](limit: Int /* does not include the initial try */)(f: => T): T = {
+    var count = 0
+    var done = false
+    var result: T = null.asInstanceOf[T]
+    do {
+      try {
+        result = f
+        done = true
+      } catch {
+        case _: Retry =>
+          count += 1
+          if(count > limit) throw new Exception("Retried too many times")
+      }
+    } while(!done)
+    result
+  }
+  def retry() = throw new Retry
+
   def export[T](dataset: ResourceName)(f: ExportDAO.Result => T): T =
-    store.lookupDataset(dataset) match {
-      case Some(ds) =>
-        dc.export(ds.systemId, ds.schemaHash) {
-          case DataCoordinatorClient.Success(jvalues) =>
-            CJson.decode(jvalues) match {
-              case CJson.Decoded(schema, rows) =>
-                val simpleSchema = schema.schema.map { f => ColumnInfo(ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t) }
-                f(ExportDAO.Success(simpleSchema, rows))
-            }
-          case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
-            store.resolveSchemaInconsistency(ds.systemId, newSchema)
-            export(dataset)(f)
-        }
-      case None =>
-        f(ExportDAO.NotFound)
+    retryable(limit = 5) {
+      store.lookupDataset(dataset) match {
+        case Some(ds) =>
+          dc.export(ds.systemId, ds.schemaHash) {
+            case DataCoordinatorClient.Success(jvalues) =>
+              CJson.decode(jvalues) match {
+                case CJson.Decoded(schema, rows) =>
+                  val simpleSchema = schema.schema.map { f => ColumnInfo(ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t) }
+                  f(ExportDAO.Success(simpleSchema, rows))
+              }
+            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+              store.resolveSchemaInconsistency(ds.systemId, newSchema)
+              retry()
+          }
+        case None =>
+          f(ExportDAO.NotFound)
+      }
     }
 }
