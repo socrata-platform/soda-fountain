@@ -3,17 +3,14 @@ package com.socrata.soda.server.services
 import org.scalatest.FunSuite
 import org.scalatest.matchers.MustMatchers
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
-import java.io.StringReader
-import com.socrata.soda.server.services.ClientRequestExtractor._
 import com.rojoma.json.util.JsonUtil
 import com.rojoma.json.ast.JObject
-import com.socrata.soda.server.services.ClientRequestExtractor.IOProblem
-import com.socrata.soda.server.services.ClientRequestExtractor.Extracted
+import com.socrata.soda.server.wiremodels._
 
 class DatasetExtractorTest extends FunSuite with MustMatchers {
   def normalizeWhitespace(fixture: String): String = CompactJsonWriter.toString(JsonReader(fixture).read())
 
-  def extract(input: String) = UserProvidedDatasetSpec(JsonUtil.parseJson[JObject](input).get)
+  def extract(input: String) = UserProvidedDatasetSpec.fromObject(JsonUtil.parseJson[JObject](input).get)
 
   //TODO: enable these tests with a mock http request
   /*

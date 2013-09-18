@@ -17,7 +17,10 @@ object SodaFountainLib {
       "com.socrata" %% "socrata-http-client" % "2.0.0-SNAPSHOT",
       "com.typesafe" % "config" % "1.0.2",
       "com.netflix.curator" % "curator-x-discovery" % "1.3.3",
-      "postgresql" % "postgresql" % "9.1-901-1.jdbc4"
+      "postgresql" % "postgresql" % "9.1-901-1.jdbc4",
+      "org.scalacheck" %% "scalacheck" % "1.10.0" % "test,it",
+      "org.scalatest" %% "scalatest" % "1.9.1" % "test,it",
+      "net.databinder.dispatch" %% "dispatch-core" % "0.10.0" % "it"
     )
   )
 

@@ -3,11 +3,12 @@ import java.io._
 import com.rojoma.json.ast.JString
 import com.socrata.soql.types.SoQLType
 import com.socrata.soql.environment.TypeName
-import com.socrata.soda.server.types.ColumnId
+import com.socrata.soda.server.id.ColumnId
+import com.socrata.soda.clients.datacoordinator._
 
 class MutationScriptTest extends DataCoordinatorClientTest {
 
-  val fakeSchemaHash = None
+  val schemaString = "change me to the schema"
   val numberType = SoQLType.typesByName(TypeName("number"))
   val columnId = Some(ColumnId("a column id"))
   val hint = "a hint"
@@ -19,7 +20,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script compiles and runs"){
-    val mc = new MutationScript("Daniel the tester", UpdateDataset(fakeSchemaHash), Array().iterator)
+    val mc = new MutationScript("Daniel the tester", UpdateDataset(schemaString), Array().iterator)
     val expected = """[{c:'normal',  user:'Daniel the tester'}]""".stripMargin
     testCompare(mc, expected)
   }
@@ -28,7 +29,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val cm = new AddColumnInstruction(numberType, hint, columnId)
     val mc = new MutationScript(
       "Daniel the tester",
-      UpdateDataset(fakeSchemaHash),
+      UpdateDataset(schemaString),
       Array(cm).iterator)
     val expected =
       """[
@@ -42,7 +43,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val ru = new UpsertRow(Map("a" -> JString("aaa"), "b" -> JString("bbb")))
     val mc = new MutationScript(
       "Daniel the tester",
-      UpdateDataset(fakeSchemaHash),
+      UpdateDataset(schemaString),
       Array(ru).iterator)
     val expected =
       """[
@@ -54,16 +55,16 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a row delete"){
-    val ru = new DeleteRow(Left("aaa"))
+    val ru = new DeleteRow(new JString("row id string"))
     val mc = new MutationScript(
       "Daniel the tester",
-      UpdateDataset(fakeSchemaHash),
+      UpdateDataset(schemaString),
       Array(ru).iterator)
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester'},
         | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
-        | ['aaa']
+        | ['row id string']
         |]""".stripMargin
     testCompare(mc, expected)
   }
@@ -73,7 +74,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val ru = new UpsertRow(Map("a" -> JString("aaa"), "b" -> JString("bbb")))
     val mc = new MutationScript(
       "Daniel the tester",
-      UpdateDataset(fakeSchemaHash),
+      UpdateDataset(schemaString),
       Array(cm, ru).iterator)
     val expected =
       """[
@@ -90,7 +91,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val cm = new AddColumnInstruction(numberType, hint, columnId)
     val mc = new MutationScript(
       "Daniel the tester",
-      UpdateDataset(fakeSchemaHash),
+      UpdateDataset(schemaString),
       Array(ru, cm).iterator)
     val expected =
       """[
@@ -108,7 +109,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val ru = new UpsertRow(Map("a" -> JString("aaa")))
     val mc = new MutationScript(
       "Daniel the tester",
-      UpdateDataset(fakeSchemaHash),
+      UpdateDataset(schemaString),
       Array(roc, ru).iterator)
     val expected =
       """[
@@ -125,7 +126,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val ru = new UpsertRow(Map("a" -> JString("aaa")))
     val mc = new MutationScript(
       "Daniel the tester",
-      UpdateDataset(fakeSchemaHash),
+      UpdateDataset(schemaString),
       Array(roc1,roc2,ru).iterator)
     val expected =
       """[

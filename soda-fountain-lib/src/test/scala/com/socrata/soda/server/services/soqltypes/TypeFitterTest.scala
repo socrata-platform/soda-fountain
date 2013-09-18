@@ -2,11 +2,11 @@ package com.socrata.soda.server.services.soqltypes
 
 import org.scalatest.matchers.MustMatchers
 import org.scalatest.FunSuite
-import com.socrata.soda.server.types.TypeChecker
 import com.rojoma.json.ast._
 import com.socrata.soql.types._
 import org.joda.time._
 import com.rojoma.json.ast.JString
+import com.socrata.soda.server.highlevel.TypeChecker
 
 class TypeFitterTest extends FunSuite with MustMatchers {
 

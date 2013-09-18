@@ -1,9 +1,8 @@
 package com.socrata.datacoordinator.client
-import org.scalatest.matchers.MustMatchers
-import org.scalatest.FunSuite
 import com.socrata.soql.types.SoQLType
-import com.socrata.soql.environment.{ColumnName, TypeName}
-import com.socrata.soda.server.types.ColumnId
+import com.socrata.soql.environment._
+import com.socrata.soda.server.id.ColumnId
+import com.socrata.soda.clients.datacoordinator._
 
 class ColumnMutationTest extends DataCoordinatorClientTest {
 

@@ -7,8 +7,6 @@ import org.scalatest.matchers.MustMatchers
 import com.rojoma.json.ast._
 import dispatch._
 import scala.concurrent.ExecutionContext.Implicits.global
-import com.socrata.soda.server.mocks.{MockDaos, LocalDataCoordinator, MockNameAndSchemaStore}
-import com.socrata.querycoordinator.client.LocalQueryCoordinatorClient
 import com.ning.http.client.RequestBuilder
 
 trait IntegrationTestHelpers {
@@ -40,8 +38,6 @@ trait IntegrationTestHelpers {
       case Left(thr) => throw thr
     }
   }
-
-  val fountain = new SodaFountain with MockNameAndSchemaStore with LocalDataCoordinator with LocalQueryCoordinatorClient with MockDaos
 
   private def requestVersionInSecondaryStore(resourceName: String) = {
     val response = dispatch("GET", "dataset-version", Some(resourceName), Some("es"), None, None)
