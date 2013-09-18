@@ -9,7 +9,7 @@ import com.socrata.soql.types.SoQLValue
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 import com.socrata.soda.server.SodaUtils
 import com.rojoma.simplearm.util._
-import com.rojoma.json.ast.JString
+import com.rojoma.json.ast.{JNull, JString}
 import com.rojoma.json.io.CompactJsonWriter
 import com.socrata.soda.server.wiremodels.{CsvColumnRep, CsvColumnWriteRep, JsonColumnRep, JsonColumnWriteRep}
 import java.io.BufferedWriter
@@ -49,18 +49,18 @@ case class Export(exportDAO: ExportDAO) {
 
           def writeJsonRow(row: Array[SoQLValue]) {
             writer.write('{')
-            if(row.length != 0) {
-              writer.write(names(0))
-              writer.write(':')
-              jsonWriter.write(reps(0).toJValue(row(0)))
-              var i = 1
-              while(i != row.length) {
-                writer.write(',')
+            var didOne = false
+            var i = 0
+            while(i != row.length) {
+              val jsonized = reps(i).toJValue(row(i))
+              if(JNull != jsonized) {
+                if(didOne) writer.write(',')
+                else didOne = true
                 writer.write(names(i))
                 writer.write(':')
                 jsonWriter.write(reps(i).toJValue(row(i)))
-                i += 1
               }
+              i += 1
             }
             writer.write('}')
           }
