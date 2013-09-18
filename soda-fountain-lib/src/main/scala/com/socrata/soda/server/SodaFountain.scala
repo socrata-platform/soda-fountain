@@ -11,7 +11,7 @@ import org.apache.log4j.PropertyConfigurator
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.HttpResponse
-import com.socrata.soda.server.highlevel.{RowDAOImpl, ColumnSpecUtils, DatasetDAOImpl}
+import com.socrata.soda.server.highlevel.{ExportDAOImpl, RowDAOImpl, ColumnSpecUtils, DatasetDAOImpl}
 import java.security.SecureRandom
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
@@ -131,6 +131,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
   val columnDAO = null
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
+  val exportDAO = i(new ExportDAOImpl(store, dc))
 
   val router = i {
     import com.socrata.soda.server.resources._
@@ -138,6 +139,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     val resource = Resource(rowDAO, config.maxDatumSize) // TODO: this should probably be a different max size value
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
     val column = DatasetColumn(columnDAO, config.maxDatumSize)
+    val export = Export(exportDAO)
 
     new SodaRouter(
       datasetColumnResource = column.service,
@@ -146,7 +148,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       resourceResource = resource.service,
       resourceRowResource = resource.rowService,
       datasetCopyResource = dataset.copyService,
-      versionResource = Version.service
+      versionResource = Version.service,
+      datasetExportResource = export.service,
+      exportExtensions = export.extensions
     )
   }
 

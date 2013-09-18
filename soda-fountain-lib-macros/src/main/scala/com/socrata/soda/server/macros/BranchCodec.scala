@@ -36,8 +36,8 @@ object BranchCodec {
 
     val classes = weakTypeOf[T].typeSymbol.asClass.knownDirectSubclasses
     if(classes.isEmpty) c.abort(c.enclosingPosition, "No known subclasses of " + weakTypeOf[T] + "; did you forget \"sealed\"?")
-    val codecBuilderBuilt = classes.foldLeft(q"$codecBuilder") { (expr, cls) =>
-      q"$expr.branch[$cls](${tag(cls)})(_root_.com.rojoma.json.util.AutomaticJsonCodecBuilder[$cls], _root_.scala.Predef.implicitly[_root_.scala.reflect.ClassTag[$cls]])"
+    val codecBuilderBuilt = classes.foldLeft(codecBuilder.tree) { (expr, cls) =>
+      q"$expr.branch[$cls](${tag(cls)})(_root_.com.rojoma.json.util.AutomaticJsonCodecBuilder[$cls], _root_.scala.Predef.implicitly)"
     }
 
     c.Expr[SimpleHierarchyCodecBuilder[T]](codecBuilderBuilt)

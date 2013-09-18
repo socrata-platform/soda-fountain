@@ -19,11 +19,12 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def mutateUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
   def schemaUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "schema")
   def secondaryUrl(host: RequestBuilder, secondaryId: SecondaryId, datasetId: DatasetId) = host.p("secondary-manifest", secondaryId.underlying, datasetId.underlying)
+  def exportUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
 
   def withHost[T](instance: String)(f: RequestBuilder => T): T =
     hostO(instance) match {
       case Some(host) => f(host)
-      case None => throw new Exception("could not connect to data coordinator")
+      case None => throw new Exception("could not find data coordinator")
     }
 
   def withHost[T](datasetId: DatasetId)(f: RequestBuilder => T): T =
@@ -62,14 +63,22 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   // TODO                                                                  TODO
   // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 
+  def errorFrom[T](r: Response): Option[PossiblyUnknownDataCoordinatorError] =
+    r.resultCode match {
+      case HttpServletResponse.SC_OK =>
+        None
+      case _ =>
+        Some(r.asValue[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")))
+    }
+
   protected def sendScript[T](rb: RequestBuilder, script: MutationScript)(f: Result => T): T = {
     val request = rb.json(script.it)
     for (r <- httpClient.execute(request)) yield {
-      r.resultCode match {
-        case HttpServletResponse.SC_OK =>
+      errorFrom(r) match {
+        case None =>
           f(Success(r.asArray[JValue]()))
-        case _ =>
-          r.asValue[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")) match {
+        case Some(err) =>
+          err match {
             case SchemaMismatch(_, schema) =>
               f(SchemaOutOfDate(schema))
             case UnknownDataCoordinatorError(code, data) =>
@@ -145,6 +154,23 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         oVer match {
           case Some(ver) => ver
           case None => throw new Exception("version not found")
+        }
+      }
+    }
+  }
+
+  def export[T](datasetId: DatasetId, schemaHash: String)(f: Result => T): T = {
+    withHost(datasetId) { host =>
+      val request = exportUrl(host, datasetId).q("schemaHash" -> schemaHash).get
+      for(r <- httpClient.execute(request)) yield {
+        errorFrom(r) match {
+          case None =>
+            f(Success(r.asArray[JValue]()))
+          case Some(err) =>
+            err match {
+              case SchemaMismatchForExport(_, newSchema) =>
+                f(SchemaOutOfDate(newSchema))
+            }
         }
       }
     }

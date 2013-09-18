@@ -4,18 +4,11 @@ import com.socrata.soql.types._
 import com.rojoma.json.ast._
 import com.rojoma.json.ast.JString
 import org.joda.time.DateTime
-import com.socrata.soql.types.obfuscation.CryptProvider
+import com.socrata.soda.server.wiremodels.JsonColumnRep
 
 object TypeChecker {
-  // this is used to en/decrypt row IDs and values.  The key DOESN'T MATTER,
-  // because this system doesn't care about the actual values in a SoQLID or
-  // a SoQLValue; it just cares that it can recognize and reproduce them.
-  //
-  // It would be better to not care about the decrypted values at all, but alas
-  // that is not how SoQLID and SoQLVersion work.
-  private[this] val cryptProvider = new CryptProvider(Array[Byte](0))
-  private[this] val IdStringRep = new SoQLID.StringRep(cryptProvider)
-  private[this] val VersionStringRep = new SoQLVersion.StringRep(cryptProvider)
+  private[this] val IdStringRep = JsonColumnRep.IdStringRep
+  private[this] val VersionStringRep = JsonColumnRep.VersionStringRep
 
   case class Error(expected: SoQLType, got: JValue)
 

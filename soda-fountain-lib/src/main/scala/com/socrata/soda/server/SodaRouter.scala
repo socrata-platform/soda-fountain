@@ -7,7 +7,7 @@ import com.socrata.soda.server.errors.GeneralNotFoundError
 import com.socrata.http.server.routing.SimpleRouteContext._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.id.{SecondaryId, ResourceName}
-import com.socrata.http.server.routing.Extractor
+import com.socrata.http.server.routing.{OptionallyTypedPathComponent, Extractor}
 
 class SodaRouter(versionResource: HttpService,
                  datasetCreateResource: HttpService,
@@ -15,7 +15,9 @@ class SodaRouter(versionResource: HttpService,
                  datasetColumnResource: (ResourceName, ColumnName) => HttpService,
                  resourceResource: ResourceName => HttpService,
                  resourceRowResource: (ResourceName, String) => HttpService,
-                 datasetCopyResource: ResourceName => HttpService)
+                 datasetCopyResource: ResourceName => HttpService,
+                 datasetExportResource: OptionallyTypedPathComponent[ResourceName] => HttpService,
+                 exportExtensions: String => Boolean)
 {
   private[this] implicit val ResourceNameExtractor = new Extractor[ResourceName] {
     def extract(s: String): Option[ResourceName] = Some(new ResourceName(s))
@@ -38,7 +40,8 @@ class SodaRouter(versionResource: HttpService,
     Directory("/resource"),
     Route("/resource/{ResourceName}", resourceResource),
     Route("/resource/{ResourceName}/?", resourceRowResource),
-    Route("/dataset-copy/{ResourceName}", datasetCopyResource)
+    Route("/dataset-copy/{ResourceName}", datasetCopyResource),
+    Route("/export/{{ResourceName:exportExtensions}}", datasetExportResource)
   )
 
   def route(req: HttpServletRequest): HttpResponse =
