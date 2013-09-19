@@ -3,7 +3,7 @@ package com.socrata.soda.server.end2end
 import com.socrata.soda.server._
 import com.rojoma.json.ast._
 
-class ResourceOperationsEndToEndTest extends IntegrationTest with IntegrationTestHelpers {
+class ResourceOperationsEndToEndTest extends SodaFountainIntegrationTest with IntegrationTestHelpers {
 
   val ct = System.currentTimeMillis
   val resourceOpDataset = "soda-resource-functions-end-to-end-" + ct
@@ -20,11 +20,11 @@ class ResourceOperationsEndToEndTest extends IntegrationTest with IntegrationTes
       ))
     ))
     val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
-    if (cResponse.getStatusCode != 200) throw new Exception( "create failed with " + cResponse.getStatusText + " " + cResponse.getResponseBody)
+    if (cResponse.resultCode != 200) throw new Exception( "create failed with " + cResponse.resultCode + " " + readBody(cResponse))
 
     //publish
     val pResponse = dispatch("PUT", "dataset-copy", Some(resourceOpDataset), None, None, None)
-    if (pResponse.getStatusCode != 200) throw new Exception( "publish failed with " + pResponse.getStatusText + " " + pResponse.getResponseBody)
+    if (pResponse.resultCode != 200) throw new Exception( "publish failed with " + pResponse.resultCode + " " + readBody(pResponse))
     val v1 = getVersionInSecondaryStore(resourceOpDataset)
 
     //upsert
@@ -33,17 +33,17 @@ class ResourceOperationsEndToEndTest extends IntegrationTest with IntegrationTes
       JObject(Map(("col_id"->JNumber(2)), ("col_text"->JString("row 2"))))
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceOpDataset), None, None,  Some(uBody))
-    //uResponse.getResponseBody must equal ("{rows inserted}")
-    uResponse.getStatusCode must equal (200)
+    //readBody(uResponse)must equal ("{rows inserted}")
+    uResponse.resultCode must equal (200)
 
     //query
     waitForSecondaryStoreUpdate(resourceOpDataset, v1)
     val params = Map(("$query" -> "select *"))
     val qResponse = dispatch("GET", "resource", Some(resourceOpDataset), None, Some(params),  None)
     pendingUntilFixed{
-      qResponse.getStatusCode must equal (200)
+      qResponse.resultCode must equal (200)
     }
-    jsonCompare(qResponse.getResponseBody,
+    jsonCompare(readBody(qResponse),
       """[
         | { col_text : "row 1", col_id : 1.0 },
         | { col_text : "row 2", col_id : 2.0 }
@@ -56,29 +56,29 @@ class ResourceOperationsEndToEndTest extends IntegrationTest with IntegrationTes
       JObject(Map(("col_id"->JNumber(9)), ("col_text"->JString("row 9"))))
     ))
     val rResponse = dispatch("PUT", "resource", Some(resourceOpDataset), None, None,  Some(rBody))
-    rResponse.getStatusCode must equal (200)
-    //rResponse.getResponseBody must equal ("[]")
+    rResponse.resultCode must equal (200)
+    //readBody(rResponse)must equal ("[]")
 
     //query
     waitForSecondaryStoreUpdate(resourceOpDataset, v2)
     val q2Response = dispatch("GET", "resource", Some(resourceOpDataset), None, None,  None)
-    jsonCompare(q2Response.getResponseBody,
+    jsonCompare(readBody(q2Response),
       """[
         | { col_text : "row 8", col_id : 8.0 },
         | { col_text : "row 9", col_id : 9.0 }
         | ]""".stripMargin)
-    q2Response.getStatusCode must equal (200)
+    q2Response.resultCode must equal (200)
 
     //truncate
     val v3 = getVersionInSecondaryStore(resourceOpDataset)
     val tResponse = dispatch("DELETE", "resource", Some(resourceOpDataset), None, None,  None)
-    //tResponse.getResponseBody must equal ("{rows deleted}")
-    tResponse.getStatusCode must equal (200)
+    //readBody(tResponse)must equal ("{rows deleted}")
+    tResponse.resultCode must equal (200)
 
     //query
     waitForSecondaryStoreUpdate(resourceOpDataset, v3)
     val q3Response = dispatch("GET", "resource", Some(resourceOpDataset), None, None,  None)
-    jsonCompare(q3Response.getResponseBody, "[]")
-    q3Response.getStatusCode must equal (200)
+    jsonCompare(readBody(q3Response), "[]")
+    q3Response.resultCode must equal (200)
   }
 }

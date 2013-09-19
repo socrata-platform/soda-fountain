@@ -37,20 +37,20 @@ trait SoQLTypeIntegrationTestFixture extends BeforeAndAfterAll with IntegrationT
   }
 }
 
-class SoQLTypeIntegrationTest extends IntegrationTest with SoQLTypeIntegrationTestFixture  {
+class SoQLTypeIntegrationTest extends SodaFountainIntegrationTest with SoQLTypeIntegrationTestFixture  {
 
   def testType( row: Map[String, JValue], query: String, expectedResult: String) = {
     val v = getVersionInSecondaryStore(resourceName)
     val uBody = JArray(Seq( JObject(row) ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
-    assert(uResponse.getStatusCode == 200, uResponse.getResponseBody)
+    assert(uResponse.resultCode == 200, readBody(uResponse))
     //TODO: remove the following line when ES can guarantee consistency.
     Thread.sleep(3000)  //arg. wait out the race condition until we can guarantee consistency.
     waitForSecondaryStoreUpdate(resourceName, v)
     val params = Map(("$query" -> query))
     val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
-    assert(qResponse.getStatusCode == 200, qResponse.getResponseBody)
-    jsonCompare(qResponse.getResponseBody, expectedResult )
+    assert(qResponse.resultCode == 200, readBody(qResponse))
+    jsonCompare(readBody(qResponse), expectedResult )
   }
 
   //test("upsert/query type json    ") { testType(Map(("test_id"->JNumber(110)), ("test_json    " -> )),  "select * where test_json    = ",  """[{test_json    :,  test_id:110.0 }]""".stripMargin) }

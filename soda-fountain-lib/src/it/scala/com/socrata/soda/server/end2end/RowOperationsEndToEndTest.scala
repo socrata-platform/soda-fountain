@@ -3,7 +3,7 @@ package com.socrata.soda.server.end2end
 import com.socrata.soda.server._
 import com.rojoma.json.ast._
 
-class RowOperationsEndToEndTest extends IntegrationTest with IntegrationTestHelpers {
+class RowOperationsEndToEndTest extends SodaFountainIntegrationTest with IntegrationTestHelpers {
 
   val ct = System.currentTimeMillis
   val rowOpDataset = "soda-row-end-to-end-" + ct
@@ -20,11 +20,11 @@ class RowOperationsEndToEndTest extends IntegrationTest with IntegrationTestHelp
       "row_identifier" -> JArray(Seq(JString("col_text")))
     ))
     val cRowOpD = dispatch("POST", "dataset", None, None, None,  Some(body))
-    if (cRowOpD.getStatusCode != 200) throw new Exception( "create failed with " + cRowOpD.getStatusText + " " + cRowOpD.getResponseBody)
+    if (cRowOpD.resultCode != 200) throw new Exception( "create failed with " + cRowOpD.resultCode + " " + readBody(cRowOpD))
 
     //publish
     val pRowOpD = dispatch("PUT", "dataset-copy", Some(rowOpDataset), None, None, None)
-    if (pRowOpD.getStatusCode != 200) throw new Exception( "publish failed with " + pRowOpD.getStatusText + " " + pRowOpD.getResponseBody)
+    if (pRowOpD.resultCode != 200) throw new Exception( "publish failed with " + pRowOpD.resultCode + " " + readBody(pRowOpD))
 
     //upsert row
     val v1 = getVersionInSecondaryStore(rowOpDataset)
@@ -34,7 +34,7 @@ class RowOperationsEndToEndTest extends IntegrationTest with IntegrationTestHelp
       "col_num" -> JNumber(24601)
     ))
     val ur = dispatch("POST", "resource", Some(rowOpDataset), Some(rowId), None,  Some(urBody))
-    ur.getStatusCode must equal (200)
+    ur.resultCode must equal (200)
     waitForSecondaryStoreUpdate(rowOpDataset, v1)
 
     //replace row
@@ -44,21 +44,21 @@ class RowOperationsEndToEndTest extends IntegrationTest with IntegrationTestHelp
       "col_num" -> JNumber(101010)
     ))
     val rr = dispatch("POST", "resource", Some(rowOpDataset), Some(rowId), None,  Some(rrBody))
-    rr.getStatusCode must equal (200)
+    rr.resultCode must equal (200)
     waitForSecondaryStoreUpdate(rowOpDataset, v2)
 
     //get row
     val gr = dispatch("GET", "resource", Some(rowOpDataset), Some(rowId), None,  None)
     pendingUntilFixed{ // looks like race condition in ES
-      gr.getStatusCode must equal (200)
-      jsonCompare(gr.getResponseBody, """[{ "col_num" : 101010.0, "col_text" : "rowZ" }]""")
+      gr.resultCode must equal (200)
+      jsonCompare( readBody(gr) , """[{ "col_num" : 101010.0, "col_text" : "rowZ" }]""")
     }
 
     //delete row
     val v3 = getVersionInSecondaryStore(rowOpDataset)
     val dr = dispatch("DELETE", "resource", Some(rowOpDataset), Some(rowId), None,  None)
-    dr.getStatusCode must equal (200)
-    jsonCompare(dr.getResponseBody,
+    dr.resultCode must equal (200)
+    jsonCompare(readBody(dr),
       """[{
         |"inserted":{},
         | "updated":{},
@@ -70,8 +70,8 @@ class RowOperationsEndToEndTest extends IntegrationTest with IntegrationTestHelp
     //get row
     val gr2 = dispatch("GET", "resource", Some(rowOpDataset), Some(rowId), None,  None)
     pendingUntilFixed{
-      gr2.getResponseBody must equal ("{verify row deleted}")
-      gr2.getStatusCode must equal (404)
+      readBody(gr2) must equal ("{verify row deleted}")
+      gr2.resultCode must equal (404)
     }
   }
 

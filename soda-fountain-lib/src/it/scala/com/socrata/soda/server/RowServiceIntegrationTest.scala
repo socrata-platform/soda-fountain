@@ -35,7 +35,7 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
       JObject(Map(("col_id"->JNumber(222)), ("col_text"->JString("row 222"))))
     ))
     val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
-    assert(uResponse.getStatusCode == 200)
+    assert(uResponse.resultCode == 200)
 
     waitForSecondaryStoreUpdate(resourceName, v)
   }
@@ -44,31 +44,31 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
   }
 }
 
-class RowServiceIntegrationTest extends IntegrationTest with RowServiceIntegrationTestFixture {
+class RowServiceIntegrationTest extends SodaFountainIntegrationTest with RowServiceIntegrationTestFixture {
 
   test("soda fountain row service upsert"){
     val uBody =  JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
     val uResponse = dispatch("POST", "resource", Some(resourceName), Some("3"), None, Some(uBody))
-    assert(uResponse.getStatusCode === 200, uResponse.getResponseBody)
+    assert(uResponse.resultCode === 200, readBody(uResponse))
   }
 
   test("soda fountain row service get"){
     val uResponse = dispatch("GET", "resource", Some(resourceName), Some("2"), None, None)
-    assert(uResponse.getStatusCode === 200, uResponse.getResponseBody)
-    jsonCompare(uResponse.getResponseBody, """{ col_text:'row 2', col_id:2.0}""")
+    assert(uResponse.resultCode === 200, readBody(uResponse))
+    jsonCompare(readBody(uResponse), """{ col_text:'row 2', col_id:2.0}""")
   }
 
   test("soda fountain row service 404"){
     val uResponse = dispatch("GET", "resource", Some(resourceName), Some("787878"), None, None)
-    assert(uResponse.getStatusCode === 404, uResponse.getResponseBody)
-    jsonCompare(uResponse.getResponseBody, """{"message":"row not found","errorCode":"row.get.not-found"}""")
+    assert(uResponse.resultCode === 404, readBody(uResponse))
+    jsonCompare(readBody(uResponse), """{"message":"row not found","errorCode":"row.get.not-found"}""")
   }
 
   test("soda fountain row service remove"){
     val v = getVersionInSecondaryStore(resourceName)
     val uResponse = dispatch("DELETE", "resource", Some(resourceName), Some("1"), None, None)
-    assert(uResponse.getStatusCode === 204, uResponse.getResponseBody)
-    assert(uResponse.getResponseBody == "", uResponse.getResponseBody)
+    assert(uResponse.resultCode === 204, readBody(uResponse))
+    assert(readBody(uResponse)== "")
     waitForSecondaryStoreUpdate(resourceName, v)
   }
 
@@ -76,7 +76,7 @@ class RowServiceIntegrationTest extends IntegrationTest with RowServiceIntegrati
     //note that we're upserting a string (not a number) for col_id
     val uBody =  JObject(Map(("col_id"->JString("333")), ("col_text"->JString("upserted row 333" + System.currentTimeMillis.toString))))
     val uResponse = dispatch("POST", "resource", Some(resourceName), Some("333"), None, Some(uBody))
-    assert(uResponse.getStatusCode === 200, uResponse.getResponseBody)
+    assert(uResponse.resultCode === 200, readBody(uResponse))
   }
 
 }

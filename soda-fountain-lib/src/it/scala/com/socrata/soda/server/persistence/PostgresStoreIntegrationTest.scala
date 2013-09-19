@@ -1,16 +1,13 @@
 package com.socrata.soda.server.persistence
 
-import com.socrata.soda.server.IntegrationTest
+import com.socrata.soda.server.{SodaFountainForTest, SodaFountainIntegrationTest}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.id._
-import com.typesafe.config.ConfigFactory
-import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soql.types.{SoQLText, SoQLType}
 
-class PostgresStoreIntegrationTest extends IntegrationTest {
+class PostgresStoreIntegrationTest extends SodaFountainIntegrationTest {
 
-  val config = new SodaFountainConfig(ConfigFactory.load())
-  val store : NameAndSchemaStore = new PostgresStoreImpl(DataSourceFromConfig(config.database))
+  val store : NameAndSchemaStore = SodaFountainForTest.store
 
   test("Postgress add/get/remove resourceName and datasetId"){
     val time = System.currentTimeMillis().toString

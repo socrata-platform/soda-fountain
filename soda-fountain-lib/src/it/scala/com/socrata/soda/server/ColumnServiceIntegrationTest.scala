@@ -35,7 +35,7 @@ trait ColumnServiceIntegrationTestFixture extends BeforeAndAfterAll with Integra
     //upsert values.  The current time in the last row will cause the data version to increment.
     val uBody = JArray(Seq( JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("row 1")))) ))
     val uResponse = dispatch("POST", "resource", Some(ColumnServiceIntegrationTest.rn), None, None,  Some(uBody))
-    if (uResponse.getStatusCode != 200){throw new Exception("fixture upsert unsuccessful")}
+    if (uResponse.resultCode != 200){throw new Exception("fixture upsert unsuccessful")}
 
     //waitForSecondaryStoreUpdate(ColumnServiceIntegrationTest.rn, v)
   }
@@ -43,12 +43,12 @@ trait ColumnServiceIntegrationTestFixture extends BeforeAndAfterAll with Integra
   override def afterAll = {}
 }
 
-class ColumnServiceIntegrationTest extends IntegrationTest with ColumnServiceIntegrationTestFixture {
+class ColumnServiceIntegrationTest extends SodaFountainIntegrationTest with ColumnServiceIntegrationTestFixture {
 
   test("column service getSchema") {
     val gResponse = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some("col_id"), None,  None)
-    gResponse.getStatusCode must equal (200)
-    val body = gResponse.getResponseBody
+    gResponse.resultCode must equal (200)
+    val body = readBody(gResponse)
     assert(body.contains(""""field_name" : "col_id""""))
     assert(body.contains(""""datatype" : "number""""))
   }
@@ -62,25 +62,26 @@ class ColumnServiceIntegrationTest extends IntegrationTest with ColumnServiceInt
 
     //verify it's not there
     val g1Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
-    g1Response.getStatusCode must equal (404)
+    g1Response.resultCode must equal (404)
 
     //add column
     val pResponse = dispatch("POST", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  Some(newCol))
-    assert(pResponse.getStatusCode == 200, pResponse.getResponseBody)
+    assert(pResponse.resultCode == 200, readBody(pResponse))
 
     //verify it's been created
     val g2Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
-    assert( g2Response.getStatusCode == 200, s"${g2Response.getStatusCode} ${g2Response.getResponseBody}")
-    assert( g2Response.getResponseBody.contains(""""field_name" : "new_col""""), s"${g2Response.getStatusCode} ${g2Response.getResponseBody}")
-    assert( g2Response.getResponseBody.contains(""""datatype" : "text""""), s"${g2Response.getStatusCode} ${g2Response.getResponseBody}")
+    val g2Body = readBody(g2Response)
+    assert( g2Response.resultCode == 200, s"${g2Response.resultCode} ${g2Body}")
+    assert( g2Body.contains(""""field_name" : "new_col""""), s"${g2Response.resultCode} ${g2Body}")
+    assert( g2Body.contains(""""datatype" : "text""""), s"${g2Response.resultCode} ${g2Body}")
 
     //delete column
     val d2Response = dispatch("DELETE", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
-    d2Response.getStatusCode must equal (200)
+    d2Response.resultCode must equal (200)
 
     //verify it's been deleted
     val g3Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
-    g3Response.getStatusCode must equal (404)
+    g3Response.resultCode must equal (404)
   }
 
   test("column service update - rename column") {
@@ -95,33 +96,33 @@ class ColumnServiceIntegrationTest extends IntegrationTest with ColumnServiceInt
 
     //verify it's not there
     val g1Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
-    g1Response.getStatusCode must equal (404)
+    g1Response.resultCode must equal (404)
 
     //add column
     val pResponse = dispatch("POST", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  Some(newCol))
-    pResponse.getStatusCode must equal (200)
+    pResponse.resultCode must equal (200)
 
     //verify it's been created
     val g2Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
-    g2Response.getStatusCode must equal (200)
-    assert(g2Response.getResponseBody.contains(""""field_name" : "name_rename""""))
+    g2Response.resultCode must equal (200)
+    assert(readBody(g2Response).contains(""""field_name" : "name_rename""""))
 
     //update column
     val p2Response = dispatch("POST", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  Some(updatedCol))
-    p2Response.getStatusCode must equal (200)
+    p2Response.resultCode must equal (200)
 
     //verify updated column exists
     val g3Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id2), None,  None)
-    g3Response.getStatusCode must equal (200)
-    assert(g3Response.getResponseBody.contains(""""field_name" : "name_rename_renamed""""))
+    g3Response.resultCode must equal (200)
+    assert(readBody(g3Response).contains(""""field_name" : "name_rename_renamed""""))
 
     //verify old column doesn't exist
     val g4Response = dispatch("GET", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id), None,  None)
-    g4Response.getStatusCode must equal (404)
+    g4Response.resultCode must equal (404)
 
     //delete column
     val d3Response = dispatch("DELETE", "dataset", Some(ColumnServiceIntegrationTest.rn), Some(id2), None,  None)
-    d3Response.getStatusCode must equal (200)
+    d3Response.resultCode must equal (200)
   }
 
   test("column service update - change column type") (pending)
