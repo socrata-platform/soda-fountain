@@ -11,11 +11,9 @@ import com.socrata.soda.server.highlevel.TypeChecker
 class TypeFitterTest extends FunSuite with MustMatchers {
 
   test("JSON type checker handles nulls"){
-    pendingUntilFixed{
-      TypeChecker.check(SoQLText, JNull) match {
-        case Right(v) => {}
-        case Left(msg) => fail("type check failed for valid value")
-      }
+    TypeChecker.check(SoQLText, JNull) match {
+      case Right(v) => {}
+      case Left(msg) => fail("type check failed for valid value")
     }
   }
 

@@ -1,8 +1,5 @@
 package com.socrata.datacoordinator.client
 
-import dispatch._
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Success, Failure}
 import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
 
 class RowUpdateIntegrationTest extends DataCoordinatorIntegrationTest {
