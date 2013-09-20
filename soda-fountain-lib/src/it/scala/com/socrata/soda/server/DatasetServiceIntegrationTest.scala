@@ -12,7 +12,7 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
     val cBody = JObject(Map(
       "resource_name" -> JString(resourceName),
       "name" -> JString("soda integration test"),
-      "row_identifier" -> JArray(Seq(JString("col_id"))),
+      "row_identifier" -> JString("col_id"),
       "columns" -> JArray(Seq(
         column("the ID column", "col_id", Some("this is the ID column"), "number"),
         column("a text column", "col_text", Some("this is a text column"), "text"),
@@ -140,8 +140,9 @@ class DatasetServiceIntegrationTest extends SodaFountainIntegrationTest with Dat
     qResponse.resultCode must equal (200)
   }
 
+  //NOTE: this test case might not be viable. Nondeterministic json object key/value ordering makes it impossible to guarantee the resource_name is specified before the rows.
+  /*
   test("soda fountain create, upsert, and publish in same request") {
-    //NOTE: this test case might not be viable. Nondeterministic json object key/value ordering makes it impossible to guarantee the resource_name is specified before the rows.
     val rn = "int-test-create-pub-upsert"
     val cBody = JObject(Map(
       "resource_name" -> JString(rn),
@@ -167,5 +168,6 @@ class DatasetServiceIntegrationTest extends SodaFountainIntegrationTest with Dat
       waitForSecondaryStoreUpdate(rn)
     }
   }
+  */
 
 }

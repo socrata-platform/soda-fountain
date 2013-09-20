@@ -15,7 +15,8 @@ import scala.io.Source
 
 trait IntegrationTestHelpers {
 
-  val sodaHost: String = "localhost:8080"
+  val sodaHost: String = "localhost"
+  val sodaPort = 8080
   val httpClient = new HttpClientHttpClient(NoopLivenessChecker, Executors.newCachedThreadPool(), userAgent = "soda fountain integration test")
 
 
@@ -29,27 +30,29 @@ trait IntegrationTestHelpers {
     JObject(map)
   }
 
+  case class SimpleResponse(val resultCode: Int, val body: JValue)
   def dispatch(method: String, service:String, part1o: Option[String], part2o: Option[String], paramso: Option[Map[String,String]], bodyo: Option[JValue]) = {
 
-    val req = RequestBuilder(sodaHost, false)
-    req.addPath(service)
-    part1o.foreach(req.addPath _)
-    part2o.foreach(req.addPath _)
-    paramso.foreach(req.addParameters(_))
-    req.method(method)
-    httpClient.execute( req.get ).flatMap{ r => r }
-    /*
-    bodyo match {
-      case Some(jval) => httpClient.executeRaw( req.json(jval))
-      case None => httpClient.bodylessOp(SimpleHttpRequest(req))
+    val req =
+      RequestBuilder(sodaHost, false)
+      .port(sodaPort)
+      .addPaths( Seq(Some(service), part1o, part2o).collect{ case Some(part) => part} )
+      .addParameters( paramso.getOrElse(Map[String,String]()))
+      .method(method)
+    val prepared = bodyo match {
+      case Some(jval) => req.json( JValueEventIterator(jval) )
+      case None => req.get
     }
-    */
+    httpClient.execute( prepared ).flatMap{ response =>
+      val body = response.asJValue(2 ^ 20)
+      SimpleResponse(response.resultCode, body)
+    }
   }
 
   private def requestVersionInSecondaryStore(resourceName: String) = {
     val response = dispatch("GET", "dataset-version", Some(resourceName), Some("es"), None, None)
     response.resultCode match {
-      case 200 => Right(response.asValue[Long](64).get)
+      case 200 => Right(readBody(response).toLong)
       case _ => Left(s"could not read version in secondary store: ${response.toString}")
     }
   }
@@ -77,7 +80,7 @@ trait IntegrationTestHelpers {
     throw new Exception(s"timeout while waiting for secondary store to update ${resourceName} past version ${minVersion}")
   }
 
-  def readBody(response: Response) = { Source.fromInputStream(response.asInputStream(2^20)).mkString}
+  def readBody(response: SimpleResponse) = { response.body.toString }
 
   def normalizeWhitespace(fixture: String): String = CompactJsonWriter.toString(JsonReader(fixture).read())
 
