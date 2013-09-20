@@ -12,8 +12,9 @@ trait ExportDAO {
 
 object ExportDAO {
   case class ColumnInfo(fieldName: ColumnName, humanName: String, typ: SoQLType)
+  case class CSchema(locale: String, pk: Option[ColumnName], schema: Seq[ColumnInfo])
 
   sealed abstract class Result
-  case class Success(schema: Seq[ColumnInfo], rows: Iterator[Array[SoQLValue]]) extends Result
+  case class Success(schema: CSchema, rows: Iterator[Array[SoQLValue]]) extends Result
   case object NotFound extends Result
 }

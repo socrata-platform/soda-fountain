@@ -12,11 +12,12 @@ import scala.runtime.AbstractFunction1
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnReadRep}
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import scala.util.control.ControlThrowable
+import com.socrata.soql.environment.ColumnName
 
 object CJson {
   case class Field(c: ColumnId, t: SoQLType)
   private implicit val fieldCodec = AutomaticJsonCodecBuilder[Field]
-  case class Schema(locale: String, pk: String, schema: Seq[Field])
+  case class Schema(locale: String, pk: Option[ColumnId], schema: Seq[Field])
   private implicit val schemaCodec = AutomaticJsonCodecBuilder[Schema]
 
   def decode(data: Iterator[JValue]): Result = {
@@ -90,7 +91,11 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
             case DataCoordinatorClient.Success(jvalues) =>
               CJson.decode(jvalues) match {
                 case CJson.Decoded(schema, rows) =>
-                  val simpleSchema = schema.schema.map { f => ColumnInfo(ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t) }
+                  val simpleSchema = ExportDAO.CSchema(
+                    schema.locale,
+                    schema.pk.map(ds.columnsById(_).fieldName),
+                    schema.schema.map { f => ColumnInfo(ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t) }
+                  )
                   f(ExportDAO.Success(simpleSchema, rows))
               }
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
