@@ -12,7 +12,12 @@ import com.socrata.soql.brita.IdentifierFilter
 class ColumnSpecUtils(rng: Random) {
   private val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnSpecUtils])
 
-  def validColumnName(columnName: ColumnName) = IdentifierFilter(columnName.name) == columnName.name
+  def validColumnName(columnName: ColumnName) = {
+    val cnamePart =
+      if(columnName.name.startsWith(":@")) ColumnName(columnName.name.substring(2))
+      else columnName
+    IdentifierFilter(cnamePart.name) == cnamePart.name
+  }
 
   def freezeForCreation(existingColumns: Map[ColumnName, ColumnId], ucs: UserProvidedColumnSpec): CreateResult =
     ucs match {
