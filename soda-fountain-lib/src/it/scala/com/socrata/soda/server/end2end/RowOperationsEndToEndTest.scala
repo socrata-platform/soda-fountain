@@ -17,7 +17,7 @@ class RowOperationsEndToEndTest extends SodaFountainIntegrationTest with Integra
         column("text column", "col_text", Some("a text column"), "text"),
         column("num column", "col_num", Some("a number column"), "number")
       )),
-      "row_identifier" -> JArray(Seq(JString("col_text")))
+      "row_identifier" -> JString("col_text")
     ))
     val cRowOpD = dispatch("POST", "dataset", None, None, None,  Some(body))
     if (cRowOpD.resultCode != 200) throw new Exception( "create failed with " + cRowOpD.resultCode + " " + readBody(cRowOpD))

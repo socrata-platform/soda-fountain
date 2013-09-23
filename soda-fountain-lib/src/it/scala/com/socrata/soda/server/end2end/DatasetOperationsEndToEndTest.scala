@@ -2,6 +2,8 @@ package com.socrata.soda.server.end2end
 
 import com.socrata.soda.server._
 import com.rojoma.json.ast._
+import com.socrata.soda.server.wiremodels.DatasetSpec
+import com.rojoma.json.codec.JsonCodec
 
 class DatasetOperationsEndToEndTest extends SodaFountainIntegrationTest with IntegrationTestHelpers {
 
@@ -16,8 +18,11 @@ class DatasetOperationsEndToEndTest extends SodaFountainIntegrationTest with Int
       "columns" -> JArray(Seq())
     ))
     val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
-    readBody(cResponse)must equal ("")
-    cResponse.resultCode must equal (200)
+    JsonCodec[DatasetSpec].decode(cResponse.body) match {
+      case Some(spec) => {}
+      case _ => fail("did not receive a schema in response to the dataset create request")
+    }
+    cResponse.resultCode must equal (201)
 
     pendingUntilFixed{
       //set schema

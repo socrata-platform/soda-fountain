@@ -13,7 +13,7 @@ trait SoQLTypeIntegrationTestFixture extends BeforeAndAfterAll with IntegrationT
     val cBody = JObject(Map(
       "resource_name" -> JString(resourceName),
       "name" -> JString("soda fountain soql type integration test"),
-      "row_identifier" -> JArray(Seq(JString("test_id"))),
+      "row_identifier" -> JString("test_id"),
       "columns" -> JArray(Seq(
         column("the double type column",  "test_double",                    None, "double"              ),
         column("the money type column",   "test_money",                     None, "money"               ),

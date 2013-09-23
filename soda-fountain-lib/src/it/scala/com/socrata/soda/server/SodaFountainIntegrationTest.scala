@@ -39,6 +39,7 @@ trait IntegrationTestHelpers {
       .addPaths( Seq(Some(service), part1o, part2o).collect{ case Some(part) => part} )
       .addParameters( paramso.getOrElse(Map[String,String]()))
       .method(method)
+      .addHeader(("Content-type", "application/json"))
     val prepared = bodyo match {
       case Some(jval) => req.json( JValueEventIterator(jval) )
       case None => req.get

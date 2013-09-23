@@ -12,7 +12,7 @@ class ResourceOperationsEndToEndTest extends SodaFountainIntegrationTest with In
     val cBody = JObject(Map(
       "resource_name" -> JString(resourceOpDataset),
       "name" -> JString("soda integration test upsert/replace/truncate/query dataset"),
-      "row_identifier" -> JArray(Seq(JString("col_id"))),
+      "row_identifier" -> JString("col_id"),
       "columns" -> JArray(Seq(
         column("the ID column", "col_id", Some("this is the ID column"), "number"),
         column("a text column", "col_text", Some("this is a text column"), "text"),

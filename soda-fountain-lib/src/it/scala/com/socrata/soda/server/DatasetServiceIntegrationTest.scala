@@ -147,7 +147,7 @@ class DatasetServiceIntegrationTest extends SodaFountainIntegrationTest with Dat
     val cBody = JObject(Map(
       "resource_name" -> JString(rn),
       "name" -> JString("soda integration test"),
-      "row_identifier" -> JArray(Seq(JString("col_id"))),
+      "row_identifier" -> JString("col_id"),
       "columns" -> JArray(Seq(
         column("the ID column", "col_id", Some("this is the ID column"), "number"),
         column("a text column", "col_text", Some("this is a text column"), "text"),
