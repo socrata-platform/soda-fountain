@@ -5,9 +5,10 @@ import com.socrata.soda.server.id.ResourceName
 import ExportDAO._
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import com.socrata.soql.environment.ColumnName
+import com.socrata.http.server.util.{Precondition, EntityTag}
 
 trait ExportDAO {
-  def export[T](dataset: ResourceName)(f: Result => T): T
+  def export[T](dataset: ResourceName, precondition: Precondition)(f: Result => T): T
 }
 
 object ExportDAO {
@@ -15,6 +16,8 @@ object ExportDAO {
   case class CSchema(locale: String, pk: Option[ColumnName], schema: Seq[ColumnInfo])
 
   sealed abstract class Result
-  case class Success(schema: CSchema, rows: Iterator[Array[SoQLValue]]) extends Result
+  case class Success(schema: CSchema, entityTag: Option[EntityTag], rows: Iterator[Array[SoQLValue]]) extends Result
+  case object PreconditionFailed extends Result
+  case class NotModified(etag: Seq[EntityTag]) extends Result
   case object NotFound extends Result
 }

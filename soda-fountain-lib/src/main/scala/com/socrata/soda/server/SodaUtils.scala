@@ -1,6 +1,6 @@
 package com.socrata.soda.server
 
-import com.socrata.soda.server.errors.{InternalError, SodaError}
+import com.socrata.soda.server.errors.{EtagPreconditionFailed, ResourceNotModified, InternalError, SodaError}
 import com.socrata.http.server.HttpResponse
 import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.responses._
@@ -11,6 +11,8 @@ import com.socrata.soql.environment.AbstractName
 import com.socrata.soda.server.id.AbstractId
 import com.rojoma.json.codec.JsonCodec
 import java.nio.charset.{StandardCharsets, Charset}
+import com.socrata.http.server.util._
+import com.socrata.http.server.routing.HttpMethods
 
 object SodaUtils {
   val errorLog = org.slf4j.LoggerFactory.getLogger("com.socrata.soda.server.Error")
@@ -41,7 +43,13 @@ object SodaUtils {
     ))
 
     errorLog.info(s"${logTags.mkString(" ")} responding with error ${error.errorCode}")
-    Status(error.httpResponseCode) ~> JsonContent(content)
+    val header = error.vary.foldLeft(error.etags.foldLeft(Status(error.httpResponseCode)) { (h, et) =>
+      h ~> Header("ETag", et.toString)
+    }) { (h, vary) =>
+      h ~> Header("Vary", vary)
+    }
+
+    header ~> JsonContent(content)
   }
 
   def internalError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {

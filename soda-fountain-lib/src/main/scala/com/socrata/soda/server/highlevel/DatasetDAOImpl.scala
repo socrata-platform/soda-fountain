@@ -155,7 +155,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user) {
-            case DataCoordinatorClient.Success(_) =>
+            case DataCoordinatorClient.Success(_, _) =>
               WorkingCopyCreated
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -171,7 +171,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user) {
-            case DataCoordinatorClient.Success(_) =>
+            case DataCoordinatorClient.Success(_, _) =>
               WorkingCopyDropped
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -187,7 +187,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user) {
-            case DataCoordinatorClient.Success(_) =>
+            case DataCoordinatorClient.Success(_, _) =>
               WorkingCopyPublished
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)

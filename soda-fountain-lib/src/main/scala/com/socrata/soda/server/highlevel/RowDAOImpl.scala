@@ -107,7 +107,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         val upserts = data.map(trans.convert)
         try {
           dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ upserts) {
-            case DataCoordinatorClient.Success(result) =>
+            case DataCoordinatorClient.Success(result, _) =>
               f(StreamSuccess(result))
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               // hm, if we get schema out of date here, we're pretty much out of luck, since we'll

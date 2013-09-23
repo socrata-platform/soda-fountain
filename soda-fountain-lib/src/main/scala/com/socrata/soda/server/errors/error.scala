@@ -5,6 +5,13 @@ import com.rojoma.json.ast._
 import com.rojoma.json.codec.JsonCodec
 import javax.activation.MimeType
 import com.socrata.soql.environment.TypeName
+import com.socrata.http.server.util.EntityTag
+
+case class ResourceNotModified(override val etags: Seq[EntityTag], override val vary: Option[String])
+  extends SodaError(SC_NOT_MODIFIED, "not-modified")
+
+case object EtagPreconditionFailed
+  extends SodaError(SC_PRECONDITION_FAILED, "precondition-failed")
 
 case class GeneralNotFoundError(path: String)
   extends SodaError(SC_NOT_FOUND, "not-found", "path" -> JString(path))
@@ -25,11 +32,11 @@ case class UnparsableContentType(contentType: String)
     "content-type" -> JString(contentType))
 
 case class ContentTypeNotJson(contentType: MimeType)
-  extends SodaError("req.content-type.not-json",
+  extends SodaError(SC_UNSUPPORTED_MEDIA_TYPE, "req.content-type.not-json",
     "content-type" -> JString(contentType.toString))
 
 case class ContentTypeUnsupportedCharset(contentType: MimeType)
-  extends SodaError("req.content-type.unknown-charset",
+  extends SodaError(SC_UNSUPPORTED_MEDIA_TYPE, "req.content-type.unknown-charset",
     "content-type" -> JString(contentType.toString))
 
 case class MalformedJsonBody(row: Int, column: Int)

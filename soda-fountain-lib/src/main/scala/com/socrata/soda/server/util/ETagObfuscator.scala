@@ -3,8 +3,18 @@ package com.socrata.soda.server.util
 import org.bouncycastle.crypto.engines.BlowfishEngine
 import org.bouncycastle.crypto.params.KeyParameter
 import java.nio.charset.StandardCharsets
-import java.io.ByteArrayOutputStream
 import org.apache.commons.codec.binary.Base64
+import com.socrata.http.server.util.{WeakEntityTag, StrongEntityTag, EntityTag}
+
+trait ETagObfuscator {
+  def obfuscate(text: EntityTag): EntityTag
+  def deobfuscate(etag: EntityTag): EntityTag
+}
+
+object NoopEtagObfuscator extends ETagObfuscator {
+  def obfuscate(text: EntityTag): EntityTag = text
+  def deobfuscate(etag: EntityTag): EntityTag = etag
+}
 
 // This implements CFB encryption/decryption with an IV derived from the
 // contents of the message (the first eight bytes of its SHA1).  This is
@@ -13,7 +23,7 @@ import org.apache.commons.codec.binary.Base64
 //   1. Identical messages will be obfuscated identically
 //   2. Changes anywhere in the message will (with high probability)
 //      produce a completely different obfuscation.
-class ETagObfuscator(key: Array[Byte]) {
+class BlowfishCFBETagObfuscator(key: Array[Byte]) extends ETagObfuscator {
   private val bf = new BlowfishEngine
   bf.init(true, new KeyParameter(key))
 
@@ -27,89 +37,67 @@ class ETagObfuscator(key: Array[Byte]) {
     }
   }
 
-  def obfuscate(text: String): String = {
-    val textBytes = text.getBytes(StandardCharsets.UTF_8)
+  def obfuscate(tag: EntityTag): EntityTag = {
+    val textBytes = tag.value.getBytes(StandardCharsets.UTF_8)
+    val cryptBytes = new Array[Byte](textBytes.length + 8)
 
-    val baos = new ByteArrayOutputStream
-
-    val lastBlock = new Array[Byte](8)
-    nonce(lastBlock, textBytes)
-    baos.write(lastBlock)
+    nonce(cryptBytes, textBytes)
 
     var i = 0
-    while(i < (textBytes.length & ~7)) {
-      bf.processBlock(lastBlock, 0, lastBlock, 0)
+    val limit = textBytes.length & ~7
+    while(i < limit) {
+      bf.processBlock(cryptBytes, i, cryptBytes, i + 8)
       var j = 0
       while(j != 8) {
-        lastBlock(j) = (lastBlock(j) ^ textBytes(i + j)).toByte
+        cryptBytes(i + j + 8) = (cryptBytes(i + j + 8) ^ textBytes(i + j)).toByte
         j += 1
       }
       i += 8
-
-      baos.write(lastBlock)
     }
 
     if(i != textBytes.length) {
-      bf.processBlock(lastBlock, 0, lastBlock, 0)
+      val lastBlock = new Array[Byte](8)
+      bf.processBlock(cryptBytes, i, lastBlock, 0)
       var j = 0
       while(i + j < textBytes.length) {
-        lastBlock(j) = (lastBlock(j) ^ textBytes(i + j)).toByte
+        cryptBytes(i + j + 8) = (lastBlock(j) ^ textBytes(i + j)).toByte
         j += 1
       }
-      baos.write(lastBlock, 0, j)
     }
 
-    Base64.encodeBase64URLSafeString(baos.toByteArray)
+    tag.map(_ => Base64.encodeBase64URLSafeString(cryptBytes))
   }
 
-  def deobfuscate(etag: String): String = {
-    val bytes = Base64.decodeBase64(etag)
-    if(bytes.length < 8) return ""
+  def deobfuscate(etag: EntityTag): EntityTag = {
+    val bytes = Base64.decodeBase64(etag.value)
+    if(bytes.length < 8) return etag.map(_ => "")
+    val textBytes = new Array[Byte](bytes.length - 8)
 
-    val lastBlock = new Array[Byte](8)
-
-    val baos = new ByteArrayOutputStream
-    System.arraycopy(bytes, 0, lastBlock, 0, 8)
-
-    var i = 8
-    while(i < (bytes.length & ~7)) {
-      bf.processBlock(lastBlock, 0, lastBlock, 0)
+    var i = 0
+    val limit = textBytes.length & ~7
+    while(i < limit) {
+      bf.processBlock(bytes, i, bytes, i)
       var j = 0
       while(j != 8) {
-        lastBlock(j) = (lastBlock(j) ^ bytes(i + j)).toByte
+        textBytes(i + j) = (bytes(i + j) ^ bytes(i + j + 8)).toByte
         j += 1
       }
-
-      baos.write(lastBlock)
-
-      lastBlock(0) = bytes(i + 0)
-      lastBlock(1) = bytes(i + 1)
-      lastBlock(2) = bytes(i + 2)
-      lastBlock(3) = bytes(i + 3)
-      lastBlock(4) = bytes(i + 4)
-      lastBlock(5) = bytes(i + 5)
-      lastBlock(6) = bytes(i + 6)
-      lastBlock(7) = bytes(i + 7)
-
       i += 8
     }
 
-    if(i != bytes.length) {
-      bf.processBlock(lastBlock, 0, lastBlock, 0)
+    if(i != textBytes.length) {
+      bf.processBlock(bytes, i, bytes, i)
       var j = 0
-      while(i + j < bytes.length) {
-        lastBlock(j) = (lastBlock(j) ^ bytes(i + j)).toByte
+      while(i + j < textBytes.length) {
+        textBytes(i + j) = (bytes(i + j) ^ bytes(i + j + 8)).toByte
         j += 1
       }
-      baos.write(lastBlock, 0, j)
     }
-
-    val deobfuscated = baos.toByteArray
 
     // re-hashing the deobfuscated contents to check against the first block
     // isn't necessary.  This is an etag, not an authentication code or message.
     // The only thing someone tampering with it can do is cause themselves to
     // fail to match.
-    new String(deobfuscated, StandardCharsets.UTF_8)
+    etag.map(_ => new String(textBytes, StandardCharsets.UTF_8))
   }
 }

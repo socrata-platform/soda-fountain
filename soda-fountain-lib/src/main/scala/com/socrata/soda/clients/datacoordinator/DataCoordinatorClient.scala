@@ -4,6 +4,7 @@ import com.rojoma.json.util._
 import com.rojoma.json.ast._
 import com.socrata.soda.server.id.{SecondaryId, DatasetId}
 import com.socrata.soda.server.util.schema.SchemaSpec
+import com.socrata.http.server.util.{Precondition, EntityTag}
 
 object DataCoordinatorClient {
   object VersionReport{
@@ -13,7 +14,9 @@ object DataCoordinatorClient {
 
   sealed abstract class Result
   case class SchemaOutOfDate(newSchema: SchemaSpec) extends Result
-  case class Success(report: Iterator[JValue]) extends Result
+  case object PreconditionFailed extends Result
+  case class NotModified(etags: Seq[EntityTag]) extends Result
+  case class Success(report: Iterator[JValue], etag: Option[EntityTag]) extends Result
 }
 
 trait DataCoordinatorClient {
@@ -32,5 +35,5 @@ trait DataCoordinatorClient {
   def dropCopy[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Result => T): T
   def deleteAllCopies[T](datasetId: DatasetId, schemaHash: String, user: String)(f: Result => T): T
   def checkVersionInSecondary(datasetId: DatasetId, secondaryId: SecondaryId): VersionReport
-  def export[T](datasetId: DatasetId, schemaHash: String)(f: Result => T): T
+  def export[T](datasetId: DatasetId, schemaHash: String, precondition: Precondition)(f: Result => T): T
 }

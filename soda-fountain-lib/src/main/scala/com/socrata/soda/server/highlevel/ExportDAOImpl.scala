@@ -13,6 +13,7 @@ import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnReadRep}
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import scala.util.control.ControlThrowable
 import com.socrata.soql.environment.ColumnName
+import com.socrata.http.server.util.Precondition
 
 object CJson {
   case class Field(c: ColumnId, t: SoQLType)
@@ -83,12 +84,12 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
   }
   def retry() = throw new Retry
 
-  def export[T](dataset: ResourceName)(f: ExportDAO.Result => T): T =
+  def export[T](dataset: ResourceName, precondition: Precondition)(f: ExportDAO.Result => T): T =
     retryable(limit = 5) {
       store.lookupDataset(dataset) match {
         case Some(ds) =>
-          dc.export(ds.systemId, ds.schemaHash) {
-            case DataCoordinatorClient.Success(jvalues) =>
+          dc.export(ds.systemId, ds.schemaHash, precondition) {
+            case DataCoordinatorClient.Success(jvalues, etag) =>
               CJson.decode(jvalues) match {
                 case CJson.Decoded(schema, rows) =>
                   val simpleSchema = ExportDAO.CSchema(
@@ -96,11 +97,15 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                     schema.pk.map(ds.columnsById(_).fieldName),
                     schema.schema.map { f => ColumnInfo(ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t) }
                   )
-                  f(ExportDAO.Success(simpleSchema, rows))
+                  f(ExportDAO.Success(simpleSchema, etag, rows))
               }
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(ds.systemId, newSchema)
               retry()
+            case DataCoordinatorClient.NotModified(etags) =>
+              f(ExportDAO.NotModified(etags))
+            case DataCoordinatorClient.PreconditionFailed =>
+              f(ExportDAO.PreconditionFailed)
           }
         case None =>
           f(ExportDAO.NotFound)

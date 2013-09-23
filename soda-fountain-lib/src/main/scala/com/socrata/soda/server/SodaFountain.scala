@@ -16,7 +16,7 @@ import java.security.SecureRandom
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import java.util.concurrent.Executors
-import com.socrata.soda.server.util.CloseableExecutorService
+import com.socrata.soda.server.util.{NoopEtagObfuscator, BlowfishCFBETagObfuscator, ETagObfuscator, CloseableExecutorService}
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import scala.concurrent.duration.FiniteDuration
@@ -133,13 +133,15 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
   val exportDAO = i(new ExportDAOImpl(store, dc))
 
+  val etagObfuscator = i(NoopEtagObfuscator)
+
   val router = i {
     import com.socrata.soda.server.resources._
 
     val resource = Resource(rowDAO, config.maxDatumSize) // TODO: this should probably be a different max size value
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
     val column = DatasetColumn(columnDAO, config.maxDatumSize)
-    val export = Export(exportDAO)
+    val export = Export(exportDAO, etagObfuscator)
 
     new SodaRouter(
       datasetColumnResource = column.service,

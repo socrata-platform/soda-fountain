@@ -10,6 +10,12 @@ sealed abstract class PossiblyUnknownDataCoordinatorError
 case class UnknownDataCoordinatorError(errorCode: String, data: Map[String, JValue]) extends PossiblyUnknownDataCoordinatorError
 sealed abstract class DataCoordinatorError extends PossiblyUnknownDataCoordinatorError
 
+@Tag("req.precondition-failed")
+case class PreconditionFailed() extends DataCoordinatorError
+
+@Tag("req.not-modified")
+case class NotModified() extends DataCoordinatorError
+
 @Tag("req.script.header.mismatched-schema")
 case class SchemaMismatch(dataset: DatasetId, schema: SchemaSpec) extends DataCoordinatorError
 

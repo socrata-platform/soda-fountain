@@ -1,13 +1,15 @@
 package com.socrata.soda.clients.datacoordinator
 
 import com.socrata.http.client.{Response, RequestBuilder, HttpClient}
-import com.socrata.soda.server.id.{SecondaryId, DatasetId}
+import com.socrata.soda.server.id.DatasetId
 import com.socrata.http.server.routing.HttpMethods
-import com.rojoma.json.ast.{JObject, JString, JArray, JValue}
+import com.rojoma.json.ast.JValue
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
-import com.rojoma.json.util.AutomaticJsonCodecBuilder
-import com.rojoma.json.codec.JsonCodec
+import com.socrata.http.server.util._
+import com.socrata.soda.server.id.SecondaryId
+import com.rojoma.json.ast.JString
+import com.socrata.soda.clients.datacoordinator
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
   import DataCoordinatorClient._
@@ -41,6 +43,16 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       }
     }
 
+  implicit class Augmenting(r: RequestBuilder) {
+    def precondition(p: Precondition): RequestBuilder = p match {
+      case NoPrecondition => r
+      case IfDoesNotExist => r.addHeader("If-None-Match", "*")
+      case IfNoneOf(etags) => r.addHeader("If-None-Match", etags.mkString(","))
+      case IfExists => r.addHeader("If-Match", "*")
+      case IfAnyOf(etags) => r.addHeader("If-Match", etags.mkString(","))
+    }
+  }
+
   def getSchema(datasetId: DatasetId): Option[SchemaSpec] =
     withHost(datasetId) { host =>
       val request = schemaUrl(host, datasetId).get
@@ -67,6 +79,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     r.resultCode match {
       case HttpServletResponse.SC_OK =>
         None
+      case HttpServletResponse.SC_NOT_MODIFIED =>
+        Some(datacoordinator.NotModified())
       case _ =>
         Some(r.asValue[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")))
     }
@@ -76,7 +90,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     for (r <- httpClient.execute(request)) yield {
       errorFrom(r) match {
         case None =>
-          f(Success(r.asArray[JValue]()))
+          f(Success(r.asArray[JValue](), None))
         case Some(err) =>
           err match {
             case SchemaMismatch(_, schema) =>
@@ -97,7 +111,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     withHost(instance) { host =>
       val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
       sendScript(createUrl(host), createScript) {
-        case Success(idAndReports) =>
+        case Success(idAndReports, None) =>
           val JString(datasetId) = idAndReports.next()
           (DatasetId(datasetId), idAndReports.toSeq)
         case other =>
@@ -159,17 +173,21 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
-  def export[T](datasetId: DatasetId, schemaHash: String)(f: Result => T): T = {
+  def export[T](datasetId: DatasetId, schemaHash: String, precondition: Precondition)(f: Result => T): T = {
     withHost(datasetId) { host =>
-      val request = exportUrl(host, datasetId).q("schemaHash" -> schemaHash).get
+      val request = exportUrl(host, datasetId).q("schemaHash" -> schemaHash).precondition(precondition).get
       for(r <- httpClient.execute(request)) yield {
         errorFrom(r) match {
           case None =>
-            f(Success(r.asArray[JValue]()))
+            f(Success(r.asArray[JValue](), r.headers("ETag").headOption.flatMap(EntityTag.parse)))
           case Some(err) =>
             err match {
               case SchemaMismatchForExport(_, newSchema) =>
                 f(SchemaOutOfDate(newSchema))
+              case datacoordinator.NotModified() =>
+                f(NotModified(r.headers("etag").flatMap(EntityTag.parse(_ : String))))
+              case datacoordinator.PreconditionFailed() =>
+                f(DataCoordinatorClient.PreconditionFailed)
             }
         }
       }
