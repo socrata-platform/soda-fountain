@@ -1,7 +1,6 @@
 /target/
 /project/target/
 /project/project/target/
-/*/target/
 /.idea/
 /.idea_modules/
 /*.conf
