@@ -2,14 +2,20 @@ package com.socrata.soda.server.config
 
 import com.typesafe.config.Config
 
-class SodaFountainConfig(config: Config) extends ConfigClass(config, "com.socrata.soda-fountain") {
+class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(config), "com.socrata.soda-fountain") {
   val maxDatumSize = getInt("max-datum-size")
   val curator = getConfig("curator", new CuratorConfig(_, _))
+  val serviceAdvertisement = getConfig("service-advertisement", new ServiceAdvertisementConfig(_, _))
   val network = getConfig("network", new NetworkConfig(_, _))
   val dataCoordinatorClient = getConfig("data-coordinator-client", new DataCoordinatorClientConfig(_, _))
   val queryCoordinatorClient = getConfig("query-coordinator-client", new QueryCoordinatorClientConfig(_, _))
   val database = getConfig("database", new DataSourceConfig(_, _))
   val log4j = getRawConfig("log4j")
+}
+
+class ServiceAdvertisementConfig(config: Config, root: String) extends ConfigClass(config, root) {
+  val address = getString("address")
+  val service = getString("service")
 }
 
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
