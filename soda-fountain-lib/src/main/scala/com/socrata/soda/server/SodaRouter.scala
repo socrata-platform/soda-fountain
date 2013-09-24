@@ -16,6 +16,7 @@ class SodaRouter(versionResource: HttpService,
                  resourceResource: ResourceName => HttpService,
                  resourceRowResource: (ResourceName, String) => HttpService,
                  datasetCopyResource: ResourceName => HttpService,
+                 datasetVersionResource: (ResourceName, SecondaryId) => HttpService,
                  datasetExportResource: OptionallyTypedPathComponent[ResourceName] => HttpService,
                  exportExtensions: String => Boolean)
 {
@@ -41,6 +42,7 @@ class SodaRouter(versionResource: HttpService,
     Route("/resource/{ResourceName}", resourceResource),
     Route("/resource/{ResourceName}/?", resourceRowResource),
     Route("/dataset-copy/{ResourceName}", datasetCopyResource),
+    Route("/dataset-version/{ResourceName}/{SecondaryId}", datasetVersionResource),
     Route("/export/{{ResourceName:exportExtensions}}", datasetExportResource)
   )
 

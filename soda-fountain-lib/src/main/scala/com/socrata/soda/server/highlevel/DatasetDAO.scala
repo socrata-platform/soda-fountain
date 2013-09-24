@@ -1,8 +1,9 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.server.wiremodels.{DatasetSpec, UserProvidedDatasetSpec}
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{SecondaryId, ResourceName}
 import com.socrata.soql.environment.ColumnName
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.VersionReport
 
 trait DatasetDAO {
   import DatasetDAO.Result
@@ -11,6 +12,7 @@ trait DatasetDAO {
   def updateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result
   def deleteDataset(dataset: ResourceName): Result
   def getDataset(dataset: ResourceName): Result
+  def getVersion(dataset: ResourceName, secondary: SecondaryId): Result
 
   def makeCopy(dataset: ResourceName, copyData: Boolean): Result
   def dropCurrentWorkingCopy(dataset: ResourceName): Result
@@ -22,6 +24,7 @@ object DatasetDAO {
   case class Created(datasetSpec: DatasetSpec) extends Result
   case class Updated(datasetSpec: DatasetSpec) extends Result
   case class Found(datasetSpec: DatasetSpec) extends Result
+  case class DatasetVersion(version: VersionReport) extends Result
   case object Deleted extends Result
   case class NotFound(name: ResourceName) extends Result
   case class InvalidDatasetName(name: ResourceName) extends Result

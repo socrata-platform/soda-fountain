@@ -1,6 +1,6 @@
 package com.socrata.soda.server.resources
 
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{SecondaryId, ResourceName}
 import com.socrata.soda.server.highlevel.DatasetDAO
 import javax.servlet.http.HttpServletRequest
 import com.socrata.soda.server.{SodaUtils, LogTag}
@@ -83,6 +83,12 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
     override def put = { req =>
       response(datasetDAO.publish(resourceName, snapshotLimit = snapshotLimit(req)))
+    }
+  }
+
+  case class versionService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
+    override def get = { req =>
+      response(datasetDAO.getVersion(resourceName, secondary))
     }
   }
 }
