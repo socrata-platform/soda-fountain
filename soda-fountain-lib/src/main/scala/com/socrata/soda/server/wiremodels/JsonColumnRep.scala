@@ -1,7 +1,7 @@
 package com.socrata.soda.server.wiremodels
 
 import com.socrata.soql.types._
-import com.rojoma.json.ast.{JNumber, JString, JNull, JValue}
+import com.rojoma.json.ast._
 import com.rojoma.json.codec.JsonCodec
 import com.socrata.soql.types.obfuscation.CryptProvider
 
@@ -42,8 +42,14 @@ object JsonColumnRep {
   val VersionStringRep = new SoQLVersion.StringRep(cryptProvider)
 
   object TextRep extends CodecBasedJsonColumnRep[String](SoQLText, _.asInstanceOf[SoQLText].value, SoQLText(_))
-  object NumberRep extends CodecBasedJsonColumnRep[java.math.BigDecimal](SoQLText, _.asInstanceOf[SoQLNumber].value, SoQLNumber(_))
+  object NumberRep extends CodecBasedJsonColumnRep[java.math.BigDecimal](SoQLNumber, _.asInstanceOf[SoQLNumber].value, SoQLNumber(_))
+  object MoneyRep extends CodecBasedJsonColumnRep[java.math.BigDecimal](SoQLMoney, _.asInstanceOf[SoQLMoney].value, SoQLMoney(_))
   object BooleanRep extends CodecBasedJsonColumnRep[Boolean](SoQLBoolean, _.asInstanceOf[SoQLBoolean].value, SoQLBoolean(_))
+  object ObjectRep extends CodecBasedJsonColumnRep[JObject](SoQLObject, _.asInstanceOf[SoQLObject].value, SoQLObject(_))
+  object ArrayRep extends CodecBasedJsonColumnRep[JArray](SoQLArray, _.asInstanceOf[SoQLArray].value, SoQLArray(_))
+
+  // Note: top-level `null's will be treated as SoQL nulls, not JSON nulls.  I think this is OK?
+  object JValueRep extends CodecBasedJsonColumnRep[JValue](SoQLJson, _.asInstanceOf[SoQLJson].value, SoQLJson(_))
 
   object FixedTimestampRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
@@ -73,6 +79,34 @@ object JsonColumnRep {
     val representedType: SoQLType = SoQLFloatingTimestamp
   }
 
+  object DateRep extends JsonColumnRep {
+    def fromJValue(input: JValue): Option[SoQLValue] = input match {
+      case JString(SoQLDate.StringRep(t)) => Some(SoQLDate(t))
+      case JNull => Some(SoQLNull)
+      case _ => None
+    }
+
+    def toJValue(value: SoQLValue): JValue =
+      if(SoQLNull == value) JNull
+      else JString(SoQLDate.StringRep(value.asInstanceOf[SoQLDate].value))
+
+    val representedType: SoQLType = SoQLDate
+  }
+
+  object TimeRep extends JsonColumnRep {
+    def fromJValue(input: JValue): Option[SoQLValue] = input match {
+      case JString(SoQLTime.StringRep(t)) => Some(SoQLTime(t))
+      case JNull => Some(SoQLNull)
+      case _ => None
+    }
+
+    def toJValue(value: SoQLValue): JValue =
+      if(SoQLNull == value) JNull
+      else JString(SoQLTime.StringRep(value.asInstanceOf[SoQLTime].value))
+
+    val representedType: SoQLType = SoQLTime
+  }
+
   object ClientNumberRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JString(s) => try { Some(SoQLNumber(new java.math.BigDecimal(s))) } catch { case e: NumberFormatException => None }
@@ -85,6 +119,41 @@ object JsonColumnRep {
       else JString(value.asInstanceOf[SoQLNumber].value.toString)
 
     val representedType: SoQLType = SoQLNumber
+  }
+
+  object ClientMoneyRep extends JsonColumnRep {
+    def fromJValue(input: JValue): Option[SoQLValue] = input match {
+      case JString(s) => try { Some(SoQLMoney(new java.math.BigDecimal(s))) } catch { case e: NumberFormatException => None }
+      case JNumber(n) => Some(SoQLMoney(n.underlying))
+      case _ => None
+    }
+
+    def toJValue(value: SoQLValue): JValue =
+      if(SoQLNull == value) JNull
+      else JString(value.asInstanceOf[SoQLMoney].value.toString)
+
+    val representedType: SoQLType = SoQLMoney
+  }
+
+  // Doubles are unquoted when we generate them, but we accept either quoted or unquoted for consistency.
+  // Also NaN and the Infinites are represented as Strings.
+  // We'll use this for both client and server doubles.  The servers will just never generate quoted ones.
+  object DoubleRep extends JsonColumnRep {
+    def fromJValue(input: JValue): Option[SoQLValue] = input match {
+      case JNumber(n) => Some(SoQLDouble(n.toDouble))
+      case JString(s) => try { Some(SoQLDouble(s.toDouble)) } catch { case e: NumberFormatException => None }
+      case _ => None
+    }
+
+    def toJValue(value: SoQLValue): JValue =
+      if(SoQLNull == value) JNull
+      else {
+        val v = value.asInstanceOf[SoQLDouble].value
+        if(v.isInfinite || v.isNaN) JString(v.toString)
+        else JNumber(v)
+      }
+
+    val representedType: SoQLType = SoQLDouble
   }
 
   object IDRep extends JsonColumnRep {
@@ -115,25 +184,39 @@ object JsonColumnRep {
     val representedType: SoQLType = SoQLVersion
   }
 
-  def forClientType(typ: SoQLType): JsonColumnRep =
-    typ match {
-      case SoQLText => TextRep
-      case SoQLFixedTimestamp => FixedTimestampRep
-      case SoQLFloatingTimestamp => FloatingTimestampRep
-      case SoQLID => IDRep
-      case SoQLVersion => VersionRep
-      case SoQLNumber => ClientNumberRep
-      case SoQLBoolean => BooleanRep
-    }
+  def forClientType: Map[SoQLType, JsonColumnRep] =
+    Map(
+      SoQLText -> TextRep,
+      SoQLFixedTimestamp -> FixedTimestampRep,
+      SoQLFloatingTimestamp -> FloatingTimestampRep,
+      SoQLDate -> DateRep,
+      SoQLTime -> TimeRep,
+      SoQLID -> IDRep,
+      SoQLVersion -> VersionRep,
+      SoQLNumber -> ClientNumberRep,
+      SoQLMoney -> ClientMoneyRep,
+      SoQLDouble -> DoubleRep,
+      SoQLBoolean -> BooleanRep,
+      SoQLObject -> ObjectRep,
+      SoQLArray -> ArrayRep,
+      SoQLJson -> JValueRep
+    )
 
-  def forDataCoordinatorType(typ: SoQLType): JsonColumnRep =
-    typ match {
-      case SoQLText => TextRep
-      case SoQLFixedTimestamp => FixedTimestampRep
-      case SoQLFloatingTimestamp => FloatingTimestampRep
-      case SoQLID => IDRep
-      case SoQLVersion => VersionRep
-      case SoQLNumber => NumberRep
-      case SoQLBoolean => BooleanRep
-    }
+  val forDataCoordinatorType: Map[SoQLType, JsonColumnRep] =
+    Map(
+      SoQLText -> TextRep,
+      SoQLFixedTimestamp -> FixedTimestampRep,
+      SoQLFloatingTimestamp -> FloatingTimestampRep,
+      SoQLDate -> DateRep,
+      SoQLTime -> TimeRep,
+      SoQLID -> IDRep,
+      SoQLVersion -> VersionRep,
+      SoQLNumber -> NumberRep,
+      SoQLMoney -> MoneyRep,
+      SoQLDouble -> DoubleRep,
+      SoQLBoolean -> BooleanRep,
+      SoQLObject -> ObjectRep,
+      SoQLArray -> ArrayRep,
+      SoQLJson -> JValueRep
+    )
 }
