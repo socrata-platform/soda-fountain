@@ -209,6 +209,17 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       }
     }
 
+  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result =
+    retryable(limit = 5) {
+      store.translateResourceName(dataset) match {
+        case Some(datasetRecord) =>
+          dc.propagateToSecondary(datasetRecord.systemId, secondary)
+          PropagatedToSecondary
+        case None =>
+          NotFound(dataset)
+      }
+    }
+
   private[this] val _systemColumns = Map(
     ColumnName(":id") -> ColumnSpec(ColumnId(":id"), ColumnName(":id"), ":id", "", SoQLID),
     ColumnName(":version") -> ColumnSpec(ColumnId(":version"), ColumnName(":version"), ":version", "", SoQLVersion),

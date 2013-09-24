@@ -1,7 +1,7 @@
 package com.socrata.soda.server
 
 import com.rojoma.json.io._
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfter, ParallelTestExecution, FunSuite}
+import org.scalatest.FunSuite
 import org.scalatest.matchers.MustMatchers
 import com.rojoma.json.ast._
 import com.socrata.soda.server.config.SodaFountainConfig
@@ -10,12 +10,14 @@ import com.socrata.http.client._
 import java.util.concurrent.Executors
 import scala.Some
 import com.rojoma.json.ast.JString
-import java.io.{InputStreamReader, BufferedReader}
-import scala.io.Source
+import com.socrata.soda.server.highlevel.DatasetDAO.DatasetVersion
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.VersionReport
+import com.rojoma.json.codec.JsonCodec
 
 trait IntegrationTestHelpers {
 
   val sodaHost: String = "localhost"
+  val secondaryStore = "es"
   val sodaPort = 8080
   val httpClient = new HttpClientHttpClient(NoopLivenessChecker, Executors.newCachedThreadPool(), userAgent = "soda fountain integration test")
 
@@ -45,7 +47,7 @@ trait IntegrationTestHelpers {
       case None => req.get
     }
     httpClient.execute( prepared ).flatMap{ response =>
-      val body = response.asJValue(2 ^ 20)
+      val body = response.isJson match { case true => response.asJValue(2 ^ 20); case false => JNull}
       SimpleResponse(response.resultCode, body)
     }
   }
@@ -53,7 +55,10 @@ trait IntegrationTestHelpers {
   private def requestVersionInSecondaryStore(resourceName: String) = {
     val response = dispatch("GET", "dataset-version", Some(resourceName), Some("es"), None, None)
     response.resultCode match {
-      case 200 => Right(readBody(response).toLong)
+      case 200 => JsonCodec[VersionReport].decode(response.body) match {
+        case Some(VersionReport(ver)) => Right(ver)
+        case None => Left(s"unexpected response for version request: ${response.body}")
+      }
       case _ => Left(s"could not read version in secondary store: ${response.toString}")
     }
   }

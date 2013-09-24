@@ -23,6 +23,8 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
 
     //publish
     val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
+    val gResponse = dispatch("POST", "dataset-copy", Some(resourceName), Some(secondaryStore), None, None)
+
     val v = getVersionInSecondaryStore(resourceName)
 
     //upsert values.  The current time in the last row will cause the data version to increment.
@@ -47,11 +49,9 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
 class DatasetServiceIntegrationTest extends SodaFountainIntegrationTest with DatasetServiceIntegrationTestFixture {
 
   test("update request malformed json returns error response"){
-    pendingUntilFixed{
-      val response = dispatch("POST", "resource", Option(resourceName), None, None,  Some(JString("this is not json")))
-      readBody(response).length must be > (0)
-      response.resultCode must equal (415)
-    }
+    val response = dispatch("POST", "resource", Option(resourceName), None, None,  Some(JString("this is not json")))
+    readBody(response).length must be > (0)
+    response.resultCode must equal (415)
   }
 
   test("update request with unexpected format json returns error response"){

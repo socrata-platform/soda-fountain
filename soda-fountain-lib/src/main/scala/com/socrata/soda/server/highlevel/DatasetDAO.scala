@@ -17,6 +17,7 @@ trait DatasetDAO {
   def makeCopy(dataset: ResourceName, copyData: Boolean): Result
   def dropCurrentWorkingCopy(dataset: ResourceName): Result
   def publish(dataset: ResourceName, snapshotLimit: Option[Int]): Result
+  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result
 }
 
 object DatasetDAO {
@@ -35,4 +36,5 @@ object DatasetDAO {
   case object WorkingCopyCreated extends Result
   case object WorkingCopyDropped extends Result
   case object WorkingCopyPublished extends Result
+  case object PropagatedToSecondary extends Result
 }

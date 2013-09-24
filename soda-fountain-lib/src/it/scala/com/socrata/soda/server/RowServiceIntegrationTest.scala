@@ -23,6 +23,7 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
 
     //publish
     val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
+    val gResponse = dispatch("POST", "dataset-copy", Some(resourceName), Some(secondaryStore), None, None)
     val v = getVersionInSecondaryStore(resourceName)
 
     val uBody = JArray(Seq(
