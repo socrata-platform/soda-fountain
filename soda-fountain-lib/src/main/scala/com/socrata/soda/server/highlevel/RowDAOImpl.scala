@@ -12,6 +12,7 @@ import com.socrata.soda.clients.datacoordinator.UpsertRow
 import com.socrata.soda.server.highlevel.RowDAO.NotFound
 import com.socrata.soda.server.highlevel.RowDAO.Success
 import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
+import com.socrata.soda.server.wiremodels.{JsonColumnReadRep, JsonColumnRep}
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
@@ -40,7 +41,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolean) {
     private[this] sealed abstract class ColumnResult
     private[this] case class NoColumn(fieldName: ColumnName) extends ColumnResult
-    private[this] case class ColumnInfo(columnRecord: ColumnRecordLike) extends ColumnResult
+    private[this] case class ColumnInfo(columnRecord: ColumnRecordLike, rep: JsonColumnReadRep) extends ColumnResult
 
     // A cache from the keys of the JSON objects which are rows to values
     // which represent either the fact that the key does not represent
@@ -54,7 +55,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           case Some(cr) =>
             if(columnInfos.size > columns.size * 10)
               columnInfos.clear() // bad user, but I'd rather spend CPU than memory
-            val ci = ColumnInfo(cr)
+            val ci = ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ))
             columnInfos.put(rawColumnName, ci)
             ci
           case None =>
@@ -71,10 +72,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         var rowHasLegacyDeleteFlag = false
         val row: scala.collection.Map[String, JValue] = map.flatMap { case (uKey, uVal) =>
           ciFor(uKey) match {
-            case ColumnInfo(cr) =>
-              TypeChecker.check(cr.typ, uVal) match {
-                case Right(v) => (cr.id.underlying -> uVal) :: Nil
-                case Left(TypeChecker.Error(expected, got)) => throw MaltypedDataEx(cr.fieldName, expected, got)
+            case ColumnInfo(cr, rep) =>
+              rep.fromJValue(uVal) match {
+                case Some(v) => (cr.id.underlying -> uVal) :: Nil
+                case None => throw MaltypedDataEx(cr.fieldName, rep.representedType, uVal)
               }
             case NoColumn(colName) =>
               if(colName == LegacyDeleteFlag && JBoolean.canonicalTrue == uVal) {
