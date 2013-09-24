@@ -43,6 +43,7 @@ object JsonColumnRep {
 
   object TextRep extends CodecBasedJsonColumnRep[String](SoQLText, _.asInstanceOf[SoQLText].value, SoQLText(_))
   object NumberRep extends CodecBasedJsonColumnRep[java.math.BigDecimal](SoQLText, _.asInstanceOf[SoQLNumber].value, SoQLNumber(_))
+  object BooleanRep extends CodecBasedJsonColumnRep[Boolean](SoQLBoolean, _.asInstanceOf[SoQLBoolean].value, SoQLBoolean(_))
 
   object FixedTimestampRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
@@ -56,6 +57,20 @@ object JsonColumnRep {
       else JString(SoQLFixedTimestamp.StringRep(value.asInstanceOf[SoQLFixedTimestamp].value))
 
     val representedType: SoQLType = SoQLFixedTimestamp
+  }
+
+  object FloatingTimestampRep extends JsonColumnRep {
+    def fromJValue(input: JValue): Option[SoQLValue] = input match {
+      case JString(SoQLFloatingTimestamp.StringRep(t)) => Some(SoQLFloatingTimestamp(t))
+      case JNull => Some(SoQLNull)
+      case _ => None
+    }
+
+    def toJValue(value: SoQLValue): JValue =
+      if(SoQLNull == value) JNull
+      else JString(SoQLFloatingTimestamp.StringRep(value.asInstanceOf[SoQLFloatingTimestamp].value))
+
+    val representedType: SoQLType = SoQLFloatingTimestamp
   }
 
   object ClientNumberRep extends JsonColumnRep {
@@ -104,17 +119,21 @@ object JsonColumnRep {
     typ match {
       case SoQLText => TextRep
       case SoQLFixedTimestamp => FixedTimestampRep
+      case SoQLFloatingTimestamp => FloatingTimestampRep
       case SoQLID => IDRep
       case SoQLVersion => VersionRep
       case SoQLNumber => ClientNumberRep
+      case SoQLBoolean => BooleanRep
     }
 
   def forDataCoordinatorType(typ: SoQLType): JsonColumnRep =
     typ match {
       case SoQLText => TextRep
       case SoQLFixedTimestamp => FixedTimestampRep
+      case SoQLFloatingTimestamp => FloatingTimestampRep
       case SoQLID => IDRep
       case SoQLVersion => VersionRep
       case SoQLNumber => NumberRep
+      case SoQLBoolean => BooleanRep
     }
 }
