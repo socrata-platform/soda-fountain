@@ -16,7 +16,7 @@ import java.security.SecureRandom
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import java.util.concurrent.Executors
-import com.socrata.soda.server.util.{NoopEtagObfuscator, BlowfishCFBETagObfuscator, ETagObfuscator, CloseableExecutorService}
+import com.socrata.soda.server.util.{BlowfishCFBETagObfuscator, ETagObfuscator, CloseableExecutorService}
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import scala.concurrent.duration.FiniteDuration
@@ -133,7 +133,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
   val exportDAO = i(new ExportDAOImpl(store, dc))
 
-  val etagObfuscator = i(NoopEtagObfuscator)
+  val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
 
   val router = i {
     import com.socrata.soda.server.resources._

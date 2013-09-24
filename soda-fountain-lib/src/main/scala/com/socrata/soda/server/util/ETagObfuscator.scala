@@ -11,6 +11,10 @@ trait ETagObfuscator {
   def deobfuscate(etag: EntityTag): EntityTag
 }
 
+object ETagObfuscator {
+  def noop: ETagObfuscator = NoopEtagObfuscator
+}
+
 object NoopEtagObfuscator extends ETagObfuscator {
   def obfuscate(text: EntityTag): EntityTag = text
   def deobfuscate(etag: EntityTag): EntityTag = etag

@@ -4,6 +4,8 @@ import com.typesafe.config.Config
 
 class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(config), "com.socrata.soda-fountain") {
   val maxDatumSize = getInt("max-datum-size")
+  val etagObfuscationKey = optionally(getString("etag-obfuscation-key"))
+
   val curator = getConfig("curator", new CuratorConfig(_, _))
   val serviceAdvertisement = getConfig("service-advertisement", new ServiceAdvertisementConfig(_, _))
   val network = getConfig("network", new NetworkConfig(_, _))
