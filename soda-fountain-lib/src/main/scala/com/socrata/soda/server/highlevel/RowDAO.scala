@@ -1,6 +1,6 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
 import com.rojoma.json.ast.JValue
 import RowDAO._
 import com.socrata.soql.environment.ColumnName
@@ -8,6 +8,7 @@ import com.socrata.soql.types.SoQLType
 
 trait RowDAO {
   def query(dataset: ResourceName, query: String): Result
+  def getRow(dataset: ResourceName, rowId: RowSpecifier): Result
   def upsert[T](dataset: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T
   def replace[T](dataset: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T
 }

@@ -1,6 +1,6 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
 import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike, NameAndSchemaStore}
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
@@ -24,6 +24,17 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     store.translateResourceName(resourceName) match {
       case Some(datasetRecord) =>
         val (code, response) = qc.query(datasetRecord.systemId, query, datasetRecord.columnsByName.mapValues(_.id))
+        Success(code, response) // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
+      case None =>
+        NotFound(resourceName)
+    }
+  }
+
+  def getRow(resourceName: ResourceName, rowId: RowSpecifier): Result = {
+    store.translateResourceName(resourceName) match {
+      case Some(datasetRecord) =>
+        val pk = datasetRecord.primaryKey
+        val (code, response) = qc.query(datasetRecord.systemId, s"select * where ${pk} = ${rowId}", datasetRecord.columnsByName.mapValues(_.id))
         Success(code, response) // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
       case None =>
         NotFound(resourceName)

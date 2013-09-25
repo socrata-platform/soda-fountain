@@ -1,6 +1,6 @@
 package com.socrata.soda.server.resources
 
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import com.socrata.http.server.HttpResponse
 import com.socrata.soda.server.highlevel.RowDAO
@@ -10,6 +10,7 @@ import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.wiremodels.InputUtils
 import com.rojoma.simplearm.util._
 import com.rojoma.json.io.{CompactJsonWriter, EventTokenIterator}
+import com.rojoma.json.ast.{JString, JArray}
 
 case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -45,6 +46,9 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
   def query(resourceName: ResourceName)(req: HttpServletRequest): HttpResponse =
     response(rowDAO.query(resourceName, Option(req.getParameter("$query")).getOrElse("select *")))
 
+  def getRow(resourceName: ResourceName, rowId: RowSpecifier)(req: HttpServletRequest): HttpResponse =
+    response(rowDAO.getRow(resourceName, rowId))
+
   def upsert(resourceName: ResourceName)(req: HttpServletRequest)(response: HttpServletResponse) {
     InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
       case Right(boundedIt) =>
@@ -52,6 +56,19 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
       case Left(err) =>
         SodaUtils.errorResponse(req, err, resourceName)(response)
     }
+  }
+
+  def upsertRow(resourceName: ResourceName, rowId: RowSpecifier)(req: HttpServletRequest)(response: HttpServletResponse) {
+    InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
+      case Right(rowJVal) =>
+        rowDAO.upsert(resourceName, Iterator.single(rowJVal))(upsertResponse(response))
+      case Left(err) =>
+        SodaUtils.errorResponse(req, err, resourceName)(response)
+    }
+  }
+
+  def deleteRow(resourceName: ResourceName, rowId: RowSpecifier)(req: HttpServletRequest)(response: HttpServletResponse) {
+    rowDAO.upsert(resourceName, Iterator.single(JArray(Seq(JString(rowId.underlying)))))(upsertResponse(response))
   }
 
   def replace(resourceName: ResourceName)(req: HttpServletRequest)(response: HttpServletResponse) {
@@ -69,5 +86,9 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
     override def put = replace(resourceName)
   }
 
-  case class rowService(resourceName: ResourceName, rowId: String) extends SodaResource
+  case class rowService(resourceName: ResourceName, rowId: RowSpecifier) extends SodaResource {
+    override def get = getRow(resourceName, rowId)
+    override def post = upsertRow(resourceName, rowId)
+    override def delete = deleteRow(resourceName, rowId)
+  }
 }
