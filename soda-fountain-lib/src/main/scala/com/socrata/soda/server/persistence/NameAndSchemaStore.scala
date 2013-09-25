@@ -6,6 +6,7 @@ import com.socrata.soql.types.SoQLType
 import com.rojoma.json.util.AutomaticJsonCodecBuilder
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec
+import com.socrata.soda.server.wiremodels.ColumnSpec
 
 // TODO: this needs to expose a notion of transactions
 trait NameAndSchemaStore {
@@ -16,7 +17,7 @@ trait NameAndSchemaStore {
 
   def resolveSchemaInconsistency(datasetId: DatasetId, newSchema: SchemaSpec)
 
-  def addColumn(datasetId: DatasetId, columnSystemId: ColumnId, columnFieldName: ColumnName) : Unit
+  def addColumn(datasetId: DatasetId, columnSpec: ColumnSpec) : ColumnRecord
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnName, newFieldName: ColumnName) : Unit
   def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit
 }
@@ -42,11 +43,12 @@ trait ColumnRecordLike {
   val id: ColumnId
   val fieldName: ColumnName
   val typ: SoQLType
+  val isInconsistencyResolutionGenerated: Boolean
 }
 
 // A minimal dataset record is a dataset record minus the name and description columns,
 // which are unnecessary for most operations.
-case class MinimalColumnRecord(id: ColumnId, fieldName: ColumnName, typ: SoQLType) extends ColumnRecordLike
+case class MinimalColumnRecord(id: ColumnId, fieldName: ColumnName, typ: SoQLType, isInconsistencyResolutionGenerated: Boolean) extends ColumnRecordLike
 object MinimalColumnRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[MinimalColumnRecord]
 }
@@ -57,7 +59,7 @@ object MinimalDatasetRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[MinimalDatasetRecord]
 }
 
-case class ColumnRecord(id: ColumnId, fieldName: ColumnName, typ: SoQLType, name: String, description: String) extends ColumnRecordLike
+case class ColumnRecord(id: ColumnId, fieldName: ColumnName, typ: SoQLType, name: String, description: String, isInconsistencyResolutionGenerated: Boolean) extends ColumnRecordLike
 object ColumnRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[ColumnRecord]
 }

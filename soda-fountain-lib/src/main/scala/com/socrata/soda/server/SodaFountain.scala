@@ -11,7 +11,7 @@ import org.apache.log4j.PropertyConfigurator
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import javax.servlet.http.HttpServletRequest
 import com.socrata.http.server.HttpResponse
-import com.socrata.soda.server.highlevel.{ExportDAOImpl, RowDAOImpl, ColumnSpecUtils, DatasetDAOImpl}
+import com.socrata.soda.server.highlevel._
 import java.security.SecureRandom
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
@@ -129,7 +129,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
 
   val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
-  val columnDAO = null
+  val columnDAO = i(new ColumnDAOImpl(dc, store, columnSpecUtils))
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
   val exportDAO = i(new ExportDAOImpl(store, dc))
 
@@ -140,7 +140,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
     val resource = Resource(rowDAO, config.maxDatumSize) // TODO: this should probably be a different max size value
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
-    val column = DatasetColumn(columnDAO, config.maxDatumSize)
+    val column = DatasetColumn(columnDAO, etagObfuscator, config.maxDatumSize)
     val export = Export(exportDAO, etagObfuscator)
 
     new SodaRouter(

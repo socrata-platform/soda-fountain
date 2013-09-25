@@ -13,7 +13,8 @@ package object highlevel {
         __underlying.fieldName,
         __underlying.datatype,
         __underlying.name,
-        __underlying.description
+        __underlying.description,
+        isInconsistencyResolutionGenerated = false
       )
   }
 

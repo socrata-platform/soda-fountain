@@ -9,8 +9,10 @@ import com.socrata.http.server.HttpResponse
 import com.socrata.soda.server.{LogTag, SodaUtils}
 import javax.servlet.http.HttpServletRequest
 import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedColumnSpec}
+import com.socrata.soda.server.util.ETagObfuscator
+import com.socrata.http.server.util.Precondition
 
-case class DatasetColumn(columnDAO: ColumnDAO, maxDatumSize: Int) {
+case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetColumn])
 
   def withColumnSpec(request: HttpServletRequest, logTags: LogTag*)(f: UserProvidedColumnSpec => HttpResponse): HttpResponse = {
@@ -22,21 +24,31 @@ case class DatasetColumn(columnDAO: ColumnDAO, maxDatumSize: Int) {
     }
   }
 
-  def response(result: ColumnDAO.Result): HttpResponse = {
+  def response(result: ColumnDAO.Result, isGet: Boolean = false): HttpResponse = {
     log.info("TODO: Negotiate content type")
     result match {
-      case ColumnDAO.Created(spec) => Created ~> SodaUtils.JsonContent(spec)
-      case ColumnDAO.Updated(spec) => OK ~> SodaUtils.JsonContent(spec)
-      case ColumnDAO.Found(spec) => OK ~> SodaUtils.JsonContent(spec)
+      case ColumnDAO.Created(spec, etagOpt) =>
+        etagOpt.foldLeft(Created) { (root, etag) => root ~> Header("ETag", etagObfuscator.obfuscate(etag).toString) } ~> SodaUtils.JsonContent(spec)
+      case ColumnDAO.Updated(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
+      case ColumnDAO.Found(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Deleted => NoContent
-      case ColumnDAO.NotFound(column) => NotFound /* TODO: content */
+      case ColumnDAO.ColumnNotFound(column) => NotFound /* TODO: content */
+      case ColumnDAO.DatasetNotFound(dataset) => NotFound /* TODO: content */
       case ColumnDAO.InvalidColumnName(column) => BadRequest /* TODO: content */
+      case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
+        if(isGet) {
+          etags.foldLeft(NotModified) { (root, etag) => root ~> Header("ETag", etagObfuscator.obfuscate(etag).toString) } // no content is fine here
+        } else {
+          etags.foldLeft(PreconditionFailed) { (root, etag) => root ~> Header("ETag", etagObfuscator.obfuscate(etag).toString) } /* TODO: content */
+        }
+      case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
+        PreconditionFailed /* TODO: content */
     }
   }
 
   case class service(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def get = { req =>
-      response(columnDAO.getColumn(resourceName, columnName))
+      response(columnDAO.getColumn(resourceName, columnName), isGet = true)
     }
 
     override def delete = { req =>
@@ -45,7 +57,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, maxDatumSize: Int) {
 
     override def put = { req =>
       withColumnSpec(req, resourceName, columnName) { spec =>
-        response(columnDAO.replaceOrCreateColumn(resourceName, columnName, spec))
+        response(columnDAO.replaceOrCreateColumn(resourceName, req.precondition.map(etagObfuscator.deobfuscate), columnName, spec))
       }
     }
 

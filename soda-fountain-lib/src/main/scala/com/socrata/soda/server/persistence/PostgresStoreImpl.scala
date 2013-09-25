@@ -7,6 +7,7 @@ import com.socrata.soql.environment.{TypeName, ColumnName}
 import java.sql.Connection
 import com.socrata.soql.types.SoQLType
 import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
+import com.socrata.soda.server.wiremodels.ColumnSpec
 
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   using(dataSource.getConnection()){ connection =>
@@ -147,7 +148,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             } while(existingColumnNames.contains(newName))
           }
 
-          ColumnRecord(cid, newFieldName, newSchema.schema(cid), newName, "Unknown column discovered by consistency checker")
+          ColumnRecord(cid, newFieldName, newSchema.schema(cid), newName, "Unknown column discovered by consistency checker", isInconsistencyResolutionGenerated = true)
         })
       }
 
@@ -177,7 +178,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def fetchMinimalColumns(conn: Connection, datasetId: DatasetId): Seq[MinimalColumnRecord] = {
-    using(conn.prepareStatement("select column_name, column_id, type_name from columns where dataset_system_id = ?")) { colQuery =>
+    using(conn.prepareStatement("select column_name, column_id, type_name, is_inconsistency_resolution_generated from columns where dataset_system_id = ?")) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
       using(colQuery.executeQuery()) { rs =>
         val result = Vector.newBuilder[MinimalColumnRecord]
@@ -185,7 +186,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           result += MinimalColumnRecord(
             ColumnId(rs.getString("column_id")),
             new ColumnName(rs.getString("column_name")),
-            SoQLType.typesByName(TypeName(rs.getString("type_name")))
+            SoQLType.typesByName(TypeName(rs.getString("type_name"))),
+            rs.getBoolean("is_inconsistency_resolution_generated")
           )
         }
         result.result()
@@ -194,7 +196,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def fetchFullColumns(conn: Connection, datasetId: DatasetId): Seq[ColumnRecord] = {
-    using(conn.prepareStatement("select column_name, column_id, type_name, name, description from columns where dataset_system_id = ?")) { colQuery =>
+    using(conn.prepareStatement("select column_name, column_id, type_name, name, description, is_inconsistency_resolution_generated from columns where dataset_system_id = ?")) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
       using(colQuery.executeQuery()) { rs =>
         val result = Vector.newBuilder[ColumnRecord]
@@ -204,7 +206,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             new ColumnName(rs.getString("column_name")),
             SoQLType.typesByName(TypeName(rs.getString("type_name"))),
             rs.getString("name"),
-            rs.getString("description")
+            rs.getString("description"),
+            rs.getBoolean("is_inconsistency_resolution_generated")
           )
         }
         result.result()
@@ -214,7 +217,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def addColumns(connection: Connection, datasetId: DatasetId, columns: TraversableOnce[ColumnRecord]) {
     if(columns.nonEmpty) {
-      using(connection.prepareStatement("insert into columns (dataset_system_id, column_name_casefolded, column_name, column_id, name, description, type_name) values (?, ?, ?, ?, ?, ?, ?)")) { colAdder =>
+      using(connection.prepareStatement("insert into columns (dataset_system_id, column_name_casefolded, column_name, column_id, name, description, type_name, is_inconsistency_resolution_generated) values (?, ?, ?, ?, ?, ?, ?, ?)")) { colAdder =>
         for(cspec <- columns) {
           colAdder.setString(1, datasetId.underlying)
           colAdder.setString(2, cspec.fieldName.caseFolded)
@@ -223,6 +226,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           colAdder.setString(5, cspec.name)
           colAdder.setString(6, cspec.description)
           colAdder.setString(7, cspec.typ.name.name)
+          colAdder.setBoolean(8, cspec.isInconsistencyResolutionGenerated)
           colAdder.addBatch()
         }
         colAdder.executeBatch()
@@ -271,7 +275,13 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       connection.commit()
     }
 
-  def addColumn(datasetId: DatasetId, columnSystemId: ColumnId, columnFieldName: ColumnName): Unit = ???
+  def addColumn(datasetId: DatasetId, spec: ColumnSpec): ColumnRecord =
+    using(dataSource.getConnection()) { conn =>
+      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false)
+      addColumns(conn, datasetId, Iterator.single(result))
+      result
+    }
+
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnName, newFieldName: ColumnName) : Unit = ???
   def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit = ???
 }
