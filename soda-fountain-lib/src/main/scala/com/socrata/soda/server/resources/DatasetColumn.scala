@@ -11,6 +11,7 @@ import javax.servlet.http.HttpServletRequest
 import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedColumnSpec}
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.http.server.util.Precondition
+import com.socrata.soda.server.errors.{ResourceNotModified, EtagPreconditionFailed}
 
 case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetColumn])
@@ -24,11 +25,11 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
     }
   }
 
-  def response(result: ColumnDAO.Result, isGet: Boolean = false): HttpResponse = {
+  def response(req: HttpServletRequest, result: ColumnDAO.Result, etagSuffix: String, isGet: Boolean = false): HttpResponse = {
     log.info("TODO: Negotiate content type")
     result match {
       case ColumnDAO.Created(spec, etagOpt) =>
-        etagOpt.foldLeft(Created) { (root, etag) => root ~> Header("ETag", etagObfuscator.obfuscate(etag).toString) } ~> SodaUtils.JsonContent(spec)
+        etagOpt.foldLeft(Created) { (root, etag) => root ~> Header("ETag", etagObfuscator.obfuscate(etag.map(_ + etagSuffix)).toString) } ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Updated(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Found(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Deleted => NoContent
@@ -37,33 +38,57 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
       case ColumnDAO.InvalidColumnName(column) => BadRequest /* TODO: content */
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
         if(isGet) {
-          etags.foldLeft(NotModified) { (root, etag) => root ~> Header("ETag", etagObfuscator.obfuscate(etag).toString) } // no content is fine here
+          log.info("TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified")
+          SodaUtils.errorResponse(req, ResourceNotModified(etags.map(_.map(_ + etagSuffix)).map(etagObfuscator.obfuscate), None))
         } else {
-          etags.foldLeft(PreconditionFailed) { (root, etag) => root ~> Header("ETag", etagObfuscator.obfuscate(etag).toString) } /* TODO: content */
+          SodaUtils.errorResponse(req, EtagPreconditionFailed)
         }
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
-        PreconditionFailed /* TODO: content */
+        SodaUtils.errorResponse(req, EtagPreconditionFailed)
+    }
+  }
+
+  def checkPrecondition(req: HttpServletRequest, isGet: Boolean = false)(op: Precondition => ColumnDAO.Result): HttpResponse = {
+    val suffix = "+"
+    req.precondition.map(etagObfuscator.deobfuscate).filter(_.value.endsWith(suffix)) match {
+      case Right(preconditionRaw) =>
+        val precondition = preconditionRaw.map(_.map(_.dropRight(suffix.length)))
+        response(req, op(precondition), suffix, isGet)
+      case Left(Precondition.FailedBecauseNoMatch) =>
+        SodaUtils.errorResponse(req, EtagPreconditionFailed)
+      case Left(Precondition.FailedBecauseMatch(etags)) =>
+        log.info("TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified")
+        if(isGet) SodaUtils.errorResponse(req, ResourceNotModified(etags.map(etagObfuscator.obfuscate), None))
+        else SodaUtils.errorResponse(req, EtagPreconditionFailed)
     }
   }
 
   case class service(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def get = { req =>
-      response(columnDAO.getColumn(resourceName, columnName), isGet = true)
+      checkPrecondition(req, isGet = true) { precondition =>
+        columnDAO.getColumn(resourceName, columnName)
+      }
     }
 
     override def delete = { req =>
-      response(columnDAO.deleteColumn(resourceName, columnName))
+      checkPrecondition(req) { precondition =>
+        columnDAO.deleteColumn(resourceName, columnName)
+      }
     }
 
     override def put = { req =>
       withColumnSpec(req, resourceName, columnName) { spec =>
-        response(columnDAO.replaceOrCreateColumn(resourceName, req.precondition.map(etagObfuscator.deobfuscate), columnName, spec))
+        checkPrecondition(req) { precondition =>
+          columnDAO.replaceOrCreateColumn(resourceName, precondition, columnName, spec)
+        }
       }
     }
 
     override def patch = { req =>
       withColumnSpec(req, resourceName, columnName) { spec =>
-        response(columnDAO.updateColumn(resourceName, columnName, spec))
+        checkPrecondition(req) { precondition =>
+          columnDAO.updateColumn(resourceName, columnName, spec)
+        }
       }
     }
   }
