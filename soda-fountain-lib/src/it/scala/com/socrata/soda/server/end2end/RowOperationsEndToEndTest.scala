@@ -26,8 +26,10 @@ class RowOperationsEndToEndTest extends SodaFountainIntegrationTest with Integra
     val pRowOpD = dispatch("PUT", "dataset-copy", Some(rowOpDataset), None, None, None)
     if (pRowOpD.resultCode != 200) throw new Exception( "publish failed with " + pRowOpD.resultCode + " " + readBody(pRowOpD))
 
-    //upsert row
+    val gResponse = dispatch("POST", "dataset-copy", Some(rowOpDataset), Some(secondaryStore), None, None)
     val v1 = getVersionInSecondaryStore(rowOpDataset)
+
+    //upsert row
     val rowId = "rowZ"
     val urBody = JObject(Map(
       "col_text" -> JString(rowId),

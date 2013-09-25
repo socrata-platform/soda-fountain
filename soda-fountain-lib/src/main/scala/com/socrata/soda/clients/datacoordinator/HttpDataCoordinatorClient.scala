@@ -147,10 +147,12 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
 
   def checkVersionInSecondary(datasetId: DatasetId, secondaryId: SecondaryId): VersionReport = {
     withHost(datasetId) { host =>
-      val request = secondaryUrl(host, secondaryId, datasetId).get
-      for (r <- httpClient.execute(request)) yield {
+      val request = secondaryUrl(host, secondaryId, datasetId)
+        .addHeader(("Content-type", "application/json"))
+        .get
+      httpClient.execute(request).flatMap{ response =>
         log.info("TODO: Handle errors from the data-coordinator")
-        val oVer = r.asValue[VersionReport]()
+        val oVer = response.asValue[VersionReport]()
         oVer match {
           case Some(ver) => ver
           case None => throw new Exception("version not found")

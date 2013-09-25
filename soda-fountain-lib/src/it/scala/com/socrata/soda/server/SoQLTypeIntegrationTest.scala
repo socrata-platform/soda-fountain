@@ -34,6 +34,7 @@ trait SoQLTypeIntegrationTestFixture extends BeforeAndAfterAll with IntegrationT
 
     //publish
     val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
+    val gResponse = dispatch("POST", "dataset-copy", Some(resourceName), Some(secondaryStore), None, None)
   }
 }
 

@@ -25,6 +25,8 @@ class ResourceOperationsEndToEndTest extends SodaFountainIntegrationTest with In
     //publish
     val pResponse = dispatch("PUT", "dataset-copy", Some(resourceOpDataset), None, None, None)
     if (pResponse.resultCode != 200) throw new Exception( "publish failed with " + pResponse.resultCode + " " + readBody(pResponse))
+    //poke into secondary
+    val gResponse = dispatch("POST", "dataset-copy", Some(resourceOpDataset), Some(secondaryStore), None, None)
     val v1 = getVersionInSecondaryStore(resourceOpDataset)
 
     //upsert
