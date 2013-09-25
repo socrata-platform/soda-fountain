@@ -20,9 +20,6 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
     val spec = rawSpec.copy(fieldName = rawSpec.fieldName.orElse(Some(column)))
     store.lookupDataset(dataset) match {
       case Some(datasetRecord) =>
-        println(datasetRecord.columnsByName)
-        println(column)
-        println(datasetRecord.columnsByName.get(column))
         datasetRecord.columnsByName.get(column) match {
           case Some(columnRecord) =>
             log.info("TODO: updating existing columns")

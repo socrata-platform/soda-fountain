@@ -130,16 +130,16 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           }
         }
         addColumns(conn, datasetId, toCreate.iterator.map { cid =>
-          var newFieldName = ColumnName("unknown_" + cid)
+          var newFieldName = ColumnName("unknown_" + cid.underlying)
           if(existingFieldNames.contains(newFieldName)) {
             var i = 1
             do {
-              newFieldName = ColumnName("unknown_" + cid + "_" + i)
+              newFieldName = ColumnName("unknown_" + cid.underlying + "_" + i)
               i += 1
             } while(existingFieldNames.contains(newFieldName))
           }
 
-          var newName = "Unknown column " + cid
+          var newName = "Unknown column " + cid.underlying
           if(existingColumnNames.contains(newName)) {
             var i = 1
             do {
