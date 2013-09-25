@@ -1,7 +1,7 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator.{SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
-import com.socrata.soda.server.id.{ColumnId, ResourceName}
+import com.socrata.soda.server.id.{SecondaryId, ColumnId, ResourceName}
 import com.socrata.soda.server.highlevel.DatasetDAO.Result
 import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
 import com.socrata.soda.server.persistence.NameAndSchemaStore
@@ -196,6 +196,15 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         case None =>
           NotFound(dataset)
       }
+    }
+
+  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result =
+    store.lookupDataset(dataset) match {
+      case Some(datasetRecord) =>
+        dc.propagateToSecondary(datasetRecord.systemId, secondary)
+        Updated(datasetRecord.asSpec)
+      case None =>
+        NotFound(dataset)
     }
 
   private[this] val _systemColumns = Map(
