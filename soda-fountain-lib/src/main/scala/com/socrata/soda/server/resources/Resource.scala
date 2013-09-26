@@ -11,6 +11,7 @@ import com.socrata.soda.server.wiremodels.InputUtils
 import com.rojoma.simplearm.util._
 import com.rojoma.json.io.{CompactJsonWriter, EventTokenIterator}
 import com.rojoma.json.ast.{JString, JArray}
+import com.socrata.soda.server.errors.RowNotFound
 
 case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -23,13 +24,13 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
     }
   }
 
-  def rowResponse(result: RowDAO.Result): HttpResponse = {
+  def rowResponse(req: HttpServletRequest, result: RowDAO.Result): HttpResponse = {
     log.info("TODO: Negotiate content-type")
     result match {
       case RowDAO.Success(code, value) =>
         Status(code) ~> SodaUtils.JsonContent(value)
       case RowDAO.RowNotFound(value) =>
-        NotFound ~> SodaUtils.JsonContent(value)
+        SodaUtils.errorResponse(req, RowNotFound(value))
     }
   }
 
@@ -57,7 +58,7 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
     response(rowDAO.query(resourceName, Option(req.getParameter("$query")).getOrElse("select *")))
 
   def getRow(resourceName: ResourceName, rowId: RowSpecifier)(req: HttpServletRequest): HttpResponse =
-    rowResponse(rowDAO.getRow(resourceName, rowId))
+    rowResponse(req, rowDAO.getRow(resourceName, rowId))
 
   def upsert(resourceName: ResourceName)(req: HttpServletRequest)(response: HttpServletResponse) {
     InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
