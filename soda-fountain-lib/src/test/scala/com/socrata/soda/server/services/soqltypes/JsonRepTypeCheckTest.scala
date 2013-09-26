@@ -7,8 +7,9 @@ import com.socrata.soql.types._
 import org.joda.time._
 import com.rojoma.json.ast.JString
 import com.socrata.soda.server.highlevel.TypeChecker
+import com.socrata.soda.server.wiremodels.JsonColumnRep
 
-class TypeFitterTest extends FunSuite with MustMatchers {
+class JsonRepTypeCheckTest extends FunSuite with MustMatchers {
 
   test("JSON type checker handles nulls"){
     TypeChecker.check(SoQLText, JNull) match {

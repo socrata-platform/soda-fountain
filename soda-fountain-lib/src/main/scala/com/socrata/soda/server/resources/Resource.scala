@@ -78,7 +78,7 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
   }
 
   def deleteRow(resourceName: ResourceName, rowId: RowSpecifier)(req: HttpServletRequest)(response: HttpServletResponse) {
-    rowDAO.upsert(resourceName, Iterator.single(JArray(Seq(JString(rowId.underlying)))))(upsertResponse(response))
+    rowDAO.deleteRow(resourceName, rowId)(upsertResponse(response))
   }
 
   def replace(resourceName: ResourceName)(req: HttpServletRequest)(response: HttpServletResponse) {

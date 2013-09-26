@@ -35,8 +35,8 @@ class PostgresStoreIntegrationTest extends SodaFountainIntegrationTest {
     val resourceName = new ResourceName("postgres name store column integration test @" + time)
     val datasetId = new DatasetId("postgres.name.store.column.test @" + time)
     val columns = Seq[ColumnRecord](
-      new ColumnRecord(ColumnId("abc123"), ColumnName("a b c 1 2 3"), SoQLText, "column name human", "column desc human"),
-      new ColumnRecord(ColumnId("def456"), ColumnName("d e f 4 5 6"), SoQLText, "column name human", "column desc human")
+      new ColumnRecord(ColumnId("abc123"), ColumnName("a b c 1 2 3"), SoQLText, "column name human", "column desc human",false),
+      new ColumnRecord(ColumnId("def456"), ColumnName("d e f 4 5 6"), SoQLText, "column name human", "column desc human",false)
     )
     val record = new DatasetRecord(resourceName, datasetId, "human name", "human description", "locale string", "mock schema string", new ColumnId("mock column id"), columns)
     store.addResource(record)

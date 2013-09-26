@@ -19,8 +19,6 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         f(datasetSpec)
       case RequestProblem(err) =>
         SodaUtils.errorResponse(request, err, logTags : _*)
-      case IOProblem(err) =>
-        throw err
     }
   }
 
