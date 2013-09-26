@@ -13,7 +13,7 @@ case class UpsertRow(rowData: Map[String, JValue]) extends RowUpdate {
 }
 
 case class DeleteRow(rowId: JValue) extends RowUpdate {
-  def asJson = rowId
+  def asJson = JArray(Seq(rowId))
 }
 
 case class RowUpdateOptionChange(truncate: Boolean = false,

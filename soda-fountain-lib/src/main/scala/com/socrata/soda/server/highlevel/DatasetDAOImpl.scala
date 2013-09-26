@@ -1,7 +1,7 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator.{SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
-import com.socrata.soda.server.id.{ColumnId, ResourceName}
+import com.socrata.soda.server.id.{SecondaryId, ColumnId, ResourceName}
 import com.socrata.soda.server.highlevel.DatasetDAO.Result
 import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
 import com.socrata.soda.server.persistence.NameAndSchemaStore
@@ -113,6 +113,17 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def deleteDataset(dataset: ResourceName): Result = ???
 
+  def getVersion(dataset: ResourceName, secondary: SecondaryId): Result =
+    retryable(limit = 5) {
+      store.translateResourceName(dataset) match {
+        case Some(datasetRecord) =>
+          val vr = dc.checkVersionInSecondary(datasetRecord.systemId, secondary)
+          DatasetVersion(vr)
+        case None =>
+          NotFound(dataset)
+      }
+    }
+
   def getDataset(dataset: ResourceName): Result =
     store.lookupDataset(dataset) match {
       case Some(datasetRecord) =>
@@ -193,6 +204,17 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
           }
+        case None =>
+          NotFound(dataset)
+      }
+    }
+
+  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result =
+    retryable(limit = 5) {
+      store.translateResourceName(dataset) match {
+        case Some(datasetRecord) =>
+          dc.propagateToSecondary(datasetRecord.systemId, secondary)
+          PropagatedToSecondary
         case None =>
           NotFound(dataset)
       }

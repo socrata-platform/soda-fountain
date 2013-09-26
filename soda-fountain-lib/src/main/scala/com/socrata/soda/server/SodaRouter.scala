@@ -6,7 +6,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.soda.server.errors.GeneralNotFoundError
 import com.socrata.http.server.routing.SimpleRouteContext._
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soda.server.id.{SecondaryId, ResourceName}
+import com.socrata.soda.server.id.{RowSpecifier, SecondaryId, ResourceName}
 import com.socrata.http.server.routing.{OptionallyTypedPathComponent, Extractor}
 
 class SodaRouter(versionResource: HttpService,
@@ -14,8 +14,10 @@ class SodaRouter(versionResource: HttpService,
                  datasetResource: ResourceName => HttpService,
                  datasetColumnResource: (ResourceName, ColumnName) => HttpService,
                  resourceResource: ResourceName => HttpService,
-                 resourceRowResource: (ResourceName, String) => HttpService,
+                 resourceRowResource: (ResourceName, RowSpecifier) => HttpService,
                  datasetCopyResource: ResourceName => HttpService,
+                 datasetSecondaryCopyResource: (ResourceName, SecondaryId) => HttpService,
+                 datasetVersionResource: (ResourceName, SecondaryId) => HttpService,
                  datasetExportResource: OptionallyTypedPathComponent[ResourceName] => HttpService,
                  exportExtensions: String => Boolean)
 {
@@ -31,6 +33,10 @@ class SodaRouter(versionResource: HttpService,
     def extract(s: String) = Some(new SecondaryId(s))
   }
 
+  private[this] implicit val RowSpecifierExtractor = new Extractor[RowSpecifier] {
+    def extract(s: String) = Some(new RowSpecifier(s))
+  }
+
   val router = Routes(
     Route("/version", versionResource),
     Route("/dataset", datasetCreateResource),
@@ -39,8 +45,10 @@ class SodaRouter(versionResource: HttpService,
     Route("/dataset/", datasetCreateResource),
     Directory("/resource"),
     Route("/resource/{ResourceName}", resourceResource),
-    Route("/resource/{ResourceName}/?", resourceRowResource),
+    Route("/resource/{ResourceName}/{RowSpecifier}", resourceRowResource),
     Route("/dataset-copy/{ResourceName}", datasetCopyResource),
+    Route("/dataset-copy/{ResourceName}/{SecondaryId}", datasetSecondaryCopyResource),
+    Route("/dataset-version/{ResourceName}/{SecondaryId}", datasetVersionResource),
     Route("/export/{{ResourceName:exportExtensions}}", datasetExportResource)
   )
 

@@ -150,6 +150,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       resourceResource = resource.service,
       resourceRowResource = resource.rowService,
       datasetCopyResource = dataset.copyService,
+      datasetSecondaryCopyResource = dataset.secondaryCopyService,
+      datasetVersionResource = dataset.versionService,
       versionResource = Version.service,
       datasetExportResource = export.service,
       exportExtensions = export.extensions
