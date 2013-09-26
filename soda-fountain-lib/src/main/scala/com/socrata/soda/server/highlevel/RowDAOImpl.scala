@@ -5,12 +5,23 @@ import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike, NameAndSchemaStore}
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.clients.datacoordinator._
-import com.rojoma.json.ast.{JBoolean, JObject, JValue}
+import com.rojoma.json.ast._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLType
 import com.socrata.soda.clients.datacoordinator.UpsertRow
-import com.socrata.soda.server.highlevel.RowDAO.NotFound
+import com.socrata.soda.server.highlevel.RowDAO.DatasetNotFound
 import com.socrata.soda.server.highlevel.RowDAO.Success
+import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
+import com.socrata.soda.server.highlevel.RowDAO.RowNotAnObject
+import com.socrata.soda.clients.datacoordinator.UpsertRow
+import scala.Some
+import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
+import com.socrata.soda.clients.datacoordinator.DeleteRow
+import com.socrata.soda.server.highlevel.RowDAO.DatasetNotFound
+import com.socrata.soda.server.highlevel.RowDAO.Success
+import com.socrata.soda.server.id.RowSpecifier
+import com.socrata.soda.server.highlevel.RowDAO.StreamSuccess
+import com.socrata.soda.server.highlevel.RowDAO.UnknownColumn
 import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
@@ -26,18 +37,21 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         val (code, response) = qc.query(datasetRecord.systemId, query, datasetRecord.columnsByName.mapValues(_.id))
         Success(code, response) // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
       case None =>
-        NotFound(resourceName)
+        DatasetNotFound(resourceName)
     }
   }
 
   def getRow(resourceName: ResourceName, rowId: RowSpecifier): Result = {
     store.translateResourceName(resourceName) match {
       case Some(datasetRecord) =>
-        val pk = datasetRecord.primaryKey
-        val (code, response) = qc.query(datasetRecord.systemId, s"select * where ${pk} = ${rowId}", datasetRecord.columnsByName.mapValues(_.id))
-        Success(code, response) // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
+        val pkFieldName = datasetRecord.columnsById(datasetRecord.primaryKey)
+        val (code, response) = qc.query(datasetRecord.systemId, s"select * where `${pkFieldName.fieldName}` = ${rowId.underlying}", datasetRecord.columnsByName.mapValues(_.id))
+        response match {
+          case JArray(Seq(row:JObject)) => Success(code, row) // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
+          case JArray(Seq()) => RowNotFound(rowId.underlying)
+        }
       case None =>
-        NotFound(resourceName)
+        DatasetNotFound(resourceName)
     }
   }
 
@@ -46,7 +60,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   private case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends Exception
   private case class UnknownColumnEx(col: ColumnName) extends Exception
   private case class DeleteNoPKEx() extends Exception
-  private case class NotAnObjectEx(obj: JValue) extends Exception
+  private case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends Exception
 
   class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolean) {
     private[this] sealed abstract class ColumnResult
@@ -106,8 +120,16 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         } else {
           UpsertRow(row)
         }
+      case JArray(Seq(rowIdJval)) =>
+        val pkCol = dataset.columnsById(dataset.primaryKey)
+        TypeChecker.check(pkCol.typ, rowIdJval) match {
+          case Right(idVal) =>
+            DeleteRow(TypeChecker.encode(idVal))
+          case Left(TypeChecker.Error(expected, got)) =>
+            throw MaltypedDataEx(pkCol.fieldName, expected, got)
+        }
       case other =>
-        throw NotAnObjectEx(other)
+        throw NotAnObjectOrSingleElementArrayEx(other)
     }
   }
 
@@ -134,13 +156,13 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             f(UnknownColumn(col))
           case DeleteNoPKEx() =>
             f(DeleteWithoutPrimaryKey)
-          case NotAnObjectEx(v) =>
+          case NotAnObjectOrSingleElementArrayEx(v) =>
             f(RowNotAnObject(v))
           case MaltypedDataEx(cn, expected, got) =>
             f(MaltypedData(cn, expected, got))
         }
       case None =>
-        f(NotFound(resourceName))
+        f(DatasetNotFound(resourceName))
     }
   }
 

@@ -23,6 +23,16 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
     }
   }
 
+  def rowResponse(result: RowDAO.Result): HttpResponse = {
+    log.info("TODO: Negotiate content-type")
+    result match {
+      case RowDAO.Success(code, value) =>
+        Status(code) ~> SodaUtils.JsonContent(value)
+      case RowDAO.RowNotFound(value) =>
+        NotFound ~> SodaUtils.JsonContent(value)
+    }
+  }
+
   def upsertResponse(response: HttpServletResponse)(result: RowDAO.UpsertResult) {
     log.info("TODO: Negotiate content-type")
     result match {
@@ -47,7 +57,7 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
     response(rowDAO.query(resourceName, Option(req.getParameter("$query")).getOrElse("select *")))
 
   def getRow(resourceName: ResourceName, rowId: RowSpecifier)(req: HttpServletRequest): HttpResponse =
-    response(rowDAO.getRow(resourceName, rowId))
+    rowResponse(rowDAO.getRow(resourceName, rowId))
 
   def upsert(resourceName: ResourceName)(req: HttpServletRequest)(response: HttpServletResponse) {
     InputUtils.jsonArrayValuesStream(req, maxRowSize) match {

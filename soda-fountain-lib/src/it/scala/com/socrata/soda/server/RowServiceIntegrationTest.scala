@@ -56,7 +56,7 @@ class RowServiceIntegrationTest extends SodaFountainIntegrationTest with RowServ
   test("soda fountain row service get"){
     val uResponse = dispatch("GET", "resource", Some(resourceName), Some("2"), None, None)
     assert(uResponse.resultCode === 200, readBody(uResponse))
-    jsonCompare(readBody(uResponse), """{ col_text:'row 2', col_id:2.0}""")
+    jsonCompare(readBody(uResponse), """{ col_id:2.0, col_text:'row 2'}""")
   }
 
   test("soda fountain row service 404"){
@@ -68,8 +68,8 @@ class RowServiceIntegrationTest extends SodaFountainIntegrationTest with RowServ
   test("soda fountain row service remove"){
     val v = getVersionInSecondaryStore(resourceName)
     val uResponse = dispatch("DELETE", "resource", Some(resourceName), Some("1"), None, None)
-    assert(uResponse.resultCode === 204, readBody(uResponse))
-    assert(readBody(uResponse)== "")
+    assert(uResponse.resultCode === 200, readBody(uResponse))
+    assert(readBody(uResponse)== """[ { "typ" : "delete", "id" : 1 } ]""")
     waitForSecondaryStoreUpdate(resourceName, v)
   }
 
