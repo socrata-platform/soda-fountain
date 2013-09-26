@@ -18,17 +18,6 @@ package object highlevel {
       )
   }
 
-  implicit class clspec(val __underlying: ColumnRecord) extends AnyVal {
-    def asSpec: ColumnSpec =
-      ColumnSpec(
-        __underlying.id,
-        __underlying.fieldName,
-        __underlying.name,
-        __underlying.description,
-        __underlying.typ
-      )
-  }
-
   implicit class dsrec(val __underlying: DatasetSpec) extends AnyVal {
     def asRecord(datasetId: DatasetId): DatasetRecord = {
       val columns = __underlying.columns.valuesIterator.map(_.asRecord).toSeq
@@ -41,19 +30,6 @@ package object highlevel {
         SchemaHash.computeHash(__underlying.locale, __underlying.columns(__underlying.rowIdentifier).id, columns),
         __underlying.columns(__underlying.rowIdentifier).id,
         columns)
-    }
-  }
-
-  implicit class dsspec(val __underlying: DatasetRecord) extends AnyVal {
-    def asSpec: DatasetSpec = {
-      val columns = __underlying.columns.map(_.asSpec).toSeq
-      DatasetSpec(
-        __underlying.resourceName,
-        __underlying.name,
-        __underlying.description,
-        __underlying.columnsById(__underlying.primaryKey).fieldName,
-        __underlying.locale,
-        columns.groupBy(_.fieldName).mapValues(_.head))
     }
   }
 }

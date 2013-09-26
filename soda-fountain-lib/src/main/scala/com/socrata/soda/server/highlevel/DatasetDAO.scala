@@ -1,7 +1,7 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.server.wiremodels.{DatasetSpec, UserProvidedDatasetSpec}
-import com.socrata.soda.server.id.{SecondaryId, ResourceName}
+import com.socrata.soda.server.id.ResourceName
 import com.socrata.soql.environment.ColumnName
 
 trait DatasetDAO {
@@ -15,8 +15,6 @@ trait DatasetDAO {
   def makeCopy(dataset: ResourceName, copyData: Boolean): Result
   def dropCurrentWorkingCopy(dataset: ResourceName): Result
   def publish(dataset: ResourceName, snapshotLimit: Option[Int]): Result
-
-  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result
 }
 
 object DatasetDAO {
