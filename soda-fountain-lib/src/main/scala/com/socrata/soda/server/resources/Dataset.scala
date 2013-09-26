@@ -1,13 +1,14 @@
 package com.socrata.soda.server.resources
 
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{SecondaryId, ResourceName}
 import com.socrata.soda.server.highlevel.DatasetDAO
 import javax.servlet.http.HttpServletRequest
 import com.socrata.soda.server.{SodaUtils, LogTag}
-import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedDatasetSpec}
+import com.socrata.soda.server.wiremodels.{IOProblem, RequestProblem, Extracted, UserProvidedDatasetSpec}
 import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
+import com.socrata.soda.server.errors.InternalError
 
 case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Dataset])
@@ -27,11 +28,13 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
       case DatasetDAO.Created(spec) => Created ~> SodaUtils.JsonContent(spec)
       case DatasetDAO.Updated(spec) => OK ~> SodaUtils.JsonContent(spec)
       case DatasetDAO.Found(spec) => OK ~> SodaUtils.JsonContent(spec)
+      case DatasetDAO.DatasetVersion(vr) => OK ~> SodaUtils.JsonContent(vr)
       case DatasetDAO.Deleted => NoContent
       case DatasetDAO.NotFound(dataset) => NotFound /* TODO: content */
       case DatasetDAO.InvalidDatasetName(name) => BadRequest /* TODO: content */
       case DatasetDAO.InvalidColumnName(name) => BadRequest /* TODO: content */
       case DatasetDAO.WorkingCopyCreated => Created /* TODO: content */
+      case DatasetDAO.PropagatedToSecondary => Created /* TODO: content */
       case DatasetDAO.WorkingCopyDropped => NoContent
       case DatasetDAO.WorkingCopyPublished => NoContent
     }
@@ -83,6 +86,18 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
     override def put = { req =>
       response(datasetDAO.publish(resourceName, snapshotLimit = snapshotLimit(req)))
+    }
+  }
+
+  case class versionService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
+    override def get = { req =>
+      response(datasetDAO.getVersion(resourceName, secondary))
+    }
+  }
+
+  case class secondaryCopyService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
+    override def post = { req =>
+      response(datasetDAO.propagateToSecondary(resourceName, secondary))
     }
   }
 }

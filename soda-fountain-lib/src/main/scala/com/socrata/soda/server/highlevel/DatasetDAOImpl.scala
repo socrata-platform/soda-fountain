@@ -113,6 +113,15 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def deleteDataset(dataset: ResourceName): Result = ???
 
+  def getVersion(dataset: ResourceName, secondary: SecondaryId): Result =
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        val vr = dc.checkVersionInSecondary(datasetRecord.systemId, secondary)
+        DatasetVersion(vr)
+      case None =>
+        NotFound(dataset)
+    }
+
   def getDataset(dataset: ResourceName): Result =
     store.lookupDataset(dataset) match {
       case Some(datasetRecord) =>
@@ -199,10 +208,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     }
 
   def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result =
-    store.lookupDataset(dataset) match {
+    store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         dc.propagateToSecondary(datasetRecord.systemId, secondary)
-        Updated(datasetRecord.asSpec)
+        PropagatedToSecondary
       case None =>
         NotFound(dataset)
     }

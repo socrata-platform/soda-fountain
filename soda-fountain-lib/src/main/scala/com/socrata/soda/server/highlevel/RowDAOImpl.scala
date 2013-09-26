@@ -5,14 +5,21 @@ import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike, NameAndSchemaStore}
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.clients.datacoordinator._
-import com.rojoma.json.ast.{JBoolean, JObject, JValue}
+import com.rojoma.json.ast._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLType
+import com.socrata.soda.server.wiremodels._
 import com.socrata.soda.clients.datacoordinator.UpsertRow
-import com.socrata.soda.server.highlevel.RowDAO.NotFound
+import com.socrata.soda.server.highlevel.RowDAO.DatasetNotFound
 import com.socrata.soda.server.highlevel.RowDAO.Success
+import com.socrata.soda.server.highlevel.RowDAO.RowNotFound
+import com.socrata.soda.server.id.RowSpecifier
+import com.socrata.soda.server.highlevel.RowDAO.StreamSuccess
+import com.socrata.soda.server.highlevel.RowDAO.UnknownColumn
+import com.socrata.soda.server.highlevel.RowDAO.RowNotAnObject
+import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
+import com.socrata.soda.clients.datacoordinator.DeleteRow
 import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
-import com.socrata.soda.server.wiremodels.{JsonColumnReadRep, JsonColumnRep}
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
@@ -27,7 +34,28 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         val (code, response) = qc.query(datasetRecord.systemId, query, datasetRecord.columnsByName.mapValues(_.id))
         Success(code, response) // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
       case None =>
-        NotFound(resourceName)
+        DatasetNotFound(resourceName)
+    }
+  }
+
+  def getRow(resourceName: ResourceName, rowId: RowSpecifier): Result = {
+    store.translateResourceName(resourceName) match {
+      case Some(datasetRecord) =>
+        val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
+        val stringRep = StringColumnRep.forType(pkCol.typ)
+        stringRep.fromString(rowId.underlying) match {
+          case Some(soqlValue) =>
+            val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
+            val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
+            val (code, response) = qc.query(datasetRecord.systemId, s"select * where `${pkCol.fieldName}` = $literal", datasetRecord.columnsByName.mapValues(_.id))
+            response match {
+              case JArray(Seq(row:JObject)) => Success(code, row) // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
+              case JArray(Seq()) => RowNotFound(rowId)
+            }
+          case None => RowNotFound(rowId) // it's not a valid value and therefore trivially not found
+        }
+      case None =>
+        DatasetNotFound(resourceName)
     }
   }
 
@@ -36,7 +64,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   private case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends Exception
   private case class UnknownColumnEx(col: ColumnName) extends Exception
   private case class DeleteNoPKEx() extends Exception
-  private case class NotAnObjectEx(obj: JValue) extends Exception
+  private case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends Exception
 
   class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolean) {
     private[this] sealed abstract class ColumnResult
@@ -96,8 +124,19 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         } else {
           UpsertRow(row)
         }
+        //TODO: handle a single-element array for deletes!
+        /*
+      case JArray(Seq(rowIdJval)) =>
+        val pkCol = dataset.columnsById(dataset.primaryKey)
+        TypeChecker.check(pkCol.typ, rowIdJval) match {
+          case Right(idVal) =>
+            DeleteRow(TypeChecker.encode(idVal))
+          case Left(TypeChecker.Error(expected, got)) =>
+            throw MaltypedDataEx(pkCol.fieldName, expected, got)
+        }
+        */
       case other =>
-        throw NotAnObjectEx(other)
+        throw NotAnObjectOrSingleElementArrayEx(other)
     }
   }
 
@@ -124,13 +163,13 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             f(UnknownColumn(col))
           case DeleteNoPKEx() =>
             f(DeleteWithoutPrimaryKey)
-          case NotAnObjectEx(v) =>
+          case NotAnObjectOrSingleElementArrayEx(v) =>
             f(RowNotAnObject(v))
           case MaltypedDataEx(cn, expected, got) =>
             f(MaltypedData(cn, expected, got))
         }
       case None =>
-        f(NotFound(resourceName))
+        f(DatasetNotFound(resourceName))
     }
   }
 
@@ -139,4 +178,18 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
 
   def replace[T](resourceName: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T =
     doUpsertish(resourceName, data, Iterator.single(RowUpdateOptionChange(truncate = true)), f)
+
+  def deleteRow[T](resourceName: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T = {
+    store.translateResourceName(resourceName) match {
+      case Some(datasetRecord) =>
+        val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
+        StringColumnRep.forType(pkCol.typ).fromString(rowId.underlying) match {
+          case Some(soqlValue) =>
+            val jvalToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlValue)
+            doUpsertish(resourceName, Iterator.single(JArray(Seq(jvalToDelete))), Iterator.empty, f)
+          case None => f(MaltypedData(pkCol.fieldName, pkCol.typ, JString(rowId.underlying)))
+        }
+      case None => f(DatasetNotFound(resourceName))
+    }
+  }
 }

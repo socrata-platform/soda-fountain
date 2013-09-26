@@ -10,7 +10,7 @@ object DataCoordinatorClient {
   object VersionReport{
     implicit val codec = SimpleJsonCodecBuilder[VersionReport].build("version", _.version)
   }
-  class VersionReport(val version: Long)
+  case class VersionReport(val version: Long)
 
   sealed abstract class Result
   case class SchemaOutOfDate(newSchema: SchemaSpec) extends Result

@@ -36,3 +36,5 @@ object ColumnId {
 }
 
 case class SecondaryId(underlying: String) extends AbstractId
+
+case class RowSpecifier(underlying: String) extends AbstractId
