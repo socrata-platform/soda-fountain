@@ -92,5 +92,11 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
       }
     }
   }
+
+  case class pkservice(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
+    override def post = { req =>
+      response(req, columnDAO.makePK(user(req), resourceName, columnName), "")
+    }
+  }
 }
 

@@ -17,6 +17,8 @@ trait NameAndSchemaStore {
 
   def resolveSchemaInconsistency(datasetId: DatasetId, newSchema: SchemaSpec)
 
+  def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId)
+
   def addColumn(datasetId: DatasetId, columnSpec: ColumnSpec) : ColumnRecord
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnName, newFieldName: ColumnName) : Unit
   def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit

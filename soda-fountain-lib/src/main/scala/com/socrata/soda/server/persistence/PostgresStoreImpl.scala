@@ -10,6 +10,8 @@ import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
 import com.socrata.soda.server.wiremodels.ColumnSpec
 
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
+  val log = org.slf4j.LoggerFactory.getLogger(classOf[PostgresStoreImpl])
+
   using(dataSource.getConnection()){ connection =>
     using(connection.createStatement()){ stmt =>
       using(getClass.getClassLoader.getResourceAsStream("db_create.sql")){ stream =>
@@ -63,6 +65,28 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         }
       }
     }
+
+  def updateSchemaHash(conn: Connection, datasetId: DatasetId) {
+    val (locale, pkcol) = using(conn.prepareStatement("select locale, primary_key_column_id from datasets where dataset_system_id = ?")){ stmt =>
+      stmt.setString(1, datasetId.underlying)
+      val rs = stmt.executeQuery()
+      if(rs.next()) {
+        val locale = rs.getString("locale")
+        val pk = ColumnId(rs.getString("primary_key_column_id"))
+        (locale, pk)
+      } else {
+        //huh
+        return
+      }
+    }
+    val cols = fetchMinimalColumns(conn, datasetId)
+    val hash = SchemaHash.computeHash(locale, pkcol, cols)
+    using(conn.prepareStatement("update datasets set schema_hash = ? where dataset_system_id = ?")) { stmt =>
+      stmt.setString(1, hash)
+      stmt.setString(2, datasetId.underlying)
+      stmt.executeUpdate()
+    }
+  }
 
   def resolveSchemaInconsistency(datasetId: DatasetId, newSchema: SchemaSpec) {
     using(dataSource.getConnection()) { conn =>
@@ -279,8 +303,21 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     using(dataSource.getConnection()) { conn =>
       val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false)
       addColumns(conn, datasetId, Iterator.single(result))
+      updateSchemaHash(conn, datasetId)
       result
     }
+
+  def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId) {
+    using(dataSource.getConnection()) { conn =>
+      using(conn.prepareStatement("update datasets set primary_key_column_id = ? where dataset_system_id = ?")) { stmt =>
+        log.info("TODO: Update schemahash too")
+        stmt.setString(1, pkCol.underlying)
+        stmt.setString(2, datasetId.underlying)
+        stmt.executeUpdate()
+        updateSchemaHash(conn, datasetId)
+      }
+    }
+  }
 
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnName, newFieldName: ColumnName) : Unit = ???
   def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit = ???

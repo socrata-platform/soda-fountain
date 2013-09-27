@@ -18,6 +18,17 @@ package object highlevel {
       )
   }
 
+  implicit class clspec(val __underlying: ColumnRecord) extends AnyVal {
+    def asSpec: ColumnSpec =
+      ColumnSpec(
+        __underlying.id,
+        __underlying.fieldName,
+        __underlying.name,
+        __underlying.description,
+        __underlying.typ
+      )
+  }
+
   implicit class dsrec(val __underlying: DatasetSpec) extends AnyVal {
     def asRecord(datasetId: DatasetId): DatasetRecord = {
       val columns = __underlying.columns.valuesIterator.map(_.asRecord).toSeq

@@ -10,6 +10,7 @@ trait ColumnDAO {
   def replaceOrCreateColumn(user: String, dataset: ResourceName, precondition: Precondition, column: ColumnName, spec: UserProvidedColumnSpec): Result
   def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result
   def deleteColumn(user: String, dataset: ResourceName, column: ColumnName): Result
+  def makePK(user: String, dataset: ResourceName, column: ColumnName): Result
   def getColumn(dataset: ResourceName, column: ColumnName): Result
 }
 

@@ -145,6 +145,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
     new SodaRouter(
       datasetColumnResource = column.service,
+      datasetColumnPKResource = column.pkservice,
       datasetCreateResource = dataset.createService,
       datasetResource = dataset.service,
       resourceResource = resource.service,

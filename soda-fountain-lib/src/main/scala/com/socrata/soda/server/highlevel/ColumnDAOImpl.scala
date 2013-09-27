@@ -1,12 +1,15 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.highlevel.ColumnDAO.Result
-import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec // TODO: This shouldn't be referenced here.
+import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
+import scala.util.control.ControlThrowable
+
+// TODO: This shouldn't be referenced here.
 import com.socrata.http.server.util.Precondition
 import com.socrata.soda.server.persistence.{DatasetRecord, NameAndSchemaStore}
-import com.socrata.soda.clients.datacoordinator.{AddColumnInstruction, DataCoordinatorClient}
+import com.socrata.soda.clients.datacoordinator.{SetRowIdColumnInstruction, DropRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
 
 class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils) extends ColumnDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnDAOImpl])
@@ -46,6 +49,58 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
     }
   }
 
+  class Retry extends ControlThrowable
+
+  def retryable[T](limit: Int /* does not include the initial try */)(f: => T): T = {
+    var count = 0
+    var done = false
+    var result: T = null.asInstanceOf[T]
+    do {
+      try {
+        result = f
+        done = true
+      } catch {
+        case _: Retry =>
+          count += 1
+          if(count > limit) throw new Exception("Retried too many times")
+      }
+    } while(!done)
+    result
+  }
+  def retry() = throw new Retry
+
+  def makePK(user: String, resource: ResourceName, column: ColumnName): Result = {
+    retryable(limit = 5) {
+      store.lookupDataset(resource) match {
+        case Some(datasetRecord) =>
+          datasetRecord.columnsByName.get(column) match {
+            case Some(columnRecord) =>
+              val instructions =
+                if(datasetRecord.primaryKey == ColumnId(":id")) {
+                  List(SetRowIdColumnInstruction(columnRecord.id))
+                } else if(columnRecord.id == ColumnId(":id")) {
+                  List(DropRowIdColumnInstruction(datasetRecord.primaryKey))
+                } else {
+                  List(
+                    DropRowIdColumnInstruction(datasetRecord.primaryKey),
+                    SetRowIdColumnInstruction(columnRecord.id))
+                }
+              dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator) {
+                case DataCoordinatorClient.Success(_, _) =>
+                  store.setPrimaryKey(datasetRecord.systemId, columnRecord.id)
+                  ColumnDAO.Updated(columnRecord.asSpec, None)
+                case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+                  store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
+                  retry()
+              }
+            case None =>
+              ColumnDAO.ColumnNotFound(column)
+          }
+        case None =>
+          ColumnDAO.DatasetNotFound(resource)
+      }
+    }
+  }
 
   def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result = ???
 
