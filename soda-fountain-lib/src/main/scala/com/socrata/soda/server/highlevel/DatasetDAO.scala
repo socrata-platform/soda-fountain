@@ -7,16 +7,16 @@ import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.VersionRep
 
 trait DatasetDAO {
   import DatasetDAO.Result
-  def createDataset(spec: UserProvidedDatasetSpec): Result
-  def replaceOrCreateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result
-  def updateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result
-  def deleteDataset(dataset: ResourceName): Result
+  def createDataset(user: String, spec: UserProvidedDatasetSpec): Result
+  def replaceOrCreateDataset(user: String, dataset: ResourceName, spec: UserProvidedDatasetSpec): Result
+  def updateDataset(user: String, dataset: ResourceName, spec: UserProvidedDatasetSpec): Result
+  def deleteDataset(user: String, dataset: ResourceName): Result
   def getDataset(dataset: ResourceName): Result
   def getVersion(dataset: ResourceName, secondary: SecondaryId): Result
 
-  def makeCopy(dataset: ResourceName, copyData: Boolean): Result
-  def dropCurrentWorkingCopy(dataset: ResourceName): Result
-  def publish(dataset: ResourceName, snapshotLimit: Option[Int]): Result
+  def makeCopy(user: String, dataset: ResourceName, copyData: Boolean): Result
+  def dropCurrentWorkingCopy(user: String, dataset: ResourceName): Result
+  def publish(user: String, dataset: ResourceName, snapshotLimit: Option[Int]): Result
   def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result
 }
 

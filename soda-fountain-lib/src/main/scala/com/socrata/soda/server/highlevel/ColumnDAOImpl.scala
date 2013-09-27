@@ -10,12 +10,8 @@ import com.socrata.soda.clients.datacoordinator.{AddColumnInstruction, DataCoord
 
 class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils) extends ColumnDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnDAOImpl])
-  def user = {
-    log.info("Actually get user info from somewhere")
-    "soda-fountain"
-  }
 
-  def replaceOrCreateColumn(dataset: ResourceName, precondition: Precondition, column: ColumnName, rawSpec: UserProvidedColumnSpec): ColumnDAO.Result = {
+  def replaceOrCreateColumn(user: String, dataset: ResourceName, precondition: Precondition, column: ColumnName, rawSpec: UserProvidedColumnSpec): ColumnDAO.Result = {
     log.info("TODO: This really needs to be a transaction.  It WILL FAIL if a dataset frequently read is being updated, because one of the readers will have generated dummy columns as part of inconsistency resolution")
     val spec = rawSpec.copy(fieldName = rawSpec.fieldName.orElse(Some(column)))
     store.lookupDataset(dataset) match {
@@ -25,14 +21,14 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
             log.info("TODO: updating existing columns")
             ???
           case None =>
-            createColumn(datasetRecord, precondition, column, spec)
+            createColumn(user, datasetRecord, precondition, column, spec)
         }
       case None =>
         ColumnDAO.DatasetNotFound(dataset)
     }
   }
 
-  def createColumn(datasetRecord: DatasetRecord, precondition: Precondition, column: ColumnName, userProvidedSpec: UserProvidedColumnSpec): ColumnDAO.Result = {
+  def createColumn(user: String, datasetRecord: DatasetRecord, precondition: Precondition, column: ColumnName, userProvidedSpec: UserProvidedColumnSpec): ColumnDAO.Result = {
     columnSpecUtils.freezeForCreation(datasetRecord.columnsByName.mapValues(_.id), userProvidedSpec) match {
       case ColumnSpecUtils.Success(spec) =>
         if(spec.fieldName != column) ??? // TODO: Inconsistent url/fieldname combo
@@ -51,9 +47,9 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
   }
 
 
-  def updateColumn(dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result = ???
+  def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result = ???
 
-  def deleteColumn(dataset: ResourceName, column: ColumnName): Result = ???
+  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName): Result = ???
 
   def getColumn(dataset: ResourceName, column: ColumnName): Result = ???
 }

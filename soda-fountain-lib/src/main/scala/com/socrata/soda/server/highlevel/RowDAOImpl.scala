@@ -23,10 +23,6 @@ import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
-  def user = {
-    log.info("Actually get user info from somewhere")
-    "soda-fountain"
-  }
 
   def query(resourceName: ResourceName, query: String): Result = {
     store.translateResourceName(resourceName) match {
@@ -140,7 +136,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  def doUpsertish[T](resourceName: ResourceName, data: Iterator[JValue], instructions: Iterator[DataCoordinatorInstruction], f: UpsertResult => T): T = {
+  def doUpsertish[T](user: String, resourceName: ResourceName, data: Iterator[JValue], instructions: Iterator[DataCoordinatorInstruction], f: UpsertResult => T): T = {
     store.translateResourceName(resourceName) match {
       case Some(datasetRecord) =>
         val trans = new RowDataTranslator(datasetRecord, ignoreUnknownColumns = false)
@@ -173,20 +169,20 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  def upsert[T](resourceName: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T =
-    doUpsertish(resourceName, data, Iterator.empty, f)
+  def upsert[T](user: String, resourceName: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T =
+    doUpsertish(user, resourceName, data, Iterator.empty, f)
 
-  def replace[T](resourceName: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T =
-    doUpsertish(resourceName, data, Iterator.single(RowUpdateOptionChange(truncate = true)), f)
+  def replace[T](user: String, resourceName: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T =
+    doUpsertish(user, resourceName, data, Iterator.single(RowUpdateOptionChange(truncate = true)), f)
 
-  def deleteRow[T](resourceName: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T = {
+  def deleteRow[T](user: String, resourceName: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T = {
     store.translateResourceName(resourceName) match {
       case Some(datasetRecord) =>
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
         StringColumnRep.forType(pkCol.typ).fromString(rowId.underlying) match {
           case Some(soqlValue) =>
             val jvalToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlValue)
-            doUpsertish(resourceName, Iterator.single(JArray(Seq(jvalToDelete))), Iterator.empty, f)
+            doUpsertish(user, resourceName, Iterator.single(JArray(Seq(jvalToDelete))), Iterator.empty, f)
           case None => f(MaltypedData(pkCol.fieldName, pkCol.typ, JString(rowId.underlying)))
         }
       case None => f(DatasetNotFound(resourceName))

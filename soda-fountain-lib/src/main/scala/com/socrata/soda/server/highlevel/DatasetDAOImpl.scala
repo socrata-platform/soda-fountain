@@ -17,10 +17,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   val defaultDescription = ""
   val defaultPrimaryKey = ColumnName(":id")
   val defaultLocale = "en_US"
-  def user = {
-    log.info("Actually get user info from somewhere")
-    "soda-fountain"
-  }
 
   def validResourceName(rn: ResourceName) = IdentifierFilter(rn.name) == rn.name
 
@@ -39,13 +35,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     // TODO: Not-success case
   }
 
-  def createDataset(spec: UserProvidedDatasetSpec): Result =
+  def createDataset(user: String, spec: UserProvidedDatasetSpec): Result =
     freezeForCreation(spec) match {
-      case Right(frozenSpec) => createDataset(frozenSpec)
+      case Right(frozenSpec) => createDataset(user, frozenSpec)
       case Left(result) => result
     }
 
-  def createDataset(spec: DatasetSpec): Result = {
+  def createDataset(user: String, spec: DatasetSpec): Result = {
     if(!validResourceName(spec.resourceName)) return InvalidDatasetName(spec.resourceName)
     store.translateResourceName(spec.resourceName) match {
       case None =>
@@ -86,7 +82,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     }
   }
 
-  def replaceOrCreateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result =
+  def replaceOrCreateDataset(user: String, dataset: ResourceName, spec: UserProvidedDatasetSpec): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         freezeForCreation(spec) match {
@@ -109,9 +105,9 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         NotFound(dataset)
     }
 
-  def updateDataset(dataset: ResourceName, spec: UserProvidedDatasetSpec): Result = ???
+  def updateDataset(user: String, dataset: ResourceName, spec: UserProvidedDatasetSpec): Result = ???
 
-  def deleteDataset(dataset: ResourceName): Result = ???
+  def deleteDataset(user: String, dataset: ResourceName): Result = ???
 
   def getVersion(dataset: ResourceName, secondary: SecondaryId): Result =
     store.translateResourceName(dataset) match {
@@ -159,7 +155,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   }
   def retry() = throw new Retry
 
-  def makeCopy(dataset: ResourceName, copyData: Boolean): Result =
+  def makeCopy(user: String, dataset: ResourceName, copyData: Boolean): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
@@ -175,7 +171,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       }
     }
 
-  def dropCurrentWorkingCopy(dataset: ResourceName): Result =
+  def dropCurrentWorkingCopy(user: String, dataset: ResourceName): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
@@ -191,7 +187,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       }
     }
 
-  def publish(dataset: ResourceName, snapshotLimit: Option[Int]): Result =
+  def publish(user: String, dataset: ResourceName, snapshotLimit: Option[Int]): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>

@@ -43,7 +43,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   object createService extends SodaResource {
     override def post = { req =>
       withDatasetSpec(req) { spec =>
-        response(datasetDAO.createDataset(spec))
+        response(datasetDAO.createDataset(user(req), spec))
       }
     }
   }
@@ -51,7 +51,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   case class service(resourceName: ResourceName) extends SodaResource {
     override def put = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(datasetDAO.replaceOrCreateDataset(resourceName, spec))
+        response(datasetDAO.replaceOrCreateDataset(user(req), resourceName, spec))
       }
     }
 
@@ -61,12 +61,12 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
     override def patch = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(datasetDAO.updateDataset(resourceName, spec))
+        response(datasetDAO.updateDataset(user(req), resourceName, spec))
       }
     }
 
     override def delete = { req =>
-      response(datasetDAO.deleteDataset(resourceName))
+      response(datasetDAO.deleteDataset(user(req), resourceName))
     }
   }
 
@@ -78,14 +78,14 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     // TODO: not GET
     override def get = { req =>
       val doCopyData = req.getParameter("copy_data") == "true"
-      response(datasetDAO.makeCopy(resourceName, copyData = doCopyData))
+      response(datasetDAO.makeCopy(user(req), resourceName, copyData = doCopyData))
     }
 
     override def delete = { req =>
-      response(datasetDAO.dropCurrentWorkingCopy(resourceName))
+      response(datasetDAO.dropCurrentWorkingCopy(user(req), resourceName))
     }
     override def put = { req =>
-      response(datasetDAO.publish(resourceName, snapshotLimit = snapshotLimit(req)))
+      response(datasetDAO.publish(user(req), resourceName, snapshotLimit = snapshotLimit(req)))
     }
   }
 

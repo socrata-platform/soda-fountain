@@ -54,52 +54,44 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
     }
   }
 
-  def query(resourceName: ResourceName)(req: HttpServletRequest): HttpResponse =
-    response(rowDAO.query(resourceName, Option(req.getParameter("$query")).getOrElse("select *")))
-
-  def getRow(resourceName: ResourceName, rowId: RowSpecifier)(req: HttpServletRequest): HttpResponse =
-    rowResponse(req, rowDAO.getRow(resourceName, rowId))
-
-  def upsert(resourceName: ResourceName)(req: HttpServletRequest)(response: HttpServletResponse) {
-    InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
-      case Right(boundedIt) =>
-        rowDAO.upsert(resourceName, boundedIt)(upsertResponse(response))
-      case Left(err) =>
-        SodaUtils.errorResponse(req, err, resourceName)(response)
-    }
-  }
-
-  def upsertRow(resourceName: ResourceName, rowId: RowSpecifier)(req: HttpServletRequest)(response: HttpServletResponse) {
-    InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
-      case Right(rowJVal) =>
-        rowDAO.upsert(resourceName, Iterator.single(rowJVal))(upsertResponse(response))
-      case Left(err) =>
-        SodaUtils.errorResponse(req, err, resourceName)(response)
-    }
-  }
-
-  def deleteRow(resourceName: ResourceName, rowId: RowSpecifier)(req: HttpServletRequest)(response: HttpServletResponse) {
-    rowDAO.deleteRow(resourceName, rowId)(upsertResponse(response))
-  }
-
-  def replace(resourceName: ResourceName)(req: HttpServletRequest)(response: HttpServletResponse) {
-    InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
-      case Right(boundedIt) =>
-        rowDAO.replace(resourceName, boundedIt)(upsertResponse(response))
-      case Left(err) =>
-        SodaUtils.errorResponse(req, err, resourceName)(response)
-    }
-  }
-
   case class service(resourceName: ResourceName) extends SodaResource {
-    override def get = query(resourceName)
-    override def post = upsert(resourceName)
-    override def put = replace(resourceName)
+    override def get = { req =>
+      response(rowDAO.query(resourceName, Option(req.getParameter("$query")).getOrElse("select *")))
+    }
+
+    override def post = { req => response =>
+      InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
+        case Right(boundedIt) =>
+          rowDAO.upsert(user(req), resourceName, boundedIt)(upsertResponse(response))
+        case Left(err) =>
+          SodaUtils.errorResponse(req, err, resourceName)(response)
+      }
+    }
+
+    override def put = { req => response =>
+      InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
+        case Right(boundedIt) =>
+          rowDAO.replace(user(req), resourceName, boundedIt)(upsertResponse(response))
+        case Left(err) =>
+          SodaUtils.errorResponse(req, err, resourceName)(response)
+      }
+    }
   }
 
   case class rowService(resourceName: ResourceName, rowId: RowSpecifier) extends SodaResource {
-    override def get = getRow(resourceName, rowId)
-    override def post = upsertRow(resourceName, rowId)
-    override def delete = deleteRow(resourceName, rowId)
+    override def get = rowResponse(_, rowDAO.getRow(resourceName, rowId))
+
+    override def post = { req => response =>
+      InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
+        case Right(rowJVal) =>
+          rowDAO.upsert(user(req), resourceName, Iterator.single(rowJVal))(upsertResponse(response))
+        case Left(err) =>
+          SodaUtils.errorResponse(req, err, resourceName)(response)
+      }
+    }
+
+    override def delete = { req => response =>
+      rowDAO.deleteRow(user(req), resourceName, rowId)(upsertResponse(response))
+    }
   }
 }

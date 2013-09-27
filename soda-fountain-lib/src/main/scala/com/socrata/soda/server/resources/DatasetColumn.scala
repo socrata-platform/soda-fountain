@@ -72,14 +72,14 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
 
     override def delete = { req =>
       checkPrecondition(req) { precondition =>
-        columnDAO.deleteColumn(resourceName, columnName)
+        columnDAO.deleteColumn(user(req), resourceName, columnName)
       }
     }
 
     override def put = { req =>
       withColumnSpec(req, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          columnDAO.replaceOrCreateColumn(resourceName, precondition, columnName, spec)
+          columnDAO.replaceOrCreateColumn(user(req), resourceName, precondition, columnName, spec)
         }
       }
     }
@@ -87,7 +87,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
     override def patch = { req =>
       withColumnSpec(req, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          columnDAO.updateColumn(resourceName, columnName, spec)
+          columnDAO.updateColumn(user(req), resourceName, columnName, spec)
         }
       }
     }
