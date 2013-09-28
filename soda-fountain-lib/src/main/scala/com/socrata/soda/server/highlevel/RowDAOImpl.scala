@@ -20,15 +20,28 @@ import com.socrata.soda.server.highlevel.RowDAO.RowNotAnObject
 import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
 import com.socrata.soda.clients.datacoordinator.DeleteRow
 import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
+import com.socrata.http.server.util.Precondition
+import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
 
   def query(resourceName: ResourceName, query: String): Result = {
-    store.translateResourceName(resourceName) match {
-      case Some(datasetRecord) =>
-        val (code, response) = qc.query(datasetRecord.systemId, query, datasetRecord.columnsByName.mapValues(_.id))
-        Success(code, response) // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
+    store.lookupDataset(resourceName)  match {
+      case Some(ds) =>
+        val (code, response) = qc.query(ds.systemId, query, ds.columnsByName.mapValues(_.id))
+        val cjson = response.asInstanceOf[JArray]
+        CJson.decode(cjson.toIterator) match {
+          case CJson.Decoded(schema, rows) =>
+            schema.pk.map(ds.columnsById(_).fieldName)
+              val simpleSchema = ExportDAO.CSchema(
+                schema.locale,
+                schema.pk.map(ds.columnsById(_).fieldName),
+                schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
+              )
+            // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
+            QuerySuccess(code, simpleSchema, rows)
+        }
       case None =>
         DatasetNotFound(resourceName)
     }
