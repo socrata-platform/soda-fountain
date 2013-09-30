@@ -2,7 +2,7 @@ package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.highlevel.RowDAO._
-import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{DatasetRecord, ColumnRecordLike, DatasetRecordLike, NameAndSchemaStore}
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.clients.datacoordinator._
 import com.rojoma.json.ast._
@@ -29,26 +29,14 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   def query(resourceName: ResourceName, query: String): Result = {
     store.lookupDataset(resourceName)  match {
       case Some(ds) =>
-        val (code, response) = qc.query(ds.systemId, query, ds.columnsByName.mapValues(_.id))
-        val cjson = response.asInstanceOf[JArray]
-        CJson.decode(cjson.toIterator) match {
-          case CJson.Decoded(schema, rows) =>
-            schema.pk.map(ds.columnsById(_).fieldName)
-              val simpleSchema = ExportDAO.CSchema(
-                schema.locale,
-                schema.pk.map(ds.columnsById(_).fieldName),
-                schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
-              )
-            // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
-            QuerySuccess(code, simpleSchema, rows)
-        }
+        getRows(ds, query)
       case None =>
         DatasetNotFound(resourceName)
     }
   }
 
   def getRow(resourceName: ResourceName, rowId: RowSpecifier): Result = {
-    store.translateResourceName(resourceName) match {
+    store.lookupDataset(resourceName) match {
       case Some(datasetRecord) =>
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
         val stringRep = StringColumnRep.forType(pkCol.typ)
@@ -56,15 +44,28 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           case Some(soqlValue) =>
             val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
-            val (code, response) = qc.query(datasetRecord.systemId, s"select * where `${pkCol.fieldName}` = $literal", datasetRecord.columnsByName.mapValues(_.id))
-            response match {
-              case JArray(Seq(row:JObject)) => Success(code, row) // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
-              case JArray(Seq()) => RowNotFound(rowId)
-            }
+            val query = s"select * where `${pkCol.fieldName}` = $literal"
+            getRows(datasetRecord, query, true)
           case None => RowNotFound(rowId) // it's not a valid value and therefore trivially not found
         }
       case None =>
         DatasetNotFound(resourceName)
+    }
+  }
+
+  private def getRows(ds: DatasetRecord, query: String, singleRow: Boolean = false): Result = {
+    val (code, response) = qc.query(ds.systemId, query, ds.columnsByName.mapValues(_.id))
+    val cjson = response.asInstanceOf[JArray]
+    CJson.decode(cjson.toIterator) match {
+      case CJson.Decoded(schema, rows) =>
+        schema.pk.map(ds.columnsById(_).fieldName)
+        val simpleSchema = ExportDAO.CSchema(
+          schema.locale,
+          schema.pk.map(ds.columnsById(_).fieldName),
+          schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
+        )
+        // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
+        QuerySuccess(code, simpleSchema, rows, singleRow)
     }
   }
 

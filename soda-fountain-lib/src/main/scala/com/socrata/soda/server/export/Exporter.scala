@@ -18,7 +18,7 @@ import javax.servlet.http.HttpServletResponse
 trait Exporter {
   val mimeType: MimeType
   val extension: Option[String]
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]])
+  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false)
 }
 
 object Exporter {
@@ -34,7 +34,7 @@ object JsonExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("json")
 
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]]) {
+  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
@@ -67,13 +67,16 @@ object JsonExporter extends Exporter {
         }
 
         def go(rows: Iterator[Array[SoQLValue]]) {
-          writer.write('[')
-          if(rows.hasNext) writeJsonRow(rows.next())
+          if(!singleRow) writer.write('[')
+          if(rows.hasNext) {
+            writeJsonRow(rows.next())
+            if(singleRow && rows.hasNext) throw new Exception("Expect to get exactly one row but got more.")
+          }
           while(rows.hasNext) {
             writer.write("\n,")
             writeJsonRow(rows.next())
           }
-          writer.write("\n]\n")
+          if(!singleRow) writer.write("\n]\n")
         }
       }
       val processor = new Processor
@@ -87,7 +90,7 @@ object CJsonExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("cjson")
 
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]]) {
+  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
@@ -139,7 +142,7 @@ object CsvExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("csv")
 
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]]) {
+  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)

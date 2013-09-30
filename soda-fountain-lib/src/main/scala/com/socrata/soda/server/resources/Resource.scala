@@ -67,7 +67,7 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
         case Some((mimeType, charset, language)) =>
           val exporter = Exporter.exportForMimeType(mimeType)
           rowDAO.query(resourceName, Option(req.getParameter("$query")).getOrElse("select *")) match {
-            case QuerySuccess(code, schema, rows) =>
+            case QuerySuccess(code, schema, rows, singleRow) =>
               response.setStatus(HttpServletResponse.SC_OK)
               response.setContentType(SodaUtils.jsonContentTypeUtf8)
               val charset = AliasedCharset(StandardCharsets.UTF_8, StandardCharsets.UTF_8.name)
@@ -101,7 +101,28 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
   }
 
   case class rowService(resourceName: ResourceName, rowId: RowSpecifier) extends SodaResource {
-    override def get = rowResponse(_, rowDAO.getRow(resourceName, rowId))
+
+    implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
+
+    override def get = { req: HttpServletRequest => response: HttpServletResponse =>
+      req.negotiateContent match {
+        case Some((mimeType, charset, language)) =>
+          val exporter = Exporter.exportForMimeType(mimeType)
+          rowDAO.getRow(resourceName, rowId) match {
+            case QuerySuccess(code, schema, rows, singleRow) =>
+              response.setStatus(HttpServletResponse.SC_OK)
+              response.setContentType(SodaUtils.jsonContentTypeUtf8)
+              val charset = AliasedCharset(StandardCharsets.UTF_8, StandardCharsets.UTF_8.name)
+              if (!rows.hasNext) SodaUtils.errorResponse(req, RowNotFound(rowId), resourceName)(response)
+              else exporter.export(response, charset, schema, rows, true)
+            case DatasetNotFound(resourceName) =>
+              SodaUtils.errorResponse(req, GeneralNotFoundError(resourceName.name))(response)
+          }
+        case None =>
+          // TODO better error
+          NotAcceptable(response)
+      }
+    }
 
     override def post = { req => response =>
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
