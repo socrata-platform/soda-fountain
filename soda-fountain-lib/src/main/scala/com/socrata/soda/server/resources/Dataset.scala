@@ -11,6 +11,8 @@ import com.socrata.http.server.implicits._
 import com.socrata.soda.server.errors.InternalError
 
 case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
+
+  val schemaHashHeaderName = "x-socrata-version-hash"
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Dataset])
 
   def withDatasetSpec(request: HttpServletRequest, logTags: LogTag*)(f: UserProvidedDatasetSpec => HttpResponse): HttpResponse = {

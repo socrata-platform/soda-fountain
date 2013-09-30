@@ -13,11 +13,13 @@ import com.rojoma.json.ast.JString
 import com.socrata.soda.server.highlevel.DatasetDAO.DatasetVersion
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.VersionReport
 import com.rojoma.json.codec.JsonCodec
+import com.rojoma.json.util.JsonUtil
 
 trait IntegrationTestHelpers {
 
   val sodaHost: String = "localhost"
   val secondaryStore = "es"
+  val hashHeader = "x-socrata-version-hash"
   val sodaPort = 8080
   val httpClient = new HttpClientHttpClient(NoopLivenessChecker, Executors.newCachedThreadPool(), userAgent = "soda fountain integration test")
 
@@ -32,8 +34,24 @@ trait IntegrationTestHelpers {
     JObject(map)
   }
 
+
+  def dispatch[B](method: String, pathParts:Seq[String], paramso: Option[Map[String,String]], bodyo: Option[JValue])(f: Response => B) = {
+    val req =
+      RequestBuilder(sodaHost, false)
+        .port(sodaPort)
+        .addPaths( pathParts )
+        .addParameters( paramso.getOrElse(Map[String,String]()))
+        .method(method)
+        .addHeader(("Content-type", "application/json"))
+    val prepared = bodyo match {
+      case Some(jval) => req.json( JValueEventIterator(jval) )
+      case None => req.get
+    }
+    httpClient.execute( prepared ).flatMap(f)
+  }
+
   case class SimpleResponse(val resultCode: Int, val body: JValue)
-  def dispatch(method: String, service:String, part1o: Option[String], part2o: Option[String], paramso: Option[Map[String,String]], bodyo: Option[JValue]) = {
+  def sendWaitRead(method: String, service:String, part1o: Option[String], part2o: Option[String], paramso: Option[Map[String,String]], bodyo: Option[JValue]) = {
 
     val req =
       RequestBuilder(sodaHost, false)
@@ -53,7 +71,7 @@ trait IntegrationTestHelpers {
   }
 
   private def requestVersionInSecondaryStore(resourceName: String) = {
-    val response = dispatch("GET", "dataset-version", Some(resourceName), Some("es"), None, None)
+    val response = sendWaitRead("GET", "dataset-version", Some(resourceName), Some("es"), None, None)
     response.resultCode match {
       case 200 => JsonCodec[VersionReport].decode(response.body) match {
         case Some(VersionReport(ver)) => Right(ver)
@@ -87,9 +105,6 @@ trait IntegrationTestHelpers {
   }
 
   def readBody(response: SimpleResponse) = { response.body.toString }
-
-  def normalizeWhitespace(fixture: String): String = CompactJsonWriter.toString(JsonReader(fixture).read())
-
 }
 
 object SodaFountainForTest extends SodaFountain(new SodaFountainConfig(ConfigFactory.load())) {
@@ -99,6 +114,8 @@ object SodaFountainForTest extends SodaFountain(new SodaFountainConfig(ConfigFac
 trait SodaFountainIntegrationTest extends FunSuite with MustMatchers with IntegrationTestHelpers {
 
   def jsonCompare(actual:String, expected:String) = {
-    normalizeWhitespace(actual) must equal (normalizeWhitespace(expected))
+    val aj = JsonReader.fromString(actual)
+    val ej = JsonReader.fromString(expected)
+    aj must  equal(ej)
   }
 }

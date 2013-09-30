@@ -3,6 +3,7 @@ package com.socrata.soda.server
 import com.rojoma.json.ast._
 import com.rojoma.json.util.JsonUtil
 import org.scalatest._
+import com.rojoma.json.codec.JsonCodec
 
 trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with IntegrationTestHelpers { this: Suite =>
 
@@ -19,11 +20,11 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
         column("a boolean column", "col_bool", None, "boolean")
       ))
     ))
-    val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
+    val cResponse = sendWaitRead("POST", "dataset", None, None, None,  Some(cBody))
 
     //publish
-    val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
-    val gResponse = dispatch("POST", "dataset-copy", Some(resourceName), Some(secondaryStore), None, None)
+    val pResponse = sendWaitRead("PUT", "dataset-copy", Some(resourceName), None, None, None)
+    val gResponse = sendWaitRead("POST", "dataset-copy", Some(resourceName), Some(secondaryStore), None, None)
     val v = getVersionInSecondaryStore(resourceName)
 
     val uBody = JArray(Seq(
@@ -35,7 +36,7 @@ trait RowServiceIntegrationTestFixture extends BeforeAndAfterAll with Integratio
       JObject(Map(("col_id"->JNumber(111)), ("col_text"->JString("row 111")))),
       JObject(Map(("col_id"->JNumber(222)), ("col_text"->JString("row 222"))))
     ))
-    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    val uResponse = sendWaitRead("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     assert(uResponse.resultCode == 200)
 
     waitForSecondaryStoreUpdate(resourceName, v)
@@ -49,34 +50,37 @@ class RowServiceIntegrationTest extends SodaFountainIntegrationTest with RowServ
 
   test("soda fountain row service upsert"){
     val uBody =  JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
-    val uResponse = dispatch("POST", "resource", Some(resourceName), Some("3"), None, Some(uBody))
+    val uResponse = sendWaitRead("POST", "resource", Some(resourceName), Some("3"), None, Some(uBody))
     assert(uResponse.resultCode === 200, readBody(uResponse))
   }
 
   test("soda fountain row service get"){
-    val uResponse = dispatch("GET", "resource", Some(resourceName), Some("2"), None, None)
+    val uResponse = sendWaitRead("GET", "resource", Some(resourceName), Some("2"), None, None)
     assert(uResponse.resultCode === 200, readBody(uResponse))
-    jsonCompare(readBody(uResponse), """{ col_id:2.0, col_text:'row 2'}""")
+    jsonCompare(readBody(uResponse), """{ col_id:"2.0", col_text:'row 2'}""")
   }
 
   test("soda fountain row service 404"){
-    val uResponse = dispatch("GET", "resource", Some(resourceName), Some("787878"), None, None)
+    val uResponse = sendWaitRead("GET", "resource", Some(resourceName), Some("787878"), None, None)
     assert(uResponse.resultCode === 404, readBody(uResponse))
-    jsonCompare(readBody(uResponse), """{"message":"row not found","errorCode":"row.get.not-found"}""")
+    uResponse.body match {
+      case JObject(map) => map.get("errorCode").getOrElse(fail("no errorCode"))
+      case _ => fail("response not a JObject")
+    }
   }
 
   test("soda fountain row service remove"){
     val v = getVersionInSecondaryStore(resourceName)
-    val uResponse = dispatch("DELETE", "resource", Some(resourceName), Some("1"), None, None)
+    val uResponse = sendWaitRead("DELETE", "resource", Some(resourceName), Some("1"), None, None)
     assert(uResponse.resultCode === 200, readBody(uResponse))
-    assert(readBody(uResponse)== """[ { "typ" : "delete", "id" : 1 } ]""")
+    jsonCompare(readBody(uResponse), """[[{ "typ" : "delete", "id" : 1 }]]""")
     waitForSecondaryStoreUpdate(resourceName, v)
   }
 
   test("soda fountain row service upsert - types coerced"){
     //note that we're upserting a string (not a number) for col_id
     val uBody =  JObject(Map(("col_id"->JString("333")), ("col_text"->JString("upserted row 333" + System.currentTimeMillis.toString))))
-    val uResponse = dispatch("POST", "resource", Some(resourceName), Some("333"), None, Some(uBody))
+    val uResponse = sendWaitRead("POST", "resource", Some(resourceName), Some("333"), None, Some(uBody))
     assert(uResponse.resultCode === 200, readBody(uResponse))
   }
 

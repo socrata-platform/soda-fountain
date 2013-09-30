@@ -19,11 +19,11 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
         column("a boolean column", "col_bool", None, "boolean")
       ))
     ))
-    val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
+    val cResponse = sendWaitRead("POST", "dataset", None, None, None,  Some(cBody))
 
     //publish
-    val pResponse = dispatch("PUT", "dataset-copy", Some(resourceName), None, None, None)
-    val gResponse = dispatch("POST", "dataset-copy", Some(resourceName), Some(secondaryStore), None, None)
+    val pResponse = sendWaitRead("PUT", "dataset-copy", Some(resourceName), None, None, None)
+    val gResponse = sendWaitRead("POST", "dataset-copy", Some(resourceName), Some(secondaryStore), None, None)
 
     val v = getVersionInSecondaryStore(resourceName)
 
@@ -37,7 +37,7 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
       JObject(Map(("col_id"->JNumber(102)), ("col_text"->JString("row 102 to be deleted by upsert")))),
       JObject(Map(("col_id"->JNumber(103)), ("col_text"->JString("row 103 " + System.currentTimeMillis()))))
     ))
-    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    val uResponse = sendWaitRead("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     assert(uResponse.resultCode == 200)
 
     waitForSecondaryStoreUpdate(resourceName, v)
@@ -49,28 +49,29 @@ trait DatasetServiceIntegrationTestFixture extends BeforeAndAfterAll with Integr
 class DatasetServiceIntegrationTest extends SodaFountainIntegrationTest with DatasetServiceIntegrationTestFixture {
 
   test("update request malformed json returns error response"){
-    val response = dispatch("POST", "resource", Option(resourceName), None, None,  Some(JString("this is not json")))
+    val response = sendWaitRead("POST", "resource", Option(resourceName), None, None,  Some(JString("this is not json")))
     readBody(response).length must be > (0)
     response.resultCode must equal (415)
   }
 
   test("update request with unexpected format json returns error response"){
-    val response = dispatch("POST", "resource", Option(resourceName), None, None,  Some(JArray(Array(JString("this is an array"), JString("why would you post an array?")))))
+    val response = sendWaitRead("POST", "resource", Option(resourceName), None, None,  Some(JArray(Array(JString("this is an array"), JString("why would you post an array?")))))
     response.resultCode must equal (400)
   }
 
   test("soda fountain dataset service getSchema"){
     //get schema
-    val gResponse = dispatch("GET", "dataset", Some(resourceName), None, None,  None)
-    gResponse.resultCode must equal (200)
-    val m = JsonUtil.parseJson[Map[String,JValue]](readBody(gResponse))
-    m match {
-      case Some(map) => {
-        map.get("hash").getClass must be (classOf[Some[String]])
-        map.get("pk").getClass must be (classOf[Some[String]])
-        map.get("schema").getClass must be (classOf[Some[JObject]])
+    dispatch("GET", Seq("dataset", resourceName), None,  None){ response =>
+      response.resultCode must equal (200)
+      //response.headers(hashHeader).headOption.getOrElse(fail("no schema version hash"))
+      val m = response.asValue[Map[String,JValue]](2 ^ 20)
+      m match {
+        case Some(map) => {
+          map.get("row_identifier").getClass must be (classOf[Some[String]])
+          map.get("columns").getClass must be (classOf[Some[JObject]])
+        }
+        case None => fail("did not receive dataset spec from soda server")
       }
-      case None => fail("did not receive schema from soda server")
     }
   }
 
@@ -79,24 +80,24 @@ class DatasetServiceIntegrationTest extends SodaFountainIntegrationTest with Dat
       JObject(Map(("col_id"->JNumber(1)), ("col_text"->JString("upserted row 1")))),
       JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
     ))
-    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    val uResponse = sendWaitRead("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     uResponse.resultCode must equal (200)
   }
 
   test("soda fountain dataset service upsert with row deletes"){
     //verify row exists
-    val gResponse = dispatch("GET", "resource", Some(resourceName), Some("102"), None, None)
+    val gResponse = sendWaitRead("GET", "resource", Some(resourceName), Some("102"), None, None)
     assert(gResponse.resultCode === 200, readBody(gResponse))
 
     //upsert with row delete
     val v = getVersionInSecondaryStore(resourceName)
     val uBody = JArray(Seq( JArray(Seq(JNumber(102))) ))
-    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    val uResponse = sendWaitRead("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     uResponse.resultCode must equal (200)
     waitForSecondaryStoreUpdate(resourceName, v)
 
     //verify row deleted
-    val g2Response = dispatch("GET", "resource", Some(resourceName), Some("102"), None, None)
+    val g2Response = sendWaitRead("GET", "resource", Some(resourceName), Some("102"), None, None)
     pendingUntilFixed{ //secondary store race condition will often cause this check to fail
       assert(g2Response.resultCode === 404, readBody(g2Response))
       fail("remove this line when the row deletes can guarantee consistency") //this + pendingUntilFixed disables the test until they're removed.
@@ -105,18 +106,18 @@ class DatasetServiceIntegrationTest extends SodaFountainIntegrationTest with Dat
 
   test("soda fountain dataset service upsert with row deletes - legacy format"){
     //verify row exists
-    val gResponse = dispatch("GET", "resource", Some(resourceName), Some("101"), None, None)
+    val gResponse = sendWaitRead("GET", "resource", Some(resourceName), Some("101"), None, None)
     assert(gResponse.resultCode === 200, readBody(gResponse))
 
     //upsert with row delete
     val v = getVersionInSecondaryStore(resourceName)
     val uBody = JArray(Seq( JObject(Map(("col_id"->JNumber(101)), ("col_text"->JString("upserted row 101")), (":deleted" -> JBoolean(true)))) ))
-    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    val uResponse = sendWaitRead("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     assert(uResponse.resultCode == 200, readBody(uResponse))
     waitForSecondaryStoreUpdate(resourceName, v)
 
     //verify row deleted
-    val g2Response = dispatch("GET", "resource", Some(resourceName), Some("101"), None, None)
+    val g2Response = sendWaitRead("GET", "resource", Some(resourceName), Some("101"), None, None)
     pendingUntilFixed{ //secondary store race condition will often cause this check to fail
       assert(g2Response.resultCode === 404, readBody(g2Response))
       fail("remove this line when the row deletes can guarantee consistency") //this + pendingUntilFixed disables the test until they're removed.
@@ -129,14 +130,14 @@ class DatasetServiceIntegrationTest extends SodaFountainIntegrationTest with Dat
       JObject(Map(("col_id"->JNumber(2)), ("col_does_not_exist"->JString("row 2")))),
       JObject(Map(("col_id"->JNumber(3)), ("col_text"->JString("upserted row 3"))))
     ))
-    val uResponse = dispatch("POST", "resource", Some(resourceName), None, None,  Some(uBody))
+    val uResponse = sendWaitRead("POST", "resource", Some(resourceName), None, None,  Some(uBody))
     uResponse.resultCode must equal (400)
   }
 
   test("soda fountain dataset service  query") {
     val params = Map(("$query" -> "select * where col_id = 2"))
-    val qResponse = dispatch("GET", "resource", Some(resourceName), None, Some(params),  None)
-    jsonCompare(readBody(qResponse), """[{col_text:"row 2", col_id: 2.0}]""".stripMargin )
+    val qResponse = sendWaitRead("GET", "resource", Some(resourceName), None, Some(params),  None)
+    jsonCompare(readBody(qResponse), """[{col_id: "2.0", col_text:"row 2"}]""")
     qResponse.resultCode must equal (200)
   }
 

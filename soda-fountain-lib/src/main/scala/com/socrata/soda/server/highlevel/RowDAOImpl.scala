@@ -10,18 +10,19 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLType
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soda.clients.datacoordinator.UpsertRow
+import scala.Some
 import com.socrata.soda.server.highlevel.RowDAO.DatasetNotFound
-import com.socrata.soda.server.highlevel.RowDAO.Success
+import com.socrata.soda.server.highlevel.RowDAO.QuerySuccess
+import com.rojoma.json.ast.JString
 import com.socrata.soda.server.highlevel.RowDAO.RowNotFound
 import com.socrata.soda.server.id.RowSpecifier
 import com.socrata.soda.server.highlevel.RowDAO.StreamSuccess
 import com.socrata.soda.server.highlevel.RowDAO.UnknownColumn
 import com.socrata.soda.server.highlevel.RowDAO.RowNotAnObject
+import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
 import com.socrata.soda.clients.datacoordinator.DeleteRow
 import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
-import com.socrata.http.server.util.Precondition
-import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
@@ -81,7 +82,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolean) {
     private[this] sealed abstract class ColumnResult
     private[this] case class NoColumn(fieldName: ColumnName) extends ColumnResult
-    private[this] case class ColumnInfo(columnRecord: ColumnRecordLike, rep: JsonColumnReadRep) extends ColumnResult
+    private[this] case class ColumnInfo(columnRecord: ColumnRecordLike, rRep: JsonColumnReadRep, wRep: JsonColumnWriteRep) extends ColumnResult
 
     // A cache from the keys of the JSON objects which are rows to values
     // which represent either the fact that the key does not represent
@@ -95,7 +96,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           case Some(cr) =>
             if(columnInfos.size > columns.size * 10)
               columnInfos.clear() // bad user, but I'd rather spend CPU than memory
-            val ci = ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ))
+            val ci = ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ), JsonColumnRep.forDataCoordinatorType(cr.typ))
             columnInfos.put(rawColumnName, ci)
             ci
           case None =>
@@ -112,10 +113,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         var rowHasLegacyDeleteFlag = false
         val row: scala.collection.Map[String, JValue] = map.flatMap { case (uKey, uVal) =>
           ciFor(uKey) match {
-            case ColumnInfo(cr, rep) =>
-              rep.fromJValue(uVal) match {
-                case Some(v) => (cr.id.underlying -> uVal) :: Nil
-                case None => throw MaltypedDataEx(cr.fieldName, rep.representedType, uVal)
+            case ColumnInfo(cr, rRep, wRep) =>
+              rRep.fromJValue(uVal) match {
+                case Some(v) => (cr.id.underlying -> wRep.toJValue(v)) :: Nil
+                case None => throw MaltypedDataEx(cr.fieldName, rRep.representedType, uVal)
               }
             case NoColumn(colName) =>
               if(colName == LegacyDeleteFlag && JBoolean.canonicalTrue == uVal) {
@@ -136,17 +137,14 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         } else {
           UpsertRow(row)
         }
-        //TODO: handle a single-element array for deletes!
-        /*
       case JArray(Seq(rowIdJval)) =>
         val pkCol = dataset.columnsById(dataset.primaryKey)
-        TypeChecker.check(pkCol.typ, rowIdJval) match {
-          case Right(idVal) =>
-            DeleteRow(TypeChecker.encode(idVal))
-          case Left(TypeChecker.Error(expected, got)) =>
-            throw MaltypedDataEx(pkCol.fieldName, expected, got)
+        JsonColumnRep.forClientType(pkCol.typ).fromJValue(rowIdJval) match {
+          case Some(soqlVal) =>
+            val idToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlVal)
+            DeleteRow(idToDelete)
+          case None => throw MaltypedDataEx( pkCol.fieldName, pkCol.typ, rowIdJval)
         }
-        */
       case other =>
         throw NotAnObjectOrSingleElementArrayEx(other)
     }

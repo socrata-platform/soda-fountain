@@ -14,8 +14,8 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
     val idAndResults = dc.create(instance, userName, None)
     dc.update(idAndResults._1, mockSchemaString, userName, Array( new AddColumnInstruction(typ, "new_column", Some(id))).iterator){ colCreateResult =>
       dc.update(idAndResults._1, mockSchemaString, userName, Array(DropColumnInstruction(id)).iterator){ colDropResult =>
-        //colCreate.getResponseBody must equal ("""[]""".stripMargin)
-        //colDrop.getResponseBody must equal ("""[]""".stripMargin)
+        //colCreate.getResponseBody must equal ("""[]""")
+        //colDrop.getResponseBody must equal ("""[]""")
       }
     }
   }
@@ -27,9 +27,9 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
     dc.update(idAndResults._1, mockSchemaString, userName, Array(new AddColumnInstruction(typ, "new_col", Some(id))).iterator){newCol =>
       dc.update(idAndResults._1, mockSchemaString, userName, Array(SetRowIdColumnInstruction(id)).iterator){ setId =>
         dc.update(idAndResults._1, mockSchemaString, userName, Array(DropRowIdColumnInstruction(id)).iterator){dropId =>
-          //newCol.getResponseBody must equal ("""[]""".stripMargin)
-          //setId.getResponseBody must equal ("""[]""".stripMargin)
-          //dropId.getResponseBody must equal ("""[]""".stripMargin)
+          //newCol.getResponseBody must equal ("""[]""")
+          //setId.getResponseBody must equal ("""[]""")
+          //dropId.getResponseBody must equal ("""[]""")
         }
       }
     }
@@ -47,8 +47,8 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
 
     responses match {
       case Success((idAndResults, namedCol, renamedCol)) => {
-        //namedCol.getResponseBody must equal ("""[]""".stripMargin)
-        //renamedCol.getResponseBody must equal ("""[]""".stripMargin)
+        //namedCol.getResponseBody must equal ("""[]""")
+        //renamedCol.getResponseBody must equal ("""[]""")
       }
       case Failure(thr) => throw thr
     }

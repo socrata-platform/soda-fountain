@@ -17,7 +17,7 @@ class DatasetOperationsEndToEndTest extends SodaFountainIntegrationTest with Int
       "name" -> JString("soda integration test create/setSchema/getSchema/delete dataset"),
       "columns" -> JArray(Seq())
     ))
-    val cResponse = dispatch("POST", "dataset", None, None, None,  Some(cBody))
+    val cResponse = sendWaitRead("POST", "dataset", None, None, None,  Some(cBody))
     JsonCodec[DatasetSpec].decode(cResponse.body) match {
       case Some(spec) => {}
       case _ => fail("did not receive a schema in response to the dataset create request")
@@ -31,23 +31,23 @@ class DatasetOperationsEndToEndTest extends SodaFountainIntegrationTest with Int
         column("a text column", "col_text", Some("this is a text column"), "text"),
         column("a boolean column", "col_bool", None, "boolean")
       ))
-      val sResponse = dispatch("POST", "dataset", Some(datasetOpDataset), None, None,  Some(sBody))
+      val sResponse = sendWaitRead("POST", "dataset", Some(datasetOpDataset), None, None,  Some(sBody))
       readBody(sResponse)must equal ("")
       sResponse.resultCode must equal (200)
     }
 
     //get schema
-    val gResponse = dispatch("GET", "dataset", Some(datasetOpDataset), None, None,  None)
+    val gResponse = sendWaitRead("GET", "dataset", Some(datasetOpDataset), None, None,  None)
     readBody(gResponse)must equal ("{dataset schema}")
     gResponse.resultCode must equal (200)
 
     //delete
-    val dResponse = dispatch("DELETE", "dataset", Some(datasetOpDataset), None, None,  None)
+    val dResponse = sendWaitRead("DELETE", "dataset", Some(datasetOpDataset), None, None,  None)
     readBody(dResponse)must equal ("")
     dResponse.resultCode must equal (200)
 
     //verify deleted
-    val g2Response = dispatch("GET", "dataset", Some(datasetOpDataset), None, None,  None)
+    val g2Response = sendWaitRead("GET", "dataset", Some(datasetOpDataset), None, None,  None)
     readBody(g2Response)must equal ("g")
     g2Response.resultCode must equal (404)
   }

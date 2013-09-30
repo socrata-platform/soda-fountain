@@ -19,14 +19,14 @@ class RowOperationsEndToEndTest extends SodaFountainIntegrationTest with Integra
       )),
       "row_identifier" -> JString("col_text")
     ))
-    val cRowOpD = dispatch("POST", "dataset", None, None, None,  Some(body))
-    if (cRowOpD.resultCode != 200) throw new Exception( "create failed with " + cRowOpD.resultCode + " " + readBody(cRowOpD))
+    val cRowOpD = sendWaitRead("POST", "dataset", None, None, None,  Some(body))
+    if (cRowOpD.resultCode != 201) throw new Exception( "create failed with " + cRowOpD.resultCode + " " + readBody(cRowOpD))
 
     //publish
-    val pRowOpD = dispatch("PUT", "dataset-copy", Some(rowOpDataset), None, None, None)
-    if (pRowOpD.resultCode != 200) throw new Exception( "publish failed with " + pRowOpD.resultCode + " " + readBody(pRowOpD))
+    val pRowOpD = sendWaitRead("PUT", "dataset-copy", Some(rowOpDataset), None, None, None)
+    if (pRowOpD.resultCode != 204) throw new Exception( "publish failed with " + pRowOpD.resultCode + " " + readBody(pRowOpD))
 
-    val gResponse = dispatch("POST", "dataset-copy", Some(rowOpDataset), Some(secondaryStore), None, None)
+    val gResponse = sendWaitRead("POST", "dataset-copy", Some(rowOpDataset), Some(secondaryStore), None, None)
     val v1 = getVersionInSecondaryStore(rowOpDataset)
 
     //upsert row
@@ -35,7 +35,7 @@ class RowOperationsEndToEndTest extends SodaFountainIntegrationTest with Integra
       "col_text" -> JString(rowId),
       "col_num" -> JNumber(24601)
     ))
-    val ur = dispatch("POST", "resource", Some(rowOpDataset), Some(rowId), None,  Some(urBody))
+    val ur = sendWaitRead("POST", "resource", Some(rowOpDataset), Some(rowId), None,  Some(urBody))
     ur.resultCode must equal (200)
     waitForSecondaryStoreUpdate(rowOpDataset, v1)
 
@@ -45,12 +45,12 @@ class RowOperationsEndToEndTest extends SodaFountainIntegrationTest with Integra
       "col_text" -> JString(rowId),
       "col_num" -> JNumber(101010)
     ))
-    val rr = dispatch("POST", "resource", Some(rowOpDataset), Some(rowId), None,  Some(rrBody))
+    val rr = sendWaitRead("POST", "resource", Some(rowOpDataset), Some(rowId), None,  Some(rrBody))
     rr.resultCode must equal (200)
     waitForSecondaryStoreUpdate(rowOpDataset, v2)
 
     //get row
-    val gr = dispatch("GET", "resource", Some(rowOpDataset), Some(rowId), None,  None)
+    val gr = sendWaitRead("GET", "resource", Some(rowOpDataset), Some(rowId), None,  None)
     pendingUntilFixed{ // looks like race condition in ES
       gr.resultCode must equal (200)
       jsonCompare( readBody(gr) , """[{ "col_num" : 101010.0, "col_text" : "rowZ" }]""")
@@ -58,7 +58,7 @@ class RowOperationsEndToEndTest extends SodaFountainIntegrationTest with Integra
 
     //delete row
     val v3 = getVersionInSecondaryStore(rowOpDataset)
-    val dr = dispatch("DELETE", "resource", Some(rowOpDataset), Some(rowId), None,  None)
+    val dr = sendWaitRead("DELETE", "resource", Some(rowOpDataset), Some(rowId), None,  None)
     dr.resultCode must equal (200)
     jsonCompare(readBody(dr),
       """[{
@@ -70,7 +70,7 @@ class RowOperationsEndToEndTest extends SodaFountainIntegrationTest with Integra
     waitForSecondaryStoreUpdate(rowOpDataset, v3)
 
     //get row
-    val gr2 = dispatch("GET", "resource", Some(rowOpDataset), Some(rowId), None,  None)
+    val gr2 = sendWaitRead("GET", "resource", Some(rowOpDataset), Some(rowId), None,  None)
     pendingUntilFixed{
       readBody(gr2) must equal ("{verify row deleted}")
       gr2.resultCode must equal (404)

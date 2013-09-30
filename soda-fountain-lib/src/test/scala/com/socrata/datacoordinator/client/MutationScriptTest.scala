@@ -22,7 +22,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
 
   test("Mutation Script compiles and runs"){
     val mc = new MutationScript(user, UpdateDataset(schemaString), Array().iterator)
-    val expected = """[{c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'}]""".stripMargin
+    val expected = """[{c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'}]"""
     testCompare(mc, expected)
   }
 

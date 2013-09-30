@@ -19,11 +19,11 @@ class CopyInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
         dc.dropCopy(idAndResults._1, mockSchemaString, userName, Iterator.empty){dropResult =>
           dc.copy(idAndResults._1, mockSchemaString, false, userName, Iterator.empty){copyAgainResult =>
             dc.publish(idAndResults._1, mockSchemaString, None, userName, Iterator.empty){publishCopyResult =>
-              //publish.getResponseBody must equal ("""[]""".stripMargin)
-              //copy.getResponseBody must equal ("""[]""".stripMargin)
-              //drop.getResponseBody must equal ("""[]""".stripMargin)
-              //copyAgain.getResponseBody must equal ("""[]""".stripMargin)
-              //publishCopy.getResponseBody must equal ("""[]""".stripMargin)
+              //publish.getResponseBody must equal ("""[]""")
+              //copy.getResponseBody must equal ("""[]""")
+              //drop.getResponseBody must equal ("""[]""")
+              //copyAgain.getResponseBody must equal ("""[]""")
+              //publishCopy.getResponseBody must equal ("""[]""")
             }
           }
         }
