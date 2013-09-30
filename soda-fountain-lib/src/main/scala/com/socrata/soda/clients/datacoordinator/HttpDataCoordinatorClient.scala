@@ -175,9 +175,11 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
-  def export[T](datasetId: DatasetId, schemaHash: String, precondition: Precondition)(f: Result => T): T = {
+  def export[T](datasetId: DatasetId, schemaHash: String, precondition: Precondition, limit: Option[Long], offset: Option[Long])(f: Result => T): T = {
     withHost(datasetId) { host =>
-      val request = exportUrl(host, datasetId).q("schemaHash" -> schemaHash).precondition(precondition).get
+      val limParam = limit.map { limLong => "limit" -> limLong.toString }
+      val offParam = offset.map { offLong => "offset" -> offLong.toString }
+      val request = exportUrl(host, datasetId).q("schemaHash" -> schemaHash).addParameters(limParam ++ offParam).precondition(precondition).get
       for(r <- httpClient.execute(request)) yield {
         errorFrom(r) match {
           case None =>

@@ -28,6 +28,11 @@ case class HttpMethodNotAllowed(method: String, allowed: TraversableOnce[String]
 
 case object NoContentType extends SodaError("req.content-type.missing")
 
+case class BadParameter(param: String, value: String)
+  extends SodaError(SC_BAD_REQUEST, "req.bad-parameter",
+    "parameter" -> JString(param),
+    "value" -> JString(value))
+
 case class UnparsableContentType(contentType: String)
   extends SodaError("req.content-type.unparsable",
     "content-type" -> JString(contentType))

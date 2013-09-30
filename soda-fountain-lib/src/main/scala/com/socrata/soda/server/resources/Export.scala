@@ -24,7 +24,7 @@ import java.security.MessageDigest
 import java.nio.charset.StandardCharsets
 import org.apache.commons.codec.binary.Base64
 import com.socrata.http.server.util.{Precondition, StrongEntityTag, WeakEntityTag, EntityTag}
-import com.socrata.soda.server.errors.{ResourceNotModified, EtagPreconditionFailed}
+import com.socrata.soda.server.errors.{BadParameter, ResourceNotModified, EtagPreconditionFailed}
 import com.socrata.soda.server.export.{Exporter, CsvExporter, CJsonExporter, JsonExporter}
 
 case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
@@ -34,6 +34,8 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
 
   def headerHash(req: HttpServletRequest) = {
     val hash = MessageDigest.getInstance("SHA1")
+    hash.update(Option(req.getQueryString).toString.getBytes(StandardCharsets.UTF_8))
+    hash.update(255.toByte)
     for(field <- ContentNegotiation.headers) {
       hash.update(field.getBytes(StandardCharsets.UTF_8))
       hash.update(254.toByte)
@@ -57,6 +59,26 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
     //
     // For if-match it's the same, only we KEEP the ones that match the hash (and if that eliminates
     // all of them, then we "expectation failed" before ever passing upward to the data-coordinator)
+    val limit = Option(req.getParameter("limit")).map { limStr =>
+      try {
+        limStr.toLong
+      } catch {
+        case e: NumberFormatException =>
+          SodaUtils.errorResponse(req, BadParameter("limit", limStr))(resp)
+          return
+      }
+    }
+
+    val offset = Option(req.getParameter("offset")).map { offStr =>
+      try {
+        offStr.toLong
+      } catch {
+        case e: NumberFormatException =>
+          SodaUtils.errorResponse(req, BadParameter("offset", offStr))(resp)
+          return
+      }
+    }
+
     val suffix = "+" + headerHash(req)
     val precondition = req.precondition.map(etagObfuscator.deobfuscate)
     def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.map(_ + suffix))
@@ -66,7 +88,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
         req.negotiateContent match {
           case Some((mimeType, charset, language)) =>
             val exporter = Exporter.exportForMimeType(mimeType)
-            exportDAO.export(resourceName, passOnPrecondition) {
+            exportDAO.export(resourceName, passOnPrecondition, limit, offset) {
               case ExportDAO.Success(schema, newTag, rows) =>
                 resp.setStatus(HttpServletResponse.SC_OK)
                 resp.setHeader("Vary", ContentNegotiation.headers.mkString(","))

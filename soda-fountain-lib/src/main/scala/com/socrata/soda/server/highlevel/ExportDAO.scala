@@ -8,7 +8,7 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.http.server.util.{Precondition, EntityTag}
 
 trait ExportDAO {
-  def export[T](dataset: ResourceName, precondition: Precondition)(f: Result => T): T
+  def export[T](dataset: ResourceName, precondition: Precondition, limit: Option[Long], offset: Option[Long])(f: Result => T): T
 }
 
 object ExportDAO {

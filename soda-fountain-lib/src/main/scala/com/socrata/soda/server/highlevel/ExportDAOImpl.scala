@@ -84,11 +84,11 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
   }
   def retry() = throw new Retry
 
-  def export[T](dataset: ResourceName, precondition: Precondition)(f: ExportDAO.Result => T): T =
+  def export[T](dataset: ResourceName, precondition: Precondition, limit: Option[Long], offset: Option[Long])(f: ExportDAO.Result => T): T =
     retryable(limit = 5) {
       store.lookupDataset(dataset) match {
         case Some(ds) =>
-          dc.export(ds.systemId, ds.schemaHash, precondition) {
+          dc.export(ds.systemId, ds.schemaHash, precondition, limit, offset) {
             case DataCoordinatorClient.Success(jvalues, etag) =>
               CJson.decode(jvalues) match {
                 case CJson.Decoded(schema, rows) =>

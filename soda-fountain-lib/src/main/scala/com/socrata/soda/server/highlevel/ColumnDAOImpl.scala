@@ -73,25 +73,29 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
     retryable(limit = 5) {
       store.lookupDataset(resource) match {
         case Some(datasetRecord) =>
-          datasetRecord.columnsByName.get(column) match {
+            datasetRecord.columnsByName.get(column) match {
             case Some(columnRecord) =>
-              val instructions =
-                if(datasetRecord.primaryKey == ColumnId(":id")) {
-                  List(SetRowIdColumnInstruction(columnRecord.id))
-                } else if(columnRecord.id == ColumnId(":id")) {
-                  List(DropRowIdColumnInstruction(datasetRecord.primaryKey))
-                } else {
-                  List(
-                    DropRowIdColumnInstruction(datasetRecord.primaryKey),
-                    SetRowIdColumnInstruction(columnRecord.id))
+              if(columnRecord.fieldName == column) {
+                ColumnDAO.Updated(columnRecord.asSpec, None)
+              } else {
+                val instructions =
+                  if(datasetRecord.primaryKey == ColumnId(":id")) {
+                    List(SetRowIdColumnInstruction(columnRecord.id))
+                  } else if(columnRecord.id == ColumnId(":id")) {
+                    List(DropRowIdColumnInstruction(datasetRecord.primaryKey))
+                  } else {
+                    List(
+                      DropRowIdColumnInstruction(datasetRecord.primaryKey),
+                      SetRowIdColumnInstruction(columnRecord.id))
+                  }
+                dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator) {
+                  case DataCoordinatorClient.Success(_, _) =>
+                    store.setPrimaryKey(datasetRecord.systemId, columnRecord.id)
+                    ColumnDAO.Updated(columnRecord.asSpec, None)
+                  case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+                    store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
+                    retry()
                 }
-              dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator) {
-                case DataCoordinatorClient.Success(_, _) =>
-                  store.setPrimaryKey(datasetRecord.systemId, columnRecord.id)
-                  ColumnDAO.Updated(columnRecord.asSpec, None)
-                case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
-                  store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
-                  retry()
               }
             case None =>
               ColumnDAO.ColumnNotFound(column)
