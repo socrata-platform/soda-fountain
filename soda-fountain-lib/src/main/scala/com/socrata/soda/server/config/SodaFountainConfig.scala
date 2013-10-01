@@ -1,6 +1,7 @@
 package com.socrata.soda.server.config
 
 import com.typesafe.config.Config
+import com.socrata.thirdparty.typesafeconfig.ConfigClass
 
 class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(config), "com.socrata.soda-fountain") {
   val maxDatumSize = getInt("max-datum-size")
@@ -63,4 +64,6 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
   val database = getString("database")
   val username = getString("username")
   val password = getString("password")
+  val applicationName = getString("app-name")
+  val poolOptions = optionally(getRawConfig("c3p0")) // these are the c3p0 configuration properties
 }

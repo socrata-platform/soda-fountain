@@ -8,7 +8,7 @@ object SodaFountainLib {
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings() ++ Seq(
     resourceGenerators in Compile <+= (resourceManaged in Compile, name in Compile, version in Compile, scalaVersion in Compile) map genVersion,
     libraryDependencies ++= Seq(
-      "com.socrata" %% "socrata-thirdparty-utils" % "[2.0.0,3.0.0)",
+      "com.socrata" %% "socrata-thirdparty-utils" % "2.0.1-SNAPSHOT",
       "com.socrata" %% "soql-types" % "0.0.16-SNAPSHOT",
       "com.socrata" %% "soql-brita" % "[1.2.1,2.0.0)",
       "javax.servlet" % "servlet-api" % "2.5" % "provided",
@@ -18,6 +18,7 @@ object SodaFountainLib {
       "com.typesafe" % "config" % "1.0.2",
       "com.netflix.curator" % "curator-x-discovery" % "1.3.3",
       "postgresql" % "postgresql" % "9.1-901-1.jdbc4",
+      "com.mchange" % "c3p0" % "0.9.2.1",
       "org.scalacheck" %% "scalacheck" % "1.10.0" % "test,it",
       "org.scalatest" %% "scalatest" % "1.9.1" % "test,it"
     )
