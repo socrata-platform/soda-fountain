@@ -7,6 +7,11 @@ import com.socrata.thirdparty.typesafeconfig.Propertizer
 import com.mchange.v2.c3p0.DataSources
 
 object DataSourceFromConfig {
+  /**
+   * The return value from this function may or may not be a c3p0 data source.  It should be
+   * destroyed (by c3p0's `DataSources.destroy` method) when you're done with that, as that
+   * will do the right thing with non-c3p0 sources.
+   */
   def apply(config: DataSourceConfig): DataSource = {
     val dataSource = new PGSimpleDataSource
     dataSource.setServerName(config.host)

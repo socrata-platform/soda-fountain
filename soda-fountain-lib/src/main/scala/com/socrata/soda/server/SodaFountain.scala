@@ -20,6 +20,8 @@ import com.socrata.soda.server.util.{BlowfishCFBETagObfuscator, ETagObfuscator, 
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import scala.concurrent.duration.FiniteDuration
+import javax.sql.DataSource
+import com.mchange.v2.c3p0.DataSources
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -70,7 +72,13 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     var done = false
     try {
       val result = thing
-      if(result.isInstanceOf[Closeable]) cleanup.push(result.asInstanceOf[Closeable])
+      result match {
+        case closeable: Closeable => cleanup.push(closeable)
+        case dataSource: DataSource => cleanup.push(new Closeable {
+          def close() { DataSources.destroy(dataSource) } // this is a no-op if the data source is not a c3p0 data source
+        })
+        case _ => // ok
+      }
       done = true
       result
     } finally {
