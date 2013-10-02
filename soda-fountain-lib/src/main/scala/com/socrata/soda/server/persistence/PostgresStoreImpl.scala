@@ -243,6 +243,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     if(columns.nonEmpty) {
       using(connection.prepareStatement("insert into columns (dataset_system_id, column_name_casefolded, column_name, column_id, name, description, type_name, is_inconsistency_resolution_generated) values (?, ?, ?, ?, ?, ?, ?, ?)")) { colAdder =>
         for(cspec <- columns) {
+          log.info("TODO: Ensure the names will fit in the space available")
           colAdder.setString(1, datasetId.underlying)
           colAdder.setString(2, cspec.fieldName.caseFolded)
           colAdder.setString(3, cspec.fieldName.name)
@@ -262,6 +263,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     using(dataSource.getConnection()){ connection =>
       connection.setAutoCommit(false)
       using(connection.prepareStatement("insert into datasets (resource_name_casefolded, resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id) values(?, ?, ?, ?, ?, ?, ?, ?)")){ adder =>
+        log.info("TODO: Ensure the names will fit in the space available")
         adder.setString(1, newRecord.resourceName.caseFolded)
         adder.setString(2, newRecord.resourceName.name)
         adder.setString(3, newRecord.systemId.underlying)
