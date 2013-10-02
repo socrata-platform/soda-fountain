@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS datasets (
-  resource_name_casefolded         VARCHAR(64) NOT NULL,
-  resource_name                    VARCHAR(64) NOT NULL,
+  resource_name_casefolded         VARCHAR(128) NOT NULL,
+  resource_name                    VARCHAR(128) NOT NULL,
   dataset_system_id                VARCHAR(64) NOT NULL,
   created_at                       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   name                             TEXT NOT NULL,
@@ -14,8 +14,8 @@ CREATE TABLE IF NOT EXISTS datasets (
 
 CREATE TABLE IF NOT EXISTS columns (
   dataset_system_id                     VARCHAR(64) NOT NULL REFERENCES datasets(dataset_system_id),
-  column_name_casefolded                VARCHAR(64) NOT NULL,
-  column_name                           VARCHAR(64) NOT NULL,
+  column_name_casefolded                VARCHAR(128) NOT NULL,
+  column_name                           VARCHAR(128) NOT NULL,
   column_id                             VARCHAR(64) NOT NULL,
   type_name                             VARCHAR(64) NOT NULL,
   created_at                            TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
