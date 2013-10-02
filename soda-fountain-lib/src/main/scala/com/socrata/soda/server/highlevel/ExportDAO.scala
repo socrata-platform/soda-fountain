@@ -13,7 +13,7 @@ trait ExportDAO {
 
 object ExportDAO {
   case class ColumnInfo(fieldName: ColumnName, humanName: String, typ: SoQLType)
-  case class CSchema(locale: String, pk: Option[ColumnName], schema: Seq[ColumnInfo])
+  case class CSchema(approximateRowCount: Option[Long], locale: String, pk: Option[ColumnName], rowCount: Option[Long], schema: Seq[ColumnInfo])
 
   sealed abstract class Result
   case class Success(schema: CSchema, entityTag: Option[EntityTag], rows: Iterator[Array[SoQLValue]]) extends Result

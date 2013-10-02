@@ -60,8 +60,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
       case CJson.Decoded(schema, rows) =>
         schema.pk.map(ds.columnsById(_).fieldName)
         val simpleSchema = ExportDAO.CSchema(
+          schema.approximateRowCount,
           schema.locale,
           schema.pk.map(ds.columnsById(_).fieldName),
+          schema.rowCount,
           schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
         )
         // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!

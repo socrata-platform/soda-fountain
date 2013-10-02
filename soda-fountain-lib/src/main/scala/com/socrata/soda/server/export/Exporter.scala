@@ -8,7 +8,7 @@ import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.wiremodels.{CsvColumnRep, CsvColumnWriteRep, JsonColumnRep, JsonColumnWriteRep}
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.CompactJsonWriter
-import com.rojoma.json.ast.{JNull, JString}
+import com.rojoma.json.ast.{JNumber, JNull, JString}
 import com.rojoma.simplearm.util._
 import java.io.BufferedWriter
 import java.util.Locale
@@ -100,10 +100,19 @@ object CJsonExporter extends Exporter {
     } yield {
       val jw = new CompactJsonWriter(w)
       val schemaOrdering = schema.schema.zipWithIndex.sortBy(_._1.fieldName).map(_._2).toArray
-      w.write(s"""[{"locale":${JString(schema.locale)}""")
+      w.write("""[{""")
+      schema.approximateRowCount.foreach { count =>
+          w.write(s""""approximate_row_count":${JNumber(count)}""")
+          w.write("\n ,")
+      }
+      w.write(s""""locale":${JString(schema.locale)}""")
       w.write('\n')
       schema.pk.foreach { pk =>
         w.write(s""" ,"pk":${JString(pk.name)}""")
+        w.write('\n')
+      }
+      schema.rowCount.foreach { count =>
+        w.write(s""" ,"row_count":${JNumber(count)}""")
         w.write('\n')
       }
       w.write(s""" ,"schema":[""")

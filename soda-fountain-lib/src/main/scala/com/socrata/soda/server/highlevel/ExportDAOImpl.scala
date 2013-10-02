@@ -6,7 +6,7 @@ import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.rojoma.json.ast.{JValue, JArray}
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
-import com.rojoma.json.util.AutomaticJsonCodecBuilder
+import com.rojoma.json.util.{Strategy, JsonKeyStrategy, AutomaticJsonCodecBuilder}
 import com.rojoma.json.codec.JsonCodec
 import scala.runtime.AbstractFunction1
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnReadRep}
@@ -18,7 +18,9 @@ import com.socrata.http.server.util.Precondition
 object CJson {
   case class Field(c: ColumnId, t: SoQLType)
   private implicit val fieldCodec = AutomaticJsonCodecBuilder[Field]
-  case class Schema(locale: String, pk: Option[ColumnId], schema: Seq[Field])
+
+  @JsonKeyStrategy(Strategy.Underscore)
+  case class Schema(approximateRowCount: Option[Long], locale: String, pk: Option[ColumnId], rowCount: Option[Long], schema: Seq[Field])
   private implicit val schemaCodec = AutomaticJsonCodecBuilder[Schema]
 
   def decode(data: Iterator[JValue]): Result = {
@@ -93,8 +95,10 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
               CJson.decode(jvalues) match {
                 case CJson.Decoded(schema, rows) =>
                   val simpleSchema = ExportDAO.CSchema(
+                    schema.approximateRowCount,
                     schema.locale,
                     schema.pk.map(ds.columnsById(_).fieldName),
+                    schema.rowCount,
                     schema.schema.map { f => ColumnInfo(ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t) }
                   )
                   f(ExportDAO.Success(simpleSchema, etag, rows))
