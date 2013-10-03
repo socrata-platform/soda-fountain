@@ -42,7 +42,7 @@ class BlowfishCFBETagObfuscator(key: Array[Byte]) extends ETagObfuscator {
   }
 
   def obfuscate(tag: EntityTag): EntityTag = {
-    val textBytes = tag.value.getBytes(StandardCharsets.UTF_8)
+    val textBytes = tag.asBytesUnsafe
     val cryptBytes = new Array[Byte](textBytes.length + 8)
 
     nonce(cryptBytes, textBytes)
@@ -69,12 +69,12 @@ class BlowfishCFBETagObfuscator(key: Array[Byte]) extends ETagObfuscator {
       }
     }
 
-    tag.map(_ => Base64.encodeBase64URLSafeString(cryptBytes))
+    tag.map(_ => cryptBytes)
   }
 
   def deobfuscate(etag: EntityTag): EntityTag = {
-    val bytes = Base64.decodeBase64(etag.value)
-    if(bytes.length < 8) return etag.map(_ => "")
+    val bytes = etag.asBytesUnsafe
+    if(bytes.length < 8) return etag.map(_ => new Array[Byte](0))
     val textBytes = new Array[Byte](bytes.length - 8)
 
     var i = 0
@@ -102,6 +102,6 @@ class BlowfishCFBETagObfuscator(key: Array[Byte]) extends ETagObfuscator {
     // isn't necessary.  This is an etag, not an authentication code or message.
     // The only thing someone tampering with it can do is cause themselves to
     // fail to match.
-    etag.map(_ => new String(textBytes, StandardCharsets.UTF_8))
+    etag.map(_ => textBytes)
   }
 }

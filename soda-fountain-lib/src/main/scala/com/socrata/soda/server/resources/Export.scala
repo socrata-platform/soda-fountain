@@ -32,8 +32,10 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
 
   implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
 
+  val headerHashAlg = "SHA1"
+  val headerHashLength = MessageDigest.getInstance(headerHashAlg).getDigestLength
   def headerHash(req: HttpServletRequest) = {
-    val hash = MessageDigest.getInstance("SHA1")
+    val hash = MessageDigest.getInstance(headerHashAlg)
     hash.update(Option(req.getQueryString).toString.getBytes(StandardCharsets.UTF_8))
     hash.update(255.toByte)
     for(field <- ContentNegotiation.headers) {
@@ -45,7 +47,14 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       }
       hash.update(255.toByte)
     }
-    Base64.encodeBase64URLSafeString(hash.digest())
+    hash.digest()
+  }
+
+  def byteAppend(a: Array[Byte], b: Array[Byte]): Array[Byte] = {
+    val res = new Array[Byte](a.length + b.length)
+    System.arraycopy(a, 0, res, 0, a.length)
+    System.arraycopy(b, 0, res, a.length, b.length)
+    res
   }
 
   def export(resourceName: ResourceName, ext: Option[String])(req: HttpServletRequest)(resp: HttpServletResponse) {
@@ -79,10 +88,10 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       }
     }
 
-    val suffix = "+" + headerHash(req)
+    val suffix = headerHash(req)
     val precondition = req.precondition.map(etagObfuscator.deobfuscate)
-    def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.map(_ + suffix))
-    precondition.filter(_.value.endsWith(suffix)) match {
+    def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.map(byteAppend(_, suffix)))
+    precondition.filter(_.asBytesUnsafe.endsWith(suffix)) match { // TODO: potential perf problem due to endsWith
       case Right(newPrecondition) =>
         val passOnPrecondition = newPrecondition.map(_.map(_.dropRight(suffix.length)))
         req.negotiateContent match {
@@ -93,7 +102,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                 resp.setStatus(HttpServletResponse.SC_OK)
                 resp.setHeader("Vary", ContentNegotiation.headers.mkString(","))
                 newTag.foreach { tag =>
-                  resp.setHeader("ETag", prepareTag(tag).toString)
+                  ETag(prepareTag(tag))(resp)
                 }
                 exporter.export(resp, charset, schema, rows)
               case ExportDAO.PreconditionFailed =>
@@ -105,8 +114,6 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
             // TODO better error
             NotAcceptable(resp)
         }
-      case Left(Precondition.FailedBecauseMatch(etags)) =>
-        SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(resp)
       case Left(Precondition.FailedBecauseNoMatch) =>
         SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
     }

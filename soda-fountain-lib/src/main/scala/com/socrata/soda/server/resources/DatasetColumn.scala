@@ -10,7 +10,7 @@ import com.socrata.soda.server.{LogTag, SodaUtils}
 import javax.servlet.http.HttpServletRequest
 import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedColumnSpec}
 import com.socrata.soda.server.util.ETagObfuscator
-import com.socrata.http.server.util.Precondition
+import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.errors.{ResourceNotModified, EtagPreconditionFailed}
 
 case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
@@ -25,11 +25,17 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
     }
   }
 
-  def response(req: HttpServletRequest, result: ColumnDAO.Result, etagSuffix: String, isGet: Boolean = false): HttpResponse = {
+  def response(req: HttpServletRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte], isGet: Boolean = false): HttpResponse = {
     log.info("TODO: Negotiate content type")
+    def prepareETag(etag: EntityTag) = etag.map { prefix =>
+      val res = new Array[Byte](prefix.length + etagSuffix.length)
+      System.arraycopy(prefix, 0, res, 0, prefix.length)
+      System.arraycopy(etagSuffix, 0, res, prefix.length, etagSuffix.length)
+      res
+    }
     result match {
       case ColumnDAO.Created(spec, etagOpt) =>
-        etagOpt.foldLeft(Created) { (root, etag) => root ~> Header("ETag", etagObfuscator.obfuscate(etag.map(_ + etagSuffix)).toString) } ~> SodaUtils.JsonContent(spec)
+        etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(etagObfuscator.obfuscate(prepareETag(etag))) } ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Updated(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Found(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Deleted => NoContent
@@ -39,7 +45,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
         if(isGet) {
           log.info("TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified")
-          SodaUtils.errorResponse(req, ResourceNotModified(etags.map(_.map(_ + etagSuffix)).map(etagObfuscator.obfuscate), None))
+          SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareETag).map(etagObfuscator.obfuscate), None))
         } else {
           SodaUtils.errorResponse(req, EtagPreconditionFailed)
         }
@@ -49,17 +55,13 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
   }
 
   def checkPrecondition(req: HttpServletRequest, isGet: Boolean = false)(op: Precondition => ColumnDAO.Result): HttpResponse = {
-    val suffix = "+"
-    req.precondition.map(etagObfuscator.deobfuscate).filter(_.value.endsWith(suffix)) match {
+    val suffix = Array[Byte]('+')
+    req.precondition.map(etagObfuscator.deobfuscate).filter(_.asBytesUnsafe.endsWith(suffix)) match { // TODO: Potential perf problem in this `endsWith' call (boxing etc)
       case Right(preconditionRaw) =>
         val precondition = preconditionRaw.map(_.map(_.dropRight(suffix.length)))
         response(req, op(precondition), suffix, isGet)
       case Left(Precondition.FailedBecauseNoMatch) =>
         SodaUtils.errorResponse(req, EtagPreconditionFailed)
-      case Left(Precondition.FailedBecauseMatch(etags)) =>
-        log.info("TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified")
-        if(isGet) SodaUtils.errorResponse(req, ResourceNotModified(etags.map(etagObfuscator.obfuscate), None))
-        else SodaUtils.errorResponse(req, EtagPreconditionFailed)
     }
   }
 
@@ -95,7 +97,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
 
   case class pkservice(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def post = { req =>
-      response(req, columnDAO.makePK(user(req), resourceName, columnName), "")
+      response(req, columnDAO.makePK(user(req), resourceName, columnName), new Array[Byte](0))
     }
   }
 }

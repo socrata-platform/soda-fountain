@@ -10,6 +10,8 @@ import com.socrata.http.server.util._
 import com.socrata.soda.server.id.SecondaryId
 import com.rojoma.json.ast.JString
 import com.socrata.soda.clients.datacoordinator
+import com.socrata.http.common.util.HttpUtils
+import org.apache.commons.codec.binary.Base64
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
   import DataCoordinatorClient._
@@ -44,12 +46,17 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
 
   implicit class Augmenting(r: RequestBuilder) {
+    // TODO: replace this with a renderEtags call from socrata-http
+    private def renderETag(etag: EntityTag): String = etag match {
+      case w: WeakEntityTag => "W/" + HttpUtils.quote(Base64.encodeBase64URLSafeString(w.asBytesUnsafe))
+      case s: StrongEntityTag => HttpUtils.quote(Base64.encodeBase64URLSafeString(s.asBytesUnsafe))
+    }
     def precondition(p: Precondition): RequestBuilder = p match {
       case NoPrecondition => r
       case IfDoesNotExist => r.addHeader("If-None-Match", "*")
-      case IfNoneOf(etags) => r.addHeader("If-None-Match", etags.mkString(","))
+      case IfNoneOf(etags) => r.addHeader("If-None-Match", etags.map(renderETag).mkString(","))
       case IfExists => r.addHeader("If-Match", "*")
-      case IfAnyOf(etags) => r.addHeader("If-Match", etags.mkString(","))
+      case IfAnyOf(etags) => r.addHeader("If-Match", etags.map(renderETag).mkString(","))
     }
   }
 
@@ -183,13 +190,13 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       for(r <- httpClient.execute(request)) yield {
         errorFrom(r) match {
           case None =>
-            f(Success(r.asArray[JValue](), r.headers("ETag").headOption.flatMap(EntityTag.parse)))
+            f(Success(r.asArray[JValue](), r.headers("ETag").headOption.map(EntityTagParser.parse(_))))
           case Some(err) =>
             err match {
               case SchemaMismatchForExport(_, newSchema) =>
                 f(SchemaOutOfDate(newSchema))
               case datacoordinator.NotModified() =>
-                f(NotModified(r.headers("etag").flatMap(EntityTag.parse(_ : String))))
+                f(NotModified(r.headers("etag").map(EntityTagParser.parse(_ : String))))
               case datacoordinator.PreconditionFailed() =>
                 f(DataCoordinatorClient.PreconditionFailed)
             }

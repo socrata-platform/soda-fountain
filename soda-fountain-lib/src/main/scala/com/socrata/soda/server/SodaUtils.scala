@@ -44,7 +44,7 @@ object SodaUtils {
 
     errorLog.info(s"${logTags.mkString(" ")} responding with error ${error.errorCode}")
     val header = error.vary.foldLeft(error.etags.foldLeft(Status(error.httpResponseCode)) { (h, et) =>
-      h ~> Header("ETag", et.toString)
+      h ~> ETag(et)
     }) { (h, vary) =>
       h ~> Header("Vary", vary)
     }
