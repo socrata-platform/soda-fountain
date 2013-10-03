@@ -184,7 +184,7 @@ object JsonColumnRep {
     val representedType: SoQLType = SoQLVersion
   }
 
-  def forClientType: Map[SoQLType, JsonColumnRep] =
+  val forClientType: Map[SoQLType, JsonColumnRep] =
     Map(
       SoQLText -> TextRep,
       SoQLFixedTimestamp -> FixedTimestampRep,
