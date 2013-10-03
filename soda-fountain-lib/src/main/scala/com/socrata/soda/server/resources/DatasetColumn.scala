@@ -27,15 +27,10 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
 
   def response(req: HttpServletRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte], isGet: Boolean = false): HttpResponse = {
     log.info("TODO: Negotiate content type")
-    def prepareETag(etag: EntityTag) = etag.map { prefix =>
-      val res = new Array[Byte](prefix.length + etagSuffix.length)
-      System.arraycopy(prefix, 0, res, 0, prefix.length)
-      System.arraycopy(etagSuffix, 0, res, prefix.length, etagSuffix.length)
-      res
-    }
+    def prepareETag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(etagSuffix))
     result match {
       case ColumnDAO.Created(spec, etagOpt) =>
-        etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(etagObfuscator.obfuscate(prepareETag(etag))) } ~> SodaUtils.JsonContent(spec)
+        etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Updated(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Found(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Deleted => NoContent
@@ -45,7 +40,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
         if(isGet) {
           log.info("TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified")
-          SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareETag).map(etagObfuscator.obfuscate), None))
+          SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareETag), None))
         } else {
           SodaUtils.errorResponse(req, EtagPreconditionFailed)
         }
@@ -56,9 +51,9 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
 
   def checkPrecondition(req: HttpServletRequest, isGet: Boolean = false)(op: Precondition => ColumnDAO.Result): HttpResponse = {
     val suffix = Array[Byte]('+')
-    req.precondition.map(etagObfuscator.deobfuscate).filter(_.asBytesUnsafe.endsWith(suffix)) match { // TODO: Potential perf problem in this `endsWith' call (boxing etc)
+    req.precondition.map(etagObfuscator.deobfuscate).filter(_.endsWith(suffix)) match {
       case Right(preconditionRaw) =>
-        val precondition = preconditionRaw.map(_.map(_.dropRight(suffix.length)))
+        val precondition = preconditionRaw.map(_.dropRight(suffix.length))
         response(req, op(precondition), suffix, isGet)
       case Left(Precondition.FailedBecauseNoMatch) =>
         SodaUtils.errorResponse(req, EtagPreconditionFailed)

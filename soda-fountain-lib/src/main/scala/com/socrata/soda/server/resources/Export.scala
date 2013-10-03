@@ -1,31 +1,19 @@
 package com.socrata.soda.server.resources
 
-import java.util.Locale
-
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.highlevel.ExportDAO
-import com.socrata.soql.types.SoQLValue
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 import com.socrata.soda.server.SodaUtils
-import com.rojoma.simplearm.util._
-import com.rojoma.json.ast.{JNull, JString}
-import com.rojoma.json.io.CompactJsonWriter
-import com.socrata.soda.server.wiremodels.{CsvColumnRep, CsvColumnWriteRep, JsonColumnRep, JsonColumnWriteRep}
-import java.io.BufferedWriter
-import javax.activation.MimeType
-import com.socrata.http.common.util.{AliasedCharset, ContentNegotiation}
+import com.socrata.http.common.util.ContentNegotiation
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
-import com.rojoma.json.codec.JsonCodec
-import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.ETagObfuscator
 import java.security.MessageDigest
 import java.nio.charset.StandardCharsets
-import org.apache.commons.codec.binary.Base64
-import com.socrata.http.server.util.{Precondition, StrongEntityTag, WeakEntityTag, EntityTag}
+import com.socrata.http.server.util.{Precondition, EntityTag}
 import com.socrata.soda.server.errors.{BadParameter, ResourceNotModified, EtagPreconditionFailed}
-import com.socrata.soda.server.export.{Exporter, CsvExporter, CJsonExporter, JsonExporter}
+import com.socrata.soda.server.export.Exporter
 
 case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Export])
@@ -48,13 +36,6 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       hash.update(255.toByte)
     }
     hash.digest()
-  }
-
-  def byteAppend(a: Array[Byte], b: Array[Byte]): Array[Byte] = {
-    val res = new Array[Byte](a.length + b.length)
-    System.arraycopy(a, 0, res, 0, a.length)
-    System.arraycopy(b, 0, res, a.length, b.length)
-    res
   }
 
   def export(resourceName: ResourceName, ext: Option[String])(req: HttpServletRequest)(resp: HttpServletResponse) {
@@ -90,10 +71,10 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
 
     val suffix = headerHash(req)
     val precondition = req.precondition.map(etagObfuscator.deobfuscate)
-    def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.map(byteAppend(_, suffix)))
-    precondition.filter(_.asBytesUnsafe.endsWith(suffix)) match { // TODO: potential perf problem due to endsWith
+    def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
+    precondition.filter(_.endsWith(suffix)) match {
       case Right(newPrecondition) =>
-        val passOnPrecondition = newPrecondition.map(_.map(_.dropRight(suffix.length)))
+        val passOnPrecondition = newPrecondition.map(_.dropRight(suffix.length))
         req.negotiateContent match {
           case Some((mimeType, charset, language)) =>
             val exporter = Exporter.exportForMimeType(mimeType)
