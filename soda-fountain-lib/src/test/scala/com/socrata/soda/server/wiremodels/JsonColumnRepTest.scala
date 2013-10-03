@@ -8,15 +8,11 @@ import com.rojoma.json.ast.JString
 
 class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
   test("Client reps know about all types") {
-    pendingUntilFixed {
-      JsonColumnRep.forClientType.keySet must equal (SoQLType.typesByName.values.toSet)
-    }
+    JsonColumnRep.forClientType.keySet must equal (SoQLType.typesByName.values.toSet)
   }
 
   test("Data coordinator reps know about all types") {
-    pendingUntilFixed {
-      JsonColumnRep.forDataCoordinatorType.keySet must equal (SoQLType.typesByName.values.toSet)
-    }
+    JsonColumnRep.forDataCoordinatorType.keySet must equal (SoQLType.typesByName.values.toSet)
   }
 
   test("JSON type checker handles nulls"){
