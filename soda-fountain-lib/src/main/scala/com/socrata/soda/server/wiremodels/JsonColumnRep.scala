@@ -197,6 +197,7 @@ object JsonColumnRep {
       SoQLMoney -> ClientMoneyRep,
       SoQLDouble -> DoubleRep,
       SoQLBoolean -> BooleanRep,
+      SoQLLocation -> ClientLocationRep,
       SoQLObject -> ObjectRep,
       SoQLArray -> ArrayRep,
       SoQLJson -> JValueRep
@@ -215,6 +216,7 @@ object JsonColumnRep {
       SoQLMoney -> MoneyRep,
       SoQLDouble -> DoubleRep,
       SoQLBoolean -> BooleanRep,
+      SoQLLocation -> LocationRep,
       SoQLObject -> ObjectRep,
       SoQLArray -> ArrayRep,
       SoQLJson -> JValueRep
