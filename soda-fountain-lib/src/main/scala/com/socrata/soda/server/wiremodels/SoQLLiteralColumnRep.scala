@@ -31,6 +31,13 @@ object SoQLLiteralColumnRep {
       else value.asInstanceOf[SoQLNumber].value.toString
   }
 
+  object MoneyRep extends SoQLLiteralColumnRep {
+    val representedType = SoQLMoney
+    def toSoQLLiteral(value: SoQLValue) =
+      if(SoQLNull == value) "null"
+      else "(" + value.asInstanceOf[SoQLMoney].value.toString + "::money)"
+  }
+
   object BooleanRep extends SoQLLiteralColumnRep {
     val representedType = SoQLBoolean
     def toSoQLLiteral(value: SoQLValue) =
@@ -43,20 +50,34 @@ object SoQLLiteralColumnRep {
     val stringRep = JsonColumnRep.IdStringRep
     def toSoQLLiteral(value: SoQLValue) =
       if(SoQLNull == value) "null"
-      else JString(stringRep(value.asInstanceOf[SoQLID])).toString
+      else "(" + JString(stringRep(value.asInstanceOf[SoQLID])).toString + "::row_identifier)"
+  }
+
+  object FixedTimestampRep extends SoQLLiteralColumnRep {
+    val representedType = SoQLFixedTimestamp
+    def toSoQLLiteral(value: SoQLValue) =
+      if(SoQLNull == value) "null"
+      else "(" + JString(SoQLFixedTimestamp.StringRep(value.asInstanceOf[SoQLFixedTimestamp].value)).toString + "::fixed_timestamp)"
+  }
+
+  object FloatingTimestampRep extends SoQLLiteralColumnRep {
+    val representedType = SoQLFloatingTimestamp
+    def toSoQLLiteral(value: SoQLValue) =
+      if(SoQLNull == value) "null"
+      else "(" + JString(SoQLFloatingTimestamp.StringRep(value.asInstanceOf[SoQLFloatingTimestamp].value)).toString + "::floating_timestamp)"
   }
 
   val forType: Map[SoQLType, SoQLLiteralColumnRep] =
     Map(
       SoQLText -> TextRep,
-      //SoQLFixedTimestamp -> FixedTimestampRep,
-      //SoQLFloatingTimestamp -> FloatingTimestampRep,
+      SoQLFixedTimestamp -> FixedTimestampRep,
+      SoQLFloatingTimestamp -> FloatingTimestampRep,
       //SoQLDate -> DateRep,
       //SoQLTime -> TimeRep,
       SoQLID -> IDRep,
       //SoQLVersion -> VersionRep,
       SoQLNumber -> NumberRep,
-      //SoQLMoney -> MoneyRep,
+      SoQLMoney -> MoneyRep,
       //SoQLDouble -> DoubleRep,
       SoQLBoolean -> BooleanRep
       //SoQLObject -> ObjectRep,

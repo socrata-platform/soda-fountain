@@ -32,13 +32,18 @@ object StringColumnRep {
       catch { case _: NumberFormatException => None }
   }
 
+  object MoneyRep extends StringColumnRep {
+    val representedType = SoQLMoney
+    def fromString(input: String) =
+      try { Some(SoQLMoney(new java.math.BigDecimal(input))) }
+      catch { case _: NumberFormatException => None }
+  }
+
   object BooleanRep extends StringColumnRep {
     val representedType = SoQLBoolean
     def fromString(input: String) = input.toLowerCase match {
-      case "true" => Some(SoQLBoolean(true))
-      case "t" => Some(SoQLBoolean(true))
-      case "false" => Some(SoQLBoolean(false))
-      case "f" => Some(SoQLBoolean(false))
+      case "true" | "t" => Some(SoQLBoolean.canonicalTrue)
+      case "false" | "f" => Some(SoQLBoolean.canonicalFalse)
       case _ => None
     }
   }
@@ -48,17 +53,27 @@ object StringColumnRep {
     def fromString(input: String) = JsonColumnRep.IdStringRep.unapply(input)
   }
 
+  object FixedTimestampRep extends StringColumnRep {
+    val representedType = SoQLFixedTimestamp
+    def fromString(input: String) = SoQLFixedTimestamp.StringRep.unapply(input).map(SoQLFixedTimestamp(_))
+  }
+
+  object FloatingTimestampRep extends StringColumnRep {
+    val representedType = SoQLFloatingTimestamp
+    def fromString(input: String) = SoQLFloatingTimestamp.StringRep.unapply(input).map(SoQLFloatingTimestamp(_))
+  }
+
   val forType: Map[SoQLType, StringColumnRep] =
     Map(
       SoQLText -> TextRep,
-      //SoQLFixedTimestamp -> FixedTimestampRep,
-      //SoQLFloatingTimestamp -> FloatingTimestampRep,
+      SoQLFixedTimestamp -> FixedTimestampRep,
+      SoQLFloatingTimestamp -> FloatingTimestampRep,
       //SoQLDate -> DateRep,
       //SoQLTime -> TimeRep,
       SoQLID -> IDRep,
       //SoQLVersion -> VersionRep,
       SoQLNumber -> NumberRep,
-      //SoQLMoney -> MoneyRep,
+      SoQLMoney -> MoneyRep,
       //SoQLDouble -> DoubleRep,
       SoQLBoolean -> BooleanRep
       //SoQLObject -> ObjectRep,
