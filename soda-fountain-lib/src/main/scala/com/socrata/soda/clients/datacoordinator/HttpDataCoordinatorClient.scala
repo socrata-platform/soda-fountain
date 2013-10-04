@@ -46,18 +46,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
 
   implicit class Augmenting(r: RequestBuilder) {
-    // TODO: replace this with a renderEtags call from socrata-http
-    private def renderETag(etag: EntityTag): String = etag match {
-      case w: WeakEntityTag => "W/" + HttpUtils.quote(Base64.encodeBase64URLSafeString(w.asBytesUnsafe))
-      case s: StrongEntityTag => HttpUtils.quote(Base64.encodeBase64URLSafeString(s.asBytesUnsafe))
-    }
-    def precondition(p: Precondition): RequestBuilder = p match {
-      case NoPrecondition => r
-      case IfDoesNotExist => r.addHeader("If-None-Match", "*")
-      case IfNoneOf(etags) => r.addHeader("If-None-Match", etags.map(renderETag).mkString(","))
-      case IfExists => r.addHeader("If-Match", "*")
-      case IfAnyOf(etags) => r.addHeader("If-Match", etags.map(renderETag).mkString(","))
-    }
+    def precondition(p: Precondition): RequestBuilder = r.addHeaders(PreconditionRenderer(p))
   }
 
   def getSchema(datasetId: DatasetId): Option[SchemaSpec] =
