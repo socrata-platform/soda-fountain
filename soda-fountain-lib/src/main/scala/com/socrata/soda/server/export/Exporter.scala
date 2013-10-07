@@ -77,6 +77,7 @@ object JsonExporter extends Exporter {
             writeJsonRow(rows.next())
           }
           if(!singleRow) writer.write("\n]\n")
+          else writer.write("\n")
         }
       }
       val processor = new Processor
