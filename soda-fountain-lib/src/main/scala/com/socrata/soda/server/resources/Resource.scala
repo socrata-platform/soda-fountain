@@ -109,13 +109,15 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
         case Some((mimeType, charset, language)) =>
           val exporter = Exporter.exportForMimeType(mimeType)
           rowDAO.getRow(resourceName, rowId) match {
-            case QuerySuccess(code, schema, rows, singleRow) =>
+            case RowDAO.QuerySuccess(code, schema, rows, singleRow) =>
               response.setStatus(HttpServletResponse.SC_OK)
               response.setContentType(SodaUtils.jsonContentTypeUtf8)
               val charset = AliasedCharset(StandardCharsets.UTF_8, StandardCharsets.UTF_8.name)
               if (!rows.hasNext) SodaUtils.errorResponse(req, RowNotFound(rowId), resourceName)(response)
               else exporter.export(response, charset, schema, rows, true)
-            case DatasetNotFound(resourceName) =>
+            case RowDAO.RowNotFound(row) =>
+              SodaUtils.errorResponse(req, RowNotFound(row))(response)
+            case RowDAO.DatasetNotFound(resourceName) =>
               SodaUtils.errorResponse(req, GeneralNotFoundError(resourceName.name))(response)
           }
         case None =>
