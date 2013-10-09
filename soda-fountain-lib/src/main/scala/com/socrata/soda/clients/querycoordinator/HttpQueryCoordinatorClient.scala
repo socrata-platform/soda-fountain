@@ -13,11 +13,18 @@ abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryC
 
   private[this] val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpQueryCoordinatorClient])
 
-  def query(datasetId: DatasetId, query: String, columnIdMap: Map[ColumnName, ColumnId]): (Int, JValue) =
+  private val qpDataset = "ds"
+  private val qpQuery = "q"
+  private val qpIdMap = "idMap"
+  private val qpRowCount = "rowCount"
+
+  def query(datasetId: DatasetId, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String]): (Int, JValue) =
     qchost match {
       case Some(host) =>
         val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
-        val request = host.form(List("ds" -> datasetId.underlying, "q" -> query, "idMap" -> jsonizedColumnIdMap))
+        val params = List(qpDataset -> datasetId.underlying, qpQuery -> query, qpIdMap -> jsonizedColumnIdMap) ++
+          rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil)
+        val request = host.form(params)
         for (response <- httpClient.execute(request)) yield {
           log.info("TODO: stream the response")
           response.resultCode match {

@@ -33,11 +33,13 @@ object JsonExporter extends Exporter {
   val mimeTypeBase = SodaUtils.jsonContentTypeBase
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("json")
+  val xhRowCount = "X-Socrata-Row-Count"
 
   def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
+    schema.approximateRowCount.map(rc => resp.setHeader(xhRowCount, rc.toString))
     for {
       rawWriter <- managed(resp.getWriter)
       w <- managed(new BufferedWriter(rawWriter, 65536))

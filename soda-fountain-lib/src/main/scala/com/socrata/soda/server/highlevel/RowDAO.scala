@@ -8,7 +8,7 @@ import com.socrata.soql.types.{SoQLValue, SoQLType}
 import com.socrata.soda.server.highlevel.ExportDAO.CSchema
 
 trait RowDAO {
-  def query(dataset: ResourceName, query: String): Result
+  def query(dataset: ResourceName, query: String, rowCount: Option[String]): Result
   def getRow(dataset: ResourceName, rowId: RowSpecifier): Result
   def upsert[T](user: String, dataset: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T
   def replace[T](user: String, dataset: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T

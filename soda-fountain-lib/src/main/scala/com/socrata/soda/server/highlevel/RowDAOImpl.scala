@@ -27,10 +27,10 @@ import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
 
-  def query(resourceName: ResourceName, query: String): Result = {
+  def query(resourceName: ResourceName, query: String, rowCount: Option[String]): Result = {
     store.lookupDataset(resourceName)  match {
       case Some(ds) =>
-        getRows(ds, query)
+        getRows(ds, query, false, rowCount)
       case None =>
         DatasetNotFound(resourceName)
     }
@@ -46,7 +46,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
             val query = s"select * where `${pkCol.fieldName}` = $literal"
-            getRows(datasetRecord, query, true)
+            getRows(datasetRecord, query, true, None)
           case None => RowNotFound(rowId) // it's not a valid value and therefore trivially not found
         }
       case None =>
@@ -54,8 +54,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  private def getRows(ds: DatasetRecord, query: String, singleRow: Boolean = false): Result = {
-    val (code, response) = qc.query(ds.systemId, query, ds.columnsByName.mapValues(_.id))
+  private def getRows(ds: DatasetRecord, query: String, singleRow: Boolean = false, rowCount: Option[String]): Result = {
+    val (code, response) = qc.query(ds.systemId, query, ds.columnsByName.mapValues(_.id), rowCount)
     val cjson = response.asInstanceOf[JArray]
     CJson.decode(cjson.toIterator) match {
       case CJson.Decoded(schema, rows) =>

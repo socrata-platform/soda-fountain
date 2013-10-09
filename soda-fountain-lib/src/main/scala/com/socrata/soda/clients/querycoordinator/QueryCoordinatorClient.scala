@@ -5,5 +5,5 @@ import com.socrata.soql.environment.ColumnName
 import com.rojoma.json.ast.JValue
 
 trait QueryCoordinatorClient {
-  def query(datasetId: DatasetId, query: String, columnIdMap: Map[ColumnName, ColumnId]): (Int, JValue)
+  def query(datasetId: DatasetId, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String]): (Int, JValue)
 }

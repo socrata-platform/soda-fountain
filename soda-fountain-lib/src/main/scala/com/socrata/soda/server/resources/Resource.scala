@@ -62,11 +62,14 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
 
     implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
 
+    private val qpQuery = "$query" // Query parameter row count
+    private val qpRowCount = "$$row_count" // Query parameter row count
+
     override def get = { req: HttpServletRequest => response: HttpServletResponse =>
       req.negotiateContent match {
         case Some((mimeType, charset, language)) =>
           val exporter = Exporter.exportForMimeType(mimeType)
-          rowDAO.query(resourceName, Option(req.getParameter("$query")).getOrElse("select *")) match {
+          rowDAO.query(resourceName, Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount))) match {
             case QuerySuccess(code, schema, rows, singleRow) =>
               response.setStatus(HttpServletResponse.SC_OK)
               response.setContentType(SodaUtils.jsonContentTypeUtf8)
