@@ -33,7 +33,7 @@ object JsonExporter extends Exporter {
   val mimeTypeBase = SodaUtils.jsonContentTypeBase
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("json")
-  val xhRowCount = "X-Socrata-Row-Count"
+  val xhRowCount = "X-SODA2-Row-Count"
 
   def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
