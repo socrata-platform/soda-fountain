@@ -15,6 +15,7 @@ import com.rojoma.simplearm.util._
 import com.rojoma.json.io.CompactJsonWriter
 import java.nio.charset.StandardCharsets
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+import com.socrata.http.server.routing.OptionallyTypedPathComponent
 
 case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -57,23 +58,22 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
     }
   }
 
+  implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
 
-  case class service(resourceName: ResourceName) extends SodaResource {
+  def extensions(s: String) = Exporter.exporterExtensions.contains(Exporter.canonicalizeExtension(s))
 
-    implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
-
-    private val qpQuery = "$query" // Query parameter row count
-    private val qpRowCount = "$$row_count" // Query parameter row count
-
+  case class service(resourceName: OptionallyTypedPathComponent[ResourceName]) extends SodaResource {
     override def get = { req: HttpServletRequest => response: HttpServletResponse =>
+      val qpQuery = "$query" // Query parameter row count
+      val qpRowCount = "$$row_count" // Query parameter row count
+
       req.negotiateContent match {
         case Some((mimeType, charset, language)) =>
           val exporter = Exporter.exportForMimeType(mimeType)
-          rowDAO.query(resourceName, Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount))) match {
+          rowDAO.query(resourceName.value, Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount))) match {
             case QuerySuccess(code, schema, rows, singleRow) =>
               response.setStatus(HttpServletResponse.SC_OK)
-              response.setContentType(SodaUtils.jsonContentTypeUtf8)
-              val charset = AliasedCharset(StandardCharsets.UTF_8, StandardCharsets.UTF_8.name)
+              response.setContentType(mimeType.toString)
               exporter.export(response, charset, schema, rows)
             case DatasetNotFound(resourceName) =>
               SodaUtils.errorResponse(req, GeneralNotFoundError(resourceName.name))(response)
@@ -87,18 +87,18 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
     override def post = { req => response =>
       InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
-          rowDAO.upsert(user(req), resourceName, boundedIt)(upsertResponse(response))
+          rowDAO.upsert(user(req), resourceName.value, boundedIt)(upsertResponse(response))
         case Left(err) =>
-          SodaUtils.errorResponse(req, err, resourceName)(response)
+          SodaUtils.errorResponse(req, err, resourceName.value)(response)
       }
     }
 
     override def put = { req => response =>
       InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
-          rowDAO.replace(user(req), resourceName, boundedIt)(upsertResponse(response))
+          rowDAO.replace(user(req), resourceName.value, boundedIt)(upsertResponse(response))
         case Left(err) =>
-          SodaUtils.errorResponse(req, err, resourceName)(response)
+          SodaUtils.errorResponse(req, err, resourceName.value)(response)
       }
     }
   }
@@ -108,14 +108,14 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
     implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
 
     override def get = { req: HttpServletRequest => response: HttpServletResponse =>
-      req.negotiateContent match {
+      // not using req.negotiateContent because we can't assume `.' signifies an extension
+      contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
         case Some((mimeType, charset, language)) =>
           val exporter = Exporter.exportForMimeType(mimeType)
           rowDAO.getRow(resourceName, rowId) match {
             case RowDAO.QuerySuccess(code, schema, rows, singleRow) =>
               response.setStatus(HttpServletResponse.SC_OK)
-              response.setContentType(SodaUtils.jsonContentTypeUtf8)
-              val charset = AliasedCharset(StandardCharsets.UTF_8, StandardCharsets.UTF_8.name)
+              response.setContentType(mimeType.toString)
               if (!rows.hasNext) SodaUtils.errorResponse(req, RowNotFound(rowId), resourceName)(response)
               else exporter.export(response, charset, schema, rows, true)
             case RowDAO.RowNotFound(row) =>
