@@ -6,7 +6,7 @@ import com.rojoma.json.codec.JsonCodec
 import javax.activation.MimeType
 import com.socrata.soql.environment.TypeName
 import com.socrata.http.server.util.EntityTag
-import com.socrata.soda.server.id.RowSpecifier
+import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 
 case class ResourceNotModified(override val etags: Seq[EntityTag], override val vary: Option[String])
   extends SodaError(SC_NOT_MODIFIED, "not-modified")
@@ -73,6 +73,10 @@ case class ColumnSpecMaltyped(field: String, expected: String, got: JValue)
 case class ColumnSpecUnknownType(typeName: TypeName)
   extends SodaError("soda.column.unknown-type",
     "type" -> JString(typeName.name))
+
+case class DatasetNotFound(value: ResourceName)
+  extends SodaError(SC_NOT_FOUND, "soda.dataset.not-found",
+    "dataset" -> JString(value.name))
 
 case class RowNotFound(value: RowSpecifier)
   extends SodaError(SC_NOT_FOUND, "soda.row.not-found",

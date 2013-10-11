@@ -5,8 +5,8 @@ import com.socrata.soda.server.id.{ColumnId, DatasetId}
 import com.socrata.soql.environment.ColumnName
 import com.rojoma.json.ast.JValue
 import com.rojoma.json.util.JsonUtil
-import java.io.StringReader
-import scala.io.Source
+import scala.io.{Codec, Source}
+import com.socrata.http.server.util._
 
 abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryCoordinatorClient {
   def qchost : Option[RequestBuilder]
@@ -18,20 +18,20 @@ abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryC
   private val qpIdMap = "idMap"
   private val qpRowCount = "rowCount"
 
-  def query(datasetId: DatasetId, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String]): (Int, JValue) =
+  def query(datasetId: DatasetId, precondition: Precondition, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String]): (Int, Seq[EntityTag], JValue) =
     qchost match {
       case Some(host) =>
         val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
         val params = List(qpDataset -> datasetId.underlying, qpQuery -> query, qpIdMap -> jsonizedColumnIdMap) ++
           rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil)
-        val request = host.form(params)
+        val request = host.addHeaders(PreconditionRenderer(precondition)).form(params)
         for (response <- httpClient.execute(request)) yield {
           log.info("TODO: stream the response")
           response.resultCode match {
             case 200 =>
-              (response.resultCode, response.asJValue())
+              (response.resultCode, response.headers("ETag").map(EntityTagParser.parse(_)), response.asJValue())
             case _ =>
-              val body = if (response.isJson) response.asJValue().toString() else Source.fromInputStream(response.asInputStream()).mkString("")
+              val body = if (response.isJson) response.asJValue().toString() else Source.fromInputStream(response.asInputStream())(Codec(response.charset)).mkString("")
               throw new Exception(s"query: ${query}; response: ${body}")
           }
         }

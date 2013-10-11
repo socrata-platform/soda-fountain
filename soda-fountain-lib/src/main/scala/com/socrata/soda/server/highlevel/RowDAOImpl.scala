@@ -23,20 +23,21 @@ import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
 import com.socrata.soda.clients.datacoordinator.DeleteRow
 import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
+import com.socrata.http.server.util.Precondition
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
 
-  def query(resourceName: ResourceName, query: String, rowCount: Option[String]): Result = {
+  def query(resourceName: ResourceName, precondition: Precondition, query: String, rowCount: Option[String]): Result = {
     store.lookupDataset(resourceName)  match {
       case Some(ds) =>
-        getRows(ds, query, false, rowCount)
+        getRows(ds, precondition, query, false, rowCount)
       case None =>
         DatasetNotFound(resourceName)
     }
   }
 
-  def getRow(resourceName: ResourceName, rowId: RowSpecifier): Result = {
+  def getRow(resourceName: ResourceName, precondition: Precondition, rowId: RowSpecifier): Result = {
     store.lookupDataset(resourceName) match {
       case Some(datasetRecord) =>
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
@@ -46,7 +47,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
             val query = s"select * where `${pkCol.fieldName}` = $literal"
-            getRows(datasetRecord, query, true, None)
+            getRows(datasetRecord, precondition, query, true, None)
           case None => RowNotFound(rowId) // it's not a valid value and therefore trivially not found
         }
       case None =>
@@ -54,8 +55,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  private def getRows(ds: DatasetRecord, query: String, singleRow: Boolean = false, rowCount: Option[String]): Result = {
-    val (code, response) = qc.query(ds.systemId, query, ds.columnsByName.mapValues(_.id), rowCount)
+  private def getRows(ds: DatasetRecord, precondition: Precondition, query: String, singleRow: Boolean = false, rowCount: Option[String]): Result = {
+    val (code, etags, response) = qc.query(ds.systemId, precondition, query, ds.columnsByName.mapValues(_.id), rowCount)
     val cjson = response.asInstanceOf[JArray]
     CJson.decode(cjson.toIterator) match {
       case CJson.Decoded(schema, rows) =>
@@ -68,7 +69,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
         )
         // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
-        QuerySuccess(code, simpleSchema, rows, singleRow)
+        QuerySuccess(code, etags, simpleSchema, rows, singleRow)
     }
   }
 

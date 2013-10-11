@@ -146,7 +146,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val router = i {
     import com.socrata.soda.server.resources._
 
-    val resource = Resource(rowDAO, config.maxDatumSize) // TODO: this should probably be a different max size value
+    val resource = Resource(rowDAO, etagObfuscator, config.maxDatumSize) // TODO: this should probably be a different max size value
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
     val column = DatasetColumn(columnDAO, etagObfuscator, config.maxDatumSize)
     val export = Export(exportDAO, etagObfuscator)

@@ -7,8 +7,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.wiremodels.InputUtils
-import com.socrata.soda.server.errors.{GeneralNotFoundError, RowNotFound}
-import com.socrata.soda.server.highlevel.RowDAO.{DatasetNotFound, QuerySuccess}
+import com.socrata.soda.server.errors.{DatasetNotFound, EtagPreconditionFailed, GeneralNotFoundError, RowNotFound}
 import com.socrata.http.common.util.{AliasedCharset, ContentNegotiation}
 import com.socrata.soda.server.export.Exporter
 import com.rojoma.simplearm.util._
@@ -16,9 +15,30 @@ import com.rojoma.json.io.CompactJsonWriter
 import java.nio.charset.StandardCharsets
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
+import java.security.MessageDigest
+import com.socrata.soda.server.util.ETagObfuscator
+import com.socrata.http.server.util.{Precondition, EntityTag}
 
-case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
+case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: Long) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
+
+  val headerHashAlg = "SHA1"
+  val headerHashLength = MessageDigest.getInstance(headerHashAlg).getDigestLength
+  def headerHash(req: HttpServletRequest) = {
+    val hash = MessageDigest.getInstance(headerHashAlg)
+    hash.update(Option(req.getQueryString).toString.getBytes(StandardCharsets.UTF_8))
+    hash.update(255.toByte)
+    for(field <- ContentNegotiation.headers) {
+      hash.update(field.getBytes(StandardCharsets.UTF_8))
+      hash.update(254.toByte)
+      for(elem <- req.headers(field)) {
+        hash.update(elem.getBytes(StandardCharsets.UTF_8))
+        hash.update(254.toByte)
+      }
+      hash.update(255.toByte)
+    }
+    hash.digest()
+  }
 
   def response(result: RowDAO.Result): HttpResponse = {
     log.info("TODO: Negotiate content-type")
@@ -67,20 +87,29 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
       val qpQuery = "$query" // Query parameter row count
       val qpRowCount = "$$row_count" // Query parameter row count
 
-      req.negotiateContent match {
-        case Some((mimeType, charset, language)) =>
-          val exporter = Exporter.exportForMimeType(mimeType)
-          rowDAO.query(resourceName.value, Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount))) match {
-            case QuerySuccess(code, schema, rows, singleRow) =>
-              response.setStatus(HttpServletResponse.SC_OK)
-              response.setContentType(mimeType.toString)
-              exporter.export(response, charset, schema, rows)
-            case DatasetNotFound(resourceName) =>
-              SodaUtils.errorResponse(req, GeneralNotFoundError(resourceName.name))(response)
+      val suffix = headerHash(req)
+      val precondition = req.precondition.map(etagObfuscator.deobfuscate)
+      def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
+      precondition.filter(_.endsWith(suffix)) match {
+        case Right(newPrecondition) =>
+          req.negotiateContent match {
+            case Some((mimeType, charset, language)) =>
+              val exporter = Exporter.exportForMimeType(mimeType)
+              rowDAO.query(resourceName.value, newPrecondition, Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount))) match {
+                case RowDAO.QuerySuccess(code, etags, schema, rows, singleRow) =>
+                  response.setStatus(HttpServletResponse.SC_OK)
+                  response.setContentType(mimeType.toString)
+                  ETags(etags.map(prepareTag))(response)
+                  exporter.export(response, charset, schema, rows)
+                case RowDAO.DatasetNotFound(resourceName) =>
+                  SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(response)
+              }
+            case None =>
+              // TODO better error
+              NotAcceptable(response)
           }
-        case None =>
-          // TODO better error
-          NotAcceptable(response)
+        case Left(Precondition.FailedBecauseNoMatch) =>
+          SodaUtils.errorResponse(req, EtagPreconditionFailed)(response)
       }
     }
 
@@ -108,24 +137,35 @@ case class Resource(rowDAO: RowDAO, maxRowSize: Long) {
     implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
 
     override def get = { req: HttpServletRequest => response: HttpServletResponse =>
-      // not using req.negotiateContent because we can't assume `.' signifies an extension
-      contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
-        case Some((mimeType, charset, language)) =>
-          val exporter = Exporter.exportForMimeType(mimeType)
-          rowDAO.getRow(resourceName, rowId) match {
-            case RowDAO.QuerySuccess(code, schema, rows, singleRow) =>
-              response.setStatus(HttpServletResponse.SC_OK)
-              response.setContentType(mimeType.toString)
-              if (!rows.hasNext) SodaUtils.errorResponse(req, RowNotFound(rowId), resourceName)(response)
-              else exporter.export(response, charset, schema, rows, true)
-            case RowDAO.RowNotFound(row) =>
-              SodaUtils.errorResponse(req, RowNotFound(row))(response)
-            case RowDAO.DatasetNotFound(resourceName) =>
-              SodaUtils.errorResponse(req, GeneralNotFoundError(resourceName.name))(response)
+      val suffix = headerHash(req)
+      val precondition = req.precondition.map(etagObfuscator.deobfuscate)
+      def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
+      precondition.filter(_.endsWith(suffix)) match {
+        case Right(newPrecondition) =>
+          // not using req.negotiateContent because we can't assume `.' signifies an extension
+          contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
+            case Some((mimeType, charset, language)) =>
+              val exporter = Exporter.exportForMimeType(mimeType)
+              rowDAO.getRow(resourceName, newPrecondition, rowId) match {
+                case RowDAO.QuerySuccess(code, etags, schema, rows, singleRow) =>
+                  if (!rows.hasNext) SodaUtils.errorResponse(req, RowNotFound(rowId), resourceName)(response)
+                  else {
+                    response.setStatus(HttpServletResponse.SC_OK)
+                    response.setContentType(mimeType.toString)
+                    ETags(etags.map(prepareTag))(response)
+                    exporter.export(response, charset, schema, rows, singleRow = true)
+                  }
+                case RowDAO.RowNotFound(row) =>
+                  SodaUtils.errorResponse(req, RowNotFound(row))(response)
+                case RowDAO.DatasetNotFound(resourceName) =>
+                  SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(response)
+              }
+            case None =>
+              // TODO better error
+              NotAcceptable(response)
           }
-        case None =>
-          // TODO better error
-          NotAcceptable(response)
+        case Left(Precondition.FailedBecauseNoMatch) =>
+          SodaUtils.errorResponse(req, EtagPreconditionFailed)(response)
       }
     }
 
