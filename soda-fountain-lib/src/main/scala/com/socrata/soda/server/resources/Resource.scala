@@ -99,6 +99,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
                 case RowDAO.QuerySuccess(code, etags, schema, rows, singleRow) =>
                   response.setStatus(HttpServletResponse.SC_OK)
                   response.setContentType(mimeType.toString)
+                  response.setHeader("Vary", ContentNegotiation.headers.mkString(","))
                   ETags(etags.map(prepareTag))(response)
                   exporter.export(response, charset, schema, rows)
                 case RowDAO.DatasetNotFound(resourceName) =>
@@ -152,6 +153,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
                   else {
                     response.setStatus(HttpServletResponse.SC_OK)
                     response.setContentType(mimeType.toString)
+                    response.setHeader("Vary", ContentNegotiation.headers.mkString(","))
                     ETags(etags.map(prepareTag))(response)
                     exporter.export(response, charset, schema, rows, singleRow = true)
                   }
