@@ -8,7 +8,7 @@ import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.wiremodels.{CsvColumnRep, CsvColumnWriteRep, JsonColumnRep, JsonColumnWriteRep}
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.CompactJsonWriter
-import com.rojoma.json.ast.{JNumber, JNull, JString}
+import com.rojoma.json.ast.{JArray, JNumber, JNull, JString}
 import com.rojoma.simplearm.util._
 import java.io.BufferedWriter
 import java.util.Locale
@@ -34,12 +34,18 @@ object JsonExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("json")
   val xhRowCount = "X-SODA2-Row-Count"
+  val xhFields = "X-SODA2-Fields"
+  val xhTypes = "X-SODA2-Types"
 
   def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
     schema.approximateRowCount.map(rc => resp.setHeader(xhRowCount, rc.toString))
+    val soda2Fields = CompactJsonWriter.toString(JArray(schema.schema.map(ci => JString(ci.fieldName.name))))
+    val soda2Types = CompactJsonWriter.toString(JArray(schema.schema.map(ci => JString(ci.typ.name.name))))
+    resp.setHeader(xhFields, soda2Fields)
+    resp.setHeader(xhTypes, soda2Types)
     for {
       rawWriter <- managed(resp.getWriter)
       w <- managed(new BufferedWriter(rawWriter, 65536))
