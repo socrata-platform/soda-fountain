@@ -6,8 +6,6 @@ import org.scalatest.matchers.MustMatchers
 
 class CsvColumnRepTest extends FunSuite with MustMatchers {
   test("Reps know about all types") {
-    pendingUntilFixed {
-      CsvColumnRep.forType.keySet must equal (SoQLType.typesByName.values.toSet)
-    }
+    CsvColumnRep.forType.keySet must equal (SoQLType.typesByName.values.toSet)
   }
 }
