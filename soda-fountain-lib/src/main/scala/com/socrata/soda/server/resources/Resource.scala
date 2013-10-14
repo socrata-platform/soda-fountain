@@ -166,6 +166,8 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
                   SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(response)
                 case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
                   SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
+                case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
+                  SodaUtils.errorResponse(req, EtagPreconditionFailed)(response)
               }
             case None =>
               // TODO better error
