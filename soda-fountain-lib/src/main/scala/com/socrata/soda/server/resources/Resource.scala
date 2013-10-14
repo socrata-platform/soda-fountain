@@ -7,7 +7,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.wiremodels.InputUtils
-import com.socrata.soda.server.errors.{DatasetNotFound, EtagPreconditionFailed, GeneralNotFoundError, RowNotFound}
+import com.socrata.soda.server.errors._
 import com.socrata.http.common.util.{AliasedCharset, ContentNegotiation}
 import com.socrata.soda.server.export.Exporter
 import com.rojoma.simplearm.util._
@@ -18,6 +18,12 @@ import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import java.security.MessageDigest
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.http.server.util.{Precondition, EntityTag}
+import scala.Some
+import com.socrata.soda.server.errors.DatasetNotFound
+import com.socrata.http.server.routing.OptionallyTypedPathComponent
+import com.socrata.soda.server.errors.RowNotFound
+import com.socrata.soda.server.resources.Resource
+import com.socrata.soda.server.id.RowSpecifier
 
 case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: Long) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -95,8 +101,8 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
           req.negotiateContent match {
             case Some((mimeType, charset, language)) =>
               val exporter = Exporter.exportForMimeType(mimeType)
-              rowDAO.query(resourceName.value, newPrecondition, Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount))) match {
-                case RowDAO.QuerySuccess(code, etags, schema, rows, singleRow) =>
+              rowDAO.query(resourceName.value, newPrecondition.map(_.dropRight(suffix.length)), Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount))) match {
+                case RowDAO.QuerySuccess(code, etags, schema, rows) =>
                   response.setStatus(HttpServletResponse.SC_OK)
                   response.setContentType(mimeType.toString)
                   response.setHeader("Vary", ContentNegotiation.headers.mkString(","))
@@ -147,20 +153,19 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
           contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
             case Some((mimeType, charset, language)) =>
               val exporter = Exporter.exportForMimeType(mimeType)
-              rowDAO.getRow(resourceName, newPrecondition, rowId) match {
-                case RowDAO.QuerySuccess(code, etags, schema, rows, singleRow) =>
-                  if (!rows.hasNext) SodaUtils.errorResponse(req, RowNotFound(rowId), resourceName)(response)
-                  else {
-                    response.setStatus(HttpServletResponse.SC_OK)
-                    response.setContentType(mimeType.toString)
-                    response.setHeader("Vary", ContentNegotiation.headers.mkString(","))
-                    ETags(etags.map(prepareTag))(response)
-                    exporter.export(response, charset, schema, rows, singleRow = true)
-                  }
+              rowDAO.getRow(resourceName, newPrecondition.map(_.dropRight(suffix.length)), rowId) match {
+                case RowDAO.SingleRowQuerySuccess(code, etags, schema, row) =>
+                  response.setStatus(HttpServletResponse.SC_OK)
+                  response.setContentType(mimeType.toString)
+                  response.setHeader("Vary", ContentNegotiation.headers.mkString(","))
+                  ETags(etags.map(prepareTag))(response)
+                  exporter.export(response, charset, schema, Iterator.single(row), singleRow = true)
                 case RowDAO.RowNotFound(row) =>
                   SodaUtils.errorResponse(req, RowNotFound(row))(response)
                 case RowDAO.DatasetNotFound(resourceName) =>
                   SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(response)
+                case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
+                  SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
               }
             case None =>
               // TODO better error

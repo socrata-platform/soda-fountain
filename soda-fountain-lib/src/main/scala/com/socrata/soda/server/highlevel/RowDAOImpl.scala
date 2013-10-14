@@ -23,6 +23,8 @@ import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
 import com.socrata.soda.clients.datacoordinator.DeleteRow
 import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
+import com.socrata.http.server.util.{NoPrecondition, StrongEntityTag, Precondition}
+import java.nio.charset.StandardCharsets
 import com.socrata.http.server.util.Precondition
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
@@ -31,7 +33,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   def query(resourceName: ResourceName, precondition: Precondition, query: String, rowCount: Option[String]): Result = {
     store.lookupDataset(resourceName)  match {
       case Some(ds) =>
-        getRows(ds, precondition, query, false, rowCount)
+        getRows(ds, precondition, query, rowCount)
       case None =>
         DatasetNotFound(resourceName)
     }
@@ -46,8 +48,36 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           case Some(soqlValue) =>
             val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
-            val query = s"select * where `${pkCol.fieldName}` = $literal"
-            getRows(datasetRecord, precondition, query, true, None)
+            val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
+            getRows(datasetRecord, NoPrecondition, query, None) match {
+              case QuerySuccess(code, _, simpleSchema, rows) =>
+                val version = ColumnName(":version")
+                val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
+                val deVersionedSchema = simpleSchema.copy(schema = simpleSchema.schema.take(versionPos) ++ simpleSchema.schema.drop(versionPos + 1))
+                val rowsStream = rows.toStream
+                rowsStream.headOption match {
+                  case Some(rowWithVersion) if rowsStream.lengthCompare(1) == 0 =>
+                    val etag = StrongEntityTag(rowWithVersion(versionPos).toString.getBytes(StandardCharsets.UTF_8))
+                    val row = rowWithVersion.take(versionPos) ++ rowWithVersion.drop(versionPos + 1)
+                    precondition.check(Some(etag), sideEffectFree = true) match {
+                      case Precondition.Passed =>
+                        RowDAO.SingleRowQuerySuccess(code, Seq(etag), deVersionedSchema, row)
+                      case f: Precondition.Failure =>
+                        RowDAO.PreconditionFailed(f)
+                    }
+                  case Some(rowWithVersion) =>
+                    TooManyRows
+                  case _ =>
+                    precondition.check(None, sideEffectFree = true) match {
+                      case Precondition.Passed =>
+                        RowDAO.RowNotFound(rowId)
+                      case f: Precondition.Failure =>
+                        RowDAO.PreconditionFailed(f)
+                    }
+                }
+              case other =>
+                other
+            }
           case None => RowNotFound(rowId) // it's not a valid value and therefore trivially not found
         }
       case None =>
@@ -55,7 +85,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  private def getRows(ds: DatasetRecord, precondition: Precondition, query: String, singleRow: Boolean = false, rowCount: Option[String]): Result = {
+  private def getRows(ds: DatasetRecord, precondition: Precondition, query: String, rowCount: Option[String]): Result = {
     val (code, etags, response) = qc.query(ds.systemId, precondition, query, ds.columnsByName.mapValues(_.id), rowCount)
     val cjson = response.asInstanceOf[JArray]
     CJson.decode(cjson.toIterator) match {
@@ -69,7 +99,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
         )
         // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
-        QuerySuccess(code, etags, simpleSchema, rows, singleRow)
+        QuerySuccess(code, etags, simpleSchema, rows)
     }
   }
 

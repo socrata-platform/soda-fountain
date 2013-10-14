@@ -20,7 +20,10 @@ object RowDAO {
   sealed abstract class Result
   sealed trait UpsertResult
   case class Success(status: Int, body: JValue) extends Result
-  case class QuerySuccess(status: Int, etags: Seq[EntityTag], schema: ExportDAO.CSchema, body: Iterator[Array[SoQLValue]], singleRow: Boolean) extends Result
+  case class QuerySuccess(status: Int, etags: Seq[EntityTag], schema: ExportDAO.CSchema, body: Iterator[Array[SoQLValue]]) extends Result
+  case class SingleRowQuerySuccess(status: Int, etags: Seq[EntityTag], schema: ExportDAO.CSchema, body: Array[SoQLValue]) extends Result
+  case class PreconditionFailed(failure: Precondition.Failure) extends Result
+  case object TooManyRows extends Result
   case class RowNotFound(specifier: RowSpecifier) extends Result
   case class StreamSuccess(report: Iterator[JValue]) extends UpsertResult // TODO: Not JValue
   case class DatasetNotFound(dataset: ResourceName) extends Result with UpsertResult
