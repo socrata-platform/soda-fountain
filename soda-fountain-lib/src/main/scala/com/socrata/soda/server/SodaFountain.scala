@@ -9,14 +9,12 @@ import com.netflix.curator.x.discovery.ServiceDiscoveryBuilder
 import com.socrata.http.common.AuxiliaryData
 import org.apache.log4j.PropertyConfigurator
 import com.socrata.thirdparty.typesafeconfig.Propertizer
-import javax.servlet.http.HttpServletRequest
-import com.socrata.http.server.HttpResponse
 import com.socrata.soda.server.highlevel._
 import java.security.SecureRandom
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import java.util.concurrent.Executors
-import com.socrata.soda.server.util.{BlowfishCFBETagObfuscator, ETagObfuscator, CloseableExecutorService}
+import com.socrata.soda.server.util._
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import scala.concurrent.duration.FiniteDuration
@@ -34,28 +32,31 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   PropertyConfigurator.configure(Propertizer("log4j", config.log4j))
 
-  def handle(req: HttpServletRequest): HttpResponse = {
-    val httpResponse = try {
-      router.route(req)
-    } catch {
-      case e: Throwable if !e.isInstanceOf[Error] =>
-        SodaUtils.internalError(req, e)
-    }
+  val handle =
+    ThreadNamingHandler {
+      LoggingHandler { req =>
+        val httpResponse = try {
+          router.route(req)
+        } catch {
+          case e: Throwable if !e.isInstanceOf[Error] =>
+            SodaUtils.internalError(req, e)
+        }
 
-    { resp =>
-      try {
-        httpResponse(resp)
-      } catch {
-        case e: Throwable if !e.isInstanceOf[Error] =>
-          if(!resp.isCommitted) {
-            resp.reset()
-            SodaUtils.internalError(req, e)(resp)
-          } else {
-            log.warn("Caught exception but the response is already committed; just cutting the client off", e)
+        { resp =>
+          try {
+            httpResponse(resp)
+          } catch {
+            case e: Throwable if !e.isInstanceOf[Error] =>
+              if(!resp.isCommitted) {
+                resp.reset()
+                SodaUtils.internalError(req, e)(resp)
+              } else {
+                log.warn("Caught exception but the response is already committed; just cutting the client off", e)
+              }
           }
+        }
       }
     }
-  }
 
   // Below this line is all setup.
   // Note: all initialization that can possibly throw should
