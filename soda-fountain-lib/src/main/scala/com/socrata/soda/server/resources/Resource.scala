@@ -8,13 +8,12 @@ import com.socrata.http.server.implicits._
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.wiremodels.InputUtils
 import com.socrata.soda.server.errors._
-import com.socrata.http.common.util.{AliasedCharset, ContentNegotiation}
+import com.socrata.http.common.util.ContentNegotiation
 import com.socrata.soda.server.export.Exporter
 import com.rojoma.simplearm.util._
 import com.rojoma.json.io.CompactJsonWriter
 import java.nio.charset.StandardCharsets
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
-import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import java.security.MessageDigest
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.http.server.util.{Precondition, EntityTag}
@@ -22,8 +21,8 @@ import scala.Some
 import com.socrata.soda.server.errors.DatasetNotFound
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.soda.server.errors.RowNotFound
-import com.socrata.soda.server.resources.Resource
 import com.socrata.soda.server.id.RowSpecifier
+import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
 
 case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: Long) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -64,7 +63,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
     }
   }
 
-  def upsertResponse(response: HttpServletResponse)(result: RowDAO.UpsertResult) {
+  def upsertResponse(request: HttpServletRequest, response: HttpServletResponse)(result: RowDAO.UpsertResult) {
     log.info("TODO: Negotiate content-type")
     result match {
       case RowDAO.StreamSuccess(report) =>
@@ -81,6 +80,8 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
           }
           w.write("]\n")
         }
+      case mismatch : MaltypedData =>
+        SodaUtils.errorResponse(request, new ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
     }
   }
 
@@ -123,7 +124,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
     override def post = { req => response =>
       InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
-          rowDAO.upsert(user(req), resourceName.value, boundedIt)(upsertResponse(response))
+          rowDAO.upsert(user(req), resourceName.value, boundedIt)(upsertResponse(req, response))
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName.value)(response)
       }
@@ -132,7 +133,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
     override def put = { req => response =>
       InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
-          rowDAO.replace(user(req), resourceName.value, boundedIt)(upsertResponse(response))
+          rowDAO.replace(user(req), resourceName.value, boundedIt)(upsertResponse(req, response))
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName.value)(response)
       }
@@ -181,14 +182,14 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
     override def post = { req => response =>
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
         case Right(rowJVal) =>
-          rowDAO.upsert(user(req), resourceName, Iterator.single(rowJVal))(upsertResponse(response))
+          rowDAO.upsert(user(req), resourceName, Iterator.single(rowJVal))(upsertResponse(req, response))
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName)(response)
       }
     }
 
     override def delete = { req => response =>
-      rowDAO.deleteRow(user(req), resourceName, rowId)(upsertResponse(response))
+      rowDAO.deleteRow(user(req), resourceName, rowId)(upsertResponse(req, response))
     }
   }
 }
