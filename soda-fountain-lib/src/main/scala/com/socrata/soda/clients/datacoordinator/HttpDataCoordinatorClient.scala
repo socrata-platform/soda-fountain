@@ -7,11 +7,12 @@ import com.rojoma.json.ast.JValue
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
 import com.socrata.http.server.util._
-import com.socrata.soda.server.id.SecondaryId
-import com.rojoma.json.ast.JString
 import com.socrata.soda.clients.datacoordinator
-import com.socrata.http.common.util.HttpUtils
-import org.apache.commons.codec.binary.Base64
+import com.rojoma.json.io._
+import com.rojoma.json.util.JsonArrayIterator
+import com.socrata.soda.server.id.SecondaryId
+import com.rojoma.json.io.StartOfArrayEvent
+import com.rojoma.json.io.EndOfArrayEvent
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
   import DataCoordinatorClient._
@@ -81,16 +82,66 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         Some(r.asValue[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")))
     }
 
-  protected def sendScript[T](rb: RequestBuilder, script: MutationScript)(f: Result => T): T = {
+  def expectStartOfArray(in: Iterator[JsonEvent]) {
+    if(!in.hasNext) throw new JsonParserEOF(Position.Invalid)
+    val t = in.next()
+    if(!t.isInstanceOf[StartOfArrayEvent]) throw new JsonBadParse(t)
+  }
+
+  // TODO: This skip-next-datum stuff should be in a library.
+  // Specifically it should be in rojoma-json.
+  def skipNextDatum(in: BufferedIterator[JsonEvent]) {
+    def skipArray(in: BufferedIterator[JsonEvent]) {
+      while(!in.head.isInstanceOf[EndOfArrayEvent]) skipNextDatum(in)
+      in.next()
+    }
+
+    def skipObject(in: BufferedIterator[JsonEvent]) {
+      while(!in.head.isInstanceOf[EndOfObjectEvent]) skipNextDatum(in)
+      in.next()
+    }
+
+    in.next() match {
+      case StartOfArrayEvent() => skipArray(in)
+      case StartOfObjectEvent() => skipObject(in)
+      case _ => // nothing
+    }
+  }
+
+  def arrayOfResults(in: BufferedIterator[JsonEvent], alreadyInArray: Boolean = false): Iterator[ReportItem] = {
+    if(!alreadyInArray) expectStartOfArray(in)
+    new Iterator[ReportItem] {
+      var pendingIterator: Iterator[JValue] = null
+      def invalidatePending() {
+        if((pendingIterator ne null) && pendingIterator.hasNext) {
+          throw new Exception("Row result was not completely consumed")
+        }
+        pendingIterator = null
+      }
+      def hasNext = { invalidatePending(); in.hasNext && !in.head.isInstanceOf[EndOfArrayEvent] }
+      def next(): ReportItem = {
+        if(!hasNext) Iterator.empty.next()
+        if(in.head.isInstanceOf[StartOfArrayEvent]) {
+          pendingIterator = JsonArrayIterator[JValue](in)
+          UpsertReportItem(pendingIterator)
+        } else {
+          skipNextDatum(in)
+          OtherReportItem
+        }
+      }
+    }
+  }
+
+  protected def sendScript[T](rb: RequestBuilder, script: MutationScript)(f: Either[Result, Response] => T): T = {
     val request = rb.json(script.it)
     for (r <- httpClient.execute(request)) yield {
       errorFrom(r) match {
         case None =>
-          f(Success(r.asArray[JValue](), None))
+          f(Right(r))
         case Some(err) =>
           err match {
             case SchemaMismatch(_, schema) =>
-              f(SchemaOutOfDate(schema))
+              f(Left(SchemaOutOfDate(schema)))
             case UnknownDataCoordinatorError(code, data) =>
               log.error("Unknown data coordinator error " + code)
               log.error("Aux info: " + data)
@@ -100,16 +151,25 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
+  def sendNonCreateScript[T](rb: RequestBuilder, script: MutationScript)(f: Result => T): T =
+    sendScript(rb, script) {
+      case Right(r) => f(Success(arrayOfResults(r.asJsonEvents().buffered), None))
+      case Left(e) => f(e)
+    }
+
   def create(instance: String,
              user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
-             locale: String = "en_US") : (DatasetId, Iterable[JValue]) = {
+             locale: String = "en_US") : (DatasetId, Iterable[ReportItem]) = {
     withHost(instance) { host =>
       val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
       sendScript(createUrl(host), createScript) {
-        case Success(idAndReports, None) =>
-          val JString(datasetId) = idAndReports.next()
-          (DatasetId(datasetId), idAndReports.toSeq)
+        case Right(r) =>
+          val events = r.asJsonEvents().buffered
+          expectStartOfArray(events)
+          if(!events.hasNext || !events.head.isInstanceOf[StringEvent]) throw new Exception("Bad response from data coordinator: expected dataset id")
+          val StringEvent(datasetId) = events.next()
+          (DatasetId(datasetId), arrayOfResults(events, alreadyInArray = true).toSeq)
         case other =>
           throw new Exception("Unexpected response from data-coordinator: " + other)
       }
@@ -120,7 +180,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     log.info("TODO: update should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val updateScript = new MutationScript(user, UpdateDataset(schemaHash), instructions)
-      sendScript(mutateUrl(host, datasetId), updateScript)(f)
+      sendNonCreateScript(mutateUrl(host, datasetId), updateScript)(f)
     }
   }
 
@@ -128,21 +188,21 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     log.info("TODO: copy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash), instructions)
-      sendScript(mutateUrl(host, datasetId), createScript)(f)
+      sendNonCreateScript(mutateUrl(host, datasetId), createScript)(f)
     }
   }
   def publish[T](datasetId: DatasetId, schemaHash: String, snapshotLimit:Option[Int], user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Result => T): T = {
     log.info("TODO: publish should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schemaHash), instructions)
-      sendScript(mutateUrl(host, datasetId), pubScript)(f)
+      sendNonCreateScript(mutateUrl(host, datasetId), pubScript)(f)
     }
   }
   def dropCopy[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Result => T): T = {
     log.info("TODO: dropCopy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val dropScript = new MutationScript(user, DropDataset(schemaHash), instructions)
-      sendScript(mutateUrl(host, datasetId), dropScript)(f)
+      sendNonCreateScript(mutateUrl(host, datasetId), dropScript)(f)
     }
   }
 
@@ -151,7 +211,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     log.info("TODO: deleteAllCopies should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val deleteScript = new MutationScript(user, DropDataset(schemaHash), Iterator.empty)
-      sendScript(mutateUrl(host, datasetId).method(HttpMethods.DELETE), deleteScript)(f)
+      sendNonCreateScript(mutateUrl(host, datasetId).method(HttpMethods.DELETE), deleteScript)(f)
     }
   }
 
@@ -179,7 +239,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       for(r <- httpClient.execute(request)) yield {
         errorFrom(r) match {
           case None =>
-            f(Success(r.asArray[JValue](), r.headers("ETag").headOption.map(EntityTagParser.parse(_))))
+            f(Export(r.asArray[JValue](), r.headers("ETag").headOption.map(EntityTagParser.parse(_))))
           case Some(err) =>
             err match {
               case SchemaMismatchForExport(_, newSchema) =>

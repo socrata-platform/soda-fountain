@@ -91,7 +91,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
       store.lookupDataset(dataset) match {
         case Some(ds) =>
           dc.export(ds.systemId, ds.schemaHash, precondition, limit, offset) {
-            case DataCoordinatorClient.Success(jvalues, etag) =>
+            case DataCoordinatorClient.Export(jvalues, etag) =>
               CJson.decode(jvalues) match {
                 case CJson.Decoded(schema, rows) =>
                   val simpleSchema = ExportDAO.CSchema(

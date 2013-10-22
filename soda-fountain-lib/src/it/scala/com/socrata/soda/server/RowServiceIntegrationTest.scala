@@ -73,7 +73,7 @@ class RowServiceIntegrationTest extends SodaFountainIntegrationTest with RowServ
     val v = getVersionInSecondaryStore(resourceName)
     val uResponse = sendWaitRead("DELETE", "resource", Some(resourceName), Some("1"), None, None)
     assert(uResponse.resultCode === 200, readBody(uResponse))
-    jsonCompare(readBody(uResponse), """[[{ "typ" : "delete", "id" : 1 }]]""")
+    jsonCompare(readBody(uResponse), """[{ "typ" : "delete", "id" : 1 }]""")
     waitForSecondaryStoreUpdate(resourceName, v)
   }
 

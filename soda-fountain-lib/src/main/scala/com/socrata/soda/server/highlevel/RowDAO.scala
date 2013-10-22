@@ -7,6 +7,7 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import com.socrata.soda.server.highlevel.ExportDAO.CSchema
 import com.socrata.http.server.util.{EntityTag, Precondition}
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
 
 trait RowDAO {
   def query(dataset: ResourceName, precondition: Precondition, query: String, rowCount: Option[String]): Result
@@ -25,7 +26,7 @@ object RowDAO {
   case class PreconditionFailed(failure: Precondition.Failure) extends Result
   case object TooManyRows extends Result
   case class RowNotFound(specifier: RowSpecifier) extends Result
-  case class StreamSuccess(report: Iterator[JValue]) extends UpsertResult // TODO: Not JValue
+  case class StreamSuccess(report: Iterator[ReportItem]) extends UpsertResult
   case class DatasetNotFound(dataset: ResourceName) extends Result with UpsertResult
   case class UnknownColumn(column: ColumnName) extends UpsertResult
   case object DeleteWithoutPrimaryKey extends UpsertResult

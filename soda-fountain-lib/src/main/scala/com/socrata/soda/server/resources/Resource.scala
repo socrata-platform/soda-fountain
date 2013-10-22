@@ -23,6 +23,7 @@ import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.soda.server.errors.RowNotFound
 import com.socrata.soda.server.id.RowSpecifier
 import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
 
 case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: Long) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -73,10 +74,17 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
           // TODO: send actual response
           val jw = new CompactJsonWriter(w)
           w.write('[')
-          if(report.nonEmpty) jw.write(report.next())
-          while(report.nonEmpty) {
-            w.write(',')
-            jw.write(report.next())
+          var wroteOne = false
+          while(report.hasNext) {
+            report.next() match {
+              case UpsertReportItem(items) =>
+                while(items.hasNext) {
+                  if(wroteOne) w.write(',')
+                  else wroteOne = true
+                  jw.write(items.next())
+                }
+              case OtherReportItem => // nothing; probably shouldn't have occurred!
+            }
           }
           w.write("]\n")
         }
