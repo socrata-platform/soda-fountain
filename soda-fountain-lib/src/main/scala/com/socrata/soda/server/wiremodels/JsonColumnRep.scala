@@ -111,6 +111,7 @@ object JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JString(s) => try { Some(SoQLNumber(new java.math.BigDecimal(s))) } catch { case e: NumberFormatException => None }
       case JNumber(n) => Some(SoQLNumber(n.underlying))
+      case JNull => Some(SoQLNull)
       case _ => None
     }
 
@@ -125,6 +126,7 @@ object JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JString(s) => try { Some(SoQLMoney(new java.math.BigDecimal(s))) } catch { case e: NumberFormatException => None }
       case JNumber(n) => Some(SoQLMoney(n.underlying))
+      case JNull => Some(SoQLNull)
       case _ => None
     }
 
@@ -142,6 +144,7 @@ object JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JNumber(n) => Some(SoQLDouble(n.toDouble))
       case JString(s) => try { Some(SoQLDouble(s.toDouble)) } catch { case e: NumberFormatException => None }
+      case JNull => Some(SoQLNull)
       case _ => None
     }
 
