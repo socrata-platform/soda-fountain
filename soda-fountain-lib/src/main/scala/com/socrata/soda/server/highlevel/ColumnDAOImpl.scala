@@ -73,9 +73,9 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
     retryable(limit = 5) {
       store.lookupDataset(resource) match {
         case Some(datasetRecord) =>
-            datasetRecord.columnsByName.get(column) match {
+          datasetRecord.columnsByName.get(column) match {
             case Some(columnRecord) =>
-              if(columnRecord.fieldName == column) {
+              if(datasetRecord.primaryKey == columnRecord.id) {
                 ColumnDAO.Updated(columnRecord.asSpec, None)
               } else {
                 val instructions =
