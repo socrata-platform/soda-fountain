@@ -20,6 +20,7 @@ import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorCli
 import scala.concurrent.duration.FiniteDuration
 import javax.sql.DataSource
 import com.mchange.v2.c3p0.DataSources
+import com.socrata.http.server.util.handlers.{LoggingHandler, ThreadRenamingHandler}
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -33,7 +34,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   PropertyConfigurator.configure(Propertizer("log4j", config.log4j))
 
   val handle =
-    ThreadNamingHandler {
+    ThreadRenamingHandler {
       LoggingHandler { req =>
         val httpResponse = try {
           router.route(req)
