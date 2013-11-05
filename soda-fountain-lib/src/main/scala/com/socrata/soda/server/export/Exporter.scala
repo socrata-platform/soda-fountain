@@ -37,15 +37,17 @@ object JsonExporter extends Exporter {
   val xhFields = "X-SODA2-Fields"
   val xhTypes = "X-SODA2-Types"
   val xhDeprecation = "X-SODA2-Warning"
+  val xhLimit = 5000 // We have a 6k header size limit
 
   def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
     schema.approximateRowCount.map(rc => resp.setHeader(xhRowCount, rc.toString))
-    if(schema.schema.size < 50) {
-      val soda2Fields = CompactJsonWriter.toString(JArray(schema.schema.map(ci => JString(ci.fieldName.name))))
-      val soda2Types = CompactJsonWriter.toString(JArray(schema.schema.map(ci => JString(ci.typ.name.name))))
+
+    val soda2Fields = CompactJsonWriter.toString(JArray(schema.schema.map(ci => JString(ci.fieldName.name))))
+    val soda2Types = CompactJsonWriter.toString(JArray(schema.schema.map(ci => JString(ci.typ.name.name))))
+    if(soda2Fields.length + soda2Types.length < xhLimit) {
       resp.setHeader(xhFields, soda2Fields)
       resp.setHeader(xhTypes, soda2Types)
       resp.setHeader(xhDeprecation, "X-SODA2-Fields and X-SODA2-Types are deprecated.  Use the c-json output format if you require this information.")
