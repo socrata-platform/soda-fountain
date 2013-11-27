@@ -73,6 +73,12 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       }
     }
 
+    val sorted = Option(req.getParameter("sorted")).map {
+      case "true" => true
+      case "false" => false
+      case other => return SodaUtils.errorResponse(req, BadParameter("sorted", other))(resp)
+    }.getOrElse(true)
+
     val suffix = headerHash(req)
     val precondition = req.precondition.map(etagObfuscator.deobfuscate)
     def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
@@ -82,7 +88,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
         req.negotiateContent match {
           case Some((mimeType, charset, language)) =>
             val exporter = Exporter.exportForMimeType(mimeType)
-            exportDAO.export(resourceName, passOnPrecondition, limit, offset, copy) {
+            exportDAO.export(resourceName, passOnPrecondition, limit, offset, copy, sorted = sorted) {
               case ExportDAO.Success(schema, newTag, rows) =>
                 resp.setStatus(HttpServletResponse.SC_OK)
                 resp.setHeader("Vary", ContentNegotiation.headers.mkString(","))
