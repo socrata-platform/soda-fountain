@@ -21,6 +21,7 @@ class SodaRouter(versionResource: HttpService,
                  datasetSecondaryCopyResource: (ResourceName, SecondaryId) => HttpService,
                  datasetVersionResource: (ResourceName, SecondaryId) => HttpService,
                  datasetExportResource: OptionallyTypedPathComponent[ResourceName] => HttpService,
+                 datasetExportCopyResource: (ResourceName, OptionallyTypedPathComponent[String]) => HttpService,
                  exportExtensions: String => Boolean)
 {
   private[this] implicit val ResourceNameExtractor = new Extractor[ResourceName] {
@@ -52,7 +53,8 @@ class SodaRouter(versionResource: HttpService,
     Route("/dataset-copy/{ResourceName}", datasetCopyResource),
     Route("/dataset-copy/{ResourceName}/{SecondaryId}", datasetSecondaryCopyResource),
     Route("/dataset-version/{ResourceName}/{SecondaryId}", datasetVersionResource),
-    Route("/export/{{ResourceName:exportExtensions}}", datasetExportResource)
+    Route("/export/{{ResourceName:exportExtensions}}", datasetExportResource),
+    Route("/export/{ResourceName}/{{String:exportExtensions}}", datasetExportCopyResource)
   )
 
   def route(req: HttpServletRequest): HttpResponse =
