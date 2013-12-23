@@ -107,7 +107,23 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def updateDataset(user: String, dataset: ResourceName, spec: UserProvidedDatasetSpec): Result = ???
 
-  def deleteDataset(user: String, dataset: ResourceName): Result = ???
+  def deleteDataset(user: String, dataset: ResourceName): Result = {
+    retryable(limit = 5) {
+      store.translateResourceName(dataset) match {
+        case Some(datasetRecord) =>
+          dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, user) {
+            case DataCoordinatorClient.Success(_, _) =>
+              store.removeResource(dataset)
+              Deleted
+            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+              store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
+              retry()
+          }
+        case None =>
+          NotFound(dataset)
+      }
+    }
+  }
 
   def getVersion(dataset: ResourceName, secondary: SecondaryId): Result =
     store.translateResourceName(dataset) match {
