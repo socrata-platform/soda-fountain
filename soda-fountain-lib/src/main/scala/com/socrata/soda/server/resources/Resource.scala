@@ -101,7 +101,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
     override def get = { req: HttpServletRequest => response: HttpServletResponse =>
       val qpQuery = "$query" // Query parameter row count
       val qpRowCount = "$$row_count" // Query parameter row count
-
+      val qpSecondary = "$$store"
       val suffix = headerHash(req)
       val precondition = req.precondition.map(etagObfuscator.deobfuscate)
       def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
@@ -110,7 +110,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
           req.negotiateContent match {
             case Some((mimeType, charset, language)) =>
               val exporter = Exporter.exportForMimeType(mimeType)
-              rowDAO.query(resourceName.value, newPrecondition.map(_.dropRight(suffix.length)), Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount))) match {
+              rowDAO.query(resourceName.value, newPrecondition.map(_.dropRight(suffix.length)), Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount)), Option(req.getParameter(qpSecondary))) match {
                 case RowDAO.QuerySuccess(code, etags, schema, rows) =>
                   response.setStatus(HttpServletResponse.SC_OK)
                   response.setContentType(mimeType.toString)
@@ -154,6 +154,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
 
     override def get = { req: HttpServletRequest => response: HttpServletResponse =>
       val suffix = headerHash(req)
+      val qpSecondary = "$$store"
       val precondition = req.precondition.map(etagObfuscator.deobfuscate)
       def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
       precondition.filter(_.endsWith(suffix)) match {
@@ -162,7 +163,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
           contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
             case Some((mimeType, charset, language)) =>
               val exporter = Exporter.exportForMimeType(mimeType)
-              rowDAO.getRow(resourceName, newPrecondition.map(_.dropRight(suffix.length)), rowId) match {
+              rowDAO.getRow(resourceName, newPrecondition.map(_.dropRight(suffix.length)), rowId, Option(req.getParameter(qpSecondary))) match {
                 case RowDAO.SingleRowQuerySuccess(code, etags, schema, row) =>
                   response.setStatus(HttpServletResponse.SC_OK)
                   response.setContentType(mimeType.toString)

@@ -6,5 +6,5 @@ import com.rojoma.json.ast.JValue
 import com.socrata.http.server.util.{Precondition, EntityTag}
 
 trait QueryCoordinatorClient {
-  def query(datasetId: DatasetId, precondition: Precondition, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String]): (Int, Seq[EntityTag], JValue)
+  def query(datasetId: DatasetId, precondition: Precondition, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String], secondaryInstance:Option[String]): (Int, Seq[EntityTag], JValue)
 }

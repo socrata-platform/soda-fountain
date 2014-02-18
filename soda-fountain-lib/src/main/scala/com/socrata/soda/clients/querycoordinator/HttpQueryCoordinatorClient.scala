@@ -17,13 +17,16 @@ abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryC
   private val qpQuery = "q"
   private val qpIdMap = "idMap"
   private val qpRowCount = "rowCount"
+  private val secondaryStoreOverride = "store"
 
-  def query(datasetId: DatasetId, precondition: Precondition, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String]): (Int, Seq[EntityTag], JValue) =
+  def query(datasetId: DatasetId, precondition: Precondition, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String], secondaryInstance:Option[String]): (Int, Seq[EntityTag], JValue) =
     qchost match {
       case Some(host) =>
         val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
         val params = List(qpDataset -> datasetId.underlying, qpQuery -> query, qpIdMap -> jsonizedColumnIdMap) ++
-          rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil)
+          rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
+          secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)
+        log.info("Query Coordinator request parameters: " + params)
         val request = host.addHeaders(PreconditionRenderer(precondition)).form(params)
         for (response <- httpClient.execute(request)) yield {
           log.info("TODO: stream the response")

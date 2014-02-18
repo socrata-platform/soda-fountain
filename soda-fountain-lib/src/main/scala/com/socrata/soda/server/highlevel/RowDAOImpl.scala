@@ -30,16 +30,16 @@ import com.socrata.http.server.util.Precondition
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
 
-  def query(resourceName: ResourceName, precondition: Precondition, query: String, rowCount: Option[String]): Result = {
+  def query(resourceName: ResourceName, precondition: Precondition, query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
     store.lookupDataset(resourceName)  match {
       case Some(ds) =>
-        getRows(ds, precondition, query, rowCount)
+        getRows(ds, precondition, query, rowCount, secondaryInstance)
       case None =>
         DatasetNotFound(resourceName)
     }
   }
 
-  def getRow(resourceName: ResourceName, precondition: Precondition, rowId: RowSpecifier): Result = {
+  def getRow(resourceName: ResourceName, precondition: Precondition, rowId: RowSpecifier, secondaryInstance:Option[String]): Result = {
     store.lookupDataset(resourceName) match {
       case Some(datasetRecord) =>
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
@@ -49,7 +49,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
             val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
-            getRows(datasetRecord, NoPrecondition, query, None) match {
+            getRows(datasetRecord, NoPrecondition, query, None, secondaryInstance) match {
               case QuerySuccess(code, _, simpleSchema, rows) =>
                 val version = ColumnName(":version")
                 val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
@@ -85,8 +85,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  private def getRows(ds: DatasetRecord, precondition: Precondition, query: String, rowCount: Option[String]): Result = {
-    val (code, etags, response) = qc.query(ds.systemId, precondition, query, ds.columnsByName.mapValues(_.id), rowCount)
+  private def getRows(ds: DatasetRecord, precondition: Precondition, query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
+    val (code, etags, response) = qc.query(ds.systemId, precondition, query, ds.columnsByName.mapValues(_.id), rowCount, secondaryInstance)
     val cjson = response.asInstanceOf[JArray]
     CJson.decode(cjson.toIterator) match {
       case CJson.Decoded(schema, rows) =>

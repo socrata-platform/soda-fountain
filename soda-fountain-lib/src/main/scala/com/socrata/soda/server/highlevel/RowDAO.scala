@@ -10,8 +10,8 @@ import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
 
 trait RowDAO {
-  def query(dataset: ResourceName, precondition: Precondition, query: String, rowCount: Option[String]): Result
-  def getRow(dataset: ResourceName, precondition: Precondition, rowId: RowSpecifier): Result
+  def query(dataset: ResourceName, precondition: Precondition, query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result
+  def getRow(dataset: ResourceName, precondition: Precondition, rowId: RowSpecifier, secondaryInstance:Option[String]): Result
   def upsert[T](user: String, dataset: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T
   def replace[T](user: String, dataset: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T
   def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T
