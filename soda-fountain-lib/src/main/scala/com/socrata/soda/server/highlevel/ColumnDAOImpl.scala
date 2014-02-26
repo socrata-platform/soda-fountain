@@ -5,11 +5,11 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.highlevel.ColumnDAO.Result
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import scala.util.control.ControlThrowable
+import com.socrata.soda.clients.datacoordinator._
 
 // TODO: This shouldn't be referenced here.
 import com.socrata.http.server.util.Precondition
 import com.socrata.soda.server.persistence.{DatasetRecord, NameAndSchemaStore}
-import com.socrata.soda.clients.datacoordinator.{SetRowIdColumnInstruction, DropRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
 
 class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils) extends ColumnDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnDAOImpl])
@@ -108,7 +108,28 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
 
   def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result = ???
 
-  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName): Result = ???
+  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName): Result = {
+    retryable(limit = 3) {
+      store.lookupDataset(dataset) match {
+        case Some(datasetRecord) =>
+          datasetRecord.columnsByName.get(column) match {
+            case Some(columnRef) =>
+              dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(DropColumnInstruction(columnRef.id))) {
+                case DataCoordinatorClient.Success(_,etag) =>
+                  store.dropColumn(datasetRecord.systemId, columnRef.id)
+                  ColumnDAO.Deleted(columnRef.asSpec, etag)
+                case DataCoordinatorClient.SchemaOutOfDate(realSchema) =>
+                  store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)
+                  retry()
+              }
+            case None =>
+              ColumnDAO.ColumnNotFound(column)
+          }
+        case None =>
+          ColumnDAO.DatasetNotFound(dataset)
+      }
+    }
+  }
 
   def getColumn(dataset: ResourceName, column: ColumnName): Result = ???
 }

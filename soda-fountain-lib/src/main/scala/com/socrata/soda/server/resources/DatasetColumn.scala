@@ -33,7 +33,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
         etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Updated(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.Found(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
-      case ColumnDAO.Deleted => NoContent
+      case ColumnDAO.Deleted(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
       case ColumnDAO.ColumnNotFound(column) => NotFound /* TODO: content */
       case ColumnDAO.DatasetNotFound(dataset) => NotFound /* TODO: content */
       case ColumnDAO.InvalidColumnName(column) => BadRequest /* TODO: content */

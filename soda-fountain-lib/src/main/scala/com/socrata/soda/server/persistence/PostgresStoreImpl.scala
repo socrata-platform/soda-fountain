@@ -322,5 +322,15 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnName, newFieldName: ColumnName) : Unit = ???
-  def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit = ???
+
+  def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit = {
+    using(dataSource.getConnection) { conn =>
+      using(conn.prepareStatement("DELETE FROM columns WHERE dataset_system_id = ? AND column_id = ?")) { stmt =>
+        stmt.setString(1, datasetId.underlying)
+        stmt.setString(2, columnId.underlying)
+        stmt.execute()
+        updateSchemaHash(conn, datasetId)
+      }
+    }
+  }
 }
