@@ -24,6 +24,9 @@ import com.socrata.soda.server.errors.RowNotFound
 import com.socrata.soda.server.id.RowSpecifier
 import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
+import org.joda.time.format.DateTimeFormat
+import org.joda.time.{DateTimeZone, DateTime}
+import scala.util.Random
 
 case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: Long) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -112,10 +115,14 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
               val exporter = Exporter.exportForMimeType(mimeType)
               rowDAO.query(resourceName.value, newPrecondition.map(_.dropRight(suffix.length)), Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount)), Option(req.getParameter(qpSecondary))) match {
                 case RowDAO.QuerySuccess(code, etags, schema, rows) =>
+                  val fakeInfo = ResponseFake.generate
                   response.setStatus(HttpServletResponse.SC_OK)
                   response.setContentType(mimeType.toString)
                   response.setHeader("Vary", ContentNegotiation.headers.mkString(","))
                   ETags(etags.map(prepareTag))(response)
+                  response.setHeader("Last-Modified", fakeInfo.secondaryLastModified)
+                  response.setHeader("X-SODA2-Data-Out-Of-Date", fakeInfo.outOfDate.toString)
+                  response.setHeader("X-SODA2-Truth-Last-Modified", fakeInfo.truthLastModified)
                   exporter.export(response, charset, schema, rows)
                 case RowDAO.DatasetNotFound(resourceName) =>
                   SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(response)
@@ -165,10 +172,14 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
               val exporter = Exporter.exportForMimeType(mimeType)
               rowDAO.getRow(resourceName, newPrecondition.map(_.dropRight(suffix.length)), rowId, Option(req.getParameter(qpSecondary))) match {
                 case RowDAO.SingleRowQuerySuccess(code, etags, schema, row) =>
+                  val fakeInfo = ResponseFake.generate
                   response.setStatus(HttpServletResponse.SC_OK)
                   response.setContentType(mimeType.toString)
                   response.setHeader("Vary", ContentNegotiation.headers.mkString(","))
                   ETags(etags.map(prepareTag))(response)
+                  response.setHeader("Last-Modified", fakeInfo.secondaryLastModified)
+                  response.setHeader("X-SODA2-Data-Out-Of-Date", fakeInfo.outOfDate.toString)
+                  response.setHeader("X-SODA2-Truth-Last-Modified", fakeInfo.truthLastModified)
                   exporter.export(response, charset, schema, Iterator.single(row), singleRow = true)
                 case RowDAO.RowNotFound(row) =>
                   SodaUtils.errorResponse(req, RowNotFound(row))(response)
@@ -202,3 +213,26 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
     }
   }
 }
+
+
+// TODO This is very temporary - simply for Randy to be unblocked until real headers get piped through
+object ResponseFake {
+  val HttpDateFormat = DateTimeFormat.forPattern("E, dd MMM YYYY HH:mm:ss z").withZoneUTC
+
+  def generate(): ResponseFake = {
+    val truthTime = DateTime.now.minusMinutes(15)
+    if (Random.nextBoolean()) {
+      val formattedTime = truthTime.toString(HttpDateFormat)
+      new ResponseFake(false, formattedTime, formattedTime)
+    } else {
+      val formattedSecondaryTime = truthTime.minusMinutes(1).minusSeconds(Random.nextInt(10 * 60)).toString(HttpDateFormat)
+      new ResponseFake(true,
+        truthTime.toString(HttpDateFormat),
+        formattedSecondaryTime)
+    }
+  }
+}
+
+case class ResponseFake(outOfDate: Boolean,
+                        truthLastModified: String,
+                        secondaryLastModified: String)
