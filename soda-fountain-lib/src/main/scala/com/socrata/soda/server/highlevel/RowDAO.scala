@@ -30,6 +30,7 @@ object RowDAO {
   case class DatasetNotFound(dataset: ResourceName) extends Result with UpsertResult
   case class UnknownColumn(column: ColumnName) extends UpsertResult
   case object DeleteWithoutPrimaryKey extends UpsertResult
+  case class InvalidRequest(status: Int, body: JValue) extends Result
   case class MaltypedData(column: ColumnName, expected: SoQLType, got: JValue) extends Result with UpsertResult
   case class RowNotAnObject(value: JValue) extends UpsertResult
   case object SchemaOutOfSync extends UpsertResult

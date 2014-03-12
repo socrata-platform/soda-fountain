@@ -33,6 +33,9 @@ case class BadParameter(param: String, value: String)
     "parameter" -> JString(param),
     "value" -> JString(value))
 
+case class ErrorReportedByQueryCoordinator(code: Int, value: QueryCoordinatorError)
+  extends SodaError(code, value.errorCode, value.data.toMap)
+
 case class UnparsableContentType(contentType: String)
   extends SodaError("req.content-type.unparsable",
     "content-type" -> JString(contentType))

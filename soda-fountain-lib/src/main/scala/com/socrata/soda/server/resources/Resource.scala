@@ -126,6 +126,14 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
                   exporter.export(response, charset, schema, rows)
                 case RowDAO.DatasetNotFound(resourceName) =>
                   SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(response)
+                case RowDAO.InvalidRequest(code, body) =>
+                  SodaError.QueryCoordinatorErrorCodec.decode(body) match {
+                    case Some(qcError) =>
+                      val err = ErrorReportedByQueryCoordinator(code, qcError)
+                      SodaUtils.errorResponse(req, err)(response)
+                    case _ =>
+                      SodaUtils.errorResponse(req, InternalError("Cannot parse error from QC"))(response)
+                  }
               }
             case None =>
               // TODO better error

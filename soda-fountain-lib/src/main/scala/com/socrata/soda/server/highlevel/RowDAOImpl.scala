@@ -26,6 +26,8 @@ import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
 import com.socrata.http.server.util.{NoPrecondition, StrongEntityTag, Precondition}
 import java.nio.charset.StandardCharsets
 import com.socrata.http.server.util.Precondition
+import com.socrata.soda.server.highlevel.RowDAO
+import org.apache.http.HttpStatus
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
@@ -86,20 +88,29 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   }
 
   private def getRows(ds: DatasetRecord, precondition: Precondition, query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
+    import HttpStatus._
     val (code, etags, response) = qc.query(ds.systemId, precondition, query, ds.columnsByName.mapValues(_.id), rowCount, secondaryInstance)
-    val cjson = response.asInstanceOf[JArray]
-    CJson.decode(cjson.toIterator) match {
-      case CJson.Decoded(schema, rows) =>
-        schema.pk.map(ds.columnsById(_).fieldName)
-        val simpleSchema = ExportDAO.CSchema(
-          schema.approximateRowCount,
-          schema.locale,
-          schema.pk.map(ds.columnsById(_).fieldName),
-          schema.rowCount,
-          schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
-        )
-        // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
-        QuerySuccess(code, etags, simpleSchema, rows)
+    code match {
+      case SC_OK =>
+        val cjson = response.asInstanceOf[JArray]
+        CJson.decode(cjson.toIterator) match {
+          case CJson.Decoded(schema, rows) =>
+            schema.pk.map(ds.columnsById(_).fieldName)
+            val simpleSchema = ExportDAO.CSchema(
+              schema.approximateRowCount,
+              schema.locale,
+              schema.pk.map(ds.columnsById(_).fieldName),
+              schema.rowCount,
+              schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
+            )
+            // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
+            QuerySuccess(code, etags, simpleSchema, rows)
+        }
+      case code if code >= SC_BAD_REQUEST && code < SC_INTERNAL_SERVER_ERROR =>
+        RowDAO.InvalidRequest(code, response)
+      case _ =>
+        // TODO: other status code from query coordinator
+        throw new Exception("TODO")
     }
   }
 

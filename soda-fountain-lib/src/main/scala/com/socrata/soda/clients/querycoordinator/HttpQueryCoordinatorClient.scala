@@ -5,8 +5,10 @@ import com.socrata.soda.server.id.{ColumnId, DatasetId}
 import com.socrata.soql.environment.ColumnName
 import com.rojoma.json.ast.JValue
 import com.rojoma.json.util.JsonUtil
-import scala.io.{Codec, Source}
 import com.socrata.http.server.util._
+import org.apache.http.HttpStatus
+import scala.io.{Codec, Source}
+
 
 abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryCoordinatorClient {
   def qchost : Option[RequestBuilder]
@@ -19,7 +21,8 @@ abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryC
   private val qpRowCount = "rowCount"
   private val secondaryStoreOverride = "store"
 
-  def query(datasetId: DatasetId, precondition: Precondition, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String], secondaryInstance:Option[String]): (Int, Seq[EntityTag], JValue) =
+  def query(datasetId: DatasetId, precondition: Precondition, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String], secondaryInstance:Option[String]): (Int, Seq[EntityTag], JValue) = {
+    import HttpStatus._
     qchost match {
       case Some(host) =>
         val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
@@ -31,8 +34,10 @@ abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryC
         for (response <- httpClient.execute(request)) yield {
           log.info("TODO: stream the response")
           response.resultCode match {
-            case 200 =>
+            case SC_OK =>
               (response.resultCode, response.headers("ETag").map(EntityTagParser.parse(_)), response.asJValue())
+            case code if code >= SC_BAD_REQUEST && code < SC_INTERNAL_SERVER_ERROR =>
+              (code, Seq.empty, response.asJValue())
             case _ =>
               val body = if (response.isJson) response.asJValue().toString() else Source.fromInputStream(response.asInputStream())(Codec(response.charset)).mkString("")
               throw new Exception(s"query: ${query}; response: ${body}")
@@ -40,4 +45,5 @@ abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryC
         }
       case None => throw new Exception("could not connect to query coordinator")
     }
+  }
 }

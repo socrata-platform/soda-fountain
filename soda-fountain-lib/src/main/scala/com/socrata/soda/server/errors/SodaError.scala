@@ -1,9 +1,11 @@
 package com.socrata.soda.server.errors
 
-import scala.{collection => sc}
-import com.rojoma.json.ast.JValue
-import javax.servlet.http.HttpServletResponse
+import com.rojoma.json.ast.{JObject, JValue}
+import com.rojoma.json.util.AutomaticJsonCodecBuilder
 import com.socrata.http.server.util.EntityTag
+import javax.servlet.http.HttpServletResponse
+import scala.{collection => sc}
+
 
 abstract class SodaError(val httpResponseCode: Int, val errorCode: String, val data: Map[String, JValue]) {
   def this(httpResponseCode: Int, errorCode: String, data: (String, JValue)*) =
@@ -23,4 +25,8 @@ abstract class SodaError(val httpResponseCode: Int, val errorCode: String, val d
 
 object SodaError {
   def translate(errcode: String, data: sc.Map[String, JValue]): String = errcode
+
+  val QueryCoordinatorErrorCodec = AutomaticJsonCodecBuilder[QueryCoordinatorError]
 }
+
+case class QueryCoordinatorError(errorCode: String, data: JObject)
