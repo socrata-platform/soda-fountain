@@ -1,7 +1,7 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator.{SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
-import com.socrata.soda.server.id.{SecondaryId, ColumnId, ResourceName}
+import com.socrata.soda.server.id.{DatasetId, SecondaryId, ColumnId, ResourceName}
 import com.socrata.soda.server.highlevel.DatasetDAO.Result
 import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
 import com.socrata.soda.server.persistence.NameAndSchemaStore
@@ -11,6 +11,7 @@ import scala.util.{Success, Failure}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLVersion, SoQLFixedTimestamp, SoQLID, SoQLType}
 import scala.util.control.ControlThrowable
+import org.joda.time.DateTime
 
 class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils, instanceForCreate: () => String) extends DatasetDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetDAOImpl])
@@ -63,19 +64,20 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
         val instructions = columnInstructions ++ addRidInstruction
 
-        val (datasetId, _) = dc.create(instanceForCreate(), user, Some(instructions.iterator), spec.locale)
+        val (reportMetaData, _) = dc.create(instanceForCreate(), user, Some(instructions.iterator), spec.locale)
 
         val trueSpec = spec.copy(columns = spec.columns ++ systemColumns)
-        val record = trueSpec.asRecord(datasetId)
+        val record = trueSpec.asRecord(reportMetaData)
 
         // sanity-check
         locally {
-          val dcSchema = dc.getSchema(datasetId)
+          val dcSchema = dc.getSchema(reportMetaData.datasetId)
           val mySchema = record.schemaSpec
           assert(dcSchema == Some(mySchema), "Schema spec differs between DC and me!:\n" + dcSchema + "\n" + mySchema)
         }
 
         store.addResource(record)
+        store.updateVersionInfo(reportMetaData.datasetId, reportMetaData.version, reportMetaData.lastModified)
         Created(trueSpec)
       case Some(_) =>
         DatasetAlreadyExists(spec.resourceName)
@@ -112,7 +114,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, user) {
-            case DataCoordinatorClient.Success(_, _) =>
+            case DataCoordinatorClient.Success(_, _, _, _) =>
               store.removeResource(dataset)
               Deleted
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
@@ -176,7 +178,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user) {
-            case DataCoordinatorClient.Success(_, _) =>
+            case DataCoordinatorClient.Success(_, _, newVersion, lastModified) =>
+              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
               WorkingCopyCreated
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -192,7 +195,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user) {
-            case DataCoordinatorClient.Success(_, _) =>
+            case DataCoordinatorClient.Success(_, _, newVersion, lastModified) =>
+              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
               WorkingCopyDropped
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -208,7 +212,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user) {
-            case DataCoordinatorClient.Success(_, _) =>
+            case DataCoordinatorClient.Success(_, _, newVersion, lastModified) =>
+              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
               WorkingCopyPublished
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)

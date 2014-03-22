@@ -4,6 +4,8 @@ import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec}
 import com.socrata.soda.server.persistence.{ColumnRecordLike, ColumnRecord, DatasetRecord}
 import com.socrata.soda.server.id.{ColumnId, DatasetId}
 import com.socrata.soda.server.util.schema.SchemaHash
+import org.joda.time.DateTime
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportMetaData
 
 package object highlevel {
   implicit class clrec(val __underlying: ColumnSpec) extends AnyVal {
@@ -30,17 +32,19 @@ package object highlevel {
   }
 
   implicit class dsrec(val __underlying: DatasetSpec) extends AnyVal {
-    def asRecord(datasetId: DatasetId): DatasetRecord = {
+    def asRecord(dsMetaData: ReportMetaData): DatasetRecord = {
       val columns = __underlying.columns.valuesIterator.map(_.asRecord).toSeq
       DatasetRecord(
         __underlying.resourceName,
-        datasetId,
+        dsMetaData.datasetId,
         __underlying.name,
         __underlying.description,
         __underlying.locale,
         SchemaHash.computeHash(__underlying.locale, __underlying.columns(__underlying.rowIdentifier).id, columns),
         __underlying.columns(__underlying.rowIdentifier).id,
-        columns)
+        columns,
+        dsMetaData.version,
+        dsMetaData.lastModified)
     }
   }
 }

@@ -26,11 +26,13 @@ import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
 import com.socrata.http.server.util.{NoPrecondition, StrongEntityTag, Precondition}
 import java.nio.charset.StandardCharsets
 import com.socrata.http.server.util.Precondition
-import com.socrata.soda.server.highlevel.RowDAO
 import org.apache.http.HttpStatus
+import org.joda.time.format.ISODateTimeFormat
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
+
+  val dateTimeParser = ISODateTimeFormat.dateTimeParser
 
   def query(resourceName: ResourceName, precondition: Precondition, query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
     store.lookupDataset(resourceName)  match {
@@ -52,7 +54,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
             val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
             getRows(datasetRecord, NoPrecondition, query, None, secondaryInstance) match {
-              case QuerySuccess(code, _, simpleSchema, rows) =>
+              case QuerySuccess(code, _, truthVersion, truthLastModified, simpleSchema, rows) =>
                 val version = ColumnName(":version")
                 val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
                 val deVersionedSchema = simpleSchema.copy(schema = simpleSchema.schema.take(versionPos) ++ simpleSchema.schema.drop(versionPos + 1))
@@ -63,7 +65,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                     val row = rowWithVersion.take(versionPos) ++ rowWithVersion.drop(versionPos + 1)
                     precondition.check(Some(etag), sideEffectFree = true) match {
                       case Precondition.Passed =>
-                        RowDAO.SingleRowQuerySuccess(code, Seq(etag), deVersionedSchema, row)
+                        RowDAO.SingleRowQuerySuccess(code, Seq(etag), truthVersion, truthLastModified, deVersionedSchema, row)
                       case f: Precondition.Failure =>
                         RowDAO.PreconditionFailed(f)
                     }
@@ -98,13 +100,15 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             schema.pk.map(ds.columnsById(_).fieldName)
             val simpleSchema = ExportDAO.CSchema(
               schema.approximateRowCount,
+              schema.dataVersion,
+              schema.lastModified.map(time => dateTimeParser.parseDateTime(time)),
               schema.locale,
               schema.pk.map(ds.columnsById(_).fieldName),
               schema.rowCount,
               schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
             )
             // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
-            QuerySuccess(code, etags, simpleSchema, rows)
+            QuerySuccess(code, etags, ds.truthVersion, ds.lastModified, simpleSchema, rows)
         }
       case code if code >= SC_BAD_REQUEST && code < SC_INTERNAL_SERVER_ERROR =>
         RowDAO.InvalidRequest(code, response)
@@ -199,7 +203,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         val upserts = data.map(trans.convert)
         try {
           dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ upserts) {
-            case DataCoordinatorClient.Success(result, _) =>
+            case DataCoordinatorClient.Success(result, _, newVersion, lastModified) =>
+              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
               f(StreamSuccess(result))
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               // hm, if we get schema out of date here, we're pretty much out of luck, since we'll

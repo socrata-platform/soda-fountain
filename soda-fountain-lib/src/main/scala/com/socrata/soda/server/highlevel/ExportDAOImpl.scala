@@ -3,7 +3,7 @@ package com.socrata.soda.server.highlevel
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
-import com.rojoma.json.ast.{JValue, JArray}
+import com.rojoma.json.ast.{JString, JValue, JArray}
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.rojoma.json.util.{Strategy, JsonKeyStrategy, AutomaticJsonCodecBuilder}
@@ -14,13 +14,15 @@ import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import scala.util.control.ControlThrowable
 import com.socrata.soql.environment.ColumnName
 import com.socrata.http.server.util.Precondition
+import org.joda.time.DateTime
+import org.joda.time.format.ISODateTimeFormat
 
 object CJson {
   case class Field(c: ColumnId, t: SoQLType)
   private implicit val fieldCodec = AutomaticJsonCodecBuilder[Field]
 
   @JsonKeyStrategy(Strategy.Underscore)
-  case class Schema(approximateRowCount: Option[Long], locale: String, pk: Option[ColumnId], rowCount: Option[Long], schema: Seq[Field])
+  case class Schema(approximateRowCount: Option[Long], dataVersion: Option[Long], lastModified: Option[String], locale: String, pk: Option[ColumnId], rowCount: Option[Long], schema: Seq[Field])
   private implicit val schemaCodec = AutomaticJsonCodecBuilder[Schema]
 
   def decode(data: Iterator[JValue]): Result = {
@@ -68,6 +70,8 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
 
   class Retry extends ControlThrowable
 
+  val dateTimeParser = ISODateTimeFormat.dateTimeParser
+
   def retryable[T](limit: Int /* does not include the initial try */)(f: => T): T = {
     var count = 0
     var done = false
@@ -96,6 +100,8 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 case CJson.Decoded(schema, rows) =>
                   val simpleSchema = ExportDAO.CSchema(
                     schema.approximateRowCount,
+                    schema.dataVersion,
+                    schema.lastModified.map(time => dateTimeParser.parseDateTime(time)),
                     schema.locale,
                     schema.pk.map(ds.columnsById(_).fieldName),
                     schema.rowCount,

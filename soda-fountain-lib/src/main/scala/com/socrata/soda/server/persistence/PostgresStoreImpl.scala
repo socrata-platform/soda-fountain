@@ -4,13 +4,17 @@ import javax.sql.DataSource
 import com.rojoma.simplearm.util._
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soql.environment.{TypeName, ColumnName}
-import java.sql.Connection
+import java.sql.{Timestamp, Connection}
 import com.socrata.soql.types.SoQLType
 import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
 import com.socrata.soda.server.wiremodels.ColumnSpec
+import org.joda.time.DateTime
 
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[PostgresStoreImpl])
+
+  def toTimestamp(time: DateTime): Timestamp = new Timestamp(time.getMillis)
+  def toDateTime(time: Timestamp): DateTime = new DateTime(time.getTime)
 
   using(dataSource.getConnection()){ connection =>
     using(connection.createStatement()){ stmt =>
@@ -23,7 +27,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def translateResourceName(resourceName: ResourceName): Option[MinimalDatasetRecord] = {
     using(dataSource.getConnection()){ connection =>
-      using(connection.prepareStatement("select resource_name, dataset_system_id, locale, schema_hash, primary_key_column_id from datasets where resource_name_casefolded = ?")){ translator =>
+      using(connection.prepareStatement("select resource_name, dataset_system_id, locale, schema_hash, primary_key_column_id, latest_version, last_modified from datasets where resource_name_casefolded = ?")){ translator =>
         translator.setString(1, resourceName.caseFolded)
         val rs = translator.executeQuery()
         if(rs.next()) {
@@ -34,7 +38,10 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             rs.getString("locale"),
             rs.getString("schema_hash"),
             ColumnId(rs.getString("primary_key_column_id")),
-            fetchMinimalColumns(connection, datasetId)))
+            fetchMinimalColumns(connection, datasetId),
+            rs.getLong("latest_version"),
+            toDateTime(rs.getTimestamp("last_modified"))
+            ))
         } else {
           None
         }
@@ -45,7 +52,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   def lookupDataset(resourceName: ResourceName): Option[DatasetRecord] =
     using(dataSource.getConnection()) { conn =>
       conn.setAutoCommit(false)
-      using(conn.prepareStatement("select resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id from datasets where resource_name_casefolded = ?")) { dsQuery =>
+      using(conn.prepareStatement("select resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id, latest_version, last_modified from datasets where resource_name_casefolded = ?")) { dsQuery =>
         dsQuery.setString(1, resourceName.caseFolded)
         using(dsQuery.executeQuery()) { dsResult =>
           if(dsResult.next()) {
@@ -58,7 +65,10 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
               dsResult.getString("locale"),
               dsResult.getString("schema_hash"),
               ColumnId(dsResult.getString("primary_key_column_id")),
-              fetchFullColumns(conn, datasetId)))
+              fetchFullColumns(conn, datasetId),
+              dsResult.getLong("latest_version"),
+              toDateTime(dsResult.getTimestamp("last_modified"))
+              ))
           } else {
             None
           }
@@ -322,6 +332,17 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnName, newFieldName: ColumnName) : Unit = ???
+
+  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime) = {
+    using(dataSource.getConnection) { conn =>
+      using (conn.prepareStatement("UPDATE datasets SET latest_version = ?, last_modified = ? where dataset_system_id = ?")) { stmt =>
+        stmt.setLong(1, dataVersion)
+        stmt.setTimestamp(2, toTimestamp(lastModified))
+        stmt.setString(3, datasetId.underlying)
+        stmt.executeUpdate()
+      }
+    }
+  }
 
   def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit = {
     using(dataSource.getConnection) { conn =>

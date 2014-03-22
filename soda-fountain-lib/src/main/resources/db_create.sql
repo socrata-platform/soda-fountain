@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS datasets (
   locale                           VARCHAR(64) NOT NULL,
   schema_hash                      VARCHAR(64) NOT NULL,
   primary_key_column_id            VARCHAR(64) NOT NULL,
+  latest_version                   BIGINT NOT NULL DEFAULT 1,
+  last_modified                    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (resource_name_casefolded),
   UNIQUE (dataset_system_id)
 );

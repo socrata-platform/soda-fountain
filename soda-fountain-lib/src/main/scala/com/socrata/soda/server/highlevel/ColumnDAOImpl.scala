@@ -1,11 +1,12 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.id.{ColumnId, ResourceName}
+import com.socrata.soda.server.id.{DatasetId, ColumnId, ResourceName}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.highlevel.ColumnDAO.Result
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import scala.util.control.ControlThrowable
 import com.socrata.soda.clients.datacoordinator._
+import org.joda.time.DateTime
 
 // TODO: This shouldn't be referenced here.
 import com.socrata.http.server.util.Precondition
@@ -38,9 +39,10 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
         precondition.check(None, sideEffectFree = true) match {
           case Precondition.Passed =>
             dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(AddColumnInstruction(spec.datatype, spec.fieldName.name, Some(spec.id)))) {
-              case DataCoordinatorClient.Success(report, etag) =>
+              case DataCoordinatorClient.Success(report, etag, newVersion, lastModified) =>
                 log.info("TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here")
                 store.addColumn(datasetRecord.systemId, spec)
+                store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
                 ColumnDAO.Created(spec, etag)
             }
           case f: Precondition.Failure =>
@@ -89,8 +91,9 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                       SetRowIdColumnInstruction(columnRecord.id))
                   }
                 dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator) {
-                  case DataCoordinatorClient.Success(_, _) =>
+                  case DataCoordinatorClient.Success(_, _, newVersion, lastModified) =>
                     store.setPrimaryKey(datasetRecord.systemId, columnRecord.id)
+                    store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
                     ColumnDAO.Updated(columnRecord.asSpec, None)
                   case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -115,8 +118,9 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
           datasetRecord.columnsByName.get(column) match {
             case Some(columnRef) =>
               dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(DropColumnInstruction(columnRef.id))) {
-                case DataCoordinatorClient.Success(_,etag) =>
+                case DataCoordinatorClient.Success(_, etag, newVersion, lastModified) =>
                   store.dropColumn(datasetRecord.systemId, columnRef.id)
+                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
                   ColumnDAO.Deleted(columnRef.asSpec, etag)
                 case DataCoordinatorClient.SchemaOutOfDate(realSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)

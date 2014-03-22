@@ -7,6 +7,7 @@ import com.rojoma.json.util.AutomaticJsonCodecBuilder
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.soda.server.wiremodels.ColumnSpec
+import org.joda.time.DateTime
 
 // TODO: this needs to expose a notion of transactions
 trait NameAndSchemaStore {
@@ -22,6 +23,7 @@ trait NameAndSchemaStore {
   def addColumn(datasetId: DatasetId, columnSpec: ColumnSpec) : ColumnRecord
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnName, newFieldName: ColumnName) : Unit
   def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit
+  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime): Unit
 }
 
 trait DatasetRecordLike {
@@ -33,6 +35,8 @@ trait DatasetRecordLike {
   val locale: String
   val schemaHash: String
   val primaryKey: ColumnId
+  val truthVersion: Long
+  val lastModified: DateTime
 
   lazy val columnsByName = columns.groupBy(_.fieldName).mapValues(_.head)
   lazy val minimalSchemaByName = columnsByName.mapValues(_.typ)
@@ -54,7 +58,7 @@ case class MinimalColumnRecord(id: ColumnId, fieldName: ColumnName, typ: SoQLTyp
 object MinimalColumnRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[MinimalColumnRecord]
 }
-case class MinimalDatasetRecord(resourceName: ResourceName, systemId: DatasetId, locale: String, schemaHash: String, primaryKey: ColumnId, columns: Seq[MinimalColumnRecord]) extends DatasetRecordLike {
+case class MinimalDatasetRecord(resourceName: ResourceName, systemId: DatasetId, locale: String, schemaHash: String, primaryKey: ColumnId, columns: Seq[MinimalColumnRecord], truthVersion: Long, lastModified: DateTime) extends DatasetRecordLike {
   type ColumnRecordT = MinimalColumnRecord
 }
 object MinimalDatasetRecord {
@@ -65,7 +69,7 @@ case class ColumnRecord(id: ColumnId, fieldName: ColumnName, typ: SoQLType, name
 object ColumnRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[ColumnRecord]
 }
-case class DatasetRecord(resourceName: ResourceName, systemId: DatasetId, name: String, description: String, locale: String, schemaHash: String, primaryKey: ColumnId, columns: Seq[ColumnRecord]) extends DatasetRecordLike {
+case class DatasetRecord(resourceName: ResourceName, systemId: DatasetId, name: String, description: String, locale: String, schemaHash: String, primaryKey: ColumnId, columns: Seq[ColumnRecord], truthVersion: Long, lastModified: DateTime) extends DatasetRecordLike {
   type ColumnRecordT = ColumnRecord
 }
 object DatasetRecord {

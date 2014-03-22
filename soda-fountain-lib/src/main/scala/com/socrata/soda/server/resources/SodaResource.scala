@@ -1,15 +1,19 @@
 package com.socrata.soda.server.resources
 
 import com.socrata.http.server.routing.SimpleResource
-import com.socrata.http.server.HttpService
+import com.socrata.http.server.{HttpResponse, HttpService}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.errors.HttpMethodNotAllowed
-import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import org.apache.commons.codec.binary.Base64
+import org.joda.time.format.DateTimeFormat
 
 class SodaResource extends SimpleResource {
+
+  val HttpDateFormat = DateTimeFormat.forPattern("E, dd MMM YYYY HH:mm:ss 'GMT'").withZoneUTC
+
   override def methodNotAllowed: HttpService = { req =>
     val allowed = allowedMethods
     Header("Allow", allowed.mkString(",")) ~> SodaUtils.errorResponse(
@@ -27,6 +31,12 @@ class SodaResource extends SimpleResource {
       "anonymous"
     }
   }
+
+  def optionalHeader(header: String, headerValue: Option[String]): HttpResponse =
+    headerValue match {
+      case Some(v) => Header(header, v)
+      case None => Function.const(())
+    }
 }
 
 object SodaResource {

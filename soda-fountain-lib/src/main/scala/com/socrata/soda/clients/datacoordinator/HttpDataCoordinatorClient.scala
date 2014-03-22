@@ -13,11 +13,17 @@ import com.rojoma.json.util.JsonArrayIterator
 import com.socrata.soda.server.id.SecondaryId
 import com.rojoma.json.io.StartOfArrayEvent
 import com.rojoma.json.io.EndOfArrayEvent
+import org.joda.time.DateTime
+import org.joda.time.format.ISODateTimeFormat
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
   import DataCoordinatorClient._
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DataCoordinatorClient])
+
+  val dateTimeParser = ISODateTimeFormat.dateTimeParser
+  val xhDataVersion = "X-SODA2-Truth-Version"
+  val xhLastModified = "X-SODA2-Truth-Last-Modified"
 
   def hostO(instance: String): Option[RequestBuilder]
   def createUrl(host: RequestBuilder) = host.p("dataset")
@@ -49,6 +55,12 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   implicit class Augmenting(r: RequestBuilder) {
     def precondition(p: Precondition): RequestBuilder = r.addHeaders(PreconditionRenderer(p))
   }
+
+  def headerExists(header: String, resp: Response) =
+    resp.headerNames.contains(header.toLowerCase)
+
+  def getHeader(header: String, resp: Response) =
+    resp.headers(header)(0)
 
   def getSchema(datasetId: DatasetId): Option[SchemaSpec] =
     withHost(datasetId) { host =>
@@ -137,7 +149,12 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     for (r <- httpClient.execute(request)) yield {
       errorFrom(r) match {
         case None =>
-          f(Right(r))
+          if (headerExists(xhDataVersion, r) && headerExists(xhLastModified, r))
+            f(Right(r))
+          else {
+            log.error("No version headers set from data coordinator")
+            throw new Exception("No version headers set from data coordinator")
+          }
         case Some(err) =>
           err match {
             case SchemaMismatch(_, schema) =>
@@ -153,14 +170,19 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
 
   def sendNonCreateScript[T](rb: RequestBuilder, script: MutationScript)(f: Result => T): T =
     sendScript(rb, script) {
-      case Right(r) => f(Success(arrayOfResults(r.asJsonEvents().buffered), None))
+      case Right(r) =>
+        f(Success(
+            arrayOfResults(r.asJsonEvents().buffered),
+            None,
+            getHeader(xhDataVersion, r).toLong,
+            dateTimeParser.parseDateTime(getHeader(xhLastModified, r))))
       case Left(e) => f(e)
     }
 
   def create(instance: String,
              user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
-             locale: String = "en_US") : (DatasetId, Iterable[ReportItem]) = {
+             locale: String = "en_US") : (ReportMetaData, Iterable[ReportItem]) = {
     withHost(instance) { host =>
       val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
       sendScript(createUrl(host), createScript) {
@@ -169,7 +191,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
           expectStartOfArray(events)
           if(!events.hasNext || !events.head.isInstanceOf[StringEvent]) throw new Exception("Bad response from data coordinator: expected dataset id")
           val StringEvent(datasetId) = events.next()
-          (DatasetId(datasetId), arrayOfResults(events, alreadyInArray = true).toSeq)
+          (ReportMetaData(DatasetId(datasetId), getHeader(xhDataVersion, r).toLong, dateTimeParser.parseDateTime(getHeader(xhLastModified, r))),
+           arrayOfResults(events, alreadyInArray = true).toSeq)
         case other =>
           throw new Exception("Unexpected response from data-coordinator: " + other)
       }
