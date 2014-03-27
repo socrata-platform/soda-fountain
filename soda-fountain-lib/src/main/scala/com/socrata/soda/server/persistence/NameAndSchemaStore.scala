@@ -21,7 +21,7 @@ trait NameAndSchemaStore {
   def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId)
 
   def addColumn(datasetId: DatasetId, columnSpec: ColumnSpec) : ColumnRecord
-  def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnName, newFieldName: ColumnName) : Unit
+  def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName) : Int
   def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit
   def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime): Unit
 }

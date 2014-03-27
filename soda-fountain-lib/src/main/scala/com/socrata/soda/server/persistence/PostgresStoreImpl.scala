@@ -331,7 +331,17 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnName, newFieldName: ColumnName) : Unit = ???
+  def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName): Int = {
+    using(dataSource.getConnection()) { conn =>
+      using(conn.prepareStatement("update columns set column_name = ?, column_name_casefolded = ? where dataset_system_id = ? and column_id = ?")) { stmt =>
+        stmt.setString(1, newFieldName.name)
+        stmt.setString(2, newFieldName.caseFolded)
+        stmt.setString(3, datasetId.underlying)
+        stmt.setString(4, columnId.underlying)
+        stmt.executeUpdate()
+      }
+    }
+  }
 
   def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime) = {
     using(dataSource.getConnection) { conn =>

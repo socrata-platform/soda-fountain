@@ -109,7 +109,38 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
     }
   }
 
-  def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result = ???
+  def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result = {
+    retryable(limit = 3) {
+      spec match {
+        case UserProvidedColumnSpec(None, fieldName, _, _, datatype, None) =>
+          store.lookupDataset(dataset) match {
+            case Some(datasetRecord) =>
+              datasetRecord.columnsByName.get(column) match {
+                case Some(columnRef) =>
+                  if (datatype.exists (_ != columnRef.typ)) {
+                    // TODO: Allow some datatype conversions?
+                    throw new Exception("Does not support changing datatype.")
+                  } else {
+                    store.updateColumnFieldName(datasetRecord.systemId, columnRef.id, spec.fieldName.get) match {
+                      case 1 =>
+                        val updatedColumnRef = columnRef.copy(fieldName = spec.fieldName.get)
+                        ColumnDAO.Updated(updatedColumnRef.asSpec, None)
+                      case n =>
+                        throw new Exception("Expect 1 from update single column, got $n")
+                    }
+                  }
+                case None =>
+                  ColumnDAO.ColumnNotFound(column)
+              }
+            case None =>
+              ColumnDAO.DatasetNotFound(dataset)
+          }
+        case _ =>
+          throw new Exception("Update column get an unsupported column spec.")
+      }
+    }
+  }
+
 
   def deleteColumn(user: String, dataset: ResourceName, column: ColumnName): Result = {
     retryable(limit = 3) {
