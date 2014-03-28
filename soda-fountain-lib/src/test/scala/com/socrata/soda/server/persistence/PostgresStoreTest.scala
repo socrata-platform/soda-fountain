@@ -1,16 +1,26 @@
 package com.socrata.soda.server.persistence
 
-import org.scalatest.FunSuite
-import org.scalatest.matchers.MustMatchers
+import com.rojoma.simplearm.util._
+import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.SodaFountainForTest
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
-import org.joda.time.DateTime
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLText
+import com.typesafe.config.ConfigFactory
+import java.sql.DriverManager
+import org.joda.time.DateTime
+import org.scalatest.{BeforeAndAfterAll, FunSuite}
+import org.scalatest.matchers.MustMatchers
 
-class PostgresStoreTest extends FunSuite with MustMatchers {
 
-  val store : NameAndSchemaStore = SodaFountainForTest.store
+class PostgresStoreTest extends FunSuite with MustMatchers with BeforeAndAfterAll {
+
+  override def beforeAll = {
+    val config = new SodaFountainConfig(ConfigFactory.load())
+    createDatabase(config.database.database)
+  }
+
+  lazy val store : NameAndSchemaStore = SodaFountainForTest.store
 
   test("Postgress add/get/remove resourceName and datasetId"){
     val time = System.currentTimeMillis().toString
@@ -73,6 +83,23 @@ class PostgresStoreTest extends FunSuite with MustMatchers {
         columnId must be (ColumnId("one"))
         columnName must be (ColumnName("new_field_name"))
       case None => fail("didn't find columns")
+    }
+  }
+
+  private def createDatabase(dbName: String) {
+    synchronized {
+      try {
+        Class.forName("org.postgresql.Driver").newInstance()
+      } catch {
+        case ex: ClassNotFoundException => throw ex
+      }
+      using(DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres", "blist", "blist")) { conn =>
+        conn.setAutoCommit(true)
+        val sql = s"drop database if exists $dbName; create database $dbName;"
+        using(conn.createStatement()) { stmt =>
+          stmt.execute(sql)
+        }
+      }
     }
   }
 }
