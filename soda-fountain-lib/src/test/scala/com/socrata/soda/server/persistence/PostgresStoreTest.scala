@@ -93,11 +93,13 @@ class PostgresStoreTest extends FunSuite with MustMatchers with BeforeAndAfterAl
       } catch {
         case ex: ClassNotFoundException => throw ex
       }
+      println(s"creating database $dbName")
       using(DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres", "blist", "blist")) { conn =>
         conn.setAutoCommit(true)
         val sql = s"drop database if exists $dbName; create database $dbName;"
         using(conn.createStatement()) { stmt =>
           stmt.execute(sql)
+          println(s"database $dbName created")
         }
       }
     }
