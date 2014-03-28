@@ -12,7 +12,7 @@ trait DataCoordinatorIntegrationTest extends SodaFountainIntegrationTest {
   val mockSchemaString = "mock_schema"
 
   def assertSuccess(response: DataCoordinatorClient.Result) = response match {
-    case Success(_, _) => Unit
+    case Success(_, _, _, _) => Unit
     case _ => fail(s"response not a success: ${response}")
   }
 

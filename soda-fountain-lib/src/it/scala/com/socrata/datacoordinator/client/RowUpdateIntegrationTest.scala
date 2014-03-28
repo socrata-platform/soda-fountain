@@ -6,7 +6,7 @@ class RowUpdateIntegrationTest extends DataCoordinatorIntegrationTest {
 
   test("can declare row data"){
     val idAndResults = dc.create(instance, userName, None)
-    dc.update(idAndResults._1, mockSchemaString, userName, Array(RowUpdateOptionChange(true, false, true)).iterator){rowDataDecResp =>
+    dc.update(idAndResults._1.datasetId, mockSchemaString, userName, Array(RowUpdateOptionChange(true, false, true)).iterator){rowDataDecResp =>
       //rowDataDec.getResponseBody must equal ("""[{"inserted":{},"updated":{},"deleted":{},"errors":{}}]""")
     }
   }

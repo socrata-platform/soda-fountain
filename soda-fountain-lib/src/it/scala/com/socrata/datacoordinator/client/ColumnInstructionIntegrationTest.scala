@@ -12,8 +12,8 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
     val id = ColumnId("new_col")
     val typ = SoQLType.typesByName(TypeName("number"))
     val idAndResults = dc.create(instance, userName, None)
-    dc.update(idAndResults._1, mockSchemaString, userName, Array( new AddColumnInstruction(typ, "new_column", Some(id))).iterator){ colCreateResult =>
-      dc.update(idAndResults._1, mockSchemaString, userName, Array(DropColumnInstruction(id)).iterator){ colDropResult =>
+    dc.update(idAndResults._1.datasetId, mockSchemaString, userName, Array( new AddColumnInstruction(typ, "new_column", Some(id))).iterator){ colCreateResult =>
+      dc.update(idAndResults._1.datasetId, mockSchemaString, userName, Array(DropColumnInstruction(id)).iterator){ colDropResult =>
         //colCreate.getResponseBody must equal ("""[]""")
         //colDrop.getResponseBody must equal ("""[]""")
       }
@@ -24,9 +24,9 @@ class ColumnInstructionIntegrationTest extends DataCoordinatorIntegrationTest {
     val id = ColumnId("id_column")
     val typ = SoQLType.typesByName(TypeName("number"))
     val idAndResults = dc.create(instance, userName, None)
-    dc.update(idAndResults._1, mockSchemaString, userName, Array(new AddColumnInstruction(typ, "new_col", Some(id))).iterator){newCol =>
-      dc.update(idAndResults._1, mockSchemaString, userName, Array(SetRowIdColumnInstruction(id)).iterator){ setId =>
-        dc.update(idAndResults._1, mockSchemaString, userName, Array(DropRowIdColumnInstruction(id)).iterator){dropId =>
+    dc.update(idAndResults._1.datasetId, mockSchemaString, userName, Array(new AddColumnInstruction(typ, "new_col", Some(id))).iterator){newCol =>
+      dc.update(idAndResults._1.datasetId, mockSchemaString, userName, Array(SetRowIdColumnInstruction(id)).iterator){ setId =>
+        dc.update(idAndResults._1.datasetId, mockSchemaString, userName, Array(DropRowIdColumnInstruction(id)).iterator){dropId =>
           //newCol.getResponseBody must equal ("""[]""")
           //setId.getResponseBody must equal ("""[]""")
           //dropId.getResponseBody must equal ("""[]""")
