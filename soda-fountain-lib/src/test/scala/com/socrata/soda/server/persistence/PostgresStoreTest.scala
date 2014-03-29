@@ -22,7 +22,8 @@ class PostgresStoreTest extends FunSuite with MustMatchers with BeforeAndAfterAl
 
   lazy val store : NameAndSchemaStore = SodaFountainForTest.store
 
-  test("Postgress add/get/remove resourceName and datasetId"){
+  // Ignore for now because it needs zookeeper.
+  ignore("Postgress add/get/remove resourceName and datasetId"){
     val time = System.currentTimeMillis().toString
     val resourceName = new ResourceName("postgres name store integration test @" + time)
     val datasetId = new DatasetId("postgres.name.store.test @" + time)
@@ -43,7 +44,7 @@ class PostgresStoreTest extends FunSuite with MustMatchers with BeforeAndAfterAl
     }
   }
 
-  test("Postgress add/get/remove columnNames and columnIds"){
+  ignore("Postgress add/get/remove columnNames and columnIds"){
     val time = System.currentTimeMillis().toString
     val resourceName = new ResourceName("postgres name store column integration test @" + time)
     val datasetId = new DatasetId("postgres.name.store.column.test @" + time)
@@ -93,13 +94,11 @@ class PostgresStoreTest extends FunSuite with MustMatchers with BeforeAndAfterAl
       } catch {
         case ex: ClassNotFoundException => throw ex
       }
-      println(s"creating database $dbName")
       using(DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres", "blist", "blist")) { conn =>
         conn.setAutoCommit(true)
         val sql = s"drop database if exists $dbName; create database $dbName;"
         using(conn.createStatement()) { stmt =>
           stmt.execute(sql)
-          println(s"database $dbName created")
         }
       }
     }
