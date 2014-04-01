@@ -4,7 +4,7 @@ import javax.servlet.http.HttpServletResponse._
 import com.rojoma.json.ast._
 import com.rojoma.json.codec.JsonCodec
 import javax.activation.MimeType
-import com.socrata.soql.environment.TypeName
+import com.socrata.soql.environment.{ColumnName, TypeName}
 import com.socrata.http.server.util.EntityTag
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 
@@ -84,3 +84,11 @@ case class DatasetNotFound(value: ResourceName)
 case class RowNotFound(value: RowSpecifier)
   extends SodaError(SC_NOT_FOUND, "soda.row.not-found",
      "value" -> JString(value.underlying))
+
+/**
+ * Column not found in a row operation
+ */
+case class RowColumnNotFound(value: ColumnName)
+  extends SodaError(SC_BAD_REQUEST, "soda.row.column-not-found",
+    "value" -> JString(value.name))
+
