@@ -1,7 +1,7 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
-import com.rojoma.json.ast.JValue
+import com.rojoma.json.ast.{JString, JValue}
 import RowDAO._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
@@ -26,7 +26,7 @@ object RowDAO {
   case class SingleRowQuerySuccess(status: Int, etags: Seq[EntityTag], truthVersion: Long, truthLastModified: DateTime, schema: ExportDAO.CSchema, body: Array[SoQLValue]) extends Result
   case class PreconditionFailed(failure: Precondition.Failure) extends Result
   case object TooManyRows extends Result
-  case class RowNotFound(specifier: RowSpecifier) extends Result
+  case class RowNotFound(specifier: RowSpecifier) extends Result with UpsertResult
   case class StreamSuccess(report: Iterator[ReportItem]) extends UpsertResult
   case class DatasetNotFound(dataset: ResourceName) extends Result with UpsertResult
   case class UnknownColumn(column: ColumnName) extends UpsertResult

@@ -94,6 +94,8 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
         }
       case mismatch : MaltypedData =>
         SodaUtils.errorResponse(request, new ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
+      case RowDAO.RowNotFound(rowSpecifier) =>
+        SodaUtils.errorResponse(request, RowNotFound(rowSpecifier))(response)
     }
   }
 

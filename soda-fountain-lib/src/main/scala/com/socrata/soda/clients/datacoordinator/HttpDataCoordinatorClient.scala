@@ -1,7 +1,7 @@
 package com.socrata.soda.clients.datacoordinator
 
 import com.socrata.http.client.{Response, RequestBuilder, HttpClient}
-import com.socrata.soda.server.id.DatasetId
+import com.socrata.soda.server.id.{DatasetId, SecondaryId}
 import com.socrata.http.server.routing.HttpMethods
 import com.rojoma.json.ast.JValue
 import com.socrata.soda.server.util.schema.SchemaSpec
@@ -10,10 +10,8 @@ import com.socrata.http.server.util._
 import com.socrata.soda.clients.datacoordinator
 import com.rojoma.json.io._
 import com.rojoma.json.util.JsonArrayIterator
-import com.socrata.soda.server.id.SecondaryId
 import com.rojoma.json.io.StartOfArrayEvent
 import com.rojoma.json.io.EndOfArrayEvent
-import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
@@ -90,6 +88,13 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         None
       case HttpServletResponse.SC_NOT_MODIFIED =>
         Some(datacoordinator.NotModified())
+      case code if code >= 400 && code <= 499 =>
+        r.asValue[UserErrorReportedByDataCoordinatorError]() match {
+          case dcErr@Some(_) =>
+            dcErr
+          case None =>
+            throw new Exception("Response was JSON but not decodable as user error reported by data coordinator")
+        }
       case _ =>
         Some(r.asValue[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")))
     }
@@ -159,6 +164,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
           err match {
             case SchemaMismatch(_, schema) =>
               f(Left(SchemaOutOfDate(schema)))
+            case UserErrorReportedByDataCoordinatorError(code, data) =>
+              f(Left(UpsertUserError(code, data)))
             case UnknownDataCoordinatorError(code, data) =>
               log.error("Unknown data coordinator error " + code)
               log.error("Aux info: " + data)

@@ -8,6 +8,7 @@ import com.rojoma.json.ast.JValue
 
 sealed abstract class PossiblyUnknownDataCoordinatorError
 case class UnknownDataCoordinatorError(errorCode: String, data: Map[String, JValue]) extends PossiblyUnknownDataCoordinatorError
+case class UserErrorReportedByDataCoordinatorError(errorCode: String, data: Map[String, JValue]) extends PossiblyUnknownDataCoordinatorError
 sealed abstract class DataCoordinatorError extends PossiblyUnknownDataCoordinatorError
 
 @Tag("req.precondition-failed")
@@ -29,6 +30,10 @@ case class EmptyCommandStream() extends DataCoordinatorError
 
 object DataCoordinatorError {
   implicit val jCodec = BranchCodec(SimpleHierarchyCodecBuilder[DataCoordinatorError](TagAndValue("errorCode", "data"))).build
+}
+
+object UserErrorReportedByDataCoordinatorError {
+  implicit val jCodec = AutomaticJsonCodecBuilder[UserErrorReportedByDataCoordinatorError]
 }
 
 object UnknownDataCoordinatorError {

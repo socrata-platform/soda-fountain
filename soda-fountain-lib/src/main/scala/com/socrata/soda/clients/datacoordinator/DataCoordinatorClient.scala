@@ -18,6 +18,7 @@ object DataCoordinatorClient {
   case class SchemaOutOfDate(newSchema: SchemaSpec) extends Result
   case object PreconditionFailed extends Result
   case class NotModified(etags: Seq[EntityTag]) extends Result
+  case class UpsertUserError(code: String, data: Map[String, JValue]) extends Result
 
   sealed abstract class ReportItem
   case class UpsertReportItem(data: Iterator[JValue] /* Note: this MUST be completely consumed before calling hasNext/next on parent iterator! */) extends ReportItem
