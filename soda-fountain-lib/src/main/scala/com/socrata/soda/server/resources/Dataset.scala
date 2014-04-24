@@ -10,6 +10,9 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import com.socrata.soda.server.errors.InternalError
 
+/**
+ * Dataset: CRUD operations for dataset schema and metadata
+ */
 case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
   val schemaHashHeaderName = "x-socrata-version-hash"

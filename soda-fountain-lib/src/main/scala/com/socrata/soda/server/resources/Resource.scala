@@ -29,6 +29,9 @@ import org.joda.time.{DateTimeZone, DateTime}
 import scala.util.Random
 import com.socrata.soda.clients.datacoordinator.HttpDataCoordinatorClient
 
+/**
+ * Resource: services for upserting, deleting, and querying dataset rows.
+ */
 case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: Long) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
 

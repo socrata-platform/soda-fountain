@@ -40,14 +40,17 @@ class SodaRouter(versionResource: HttpService,
     def extract(s: String) = Some(new RowSpecifier(s))
   }
 
+  // NOTE: until there's something like Swagger, document routes with comments
   val router = Routes(
     Route("/version", versionResource),
+    // Dataset schema and metadata CRUD operations
     Route("/dataset", datasetCreateResource),
     Route("/dataset/{ResourceName}", datasetResource),
     Route("/dataset/{ResourceName}/{ColumnName}", datasetColumnResource),
     Route("/dataset/{ResourceName}/{ColumnName}/!makepk", datasetColumnPKResource), // hack hack; once full DDL is implemented this can go away
     Route("/dataset/", datasetCreateResource),
     Directory("/resource"),
+    // resource: CRUD operations and queries on dataset records and rows
     Route("/resource/{{ResourceName:resourceExtensions}}", resourceResource),
     Route("/resource/{ResourceName}/{RowSpecifier}", resourceRowResource),
     Route("/dataset-copy/{ResourceName}", datasetCopyResource),
