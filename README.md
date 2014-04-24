@@ -8,4 +8,16 @@
 
 ## Running
 
+For fast dev cycles:
+
+1. Add `-Dconfig.file=/etc/soda2.conf` to `SBT_OPTS` and populate it
+2. `sbt "soda-fountain-jetty/run"`
+
+To build an assembly and run as a separate process:
+
+    sbt assembly
+    java -Dconfig.file=/etc/soda2.conf -jar soda-fountain-jetty/target/scala-2.10/soda-fountain-jetty-assembly-0.0.16-SNAPSHOT.jar &
+
 ## Tests
+
+`sbt "soda-fountain/test"`
