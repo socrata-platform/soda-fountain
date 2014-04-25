@@ -1,17 +1,17 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator.{SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
-import com.socrata.soda.server.id.{DatasetId, SecondaryId, ColumnId, ResourceName}
 import com.socrata.soda.server.highlevel.DatasetDAO.Result
-import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
+import com.socrata.soda.server.id.{DatasetId, SecondaryId, ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.NameAndSchemaStore
+import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
 import com.socrata.soql.brita.IdentifierFilter
-import DatasetDAO._
-import scala.util.{Success, Failure}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLVersion, SoQLFixedTimestamp, SoQLID, SoQLType}
-import scala.util.control.ControlThrowable
+import DatasetDAO._
 import org.joda.time.DateTime
+import scala.util.control.ControlThrowable
+import scala.util.{Success, Failure}
 
 class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils, instanceForCreate: () => String) extends DatasetDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetDAOImpl])

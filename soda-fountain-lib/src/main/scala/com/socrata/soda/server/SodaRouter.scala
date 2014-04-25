@@ -1,13 +1,13 @@
 package com.socrata.soda.server
 
-import javax.servlet.http.HttpServletRequest
-import com.socrata.http.server.{HttpService, HttpResponse}
 import com.socrata.http.server.implicits._
-import com.socrata.soda.server.errors.GeneralNotFoundError
 import com.socrata.http.server.routing.SimpleRouteContext._
-import com.socrata.soql.environment.ColumnName
-import com.socrata.soda.server.id.{RowSpecifier, SecondaryId, ResourceName}
 import com.socrata.http.server.routing.{OptionallyTypedPathComponent, Extractor}
+import com.socrata.http.server.{HttpService, HttpResponse}
+import com.socrata.soda.server.errors.GeneralNotFoundError
+import com.socrata.soda.server.id.{RowSpecifier, SecondaryId, ResourceName}
+import com.socrata.soql.environment.ColumnName
+import javax.servlet.http.HttpServletRequest
 
 class SodaRouter(versionResource: HttpService,
                  datasetCreateResource: HttpService,

@@ -1,26 +1,26 @@
 package com.socrata.soda.server
 
-import java.io.Closeable
-import scala.collection.mutable
-import com.socrata.soda.server.config.SodaFountainConfig
-import com.netflix.curator.framework.CuratorFrameworkFactory
-import com.netflix.curator.{retry => retryPolicies}
-import com.netflix.curator.x.discovery.ServiceDiscoveryBuilder
-import com.socrata.http.common.AuxiliaryData
-import org.apache.log4j.PropertyConfigurator
-import com.socrata.thirdparty.typesafeconfig.Propertizer
-import com.socrata.soda.server.highlevel._
-import java.security.SecureRandom
-import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
-import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
-import java.util.concurrent.Executors
-import com.socrata.soda.server.util._
-import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
-import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
-import scala.concurrent.duration.FiniteDuration
-import javax.sql.DataSource
 import com.mchange.v2.c3p0.DataSources
+import com.netflix.curator.framework.CuratorFrameworkFactory
+import com.netflix.curator.x.discovery.ServiceDiscoveryBuilder
+import com.netflix.curator.{retry => retryPolicies}
+import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
+import com.socrata.http.common.AuxiliaryData
 import com.socrata.http.server.util.handlers.{LoggingHandler, ThreadRenamingHandler}
+import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
+import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
+import com.socrata.soda.server.config.SodaFountainConfig
+import com.socrata.soda.server.highlevel._
+import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
+import com.socrata.soda.server.util._
+import com.socrata.thirdparty.typesafeconfig.Propertizer
+import java.io.Closeable
+import java.security.SecureRandom
+import java.util.concurrent.Executors
+import javax.sql.DataSource
+import org.apache.log4j.PropertyConfigurator
+import scala.collection.mutable
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * Manages the lifecycle of the routing table.  This means that

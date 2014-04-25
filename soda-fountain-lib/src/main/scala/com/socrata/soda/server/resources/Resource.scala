@@ -1,33 +1,29 @@
 package com.socrata.soda.server.resources
 
-import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
-import com.socrata.http.server.HttpResponse
-import com.socrata.soda.server.highlevel.RowDAO
-import com.socrata.http.server.responses._
-import com.socrata.http.server.implicits._
-import com.socrata.soda.server.SodaUtils
-import com.socrata.soda.server.wiremodels.InputUtils
-import com.socrata.soda.server.errors._
-import com.socrata.http.common.util.ContentNegotiation
-import com.socrata.soda.server.export.Exporter
-import com.rojoma.simplearm.util._
 import com.rojoma.json.io.CompactJsonWriter
-import java.nio.charset.StandardCharsets
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
-import java.security.MessageDigest
-import com.socrata.soda.server.util.ETagObfuscator
-import com.socrata.http.server.util.{Precondition, EntityTag}
-import scala.Some
-import com.socrata.soda.server.errors.DatasetNotFound
+import com.rojoma.simplearm.util._
+import com.socrata.http.common.util.ContentNegotiation
+import com.socrata.http.server.HttpResponse
+import com.socrata.http.server.implicits._
+import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
-import com.socrata.soda.server.errors.RowNotFound
-import com.socrata.soda.server.id.RowSpecifier
-import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
+import com.socrata.http.server.util.{Precondition, EntityTag}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
+import com.socrata.soda.clients.datacoordinator.HttpDataCoordinatorClient
+import com.socrata.soda.server.errors._
+import com.socrata.soda.server.export.Exporter
+import com.socrata.soda.server.highlevel.RowDAO
+import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
+import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
+import com.socrata.soda.server.SodaUtils
+import com.socrata.soda.server.util.ETagObfuscator
+import com.socrata.soda.server.wiremodels.InputUtils
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import org.joda.time.format.DateTimeFormat
 import org.joda.time.{DateTimeZone, DateTime}
 import scala.util.Random
-import com.socrata.soda.clients.datacoordinator.HttpDataCoordinatorClient
 
 /**
  * Resource: services for upserting, deleting, and querying dataset rows.

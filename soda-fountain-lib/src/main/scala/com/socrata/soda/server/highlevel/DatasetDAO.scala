@@ -1,9 +1,9 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.wiremodels.{DatasetSpec, UserProvidedDatasetSpec}
-import com.socrata.soda.server.id.{SecondaryId, ResourceName}
-import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.VersionReport
+import com.socrata.soda.server.id.{SecondaryId, ResourceName}
+import com.socrata.soda.server.wiremodels.{DatasetSpec, UserProvidedDatasetSpec}
+import com.socrata.soql.environment.ColumnName
 
 trait DatasetDAO {
   import DatasetDAO.Result

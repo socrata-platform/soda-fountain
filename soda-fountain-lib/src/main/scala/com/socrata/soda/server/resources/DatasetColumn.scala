@@ -1,17 +1,17 @@
 package com.socrata.soda.server.resources
 
-import com.socrata.soda.server.id.ResourceName
-import com.socrata.soql.environment.ColumnName
-import com.socrata.soda.server.highlevel.ColumnDAO
-import com.socrata.http.server.responses._
-import com.socrata.http.server.implicits._
 import com.socrata.http.server.HttpResponse
-import com.socrata.soda.server.{LogTag, SodaUtils}
-import javax.servlet.http.HttpServletRequest
-import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedColumnSpec}
-import com.socrata.soda.server.util.ETagObfuscator
+import com.socrata.http.server.implicits._
+import com.socrata.http.server.responses._
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.errors.{ResourceNotModified, EtagPreconditionFailed}
+import com.socrata.soda.server.highlevel.ColumnDAO
+import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.util.ETagObfuscator
+import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedColumnSpec}
+import com.socrata.soda.server.{LogTag, SodaUtils}
+import com.socrata.soql.environment.ColumnName
+import javax.servlet.http.HttpServletRequest
 
 case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetColumn])
