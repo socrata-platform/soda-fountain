@@ -1,7 +1,7 @@
 package com.socrata.soda.server.config
 
 import com.typesafe.config.{ConfigFactory, Config}
-import com.netflix.curator.x.discovery.ServiceInstanceBuilder
+import org.apache.curator.x.discovery.ServiceInstanceBuilder
 import com.rojoma.json.ast.JString
 
 object WithDefaultAddress extends (Config => Config) {

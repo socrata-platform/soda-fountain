@@ -5,7 +5,7 @@ import com.typesafe.config.ConfigFactory
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.http.server.SocrataServerJetty
 import com.socrata.http.server.curator.CuratorBroker
-import com.netflix.curator.x.discovery.ServiceDiscoveryBuilder
+import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
 
 object SodaFountainJetty extends App {
   val config = new SodaFountainConfig(ConfigFactory.load())

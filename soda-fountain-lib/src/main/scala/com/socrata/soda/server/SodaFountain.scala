@@ -3,9 +3,9 @@ package com.socrata.soda.server
 import java.io.Closeable
 import scala.collection.mutable
 import com.socrata.soda.server.config.SodaFountainConfig
-import com.netflix.curator.framework.CuratorFrameworkFactory
-import com.netflix.curator.{retry => retryPolicies}
-import com.netflix.curator.x.discovery.ServiceDiscoveryBuilder
+import org.apache.curator.framework.CuratorFrameworkFactory
+import org.apache.curator.{retry => retryPolicies}
+import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
 import com.socrata.http.common.AuxiliaryData
 import org.apache.log4j.PropertyConfigurator
 import com.socrata.thirdparty.typesafeconfig.Propertizer

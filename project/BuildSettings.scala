@@ -9,7 +9,7 @@ object BuildSettings {
     Defaults.itSettings ++
       Seq(
         version := "0.0.16-SNAPSHOT",
-        scalaVersion := "2.10.2"
+        scalaVersion := "2.10.4"
       )
 
   def projectSettings(assembly: Boolean = false): Seq[Setting[_]] =

@@ -1,6 +1,6 @@
 package com.socrata.soda.server.util
 
-import com.netflix.curator.x.discovery.{ServiceProvider, ProviderStrategy, ServiceDiscovery}
+import org.apache.curator.x.discovery.{ServiceProvider, ProviderStrategy, ServiceDiscovery}
 
 class ProviderCache[T](discovery: ServiceDiscovery[T], strategy: ProviderStrategy[T], serviceName: String) {
   private[this] val prefix = serviceName + "."

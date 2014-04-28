@@ -1,8 +1,8 @@
 package com.socrata.soda.clients.querycoordinator
 
 import com.socrata.http.client.{RequestBuilder, HttpClient}
-import com.netflix.curator.x.discovery.ServiceDiscovery
-import com.netflix.curator.x.discovery.{strategies => providerStrategies}
+import org.apache.curator.x.discovery.ServiceDiscovery
+import org.apache.curator.x.discovery.{strategies => providerStrategies}
 import scala.concurrent.duration.FiniteDuration
 import com.socrata.http.common.AuxiliaryData
 import java.io.Closeable
