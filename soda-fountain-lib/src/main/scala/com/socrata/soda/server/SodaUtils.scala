@@ -1,18 +1,18 @@
 package com.socrata.soda.server
 
-import com.socrata.soda.server.errors.{EtagPreconditionFailed, ResourceNotModified, InternalError, SodaError}
-import com.socrata.http.server.HttpResponse
-import javax.servlet.http.HttpServletRequest
-import com.socrata.http.server.responses._
-import com.socrata.http.server.implicits._
 import com.rojoma.json.ast.JValue
-import com.rojoma.json.io.CompactJsonWriter
-import com.socrata.soql.environment.AbstractName
-import com.socrata.soda.server.id.AbstractId
 import com.rojoma.json.codec.JsonCodec
-import java.nio.charset.{StandardCharsets, Charset}
-import com.socrata.http.server.util._
+import com.rojoma.json.io.CompactJsonWriter
+import com.socrata.http.server.HttpResponse
+import com.socrata.http.server.implicits._
+import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.HttpMethods
+import com.socrata.http.server.util._
+import com.socrata.soda.server.errors.{EtagPreconditionFailed, ResourceNotModified, InternalError, SodaError}
+import com.socrata.soda.server.id.AbstractId
+import com.socrata.soql.environment.AbstractName
+import java.nio.charset.{StandardCharsets, Charset}
+import javax.servlet.http.HttpServletRequest
 
 object SodaUtils {
   val errorLog = org.slf4j.LoggerFactory.getLogger("com.socrata.soda.server.Error")

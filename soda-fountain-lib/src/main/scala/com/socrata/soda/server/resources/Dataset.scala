@@ -1,15 +1,18 @@
 package com.socrata.soda.server.resources
 
-import com.socrata.soda.server.id.{SecondaryId, ResourceName}
-import com.socrata.soda.server.highlevel.DatasetDAO
-import javax.servlet.http.HttpServletRequest
-import com.socrata.soda.server.{SodaUtils, LogTag}
-import com.socrata.soda.server.wiremodels.{IOProblem, RequestProblem, Extracted, UserProvidedDatasetSpec}
 import com.socrata.http.server.HttpResponse
-import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
+import com.socrata.http.server.responses._
 import com.socrata.soda.server.errors.InternalError
+import com.socrata.soda.server.highlevel.DatasetDAO
+import com.socrata.soda.server.id.{SecondaryId, ResourceName}
+import com.socrata.soda.server.wiremodels.{IOProblem, RequestProblem, Extracted, UserProvidedDatasetSpec}
+import com.socrata.soda.server.{SodaUtils, LogTag}
+import javax.servlet.http.HttpServletRequest
 
+/**
+ * Dataset: CRUD operations for dataset schema and metadata
+ */
 case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
   val schemaHashHeaderName = "x-socrata-version-hash"
