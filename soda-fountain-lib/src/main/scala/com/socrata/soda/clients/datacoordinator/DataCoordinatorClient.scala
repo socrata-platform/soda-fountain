@@ -16,6 +16,7 @@ object DataCoordinatorClient {
 
   sealed abstract class Result
   case class SchemaOutOfDate(newSchema: SchemaSpec) extends Result
+  case object CannotDeleteRowId extends Result
   case object PreconditionFailed extends Result
   case class NotModified(etags: Seq[EntityTag]) extends Result
   case class UpsertUserError(code: String, data: Map[String, JValue]) extends Result

@@ -13,6 +13,7 @@ import com.rojoma.json.util.JsonArrayIterator
 import com.rojoma.json.io.StartOfArrayEvent
 import com.rojoma.json.io.EndOfArrayEvent
 import org.joda.time.format.ISODateTimeFormat
+import com.socrata.soda.server.highlevel.ColumnDAO.InvalidRowIdOperation
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
   import DataCoordinatorClient._
@@ -166,6 +167,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
               f(Left(SchemaOutOfDate(schema)))
             case UserErrorReportedByDataCoordinatorError(code, data) =>
               f(Left(UpsertUserError(code, data)))
+            case DeleteOnRowId() =>
+              f(Left(CannotDeleteRowId))
             case UnknownDataCoordinatorError(code, data) =>
               log.error("Unknown data coordinator error " + code)
               log.error("Aux info: " + data)

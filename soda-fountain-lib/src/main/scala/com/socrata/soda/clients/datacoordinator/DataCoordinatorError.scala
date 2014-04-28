@@ -26,6 +26,9 @@ case class SchemaMismatchForExport(dataset: DatasetId, schema: SchemaSpec) exten
 @Tag("req.script.header.missing")
 case class EmptyCommandStream() extends DataCoordinatorError
 
+@Tag("update.row-identifier.delete")
+case class DeleteOnRowId() extends DataCoordinatorError
+
 // Below this is the boring machinery that makes the above stuff work
 
 object DataCoordinatorError {
