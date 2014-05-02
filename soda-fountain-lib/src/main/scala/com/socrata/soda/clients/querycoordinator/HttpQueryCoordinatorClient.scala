@@ -3,7 +3,7 @@ package com.socrata.soda.clients.querycoordinator
 import com.socrata.http.client.{RequestBuilder, HttpClient}
 import com.socrata.soda.server.id.{ColumnId, DatasetId}
 import com.socrata.soql.environment.ColumnName
-import com.rojoma.json.ast.JValue
+import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient._
 import com.rojoma.json.util.JsonUtil
 import com.socrata.http.server.util._
 import org.apache.http.HttpStatus
@@ -21,7 +21,7 @@ abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryC
   private val qpRowCount = "rowCount"
   private val secondaryStoreOverride = "store"
 
-  def query(datasetId: DatasetId, precondition: Precondition, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String], secondaryInstance:Option[String]): (Int, Seq[EntityTag], JValue) = {
+  def query[T](datasetId: DatasetId, precondition: Precondition, query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String], secondaryInstance:Option[String])(f: Result => T): T = {
     import HttpStatus._
     qchost match {
       case Some(host) =>
@@ -35,9 +35,11 @@ abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryC
           log.info("TODO: stream the response")
           response.resultCode match {
             case SC_OK =>
-              (response.resultCode, response.headers("ETag").map(EntityTagParser.parse(_)), response.asJValue())
+              f(Success(response.headers("ETag").map(EntityTagParser.parse(_)), response.asJValue()))
+            case SC_NOT_MODIFIED =>
+              f(NotModified(response.headers("ETag").map(EntityTagParser.parse(_))))
             case code if code >= SC_BAD_REQUEST && code < SC_INTERNAL_SERVER_ERROR =>
-              (code, Seq.empty, response.asJValue())
+              f(UserError(code, response.asJValue()))
             case _ =>
               val body = if (response.isJson) response.asJValue().toString() else Source.fromInputStream(response.asInputStream())(Codec(response.charset)).mkString("")
               throw new Exception(s"query: ${query}; response: ${body}")

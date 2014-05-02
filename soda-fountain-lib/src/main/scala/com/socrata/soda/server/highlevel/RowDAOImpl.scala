@@ -26,7 +26,6 @@ import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
 import com.socrata.http.server.util.{NoPrecondition, StrongEntityTag, Precondition}
 import java.nio.charset.StandardCharsets
 import com.socrata.http.server.util.Precondition
-import org.apache.http.HttpStatus
 import org.joda.time.format.ISODateTimeFormat
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
@@ -57,7 +56,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
             val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
             getRows(datasetRecord, NoPrecondition, query, None, secondaryInstance) match {
-              case QuerySuccess(code, _, truthVersion, truthLastModified, simpleSchema, rows) =>
+              case QuerySuccess(_, truthVersion, truthLastModified, simpleSchema, rows) =>
                 val version = ColumnName(":version")
                 val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
                 val deVersionedSchema = simpleSchema.copy(schema = simpleSchema.schema.take(versionPos) ++ simpleSchema.schema.drop(versionPos + 1))
@@ -68,7 +67,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                     val row = rowWithVersion.take(versionPos) ++ rowWithVersion.drop(versionPos + 1)
                     precondition.check(Some(etag), sideEffectFree = true) match {
                       case Precondition.Passed =>
-                        RowDAO.SingleRowQuerySuccess(code, Seq(etag), truthVersion, truthLastModified, deVersionedSchema, row)
+                        RowDAO.SingleRowQuerySuccess(Seq(etag), truthVersion, truthLastModified, deVersionedSchema, row)
                       case f: Precondition.Failure =>
                         RowDAO.PreconditionFailed(f)
                     }
@@ -93,10 +92,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   }
 
   private def getRows(ds: DatasetRecord, precondition: Precondition, query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
-    import HttpStatus._
-    val (code, etags, response) = qc.query(ds.systemId, precondition, query, ds.columnsByName.mapValues(_.id), rowCount, secondaryInstance)
-    code match {
-      case SC_OK =>
+    qc.query(ds.systemId, precondition, query, ds.columnsByName.mapValues(_.id), rowCount, secondaryInstance) {
+      case QueryCoordinatorClient.Success(etags, response) =>
         val cjson = response.asInstanceOf[JArray]
         CJson.decode(cjson.toIterator) match {
           case CJson.Decoded(schema, rows) =>
@@ -111,10 +108,12 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
               schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
             )
             // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
-            QuerySuccess(code, etags, ds.truthVersion, ds.lastModified, simpleSchema, rows)
+            QuerySuccess(etags, ds.truthVersion, ds.lastModified, simpleSchema, rows)
         }
-      case code if code >= SC_BAD_REQUEST && code < SC_INTERNAL_SERVER_ERROR =>
+      case QueryCoordinatorClient.UserError(code, response) =>
         RowDAO.InvalidRequest(code, response)
+      case QueryCoordinatorClient.NotModified(etags) =>
+        RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags))
       case _ =>
         // TODO: other status code from query coordinator
         throw new Exception("TODO")

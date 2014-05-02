@@ -118,7 +118,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
             case Some((mimeType, charset, language)) =>
               val exporter = Exporter.exportForMimeType(mimeType)
               rowDAO.query(resourceName.value, newPrecondition.map(_.dropRight(suffix.length)), Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount)), Option(req.getParameter(qpSecondary))) match {
-                case RowDAO.QuerySuccess(code, etags, truthVersion, truthLastModified, schema, rows) =>
+                case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, schema, rows) =>
                   val createHeader =
                     OK ~>
                       ContentType(mimeType.toString) ~>
@@ -129,6 +129,8 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
                       Header("X-SODA2-Truth-Last-Modified", truthLastModified.toString(HttpDateFormat))
                   createHeader(response)
                   exporter.export(response, charset, schema, rows)
+                case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
+                  SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
                 case RowDAO.DatasetNotFound(resourceName) =>
                   SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(response)
                 case RowDAO.InvalidRequest(code, body) =>
@@ -184,7 +186,7 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
             case Some((mimeType, charset, language)) =>
               val exporter = Exporter.exportForMimeType(mimeType)
               rowDAO.getRow(resourceName, newPrecondition.map(_.dropRight(suffix.length)), rowId, Option(req.getParameter(qpSecondary))) match {
-                case RowDAO.SingleRowQuerySuccess(code, etags, truthVersion, truthLastModified, schema, row) =>
+                case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                   val createHeader =
                     OK ~>
                     ContentType(mimeType.toString) ~>
