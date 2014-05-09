@@ -45,5 +45,5 @@ trait DataCoordinatorClient {
   def dropCopy[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)(f: Result => T): T
   def deleteAllCopies[T](datasetId: DatasetId, schemaHash: String, user: String)(f: Result => T): T
   def checkVersionInSecondary(datasetId: DatasetId, secondaryId: SecondaryId): VersionReport
-  def export[T](datasetId: DatasetId, schemaHash: String, precondition: Precondition, limit: Option[Long], offset: Option[Long], copy: String, sorted: Boolean)(f: Result => T): T
+  def export[T](datasetId: DatasetId, schemaHash: String, precondition: Precondition, ifModifiedSince: Option[DateTime], limit: Option[Long], offset: Option[Long], copy: String, sorted: Boolean)(f: Result => T): T
 }

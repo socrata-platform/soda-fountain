@@ -9,7 +9,7 @@ import com.socrata.http.server.util.{Precondition, EntityTag}
 import org.joda.time.DateTime
 
 trait ExportDAO {
-  def export[T](dataset: ResourceName, precondition: Precondition, limit: Option[Long], offset: Option[Long], copy: String, sorted: Boolean)(f: Result => T): T
+  def export[T](dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], limit: Option[Long], offset: Option[Long], copy: String, sorted: Boolean)(f: Result => T): T
 }
 
 object ExportDAO {

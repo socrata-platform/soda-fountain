@@ -35,12 +35,6 @@ object SodaUtils {
 
   def errorResponse(req: HttpServletRequest, error: SodaError, logTags: LogTag*): HttpResponse = {
     import com.rojoma.json.ast._
-    // TODO: Content-type and language negotiation
-    val content = JObject(Map(
-      "message" -> JString(error.humanReadableMessage),
-      "errorCode" -> JString(error.errorCode),
-      "data" -> JObject(error.data)
-    ))
 
     errorLog.info(s"${logTags.mkString(" ")} responding with error ${error.errorCode}")
     val header = error.vary.foldLeft(error.etags.foldLeft(Status(error.httpResponseCode)) { (h, et) =>
@@ -49,7 +43,19 @@ object SodaUtils {
       h ~> Header("Vary", vary)
     }
 
-    header ~> JsonContent(content)
+    def potentialContent =
+      if (error.hasContent) {
+        // TODO: Content-type and language negotiation
+        val content = JObject(Map(
+          "message" -> JString(error.humanReadableMessage),
+          "errorCode" -> JString(error.errorCode),
+          "data" -> JObject(error.data)
+        ))
+        JsonContent(content)
+      } else
+        Function.const()_
+
+    header ~> potentialContent
   }
 
   def internalError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {

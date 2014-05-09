@@ -8,7 +8,7 @@ import com.socrata.soql.environment.{ColumnName, TypeName}
 import com.socrata.http.server.util.EntityTag
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 
-case class ResourceNotModified(override val etags: Seq[EntityTag], override val vary: Option[String])
+case class ResourceNotModified(override val etags: Seq[EntityTag], override val vary: Option[String], override val hasContent: Boolean = false)
   extends SodaError(SC_NOT_MODIFIED, "not-modified")
 
 case object EtagPreconditionFailed

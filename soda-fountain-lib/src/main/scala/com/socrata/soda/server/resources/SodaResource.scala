@@ -12,8 +12,6 @@ import org.joda.time.format.DateTimeFormat
 
 class SodaResource extends SimpleResource {
 
-  val HttpDateFormat = DateTimeFormat.forPattern("E, dd MMM YYYY HH:mm:ss 'GMT'").withZoneUTC
-
   override def methodNotAllowed: HttpService = { req =>
     val allowed = allowedMethods
     Header("Allow", allowed.mkString(",")) ~> SodaUtils.errorResponse(

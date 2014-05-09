@@ -27,6 +27,7 @@ import com.socrata.http.server.util.{NoPrecondition, StrongEntityTag, Preconditi
 import java.nio.charset.StandardCharsets
 import com.socrata.http.server.util.Precondition
 import org.joda.time.format.ISODateTimeFormat
+import org.joda.time.DateTime
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
 
@@ -36,16 +37,16 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
 
   val dateTimeParser = ISODateTimeFormat.dateTimeParser
 
-  def query(resourceName: ResourceName, precondition: Precondition, query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
+  def query(resourceName: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
     store.lookupDataset(resourceName)  match {
       case Some(ds) =>
-        getRows(ds, precondition, query, rowCount, secondaryInstance)
+        getRows(ds, precondition, ifModifiedSince, query, rowCount, secondaryInstance)
       case None =>
         DatasetNotFound(resourceName)
     }
   }
 
-  def getRow(resourceName: ResourceName, precondition: Precondition, rowId: RowSpecifier, secondaryInstance:Option[String]): Result = {
+  def getRow(resourceName: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier, secondaryInstance:Option[String]): Result = {
     store.lookupDataset(resourceName) match {
       case Some(datasetRecord) =>
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
@@ -55,7 +56,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
             val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
-            getRows(datasetRecord, NoPrecondition, query, None, secondaryInstance) match {
+            getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, secondaryInstance) match {
               case QuerySuccess(_, truthVersion, truthLastModified, simpleSchema, rows) =>
                 val version = ColumnName(":version")
                 val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
@@ -91,8 +92,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  private def getRows(ds: DatasetRecord, precondition: Precondition, query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
-    qc.query(ds.systemId, precondition, query, ds.columnsByName.mapValues(_.id), rowCount, secondaryInstance) {
+  private def getRows(ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
+    qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount, secondaryInstance) {
       case QueryCoordinatorClient.Success(etags, response) =>
         val cjson = response.asInstanceOf[JArray]
         CJson.decode(cjson.toIterator) match {
@@ -114,6 +115,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         RowDAO.InvalidRequest(code, response)
       case QueryCoordinatorClient.NotModified(etags) =>
         RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags))
+      case QueryCoordinatorClient.PreconditionFailed =>
+        RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch)
       case _ =>
         // TODO: other status code from query coordinator
         throw new Exception("TODO")

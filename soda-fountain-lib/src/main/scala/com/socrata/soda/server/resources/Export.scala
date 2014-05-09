@@ -73,6 +73,8 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       }
     }
 
+    val ifModifiedSince = req.dateTimeHeader("If-Modified-Since")
+
     val sorted = Option(req.getParameter("sorted")).map {
       case "true" => true
       case "false" => false
@@ -88,7 +90,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
         req.negotiateContent match {
           case Some((mimeType, charset, language)) =>
             val exporter = Exporter.exportForMimeType(mimeType)
-            exportDAO.export(resourceName, passOnPrecondition, limit, offset, copy, sorted = sorted) {
+            exportDAO.export(resourceName, passOnPrecondition, ifModifiedSince, limit, offset, copy, sorted = sorted) {
               case ExportDAO.Success(schema, newTag, rows) =>
                 resp.setStatus(HttpServletResponse.SC_OK)
                 resp.setHeader("Vary", ContentNegotiation.headers.mkString(","))

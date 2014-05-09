@@ -3,6 +3,7 @@ package com.socrata.soda.clients.datacoordinator
 import com.socrata.http.client.{Response, RequestBuilder, HttpClient}
 import com.socrata.soda.server.id.{DatasetId, SecondaryId}
 import com.socrata.http.server.routing.HttpMethods
+import com.socrata.http.server.implicits._
 import com.rojoma.json.ast.JValue
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
@@ -14,6 +15,7 @@ import com.rojoma.json.io.StartOfArrayEvent
 import com.rojoma.json.io.EndOfArrayEvent
 import org.joda.time.format.ISODateTimeFormat
 import com.socrata.soda.server.highlevel.ColumnDAO.InvalidRowIdOperation
+import org.joda.time.DateTime
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
   import DataCoordinatorClient._
@@ -264,12 +266,18 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
-  def export[T](datasetId: DatasetId, schemaHash: String, precondition: Precondition, limit: Option[Long], offset: Option[Long], copy: String, sorted: Boolean)(f: Result => T): T = {
+  def export[T](datasetId: DatasetId, schemaHash: String, precondition: Precondition, ifModifiedSince: Option[DateTime], limit: Option[Long], offset: Option[Long], copy: String, sorted: Boolean)(f: Result => T): T = {
     withHost(datasetId) { host =>
       val limParam = limit.map { limLong => "limit" -> limLong.toString }
       val offParam = offset.map { offLong => "offset" -> offLong.toString }
       val sortedParam = "sorted" -> sorted.toString
-      val request = exportUrl(host, datasetId).q("schemaHash" -> schemaHash).addParameter("copy"->copy).addParameters(limParam ++ offParam).addParameter(sortedParam).precondition(precondition).get
+      val request = exportUrl(host, datasetId)
+                    .q("schemaHash" -> schemaHash)
+                    .addParameter("copy"->copy)
+                    .addParameters(limParam ++ offParam)
+                    .addParameter(sortedParam)
+                    .addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate))
+                    .get
       for(r <- httpClient.execute(request)) yield {
         errorFrom(r) match {
           case None =>

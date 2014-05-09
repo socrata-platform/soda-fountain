@@ -21,8 +21,6 @@ import com.socrata.soda.server.wiremodels.InputUtils
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
-import org.joda.time.format.DateTimeFormat
-import org.joda.time.{DateTimeZone, DateTime}
 import scala.util.Random
 
 /**
@@ -117,16 +115,23 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
           req.negotiateContent match {
             case Some((mimeType, charset, language)) =>
               val exporter = Exporter.exportForMimeType(mimeType)
-              rowDAO.query(resourceName.value, newPrecondition.map(_.dropRight(suffix.length)), Option(req.getParameter(qpQuery)).getOrElse("select *"), Option(req.getParameter(qpRowCount)), Option(req.getParameter(qpSecondary))) match {
+              rowDAO.query(
+                resourceName.value,
+                newPrecondition.map(_.dropRight(suffix.length)),
+                req.dateTimeHeader("If-Modified-Since"),
+                Option(req.getParameter(qpQuery)).getOrElse("select *"),
+                Option(req.getParameter(qpRowCount)),
+                Option(req.getParameter(qpSecondary))
+              ) match {
                 case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, schema, rows) =>
                   val createHeader =
                     OK ~>
                       ContentType(mimeType.toString) ~>
                       Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
                       ETags(etags.map(prepareTag)) ~>
-                      optionalHeader("Last-Modified", schema.lastModified.map(_.toString(HttpDateFormat))) ~>
+                      optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                       optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
-                      Header("X-SODA2-Truth-Last-Modified", truthLastModified.toString(HttpDateFormat))
+                      Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                   createHeader(response)
                   exporter.export(response, charset, schema, rows)
                 case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
@@ -185,16 +190,22 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
           contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
             case Some((mimeType, charset, language)) =>
               val exporter = Exporter.exportForMimeType(mimeType)
-              rowDAO.getRow(resourceName, newPrecondition.map(_.dropRight(suffix.length)), rowId, Option(req.getParameter(qpSecondary))) match {
+              rowDAO.getRow(
+                resourceName,
+                newPrecondition.map(_.dropRight(suffix.length)),
+                req.dateTimeHeader("If-Modified-Since"),
+                rowId,
+                Option(req.getParameter(qpSecondary))
+              ) match {
                 case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                   val createHeader =
                     OK ~>
                     ContentType(mimeType.toString) ~>
                     Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
                     ETags(etags.map(prepareTag)) ~>
-                    optionalHeader("Last-Modified", schema.lastModified.map(_.toString(HttpDateFormat))) ~>
+                    optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                     optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
-                    Header("X-SODA2-Truth-Last-Modified", truthLastModified.toString(HttpDateFormat))
+                    Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                   createHeader(response)
                   exporter.export(response, charset, schema, Iterator.single(row), singleRow = true)
                 case RowDAO.RowNotFound(row) =>
