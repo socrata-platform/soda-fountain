@@ -1,9 +1,11 @@
 package com.socrata.soda.server.wiremodels
 
-import com.socrata.soql.types._
 import com.rojoma.json.ast._
 import com.rojoma.json.codec.JsonCodec
+import com.rojoma.json.io.{CompactJsonWriter, JsonReader}
+import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
+import com.vividsolutions.jts.geom.{Geometry, LineString, Polygon, Point}
 
 trait JsonColumnCommonRep {
   val representedType: SoQLType
@@ -187,6 +189,28 @@ object JsonColumnRep {
     val representedType: SoQLType = SoQLVersion
   }
 
+  class GeometryLikeRep[T <: Geometry](repType: SoQLType, geometry: SoQLValue => T, value: T => SoQLValue) extends JsonColumnRep {
+    val representedType = repType
+
+    def fromJson(str: String) = repType.asInstanceOf[SoQLGeometryLike[T]].JsonRep.unapply(str)
+    def toJson(v: SoQLValue) = v.typ.asInstanceOf[SoQLGeometryLike[T]].JsonRep(geometry(v))
+
+    def fromJValue(input: JValue) = {
+      if (JNull == input) Some(SoQLNull)
+      else {
+        val geometry = fromJson(CompactJsonWriter.toString(input))
+        geometry match {
+          case Some(g) => Some(value(g))
+          case _ => None
+        }
+      }
+    }
+
+    def toJValue(input: SoQLValue) =
+      if(SoQLNull == input) JNull
+      else JsonReader.fromString(toJson(input))
+  }
+
   val forClientType: Map[SoQLType, JsonColumnRep] =
     Map(
       SoQLText -> TextRep,
@@ -203,7 +227,10 @@ object JsonColumnRep {
       SoQLLocation -> ClientLocationRep,
       SoQLObject -> ObjectRep,
       SoQLArray -> ArrayRep,
-      SoQLJson -> JValueRep
+      SoQLJson -> JValueRep,
+      SoQLPoint -> new GeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value, SoQLPoint(_)),
+      SoQLLine -> new GeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value, SoQLLine(_)),
+      SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_))
     )
 
   val forDataCoordinatorType: Map[SoQLType, JsonColumnRep] =
@@ -222,6 +249,9 @@ object JsonColumnRep {
       SoQLLocation -> LocationRep,
       SoQLObject -> ObjectRep,
       SoQLArray -> ArrayRep,
-      SoQLJson -> JValueRep
+      SoQLJson -> JValueRep,
+      SoQLPoint -> new GeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value, SoQLPoint(_)),
+      SoQLLine -> new GeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value, SoQLLine(_)),
+      SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_))
     )
 }

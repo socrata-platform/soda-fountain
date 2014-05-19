@@ -104,6 +104,24 @@ object CsvColumnRep {
       else CompactJsonWriter.toString(value.asInstanceOf[SoQLJson].value)
   }
 
+  object PointValueRep extends CsvColumnRep {
+    def toString(value: SoQLValue) =
+      if(SoQLNull == value) null
+      else SoQLPoint.JsonRep(value.asInstanceOf[SoQLPoint].value)
+  }
+
+  object LineValueRep extends CsvColumnRep {
+    def toString(value: SoQLValue) =
+      if(SoQLNull == value) null
+      else SoQLLine.JsonRep(value.asInstanceOf[SoQLLine].value)
+  }
+
+  object PolygonValueRep extends CsvColumnRep {
+    def toString(value: SoQLValue) =
+      if(SoQLNull == value) null
+      else SoQLPolygon.JsonRep(value.asInstanceOf[SoQLPolygon].value)
+  }
+
   val forType: Map[SoQLType, CsvColumnRep] = Map(
     SoQLText -> TextRep,
     SoQLFixedTimestamp -> FixedTimestampRep,
@@ -119,6 +137,9 @@ object CsvColumnRep {
     SoQLLocation -> LocationRep,
     SoQLObject -> ObjectRep,
     SoQLArray -> ArrayRep,
-    SoQLJson -> JValueRep
+    SoQLJson -> JValueRep,
+    SoQLPoint -> PointValueRep,
+    SoQLLine -> LineValueRep,
+    SoQLPolygon -> PolygonValueRep
   )
 }

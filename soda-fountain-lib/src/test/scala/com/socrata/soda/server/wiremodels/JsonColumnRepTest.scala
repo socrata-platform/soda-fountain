@@ -5,6 +5,7 @@ import org.scalatest.matchers.MustMatchers
 import com.socrata.soql.types._
 import com.rojoma.json.ast._
 import com.rojoma.json.ast.JString
+import com.rojoma.json.io.JsonReader
 
 class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
   test("Client reps know about all types") {
@@ -108,5 +109,23 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
   test("JSON type checker with object"){
     val input = JObject(Map("key" -> JString("value")))
     JsonColumnRep.forClientType(SoQLObject).fromJValue(input) must equal (Some(SoQLObject(input)))
+  }
+
+  test("JSON type checker with Point"){
+    val input = "{\"type\":\"Point\",\"coordinates\":[47.6303,-122.3148]}"
+    val asGeom = SoQLPoint.JsonRep.unapply(input)
+    JsonColumnRep.forClientType(SoQLPoint).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLPoint(asGeom.get)))
+  }
+
+  test("JSON type checker with Line"){
+    val input = "{\"type\":\"LineString\",\"coordinates\":[[102,0.0928],[103,1],[104,0.0],[105,1]]}"
+    val asGeom = SoQLLine.JsonRep.unapply(input)
+    JsonColumnRep.forClientType(SoQLLine).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLLine(asGeom.get)))
+  }
+
+  test("JSON type checker with Polygon"){
+    val input = "{\"type\":\"Polygon\",\"coordinates\":[[[-2,2],[2,2],[2,-2],[-2,-2],[-2,2]],[[-1,1],[1,1],[1,-1],[-1,-1],[-1,1]]]}"
+    val asGeom = SoQLPolygon.JsonRep.unapply(input)
+    JsonColumnRep.forClientType(SoQLPolygon).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLPolygon(asGeom.get)))
   }
 }
