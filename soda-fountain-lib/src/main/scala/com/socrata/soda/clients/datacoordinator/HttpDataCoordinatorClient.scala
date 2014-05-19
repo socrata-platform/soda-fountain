@@ -34,7 +34,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def withHost[T](instance: String)(f: RequestBuilder => T): T =
     hostO(instance) match {
       case Some(host) => f(host)
-      case None => throw new Exception("could not find data coordinator")
+      case None => throw new Exception(s"could not find data coordinator for instance ${instance}")
     }
 
   def withHost[T](datasetId: DatasetId)(f: RequestBuilder => T): T =
@@ -46,7 +46,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       for (response <- httpClient.execute(r)) yield {
         response.resultCode match {
           case 200 => // ok
-          case _ => throw new Exception("could not propagate to secondary")
+          case _ => throw new Exception(s"could not propagate to secondary ${secondaryId}")
         }
       }
     }
