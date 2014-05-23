@@ -5,7 +5,7 @@ import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.{CompactJsonWriter, JsonReader}
 import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
-import com.vividsolutions.jts.geom.{Geometry, LineString, Polygon, Point}
+import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point}
 
 trait JsonColumnCommonRep {
   val representedType: SoQLType
@@ -196,12 +196,12 @@ object JsonColumnRep {
     def toJson(v: SoQLValue) = v.typ.asInstanceOf[SoQLGeometryLike[T]].JsonRep(geometry(v))
 
     def fromJValue(input: JValue) = {
-      if (JNull == input) Some(SoQLNull)
-      else {
-        val geometry = fromJson(CompactJsonWriter.toString(input))
-        geometry match {
-          case Some(g) => Some(value(g))
-          case _ => None
+      input match {
+        case JNull => Some(SoQLNull)
+        case _ => {
+          // TODO : Make this more efficient by being able to convert directly between GeoTools object and JValue
+          val geometry = fromJson(CompactJsonWriter.toString(input))
+          geometry.map { geom => value(geom) }
         }
       }
     }
@@ -229,8 +229,8 @@ object JsonColumnRep {
       SoQLArray -> ArrayRep,
       SoQLJson -> JValueRep,
       SoQLPoint -> new GeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value, SoQLPoint(_)),
-      SoQLLine -> new GeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value, SoQLLine(_)),
-      SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_))
+      SoQLMultiLine -> new GeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value, SoQLMultiLine(_)),
+      SoQLMultiPolygon -> new GeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value, SoQLMultiPolygon(_))
     )
 
   val forDataCoordinatorType: Map[SoQLType, JsonColumnRep] =
@@ -251,7 +251,7 @@ object JsonColumnRep {
       SoQLArray -> ArrayRep,
       SoQLJson -> JValueRep,
       SoQLPoint -> new GeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value, SoQLPoint(_)),
-      SoQLLine -> new GeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value, SoQLLine(_)),
-      SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_))
+      SoQLMultiLine -> new GeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value, SoQLMultiLine(_)),
+      SoQLMultiPolygon -> new GeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value, SoQLMultiPolygon(_))
     )
 }

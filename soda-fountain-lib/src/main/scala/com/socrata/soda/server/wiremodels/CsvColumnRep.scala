@@ -110,16 +110,16 @@ object CsvColumnRep {
       else SoQLPoint.JsonRep(value.asInstanceOf[SoQLPoint].value)
   }
 
-  object LineValueRep extends CsvColumnRep {
+  object MultiLineValueRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
-      else SoQLLine.JsonRep(value.asInstanceOf[SoQLLine].value)
+      else SoQLMultiLine.JsonRep(value.asInstanceOf[SoQLMultiLine].value)
   }
 
-  object PolygonValueRep extends CsvColumnRep {
+  object MultiPolygonValueRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
-      else SoQLPolygon.JsonRep(value.asInstanceOf[SoQLPolygon].value)
+      else SoQLMultiPolygon.JsonRep(value.asInstanceOf[SoQLMultiPolygon].value)
   }
 
   val forType: Map[SoQLType, CsvColumnRep] = Map(
@@ -139,7 +139,7 @@ object CsvColumnRep {
     SoQLArray -> ArrayRep,
     SoQLJson -> JValueRep,
     SoQLPoint -> PointValueRep,
-    SoQLLine -> LineValueRep,
-    SoQLPolygon -> PolygonValueRep
+    SoQLMultiLine -> MultiLineValueRep,
+    SoQLMultiPolygon -> MultiPolygonValueRep
   )
 }
