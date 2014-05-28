@@ -170,5 +170,17 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
     }
   }
 
-  def getColumn(dataset: ResourceName, column: ColumnName): Result = ???
+  def getColumn(dataset: ResourceName, column: ColumnName): Result = {
+    store.lookupDataset(dataset) match {
+      case Some(datasetRecord) =>
+        datasetRecord.columnsByName.get(column) match {
+          case Some(columnRef) =>
+            ColumnDAO.Found(columnRef.asSpec, None)
+          case None =>
+            ColumnDAO.ColumnNotFound(column)
+        }
+      case None =>
+        ColumnDAO.DatasetNotFound(dataset)
+    }
+  }
 }
