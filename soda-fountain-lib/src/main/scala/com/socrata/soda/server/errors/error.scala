@@ -73,6 +73,11 @@ case class ColumnSpecMaltyped(field: String, expected: String, got: JValue)
     "expected" -> JString(expected),
     "got" -> got)
 
+case class NonUniqueRowId(column: String)
+  extends SodaError("soda.column.not-unique",
+    "column" -> JString(column)
+  )
+
 case class ColumnSpecUnknownType(typeName: TypeName)
   extends SodaError("soda.column.unknown-type",
     "type" -> JString(typeName.name))

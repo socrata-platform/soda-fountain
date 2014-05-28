@@ -25,4 +25,5 @@ object ColumnDAO {
   case class Deleted(spec: ColumnSpec, etag: Option[EntityTag]) extends Result
   case class InvalidColumnName(name: ColumnName) extends Result
   case class InvalidRowIdOperation(columnSpec: ColumnSpec, method: String) extends Result
+  case class NonUniqueRowId(spec: ColumnSpec) extends Result
 }

@@ -3,7 +3,7 @@ package com.socrata.soda.server.highlevel
 import com.socrata.soda.server.id.{DatasetId, ColumnId, ResourceName}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.highlevel.ColumnDAO.Result
-import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
+import com.socrata.soda.server.wiremodels.{ColumnSpec, UserProvidedColumnSpec}
 import scala.util.control.ControlThrowable
 import com.socrata.soda.clients.datacoordinator._
 import org.joda.time.DateTime
@@ -98,6 +98,8 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                   case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
                     retry()
+                  case DataCoordinatorClient.UpsertUserError(code, data) if code == "update.row-identifier.duplicate-values" =>
+                    ColumnDAO.NonUniqueRowId(columnRecord.asSpec)
                 }
               }
             case None =>
