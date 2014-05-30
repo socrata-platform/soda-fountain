@@ -4,7 +4,7 @@ import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util.{EntityTag, Precondition}
-import com.socrata.soda.server.errors.{ResourceNotModified, EtagPreconditionFailed}
+import com.socrata.soda.server.errors.{HttpMethodNotAllowed, ResourceNotModified, EtagPreconditionFailed}
 import com.socrata.soda.server.highlevel.ColumnDAO
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
@@ -37,6 +37,8 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
       case ColumnDAO.ColumnNotFound(column) => NotFound /* TODO: content */
       case ColumnDAO.DatasetNotFound(dataset) => NotFound /* TODO: content */
       case ColumnDAO.InvalidColumnName(column) => BadRequest /* TODO: content */
+      case ColumnDAO.InvalidRowIdOperation(column, method) =>
+        SodaUtils.errorResponse(req, HttpMethodNotAllowed(method, Seq("GET", "PATCH")))
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
         if(isGet) {
           log.info("TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified")

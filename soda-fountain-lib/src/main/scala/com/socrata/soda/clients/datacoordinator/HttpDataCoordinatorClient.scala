@@ -13,6 +13,7 @@ import com.rojoma.json.util.JsonArrayIterator
 import com.rojoma.json.io.StartOfArrayEvent
 import com.rojoma.json.io.EndOfArrayEvent
 import org.joda.time.format.ISODateTimeFormat
+import com.socrata.soda.server.highlevel.ColumnDAO.InvalidRowIdOperation
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
   import DataCoordinatorClient._
@@ -33,7 +34,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def withHost[T](instance: String)(f: RequestBuilder => T): T =
     hostO(instance) match {
       case Some(host) => f(host)
-      case None => throw new Exception("could not find data coordinator")
+      case None => throw new Exception(s"could not find data coordinator for instance ${instance}")
     }
 
   def withHost[T](datasetId: DatasetId)(f: RequestBuilder => T): T =
@@ -45,7 +46,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       for (response <- httpClient.execute(r)) yield {
         response.resultCode match {
           case 200 => // ok
-          case _ => throw new Exception("could not propagate to secondary")
+          case _ => throw new Exception(s"could not propagate to secondary ${secondaryId}")
         }
       }
     }
@@ -166,6 +167,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
               f(Left(SchemaOutOfDate(schema)))
             case UserErrorReportedByDataCoordinatorError(code, data) =>
               f(Left(UpsertUserError(code, data)))
+            case DeleteOnRowId() =>
+              f(Left(CannotDeleteRowId))
             case UnknownDataCoordinatorError(code, data) =>
               log.error("Unknown data coordinator error " + code)
               log.error("Aux info: " + data)

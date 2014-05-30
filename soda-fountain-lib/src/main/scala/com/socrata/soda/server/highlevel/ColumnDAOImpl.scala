@@ -156,6 +156,8 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                 case DataCoordinatorClient.SchemaOutOfDate(realSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)
                   retry()
+                case DataCoordinatorClient.CannotDeleteRowId =>
+                  ColumnDAO.InvalidRowIdOperation(columnRef.asSpec, "DELETE")
               }
             case None =>
               ColumnDAO.ColumnNotFound(column)
