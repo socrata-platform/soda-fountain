@@ -119,13 +119,13 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
 
   test("JSON type checker with MultiLine"){
     val input = """{"type":"MultiLineString","coordinates":[[[100,0.123456789012],[101,1]],[[102,2],[103,3]]]}"""
-    val asGeom = SoQLMultiLine.JsonRep.unapply(input)
-    JsonColumnRep.forClientType(SoQLMultiLine).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLMultiLine(asGeom.get)))
+    val SoQLMultiLine.JsonRep(asGeom) = input
+    JsonColumnRep.forClientType(SoQLMultiLine).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLMultiLine(asGeom)))
   }
 
   test("JSON type checker with MultiPolygon"){
     val input = """{"type":"MultiPolygon","coordinates":[[[[40,40],[20,45.123456789012],[45,30],[40,40]]],[[[20,35],[10,30],[10,10],[30,5],[45,20],[20,35]],[[30,20],[20,15],[20,25],[30,20]]]]}"""
-    val asGeom = SoQLMultiPolygon.JsonRep.unapply(input)
-    JsonColumnRep.forClientType(SoQLMultiPolygon).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLMultiPolygon(asGeom.get)))
+    val SoQLMultiPolygon.JsonRep(asGeom) = input
+    JsonColumnRep.forClientType(SoQLMultiPolygon).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLMultiPolygon(asGeom)))
   }
 }

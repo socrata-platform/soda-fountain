@@ -6,6 +6,7 @@ import com.rojoma.json.io.{CompactJsonWriter, JsonReader}
 import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
 import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point}
+import java.io.IOException
 
 trait JsonColumnCommonRep {
   val representedType: SoQLType
@@ -189,7 +190,7 @@ object JsonColumnRep {
     val representedType: SoQLType = SoQLVersion
   }
 
-  class GeometryLikeRep[T <: Geometry](repType: SoQLType, geometry: SoQLValue => T, value: T => SoQLValue) extends JsonColumnRep {
+  class ClientGeometryLikeRep[T <: Geometry](repType: SoQLType, geometry: SoQLValue => T, value: T => SoQLValue) extends JsonColumnRep {
     val representedType = repType
 
     def fromJson(str: String) = repType.asInstanceOf[SoQLGeometryLike[T]].JsonRep.unapply(str)
@@ -200,7 +201,7 @@ object JsonColumnRep {
         case JNull => Some(SoQLNull)
         case _ => {
           // TODO : Make this more efficient by being able to convert directly between GeoTools object and JValue
-          val geometry = fromJson(CompactJsonWriter.toString(input))
+          val geometry = try { fromJson(CompactJsonWriter.toString(input)) } catch { case e: IOException => None }
           geometry.map { geom => value(geom) }
         }
       }
@@ -208,7 +209,26 @@ object JsonColumnRep {
 
     def toJValue(input: SoQLValue) =
       if(SoQLNull == input) JNull
+      // TODO : Make this more efficient by being able to convert directly between GeoTools object and JValue
       else JsonReader.fromString(toJson(input))
+  }
+
+  class GeometryLikeRep[T <: Geometry](repType: SoQLType, geometry: SoQLValue => T, value: T => SoQLValue) extends JsonColumnRep {
+    val representedType = repType
+
+    def fromWkt(str: String) = repType.asInstanceOf[SoQLGeometryLike[T]].WktRep.unapply(str)
+    def toWkt(v: SoQLValue) = v.typ.asInstanceOf[SoQLGeometryLike[T]].WktRep(geometry(v))
+
+    def fromJValue(input: JValue) = input match {
+      case JString(s) => fromWkt(s).map(geometry => value(geometry))
+      case JNull => Some(SoQLNull)
+      case _ => None
+    }
+
+    def toJValue(input: SoQLValue) = {
+      if (SoQLNull == input) JNull
+      else JString(toWkt(input))
+    }
   }
 
   val forClientType: Map[SoQLType, JsonColumnRep] =
@@ -228,9 +248,9 @@ object JsonColumnRep {
       SoQLObject -> ObjectRep,
       SoQLArray -> ArrayRep,
       SoQLJson -> JValueRep,
-      SoQLPoint -> new GeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value, SoQLPoint(_)),
-      SoQLMultiLine -> new GeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value, SoQLMultiLine(_)),
-      SoQLMultiPolygon -> new GeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value, SoQLMultiPolygon(_))
+      SoQLPoint -> new ClientGeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value, SoQLPoint(_)),
+      SoQLMultiLine -> new ClientGeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value, SoQLMultiLine(_)),
+      SoQLMultiPolygon -> new ClientGeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value, SoQLMultiPolygon(_))
     )
 
   val forDataCoordinatorType: Map[SoQLType, JsonColumnRep] =
