@@ -6,6 +6,7 @@ import com.rojoma.json.util.JsonUtil.writeJson
 
 object SodaFountainLib {
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings() ++ Seq(
+    resolvers += "Open Source Geospatial Foundation Repository" at "http://download.osgeo.org/webdav/geotools",
     resourceGenerators in Compile <+= (resourceManaged in Compile, name in Compile, version in Compile, scalaVersion in Compile) map genVersion,
     libraryDependencies ++= Seq(
       "com.socrata" %% "socrata-thirdparty-utils" % "2.0.1-SNAPSHOT",
