@@ -8,7 +8,7 @@ import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClien
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
-import com.socrata.soda.server.persistence.{DataSourceFromConfig, PostgresStoreImpl, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
 import com.socrata.soda.server.util._
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import java.io.Closeable
@@ -21,6 +21,7 @@ import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
 import org.apache.log4j.PropertyConfigurator
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
+import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 
 /**
  * Manages the lifecycle of the routing table.  This means that

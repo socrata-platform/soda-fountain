@@ -1,4 +1,4 @@
-package com.socrata.soda.server.persistence
+package com.socrata.soda.server.persistence.pg
 
 import javax.sql.DataSource
 import com.rojoma.simplearm.util._
@@ -9,21 +9,13 @@ import com.socrata.soql.types.SoQLType
 import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
 import com.socrata.soda.server.wiremodels.ColumnSpec
 import org.joda.time.DateTime
+import com.socrata.soda.server.persistence._
 
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[PostgresStoreImpl])
 
   def toTimestamp(time: DateTime): Timestamp = new Timestamp(time.getMillis)
   def toDateTime(time: Timestamp): DateTime = new DateTime(time.getTime)
-
-  using(dataSource.getConnection()){ connection =>
-    using(connection.createStatement()){ stmt =>
-      using(getClass.getClassLoader.getResourceAsStream("db_create.sql")){ stream =>
-        val createScript = scala.io.Source.fromInputStream(stream, "UTF-8").getLines().mkString("\n")
-        stmt.execute(createScript)
-      }
-    }
-  }
 
   def translateResourceName(resourceName: ResourceName): Option[MinimalDatasetRecord] = {
     using(dataSource.getConnection()){ connection =>

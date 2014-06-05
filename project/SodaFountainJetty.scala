@@ -11,6 +11,7 @@ object SodaFountainJetty {
       "com.socrata" %% "socrata-http-jetty" % "2.0.0-SNAPSHOT",
       "com.socrata" %% "socrata-http-curator-broker" % "2.0.0-SNAPSHOT"
     ),
+    mainClass := Some("com.socrata.soda.server.SodaFountainJetty"),
     mergeStrategy in assembly <<= (mergeStrategy in assembly) { old =>
       {
         case "about.html" => MergeStrategy.rename
