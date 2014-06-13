@@ -34,15 +34,7 @@ case class UserProvidedColumnSpec(id: Option[ColumnId],
                                   datatype:Option[SoQLType],
                                   delete: Option[Boolean])
 
-object UserProvidedColumnSpec {
-  def fromRequest(request: HttpServletRequest, approxLimit: Long) : ExtractResult[UserProvidedColumnSpec] =
-    catchingInputProblems {
-      jsonSingleObjectStream(request, approxLimit) match {
-        case Right(jobj) => fromObject(jobj)
-        case Left(err) => RequestProblem(err)
-      }
-    }
-
+object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
   def fromObject(obj: JObject) : ExtractResult[UserProvidedColumnSpec] = {
     val cex = new ColumnExtractor(obj.fields)
     for {

@@ -1,7 +1,7 @@
 package com.socrata.soda.server
 
-import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec}
-import com.socrata.soda.server.persistence.{ColumnRecordLike, ColumnRecord, DatasetRecord}
+import com.socrata.soda.server.wiremodels.{ComputationStrategySpec, ColumnSpec, DatasetSpec}
+import com.socrata.soda.server.persistence.{ColumnRecordLike, ColumnRecord, ComputationStrategyRecord, DatasetRecord}
 import com.socrata.soda.server.id.{ColumnId, DatasetId}
 import com.socrata.soda.server.util.schema.SchemaHash
 import org.joda.time.DateTime
@@ -28,6 +28,24 @@ package object highlevel {
         __underlying.name,
         __underlying.description,
         __underlying.typ
+      )
+  }
+
+  implicit class csrec(val __underlying: ComputationStrategySpec) extends AnyVal {
+    def asRec: ComputationStrategyRecord =
+      ComputationStrategyRecord(
+        __underlying.strategyType,
+        __underlying.sourceColumns,
+        __underlying.parameters
+      )
+  }
+
+  implicit class csspec(val __underlying: ComputationStrategyRecord) extends AnyVal {
+    def asSpec: ComputationStrategySpec =
+      ComputationStrategySpec(
+        __underlying.strategyType,
+        __underlying.sourceColumns,
+        __underlying.parameters
       )
   }
 

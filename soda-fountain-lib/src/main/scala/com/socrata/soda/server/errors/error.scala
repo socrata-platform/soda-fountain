@@ -73,6 +73,12 @@ case class ColumnSpecMaltyped(field: String, expected: String, got: JValue)
     "expected" -> JString(expected),
     "got" -> got)
 
+case class ComputationStrategySpecMaltyped(field: String, expected: String, got: JValue)
+  extends SodaError("soda.column_computation_strategy.maltyped",
+    "field" -> JString(field),
+    "expected" -> JString(expected),
+    "got" -> got)
+
 case class NonUniqueRowId(column: String)
   extends SodaError("soda.column.not-unique",
     "column" -> JString(column)

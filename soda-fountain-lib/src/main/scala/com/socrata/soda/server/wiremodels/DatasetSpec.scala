@@ -50,16 +50,7 @@ case class UserProvidedDatasetSpec(resourceName: Option[ResourceName],
                                    locale: Option[Option[String]],
                                    columns: Option[Seq[UserProvidedColumnSpec]])
 
-object UserProvidedDatasetSpec {
-  def fromRequest(req: HttpServletRequest, approxLimit: Long): ExtractResult[UserProvidedDatasetSpec] = {
-    catchingInputProblems {
-      jsonSingleObjectStream(req, approxLimit) match {
-        case Right(obj) => fromObject(obj)
-        case Left(err) => RequestProblem(err)
-      }
-    }
-  }
-
+object UserProvidedDatasetSpec extends UserProvidedSpec[UserProvidedDatasetSpec] {
   def fromObject(obj: JObject): ExtractResult[UserProvidedDatasetSpec] = {
     val dex = new DatasetExtractor(obj.fields)
     for {
@@ -92,5 +83,4 @@ object UserProvidedDatasetSpec {
         case None => Extracted(None)
       }
   }
-
 }
