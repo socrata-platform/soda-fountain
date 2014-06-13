@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+
+    <changeSet author="Urmila Nadkarni" id="20140613-add-computation-strategies-table">
+        <sqlFile path="com/socrata/soda/server/persistence/pg/sql/computation_strategies_create.sql" splitStatements="false"/>
+        <rollback>
+            <dropTable tableName="computation_strategies"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
