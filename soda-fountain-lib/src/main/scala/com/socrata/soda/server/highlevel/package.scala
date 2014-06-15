@@ -31,22 +31,16 @@ package object highlevel {
       )
   }
 
-  implicit class csrec(val __underlying: ComputationStrategySpec) extends AnyVal {
-    def asRec: ComputationStrategyRecord =
-      ComputationStrategyRecord(
-        __underlying.strategyType,
-        __underlying.sourceColumns,
-        __underlying.parameters
-      )
+  implicit class csrec(val __underlying: Option[ComputationStrategySpec]) extends AnyVal {
+    def asRecord: Option[ComputationStrategyRecord] = __underlying.map { css =>
+      ComputationStrategyRecord(css.strategyType, css.recompute, css.sourceColumns, css.parameters)
+    }
   }
 
-  implicit class csspec(val __underlying: ComputationStrategyRecord) extends AnyVal {
-    def asSpec: ComputationStrategySpec =
-      ComputationStrategySpec(
-        __underlying.strategyType,
-        __underlying.sourceColumns,
-        __underlying.parameters
-      )
+  implicit class csspec(val __underlying: Option[ComputationStrategyRecord]) extends AnyVal {
+    def asSpec: Option[ComputationStrategySpec] = __underlying.map { csr =>
+      ComputationStrategySpec(csr.strategyType, csr.recompute, csr.sourceColumns, csr.parameters)
+    }
   }
 
   implicit class dsrec(val __underlying: DatasetSpec) extends AnyVal {

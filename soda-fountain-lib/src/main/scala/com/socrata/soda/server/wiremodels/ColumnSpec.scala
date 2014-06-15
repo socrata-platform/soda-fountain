@@ -6,10 +6,8 @@ import com.socrata.soda.server.id.ColumnId
 import com.socrata.soql.environment.{TypeName, ColumnName}
 import com.socrata.soql.types.SoQLType
 import com.rojoma.json.ast.{JValue, JObject}
-import javax.servlet.http.HttpServletRequest
 
-import com.socrata.soda.server.util.AdditionalJsonCodecs
-import AdditionalJsonCodecs._
+import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import InputUtils._
 import com.socrata.soda.server.errors.{ColumnSpecMaltyped, ColumnSpecUnknownType}
 
@@ -32,7 +30,8 @@ case class UserProvidedColumnSpec(id: Option[ColumnId],
                                   name: Option[String],
                                   description:Option[String],
                                   datatype:Option[SoQLType],
-                                  delete: Option[Boolean])
+                                  delete: Option[Boolean],
+                                  computationStrategy: Option[UserProvidedComputationStrategySpec])
 
 object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
   def fromObject(obj: JObject) : ExtractResult[UserProvidedColumnSpec] = {
@@ -44,8 +43,9 @@ object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
       description <- cex.description
       datatype <- cex.datatype
       delete <- cex.delete
+      computationStrategy <- cex.computationStrategy
     } yield {
-      UserProvidedColumnSpec(columnId, fieldName, name, description, datatype, delete)
+      UserProvidedColumnSpec(columnId, fieldName, name, description, datatype, delete, computationStrategy)
     }
   }
 
@@ -70,6 +70,11 @@ object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
     }
     def description = e[String]("description")
     def delete = e[Boolean]("delete")
+    def computationStrategy: ExtractResult[Option[UserProvidedComputationStrategySpec]] =
+      e[JObject]("computation_strategy") match {
+        case Extracted(Some(jobj)) => UserProvidedComputationStrategySpec.fromObject(jobj).map(Some(_))
+        case _ => Extracted(None)
+      }
   }
 
 }

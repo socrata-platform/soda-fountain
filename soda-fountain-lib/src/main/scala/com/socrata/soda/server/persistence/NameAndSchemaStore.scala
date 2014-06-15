@@ -1,14 +1,14 @@
 package com.socrata.soda.server.persistence
 
-import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
-import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.SoQLType
+import org.joda.time.DateTime
+import com.rojoma.json.ast.JObject
 import com.rojoma.json.util.AutomaticJsonCodecBuilder
+import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.soda.server.wiremodels.ColumnSpec
-import org.joda.time.DateTime
-import com.rojoma.json.ast.JValue
+import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.types.SoQLType
 
 // TODO: this needs to expose a notion of transactions
 trait NameAndSchemaStore {
@@ -53,7 +53,7 @@ trait ColumnRecordLike {
   val isInconsistencyResolutionGenerated: Boolean
 }
 
-case class ComputationStrategyRecord(strategyType: String, sourceColumns: Seq[String], parameters: JValue)
+case class ComputationStrategyRecord(strategyType: String, recompute: Boolean, sourceColumns: Seq[String], parameters: JObject)
 object ComputationStrategyRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[ComputationStrategyRecord]
 }

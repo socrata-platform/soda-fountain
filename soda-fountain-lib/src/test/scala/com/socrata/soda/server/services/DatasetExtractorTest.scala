@@ -3,7 +3,7 @@ package com.socrata.soda.server.services
 import org.scalatest.{Matchers, FunSuite}
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import com.rojoma.json.util.JsonUtil
-import com.rojoma.json.ast.JObject
+import com.rojoma.json.ast.{JString, JObject}
 import com.socrata.soda.server.wiremodels._
 
 class DatasetExtractorTest extends FunSuite with Matchers {
@@ -74,6 +74,7 @@ class DatasetExtractorTest extends FunSuite with Matchers {
                          |    datatype:"number",
                          |    computation_strategy: {
                          |      type:"georegion",
+                         |      recompute:true,
                          |      source_columns: ["location"],
                          |      parameters: { georegion_uid:"abcd-1234" }
                          |    }}
@@ -89,7 +90,14 @@ class DatasetExtractorTest extends FunSuite with Matchers {
         regionColumn.fieldName should be eq (Some("Ward ID"))
         regionColumn.description should be eq (Some("Ward ID"))
         regionColumn.datatype should be (Some(com.socrata.soql.types.SoQLNumber))
-        // TODO : Add computation-related tests
+        regionColumn.computationStrategy should not be (None)
+
+        val compStrategy = regionColumn.computationStrategy.get
+        compStrategy.strategyType should be eq (Some("georegion"))
+        compStrategy.recompute should equal (Some(true))
+        compStrategy.sourceColumns should be (Some(Seq("location")))
+        compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
+
       case _ => fail("didn't extract")
     }
   }

@@ -1,13 +1,13 @@
 package com.socrata.soda.server.highlevel
 
-import scala.util.Random
 import com.socrata.soda.server.wiremodels.{ColumnSpec, UserProvidedColumnSpec}
+import com.socrata.soql.brita.IdentifierFilter
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soql.types.obfuscation.Quadifier
+import scala.util.Random
 
 import ColumnSpecUtils._
-import com.socrata.soql.brita.IdentifierFilter
 
 class ColumnSpecUtils(rng: Random) {
   private val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnSpecUtils])
@@ -21,20 +21,20 @@ class ColumnSpecUtils(rng: Random) {
 
   def freezeForCreation(existingColumns: Map[ColumnName, ColumnId], ucs: UserProvidedColumnSpec): CreateResult =
     ucs match {
-      case UserProvidedColumnSpec(None, Some(fieldName), Some(name), desc, Some(typ), None) =>
+      case UserProvidedColumnSpec(None, Some(fieldName), Some(name), desc, Some(typ), None, computationStrategy) =>
         if(!validColumnName(fieldName)) return InvalidFieldName(fieldName)
         val trueDesc = desc.getOrElse("")
         val id = selectId(existingColumns.values)
         Success(ColumnSpec(id, fieldName, name, trueDesc, typ))
-      case UserProvidedColumnSpec(Some(_), _, _, _, _, _) =>
+      case UserProvidedColumnSpec(Some(_), _, _, _, _, _, _) =>
         IdGiven
-      case UserProvidedColumnSpec(_, None, _, _, _, _) =>
+      case UserProvidedColumnSpec(_, None, _, _, _, _, _) =>
         NoFieldName
-      case UserProvidedColumnSpec(_, _, None, _, _, _) =>
+      case UserProvidedColumnSpec(_, _, None, _, _, _, _) =>
         NoName
-      case UserProvidedColumnSpec(_, _, _, _, None, _) =>
+      case UserProvidedColumnSpec(_, _, _, _, None, _, _) =>
         NoType
-      case UserProvidedColumnSpec(_, _, _, _, _, Some(_)) =>
+      case UserProvidedColumnSpec(_, _, _, _, _, Some(_), _) =>
         DeleteSet
     }
 
