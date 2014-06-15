@@ -1,15 +1,18 @@
 package com.socrata.soda.server.persistence.pg
 
-import javax.sql.DataSource
+import com.rojoma.json.ast.JObject
+import com.rojoma.json.io.JsonReader
 import com.rojoma.simplearm.util._
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
-import com.socrata.soql.environment.{TypeName, ColumnName}
-import java.sql.{Timestamp, Connection}
-import com.socrata.soql.types.SoQLType
-import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
-import com.socrata.soda.server.wiremodels.ColumnSpec
-import org.joda.time.DateTime
 import com.socrata.soda.server.persistence._
+import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
+import com.socrata.soda.server.wiremodels.{ComputationStrategyType, ColumnSpec}
+import com.socrata.soql.environment.{TypeName, ColumnName}
+import com.socrata.soql.types.SoQLType
+import java.sql.{Connection, ResultSet, Timestamp}
+import javax.sql.DataSource
+import org.joda.time.DateTime
+import scala.util.Try
 
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[PostgresStoreImpl])
@@ -174,7 +177,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             } while(existingColumnNames.contains(newName))
           }
 
-          ColumnRecord(cid, newFieldName, newSchema.schema(cid), newName, "Unknown column discovered by consistency checker", isInconsistencyResolutionGenerated = true)
+          // TODO : Understand what needs to happen to computation strategy here
+          ColumnRecord(cid, newFieldName, newSchema.schema(cid), newName, "Unknown column discovered by consistency checker", isInconsistencyResolutionGenerated = true, None)
         })
       }
 
@@ -222,7 +226,23 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def fetchFullColumns(conn: Connection, datasetId: DatasetId): Seq[ColumnRecord] = {
-    using(conn.prepareStatement("select column_name, column_id, type_name, name, description, is_inconsistency_resolution_generated from columns where dataset_system_id = ?")) { colQuery =>
+    val sql =
+      """SELECT c.column_name,
+        |       c.column_id,
+        |       c.type_name,
+        |       c.name,
+        |       c.description,
+        |       c.is_inconsistency_resolution_generated,
+        |       cs.computation_strategy_type,
+        |       cs.recompute,
+        |       cs.source_columns,
+        |       cs.parameters
+        | FROM columns c
+        | LEFT JOIN computation_strategies cs
+        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id
+        | WHERE c.dataset_system_id = ?""".stripMargin
+
+    using(conn.prepareStatement(sql)) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
       using(colQuery.executeQuery()) { rs =>
         val result = Vector.newBuilder[ColumnRecord]
@@ -233,12 +253,44 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             SoQLType.typesByName(TypeName(rs.getString("type_name"))),
             rs.getString("name"),
             rs.getString("description"),
-            rs.getBoolean("is_inconsistency_resolution_generated")
+            rs.getBoolean("is_inconsistency_resolution_generated"),
+            extractComputationStrategy(rs)
           )
         }
         result.result()
       }
     }
+  }
+
+  def extractComputationStrategy(rs: ResultSet): Option[ComputationStrategyRecord] = {
+    val strategyType = rs.getString("computation_strategy_type") match {
+      case s: String => Try(ComputationStrategyType.withName(s)).toOption match {
+        case Some(csType) => csType
+        // I don't really like just throwing an exception here, but that seems
+        // to be how Soda Fountain deals with unexpected situations currently.
+        // It seems better than failing silently.
+        case None         => throw new Exception(s"Invalid computation strategy type found in database: '$s'")
+      }
+      // Assume that this is not a computed column if no type is specified
+      case null      => return None
+    }
+
+    val recompute = rs.getBoolean("recompute") // getBoolean will return false if the value is missing in the table
+
+    val sourceColumns = rs.getArray("source_columns") match {
+      case arr: java.sql.Array => Some(arr.getArray.asInstanceOf[Array[String]].toSeq)
+      case _                   => None
+    }
+
+    val parameters = rs.getString("parameters") match {
+      case s: String => JsonReader.fromString(s) match {
+        case jobj: JObject => Some(jobj)
+        case _             => throw new Exception("Computation strategy source columns could not be parsed")
+      }
+      case null      => None
+    }
+
+    Some(ComputationStrategyRecord(strategyType, recompute, sourceColumns, parameters))
   }
 
   def addColumns(connection: Connection, datasetId: DatasetId, columns: TraversableOnce[ColumnRecord]) {
@@ -305,7 +357,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def addColumn(datasetId: DatasetId, spec: ColumnSpec): ColumnRecord =
     using(dataSource.getConnection()) { conn =>
-      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false)
+      // TODO : Add computationStrategy once it's implemented in ColumnSpec
+      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, None)
       addColumns(conn, datasetId, Iterator.single(result))
       updateSchemaHash(conn, datasetId)
       result

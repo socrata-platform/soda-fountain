@@ -1,6 +1,5 @@
 package com.socrata.soda.server.persistence
 
-import org.joda.time.DateTime
 import com.rojoma.json.ast.JObject
 import com.rojoma.json.util.AutomaticJsonCodecBuilder
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
@@ -9,6 +8,7 @@ import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, ColumnSpec}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLType
+import org.joda.time.DateTime
 
 // TODO: this needs to expose a notion of transactions
 trait NameAndSchemaStore {
@@ -71,7 +71,7 @@ object MinimalDatasetRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[MinimalDatasetRecord]
 }
 
-case class ColumnRecord(id: ColumnId, fieldName: ColumnName, typ: SoQLType, name: String, description: String, isInconsistencyResolutionGenerated: Boolean) extends ColumnRecordLike
+case class ColumnRecord(id: ColumnId, fieldName: ColumnName, typ: SoQLType, name: String, description: String, isInconsistencyResolutionGenerated: Boolean, computationStrategy: Option[ComputationStrategyRecord]) extends ColumnRecordLike
 object ColumnRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[ColumnRecord]
 }

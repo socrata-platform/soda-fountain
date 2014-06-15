@@ -16,7 +16,8 @@ package object highlevel {
         __underlying.datatype,
         __underlying.name,
         __underlying.description,
-        isInconsistencyResolutionGenerated = false
+        isInconsistencyResolutionGenerated = false,
+        None // TODO : Replace once computationStrategy is added to ColumnSpec
       )
   }
 
