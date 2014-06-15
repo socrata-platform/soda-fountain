@@ -2,16 +2,14 @@ package com.socrata.soda.server.persistence
 
 import com.rojoma.simplearm.util._
 import com.socrata.soda.server.config.SodaFountainConfig
-import com.socrata.soda.server.SodaFountainForTest
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
+import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLText
 import com.typesafe.config.ConfigFactory
 import java.sql.DriverManager
 import org.joda.time.DateTime
 import org.scalatest.{ShouldMatchers, BeforeAndAfterAll, FunSuite}
-import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
-
 
 class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfterAll {
   lazy val config = new SodaFountainConfig(ConfigFactory.load())
@@ -22,12 +20,8 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
   }
 
   test("Postgres add/get/remove resourceName and datasetId - no columns") {
-    val time = System.currentTimeMillis().toString
-    val resourceName = new ResourceName("postgres name store integration test @" + time)
-    val datasetId = new DatasetId("postgres.name.store.test @" + time)
-    val record = mockDataset(resourceName, datasetId, Seq.empty[ColumnRecord])
+    val (resourceName, datasetId) = createMockDataset(Seq.empty[ColumnRecord])
 
-    store.addResource(record)
     val foundRecord = store.translateResourceName(resourceName)
     foundRecord match {
       case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, cols, _, _)) =>
@@ -44,11 +38,7 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
     }
   }
 
-  test("Postgress add/get/remove columnNames and columnIds"){
-    val time = System.currentTimeMillis().toString
-    val resourceName = new ResourceName("postgres name store column integration test @" + time)
-    val datasetId = new DatasetId("postgres.name.store.column.test @" + time)
-
+  test("Postgres add/get/remove columnNames and columnIds"){
     // TODO : Add computation strategy to one of the columns
     val columns = Seq[ColumnRecord](
       new ColumnRecord(
@@ -66,11 +56,11 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
         "column name human",
         "column desc human",
         false,
-        None)
+        None
+      )
     )
 
-    val record = mockDataset(resourceName, datasetId, columns)
-    store.addResource(record)
+    val (resourceName, datasetId) = createMockDataset(columns)
 
     val f = store.translateResourceName(resourceName)
     f match {
@@ -89,13 +79,9 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
   }
 
   test("Postgres rename field name"){
-    val time = System.currentTimeMillis().toString
-    val resourceName = new ResourceName("postgres name store column integration test @" + time)
-    val datasetId = new DatasetId("postgres.name.store.column.test @" + time)
     val columns = Seq(ColumnRecord(ColumnId("one"), ColumnName("field_name"), SoQLText, "name", "desc",false, None))
-    val record = mockDataset(resourceName, datasetId, columns)
+    val (resourceName, datasetId) = createMockDataset(columns)
 
-    store.addResource(record)
     store.updateColumnFieldName(datasetId, ColumnId("one"), ColumnName("new_field_name"))
     val f = store.translateResourceName(resourceName)
     f match {
@@ -130,8 +116,12 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
     }
   }
 
-  private def mockDataset(resourceName: ResourceName, datasetId: DatasetId, columns: Seq[ColumnRecord]) = {
-    new DatasetRecord(
+  private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetId) = {
+    val time = System.currentTimeMillis().toString
+    val resourceName = new ResourceName("postgres name store column integration test @" + time)
+    val datasetId = new DatasetId("postgres.name.store.column.test @" + time)
+
+    val record = new DatasetRecord(
       resourceName,
       datasetId,
       "human name",
@@ -142,5 +132,9 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
       columns,
       0,
       new DateTime(0))
+
+    store.addResource(record)
+
+    (resourceName, datasetId)
   }
 }
