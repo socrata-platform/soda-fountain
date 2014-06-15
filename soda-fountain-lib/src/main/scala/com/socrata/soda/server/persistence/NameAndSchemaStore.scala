@@ -6,7 +6,7 @@ import com.rojoma.json.util.AutomaticJsonCodecBuilder
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec
-import com.socrata.soda.server.wiremodels.ColumnSpec
+import com.socrata.soda.server.wiremodels.{ComputationStrategyType, ColumnSpec}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLType
 
@@ -53,7 +53,7 @@ trait ColumnRecordLike {
   val isInconsistencyResolutionGenerated: Boolean
 }
 
-case class ComputationStrategyRecord(strategyType: String, recompute: Boolean, sourceColumns: Seq[String], parameters: JObject)
+case class ComputationStrategyRecord(strategyType: ComputationStrategyType.Value, recompute: Boolean, sourceColumns: Seq[String], parameters: JObject)
 object ComputationStrategyRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[ComputationStrategyRecord]
 }

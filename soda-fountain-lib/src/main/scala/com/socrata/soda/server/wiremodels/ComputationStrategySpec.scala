@@ -1,20 +1,21 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.ast.{JObject, JValue}
-import com.rojoma.json.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
-import com.socrata.soda.server.errors.ComputationStrategySpecMaltyped
+import com.rojoma.json.ast.{JString, JObject, JValue}
+import com.rojoma.json.util.{JsonUtil, AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
+import com.socrata.soda.server.errors.{ComputationStrategySpecUnknownType, ComputationStrategySpecMaltyped}
 import com.socrata.soda.server.wiremodels.InputUtils.ExtractContext
 import scala.{collection => sc}
+import scala.util.Try
 
 @JsonKeyStrategy(Strategy.Underscore)
-case class ComputationStrategySpec(strategyType: String, recompute: Boolean, sourceColumns: Seq[String], parameters: JObject)
+case class ComputationStrategySpec(strategyType: ComputationStrategyType.Value, recompute: Boolean, sourceColumns: Seq[String], parameters: JObject)
 
 object ComputationStrategySpec {
   implicit val jsonCodec = AutomaticJsonCodecBuilder[ComputationStrategySpec]
 }
 
 
-case class UserProvidedComputationStrategySpec(strategyType: Option[String],
+case class UserProvidedComputationStrategySpec(strategyType: Option[ComputationStrategyType.Value],
                                                recompute: Option[Boolean],
                                                sourceColumns: Option[Seq[String]],
                                                parameters: Option[JObject])
@@ -39,7 +40,13 @@ object UserProvidedComputationStrategySpec extends UserProvidedSpec[UserProvided
     private def e[T : Decoder](field: String): ExtractResult[Option[T]] =
       extract[T](map, field)
 
-    def strategyType = e[String]("strategy_type")
+    def strategyType = e[String]("type") match {
+      case Extracted(Some(s)) => Try(ComputationStrategyType.withName(s)).toOption match {
+        case Some(typ) => Extracted(Some(typ))
+        case None => RequestProblem(ComputationStrategySpecUnknownType(s))
+      }
+      case _ => Extracted(None)
+    }
     def recompute = e[Boolean]("recompute")
     def sourceColumns = e[Seq[String]]("source_columns")
     def parameters = e[JObject]("parameters")

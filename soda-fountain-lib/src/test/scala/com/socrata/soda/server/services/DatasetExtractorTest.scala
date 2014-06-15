@@ -7,8 +7,6 @@ import com.rojoma.json.ast.{JString, JObject}
 import com.socrata.soda.server.wiremodels._
 
 class DatasetExtractorTest extends FunSuite with Matchers {
-  def normalizeWhitespace(fixture: String): String = CompactJsonWriter.toString(JsonReader(fixture).read())
-
   def extract(input: String) = UserProvidedDatasetSpec.fromObject(JsonUtil.parseJson[JObject](input).get)
 
   //TODO: enable these tests with a mock http request
@@ -64,17 +62,17 @@ class DatasetExtractorTest extends FunSuite with Matchers {
                          |  resource_name: "chicago_crimes",
                          |  name: "Chicago Crimes",
                          |  columns: [
-                         |    {name:"location",
-                         |    field_name:"Location",
-                         |    description:"Location of the crime",
-                         |    datatype:"point"},
-                         |    {name:"ward_id",
-                         |    field_name:"Ward ID",
-                         |    description:"Ward ID",
-                         |    datatype:"number",
+                         |    {name: "location",
+                         |    field_name: "Location",
+                         |    description: "Location of the crime",
+                         |    datatype: "point"},
+                         |    {name: "ward_id",
+                         |    field_name: "Ward ID",
+                         |    description: "Ward ID",
+                         |    datatype: "number",
                          |    computation_strategy: {
-                         |      type:"georegion",
-                         |      recompute:true,
+                         |      type: "georegion",
+                         |      recompute: true,
                          |      source_columns: ["location"],
                          |      parameters: { georegion_uid:"abcd-1234" }
                          |    }}
@@ -93,7 +91,7 @@ class DatasetExtractorTest extends FunSuite with Matchers {
         regionColumn.computationStrategy should not be (None)
 
         val compStrategy = regionColumn.computationStrategy.get
-        compStrategy.strategyType should be eq (Some("georegion"))
+        compStrategy.strategyType should be eq (Some(ComputationStrategyType.GeoRegion))
         compStrategy.recompute should equal (Some(true))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
