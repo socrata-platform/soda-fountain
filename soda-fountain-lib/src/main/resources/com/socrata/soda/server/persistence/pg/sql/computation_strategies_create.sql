@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS computation_strategies (
   column_id                             VARCHAR(64) NOT NULL,
   computation_strategy_type             VARCHAR(64) NOT NULL,
   recompute                             BOOLEAN NOT NULL,
-  source_columns                        VARCHAR(128),
-  parameters                            VARCHAR(128),
+  source_columns                        TEXT[],
+  parameters                            TEXT,
   UNIQUE (dataset_system_id, column_id),
   FOREIGN KEY (dataset_system_id, column_id) REFERENCES columns (dataset_system_id, column_id)
 );
