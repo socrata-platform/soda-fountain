@@ -1,14 +1,14 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.ast.{JString, JObject, JValue}
-import com.rojoma.json.util.{JsonUtil, AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
+import com.rojoma.json.ast.{JObject, JValue}
+import com.rojoma.json.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
 import com.socrata.soda.server.errors.{ComputationStrategySpecUnknownType, ComputationStrategySpecMaltyped}
 import com.socrata.soda.server.wiremodels.InputUtils.ExtractContext
 import scala.{collection => sc}
 import scala.util.Try
 
 @JsonKeyStrategy(Strategy.Underscore)
-case class ComputationStrategySpec(strategyType: ComputationStrategyType.Value, recompute: Boolean, sourceColumns: Seq[String], parameters: JObject)
+case class ComputationStrategySpec(strategyType: ComputationStrategyType.Value, recompute: Boolean, sourceColumns: Option[Seq[String]], parameters: Option[JObject])
 
 object ComputationStrategySpec {
   implicit val jsonCodec = AutomaticJsonCodecBuilder[ComputationStrategySpec]

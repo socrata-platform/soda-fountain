@@ -53,7 +53,7 @@ trait ColumnRecordLike {
   val isInconsistencyResolutionGenerated: Boolean
 }
 
-case class ComputationStrategyRecord(strategyType: ComputationStrategyType.Value, recompute: Boolean, sourceColumns: Seq[String], parameters: JObject)
+case class ComputationStrategyRecord(strategyType: ComputationStrategyType.Value, recompute: Boolean, sourceColumns: Option[Seq[String]], parameters: Option[JObject])
 object ComputationStrategyRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[ComputationStrategyRecord]
 }
