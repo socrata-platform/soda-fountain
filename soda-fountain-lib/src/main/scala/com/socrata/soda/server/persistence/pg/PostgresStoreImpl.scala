@@ -9,7 +9,7 @@ import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, ColumnSpec}
 import com.socrata.soql.environment.{TypeName, ColumnName}
 import com.socrata.soql.types.SoQLType
-import java.sql.{Connection, ResultSet, Timestamp}
+import java.sql.{Connection, ResultSet, Timestamp, Types}
 import javax.sql.DataSource
 import org.joda.time.DateTime
 import scala.util.Try
@@ -295,20 +295,63 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def addColumns(connection: Connection, datasetId: DatasetId, columns: TraversableOnce[ColumnRecord]) {
     if(columns.nonEmpty) {
-      using(connection.prepareStatement("insert into columns (dataset_system_id, column_name_casefolded, column_name, column_id, name, description, type_name, is_inconsistency_resolution_generated) values (?, ?, ?, ?, ?, ?, ?, ?)")) { colAdder =>
-        for(cspec <- columns) {
+      val addColumnSql =
+        """INSERT INTO columns
+          |   (dataset_system_id,
+          |    column_name_casefolded,
+          |    column_name,
+          |    column_id,
+          |    name,
+          |    description,
+          |    type_name,
+          |    is_inconsistency_resolution_generated)
+          | VALUES (?, ?, ?, ?, ?, ?, ?, ?)""".stripMargin
+
+      using(connection.prepareStatement(addColumnSql)) { colAdder =>
+        for(crec <- columns) {
           log.info("TODO: Ensure the names will fit in the space available")
           colAdder.setString(1, datasetId.underlying)
-          colAdder.setString(2, cspec.fieldName.caseFolded)
-          colAdder.setString(3, cspec.fieldName.name)
-          colAdder.setString(4, cspec.id.underlying)
-          colAdder.setString(5, cspec.name)
-          colAdder.setString(6, cspec.description)
-          colAdder.setString(7, cspec.typ.name.name)
-          colAdder.setBoolean(8, cspec.isInconsistencyResolutionGenerated)
-          colAdder.addBatch()
+          colAdder.setString(2, crec.fieldName.caseFolded)
+          colAdder.setString(3, crec.fieldName.name)
+          colAdder.setString(4, crec.id.underlying)
+          colAdder.setString(5, crec.name)
+          colAdder.setString(6, crec.description)
+          colAdder.setString(7, crec.typ.name.name)
+          colAdder.setBoolean(8, crec.isInconsistencyResolutionGenerated)
+          colAdder.addBatch
         }
-        colAdder.executeBatch()
+        colAdder.executeBatch
+      }
+
+      val addCompStrategySql =
+        """INSERT INTO computation_strategies
+          |   (dataset_system_id,
+          |    column_id,
+          |    computation_strategy_type,
+          |    recompute,
+          |    source_columns,
+          |    parameters)
+          | VALUES (?, ?, ?, ?, ?, ?)""".stripMargin
+
+      using (connection.prepareStatement(addCompStrategySql)) { csAdder =>
+        for (crec <- columns.filter(col => col.computationStrategy.isDefined)) {
+          val cs = crec.computationStrategy.get
+          csAdder.setString(1, datasetId.underlying)
+          csAdder.setString(2, crec.id.underlying)
+          csAdder.setString(3, cs.strategyType.toString)
+          csAdder.setBoolean(4, cs.recompute)
+          cs.sourceColumns match {
+            case Some(seq) => csAdder.setArray(5, connection.createArrayOf("text", seq.toArray))
+            case None      => csAdder.setNull(5, Types.ARRAY)
+          }
+          cs.parameters match {
+            case Some(jObj) => csAdder.setString(6, jObj.toString)
+            case None       => csAdder.setNull(6, Types.VARCHAR)
+          }
+          csAdder.addBatch
+        }
+
+        csAdder.executeBatch
       }
     }
   }
@@ -343,6 +386,10 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         }
       }
       for(datasetId <- datasetIdOpt) {
+        using(connection.prepareStatement("delete from computation_strategies where dataset_system_id = ?")) { deleter =>
+          deleter.setString(1, datasetId.underlying)
+          deleter.execute()
+        }
         using(connection.prepareStatement("delete from columns where dataset_system_id = ?")) { deleter =>
           deleter.setString(1, datasetId.underlying)
           deleter.execute()
@@ -401,6 +448,12 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit = {
     using(dataSource.getConnection) { conn =>
+      using(conn.prepareStatement("DELETE FROM computation_strategies WHERE dataset_system_id = ? AND column_id = ?")) { stmt =>
+        stmt.setString(1, datasetId.underlying)
+        stmt.setString(2, columnId.underlying)
+        stmt.execute()
+        updateSchemaHash(conn, datasetId)
+      }
       using(conn.prepareStatement("DELETE FROM columns WHERE dataset_system_id = ? AND column_id = ?")) { stmt =>
         stmt.setString(1, datasetId.underlying)
         stmt.setString(2, columnId.underlying)

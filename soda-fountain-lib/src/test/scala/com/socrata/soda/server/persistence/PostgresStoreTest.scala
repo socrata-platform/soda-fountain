@@ -1,11 +1,13 @@
 package com.socrata.soda.server.persistence
 
+import com.rojoma.json.ast.{JString, JObject}
 import com.rojoma.simplearm.util._
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.SoQLText
+import com.socrata.soda.server.wiremodels.ComputationStrategyType
+import com.socrata.soql.types.{SoQLType, SoQLText}
 import com.typesafe.config.ConfigFactory
 import java.sql.DriverManager
 import org.joda.time.DateTime
@@ -39,7 +41,6 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
   }
 
   test("Postgres add/get/remove columnNames and columnIds"){
-    // TODO : Add computation strategy to one of the columns
     val columns = Seq[ColumnRecord](
       new ColumnRecord(
         ColumnId("abc123"),
@@ -60,7 +61,7 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
       )
     )
 
-    val (resourceName, datasetId) = createMockDataset(columns)
+    val (resourceName, _) = createMockDataset(columns)
 
     val f = store.translateResourceName(resourceName)
     f match {
@@ -90,6 +91,42 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
         columnId should be (ColumnId("one"))
         columnName should be (ColumnName("new_field_name"))
       case None => fail("didn't find columns")
+    }
+  }
+
+  test("Postgres validate column storage and retrieval") {
+    val columns = Seq[ColumnRecord](
+      new ColumnRecord(
+        ColumnId("abc123"),
+        ColumnName("location"),
+        SoQLText,
+        "Location",
+        "Lat/long of the crime",
+        false,
+        None),
+      new ColumnRecord(
+        ColumnId("def456"),
+        ColumnName("ward"),
+        SoQLText,
+        "Ward",
+        "Ward where the crime took place",
+        false,
+        Some(ComputationStrategyRecord(
+          ComputationStrategyType.GeoRegion,
+          true,
+          Some(Seq("abc123")),
+          Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))
+        ))
+      )
+    )
+
+    val (resourceName, datasetId) = createMockDataset(columns)
+    val lookupResult = store.lookupDataset(resourceName)
+    lookupResult should not be (None)
+    lookupResult.get.columns.size should be (2)
+
+    for (i <- 0 to lookupResult.get.columns.size - 1) {
+      lookupResult.get.columns(i) should equal (columns(i))
     }
   }
 
