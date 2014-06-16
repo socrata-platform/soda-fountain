@@ -1,7 +1,8 @@
 package com.socrata.soda.server.wiremodels
 
-import com.socrata.soql.types._
 import com.rojoma.json.io.CompactJsonWriter
+import com.socrata.soql.types._
+import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point}
 
 trait CsvColumnWriteRep {
   def toString(value: SoQLValue): String
@@ -104,22 +105,10 @@ object CsvColumnRep {
       else CompactJsonWriter.toString(value.asInstanceOf[SoQLJson].value)
   }
 
-  object PointValueRep extends CsvColumnRep {
+  class GeometryLikeRep[T <: Geometry](repType: SoQLType, geometry: SoQLValue => T) extends CsvColumnRep {
     def toString(value: SoQLValue) =
-      if(SoQLNull == value) null
-      else SoQLPoint.JsonRep(value.asInstanceOf[SoQLPoint].value)
-  }
-
-  object MultiLineValueRep extends CsvColumnRep {
-    def toString(value: SoQLValue) =
-      if(SoQLNull == value) null
-      else SoQLMultiLine.JsonRep(value.asInstanceOf[SoQLMultiLine].value)
-  }
-
-  object MultiPolygonValueRep extends CsvColumnRep {
-    def toString(value: SoQLValue) =
-      if(SoQLNull == value) null
-      else SoQLMultiPolygon.JsonRep(value.asInstanceOf[SoQLMultiPolygon].value)
+      if (SoQLNull == value) null
+      else repType.asInstanceOf[SoQLGeometryLike[T]].WktRep(geometry(value))
   }
 
   val forType: Map[SoQLType, CsvColumnRep] = Map(
@@ -138,8 +127,8 @@ object CsvColumnRep {
     SoQLObject -> ObjectRep,
     SoQLArray -> ArrayRep,
     SoQLJson -> JValueRep,
-    SoQLPoint -> PointValueRep,
-    SoQLMultiLine -> MultiLineValueRep,
-    SoQLMultiPolygon -> MultiPolygonValueRep
+    SoQLPoint -> new GeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value),
+    SoQLMultiLine -> new GeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value),
+    SoQLMultiPolygon -> new GeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value)
   )
 }
