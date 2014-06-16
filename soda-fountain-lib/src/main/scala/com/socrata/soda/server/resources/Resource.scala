@@ -1,5 +1,6 @@
 package com.socrata.soda.server.resources
 
+import com.rojoma.json.ast.JValue
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.ContentNegotiation
@@ -157,18 +158,19 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
     }
 
     override def post = { req => response =>
-      InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
-        case Right(boundedIt) =>
-          rowDAO.upsert(user(req), resourceName.value, boundedIt)(upsertResponse(req, response))
-        case Left(err) =>
-          SodaUtils.errorResponse(req, err, resourceName.value)(response)
-      }
+      upsertishFlow(req, response, rowDAO.upsert)
     }
 
     override def put = { req => response =>
+      upsertishFlow(req, response, rowDAO.replace)
+    }
+
+    type rowDaoFunc = (String, ResourceName, Iterator[JValue]) => (RowDAO.UpsertResult => Unit) => Unit
+
+    private def upsertishFlow(req: HttpServletRequest, response: HttpServletResponse, f: rowDaoFunc) {
       InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
-          rowDAO.replace(user(req), resourceName.value, boundedIt)(upsertResponse(req, response))
+          f(user(req), resourceName.value, boundedIt)(upsertResponse(req, response))
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName.value)(response)
       }
