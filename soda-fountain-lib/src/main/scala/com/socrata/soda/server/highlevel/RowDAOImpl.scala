@@ -1,33 +1,20 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.id.ResourceName
-import com.socrata.soda.server.highlevel.RowDAO._
-import com.socrata.soda.server.persistence.{DatasetRecord, ColumnRecordLike, DatasetRecordLike, NameAndSchemaStore}
-import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
-import com.socrata.soda.clients.datacoordinator._
 import com.rojoma.json.ast._
+import com.socrata.http.server.util.{NoPrecondition, StrongEntityTag, Precondition}
+import com.socrata.soda.clients.datacoordinator._
+import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
+import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
+import com.socrata.soda.server.highlevel.RowDAO._
+import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.RowSpecifier
+import com.socrata.soda.server.persistence.{DatasetRecord, ColumnRecordLike, DatasetRecordLike, NameAndSchemaStore}
+import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLType
-import com.socrata.soda.server.wiremodels._
-import com.socrata.soda.clients.datacoordinator.UpsertRow
-import scala.Some
-import com.socrata.soda.server.highlevel.RowDAO.DatasetNotFound
-import com.socrata.soda.server.highlevel.RowDAO.QuerySuccess
-import com.rojoma.json.ast.JString
-import com.socrata.soda.server.highlevel.RowDAO.RowNotFound
-import com.socrata.soda.server.id.RowSpecifier
-import com.socrata.soda.server.highlevel.RowDAO.StreamSuccess
-import com.socrata.soda.server.highlevel.RowDAO.UnknownColumn
-import com.socrata.soda.server.highlevel.RowDAO.RowNotAnObject
-import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
-import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
-import com.socrata.soda.clients.datacoordinator.DeleteRow
-import com.socrata.soda.clients.datacoordinator.RowUpdateOptionChange
-import com.socrata.http.server.util.{NoPrecondition, StrongEntityTag, Precondition}
 import java.nio.charset.StandardCharsets
-import com.socrata.http.server.util.Precondition
-import org.joda.time.format.ISODateTimeFormat
 import org.joda.time.DateTime
+import org.joda.time.format.ISODateTimeFormat
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
 
