@@ -7,8 +7,20 @@ import com.socrata.soda.server.wiremodels.InputUtils.ExtractContext
 import scala.{collection => sc}
 import scala.util.Try
 
+
+/**
+ * Defines how the value for a computed column is derived
+ * @param strategyType Strategy used to compute the column value
+ * @param recompute Whether the value should be recomputed every time the source columns are updated
+ * @param sourceColumns Other columns in the dataset needed to compute the column value
+ * @param parameters Additional custom parameters (expected contents depend on strategy type)
+ */
 @JsonKeyStrategy(Strategy.Underscore)
-case class ComputationStrategySpec(strategyType: ComputationStrategyType.Value, recompute: Boolean, sourceColumns: Option[Seq[String]], parameters: Option[JObject])
+case class ComputationStrategySpec(
+  strategyType: ComputationStrategyType.Value,
+  recompute: Boolean,
+  sourceColumns: Option[Seq[String]],
+  parameters: Option[JObject])
 
 object ComputationStrategySpec {
   implicit val jsonCodec = AutomaticJsonCodecBuilder[ComputationStrategySpec]

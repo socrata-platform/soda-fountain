@@ -53,31 +53,73 @@ trait ColumnRecordLike {
   val isInconsistencyResolutionGenerated: Boolean
 }
 
-case class ComputationStrategyRecord(strategyType: ComputationStrategyType.Value, recompute: Boolean, sourceColumns: Option[Seq[String]], parameters: Option[JObject])
+case class ComputationStrategyRecord(
+   strategyType: ComputationStrategyType.Value,
+   recompute: Boolean,
+   sourceColumns: Option[Seq[String]],
+   parameters: Option[JObject])
+
 object ComputationStrategyRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[ComputationStrategyRecord]
 }
 
 // A minimal dataset record is a dataset record minus the name and description columns,
 // which are unnecessary for most operations.
-case class MinimalColumnRecord(id: ColumnId, fieldName: ColumnName, typ: SoQLType, isInconsistencyResolutionGenerated: Boolean) extends ColumnRecordLike
+case class MinimalColumnRecord(
+  id: ColumnId,
+  fieldName: ColumnName,
+  typ: SoQLType,
+  isInconsistencyResolutionGenerated: Boolean)
+    extends ColumnRecordLike
+
 object MinimalColumnRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[MinimalColumnRecord]
 }
-case class MinimalDatasetRecord(resourceName: ResourceName, systemId: DatasetId, locale: String, schemaHash: String, primaryKey: ColumnId, columns: Seq[MinimalColumnRecord], truthVersion: Long, lastModified: DateTime) extends DatasetRecordLike {
+case class MinimalDatasetRecord(
+  resourceName: ResourceName,
+  systemId: DatasetId,
+  locale: String,
+  schemaHash: String,
+  primaryKey: ColumnId,
+  columns: Seq[MinimalColumnRecord],
+  truthVersion: Long,
+  lastModified: DateTime)
+    extends DatasetRecordLike {
   type ColumnRecordT = MinimalColumnRecord
 }
 object MinimalDatasetRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[MinimalDatasetRecord]
 }
 
-case class ColumnRecord(id: ColumnId, fieldName: ColumnName, typ: SoQLType, name: String, description: String, isInconsistencyResolutionGenerated: Boolean, computationStrategy: Option[ComputationStrategyRecord]) extends ColumnRecordLike
+case class ColumnRecord(
+  id: ColumnId,
+  fieldName: ColumnName,
+  typ: SoQLType,
+  name: String,
+  description: String,
+  isInconsistencyResolutionGenerated: Boolean,
+  computationStrategy: Option[ComputationStrategyRecord])
+    extends ColumnRecordLike
+
 object ColumnRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[ColumnRecord]
 }
-case class DatasetRecord(resourceName: ResourceName, systemId: DatasetId, name: String, description: String, locale: String, schemaHash: String, primaryKey: ColumnId, columns: Seq[ColumnRecord], truthVersion: Long, lastModified: DateTime) extends DatasetRecordLike {
+
+case class DatasetRecord(
+  resourceName: ResourceName,
+  systemId: DatasetId,
+  name: String,
+  description: String,
+  locale: String,
+  schemaHash: String,
+  primaryKey: ColumnId,
+  columns: Seq[ColumnRecord],
+  truthVersion: Long,
+  lastModified: DateTime)
+    extends DatasetRecordLike {
   type ColumnRecordT = ColumnRecord
 }
+
 object DatasetRecord {
   implicit val jCodec = AutomaticJsonCodecBuilder[DatasetRecord]
 }
