@@ -3,6 +3,7 @@ package com.socrata.soda.server.persistence.pg
 import com.rojoma.json.ast.JObject
 import com.rojoma.json.io.JsonReader
 import com.rojoma.simplearm.util._
+import com.socrata.soda.server.highlevel.csrec
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
@@ -404,8 +405,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def addColumn(datasetId: DatasetId, spec: ColumnSpec): ColumnRecord =
     using(dataSource.getConnection()) { conn =>
-      // TODO : Add computationStrategy once it's implemented in ColumnSpec
-      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, None)
+      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
       addColumns(conn, datasetId, Iterator.single(result))
       updateSchemaHash(conn, datasetId)
       result

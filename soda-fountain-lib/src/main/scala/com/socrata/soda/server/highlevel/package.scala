@@ -17,7 +17,7 @@ package object highlevel {
         __underlying.name,
         __underlying.description,
         isInconsistencyResolutionGenerated = false,
-        None // TODO : Replace once computationStrategy is added to ColumnSpec
+        __underlying.computationStrategy.asRecord
       )
   }
 
@@ -28,7 +28,8 @@ package object highlevel {
         __underlying.fieldName,
         __underlying.name,
         __underlying.description,
-        __underlying.typ
+        __underlying.typ,
+        __underlying.computationStrategy.asSpec
       )
   }
 
