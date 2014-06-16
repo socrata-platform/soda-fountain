@@ -15,6 +15,8 @@ import javax.sql.DataSource
 import org.joda.time.DateTime
 import scala.util.Try
 
+case class SodaFountainStoreError(message: String) extends Exception(message)
+
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[PostgresStoreImpl])
 
@@ -270,7 +272,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         // I don't really like just throwing an exception here, but that seems
         // to be how Soda Fountain deals with unexpected situations currently.
         // It seems better than failing silently.
-        case None         => throw new Exception(s"Invalid computation strategy type found in database: '$s'")
+        case None         => throw new SodaFountainStoreError(s"Invalid computation strategy type found in database: '$s'")
       }
       // Assume that this is not a computed column if no type is specified
       case null      => return None
@@ -283,15 +285,12 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       case _                   => None
     }
 
-    val parameters = rs.getString("parameters") match {
-      case s: String => JsonReader.fromString(s) match {
-        case jobj: JObject => Some(jobj)
-        case _             => throw new Exception("Computation strategy source columns could not be parsed")
-      }
-      case null      => None
+    val parameters = Option(rs.getString("parameters")).map(JsonReader.fromString(_))
+    parameters.filterNot(_.isInstanceOf[JObject]).foreach { x =>
+      throw new SodaFountainStoreError("Computation strategy source columns could not be parsed")
     }
 
-    Some(ComputationStrategyRecord(strategyType, recompute, sourceColumns, parameters))
+    Some(ComputationStrategyRecord(strategyType, recompute, sourceColumns, parameters.map(_.asInstanceOf[JObject])))
   }
 
   def addColumns(connection: Connection, datasetId: DatasetId, columns: TraversableOnce[ColumnRecord]) {

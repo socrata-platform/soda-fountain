@@ -65,6 +65,8 @@ object UserProvidedDatasetSpec extends UserProvidedSpec[UserProvidedDatasetSpec]
     }
   }
 
+  // Using this class instead of AutomaticJsonCodecBuilder allows us to
+  // return a specific SodaError citing what part of the extraction failed.
   private class DatasetExtractor(map: sc.Map[String, JValue]) {
     val context = new ExtractContext(DatasetSpecMaltyped)
     import context._

@@ -33,6 +33,8 @@ object UserProvidedComputationStrategySpec extends UserProvidedSpec[UserProvided
     }
   }
 
+  // Using this class instead of AutomaticJsonCodecBuilder allows us to
+  // return a specific SodaError citing what part of the extraction failed.
   class ComputationStrategyExtractor(map: sc.Map[String, JValue]) {
     val context = new ExtractContext(ComputationStrategySpecMaltyped)
     import context._

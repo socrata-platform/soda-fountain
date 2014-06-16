@@ -17,7 +17,7 @@ case class ColumnSpec(id: ColumnId,
                       name:String,
                       description:String,
                       datatype: SoQLType,
-                      computationStrategy: Option[ComputationStrategySpec])
+                      computationStrategy: Option[ComputationStrategySpec] = None)
 
 object ColumnSpec {
   implicit val jsonCodec = AutomaticJsonCodecBuilder[ColumnSpec]
@@ -50,6 +50,8 @@ object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
     }
   }
 
+  // Using this class instead of AutomaticJsonCodecBuilder allows us to
+  // return a specific SodaError citing what part of the extraction failed.
   class ColumnExtractor(map: sc.Map[String, JValue]) {
     val context = new ExtractContext(ColumnSpecMaltyped)
     import context._
@@ -64,7 +66,7 @@ object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
       case Some(typeName) =>
         SoQLType.typesByName.get(typeName) match {
           case Some(typ) => Extracted(Some(typ))
-          case None => RequestProblem(ColumnSpecUnknownType(typeName))
+          case None      => RequestProblem(ColumnSpecUnknownType(typeName))
         }
       case None =>
         Extracted(None)

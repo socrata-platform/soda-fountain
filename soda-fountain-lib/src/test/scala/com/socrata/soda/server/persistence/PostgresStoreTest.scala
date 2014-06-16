@@ -1,25 +1,14 @@
 package com.socrata.soda.server.persistence
 
 import com.rojoma.json.ast.{JString, JObject}
-import com.rojoma.simplearm.util._
-import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
-import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
-import com.socrata.soql.types.{SoQLType, SoQLText}
-import com.typesafe.config.ConfigFactory
-import java.sql.DriverManager
+import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText}
 import org.joda.time.DateTime
-import org.scalatest.{ShouldMatchers, BeforeAndAfterAll, FunSuite}
+import org.scalatest.{ShouldMatchers, FunSuite}
 
-class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfterAll {
-  lazy val config = new SodaFountainConfig(ConfigFactory.load())
-  lazy val store = new PostgresStoreImpl(DataSourceFromConfig(config.database))
-
-  override def beforeAll = {
-    setupDatabase(config.database.database)
-  }
+class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers {
 
   test("Postgres add/get/remove resourceName and datasetId - no columns") {
     val (resourceName, datasetId) = createMockDataset(Seq.empty[ColumnRecord])
@@ -99,15 +88,15 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
       new ColumnRecord(
         ColumnId("abc123"),
         ColumnName("location"),
-        SoQLText,
+        SoQLPoint,
         "Location",
-        "Lat/long of the crime",
+        "Point representing location of the crime",
         false,
         None),
       new ColumnRecord(
         ColumnId("def456"),
         ColumnName("ward"),
-        SoQLText,
+        SoQLNumber,
         "Ward",
         "Ward where the crime took place",
         false,
@@ -127,29 +116,6 @@ class PostgresStoreTest extends FunSuite with ShouldMatchers with BeforeAndAfter
 
     for (i <- 0 to lookupResult.get.columns.size - 1) {
       lookupResult.get.columns(i) should equal (columns(i))
-    }
-  }
-
-  private def setupDatabase(dbName: String) {
-    synchronized {
-      try {
-        Class.forName("org.postgresql.Driver").newInstance()
-      } catch {
-        case ex: ClassNotFoundException => throw ex
-      }
-      using(DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres", "blist", "blist")) {
-        conn =>
-          conn.setAutoCommit(true)
-          val sql = s"drop database if exists $dbName; create database $dbName;"
-          using(conn.createStatement()) {
-            stmt =>
-              stmt.execute(sql)
-          }
-      }
-      using(DriverManager.getConnection(s"jdbc:postgresql://localhost:5432/$dbName", "blist", "blist")) {
-        conn =>
-          com.socrata.soda.server.persistence.pg.Migration.migrateDb(conn)
-      }
     }
   }
 
