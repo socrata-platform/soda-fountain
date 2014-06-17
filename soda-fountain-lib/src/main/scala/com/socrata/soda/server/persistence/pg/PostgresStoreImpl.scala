@@ -211,7 +211,21 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def fetchMinimalColumns(conn: Connection, datasetId: DatasetId): Seq[MinimalColumnRecord] = {
-    using(conn.prepareStatement("select column_name, column_id, type_name, is_inconsistency_resolution_generated from columns where dataset_system_id = ?")) { colQuery =>
+    val sql =
+      """SELECT c.column_name,
+        |       c.column_id,
+        |       c.type_name,
+        |       c.is_inconsistency_resolution_generated,
+        |       cs.computation_strategy_type,
+        |       cs.recompute,
+        |       cs.source_columns,
+        |       cs.parameters
+        | FROM columns c
+        | LEFT JOIN computation_strategies cs
+        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id
+        | WHERE c.dataset_system_id = ?""".stripMargin
+
+    using(conn.prepareStatement(sql)) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
       using(colQuery.executeQuery()) { rs =>
         val result = Vector.newBuilder[MinimalColumnRecord]
@@ -220,7 +234,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             ColumnId(rs.getString("column_id")),
             new ColumnName(rs.getString("column_name")),
             SoQLType.typesByName(TypeName(rs.getString("type_name"))),
-            rs.getBoolean("is_inconsistency_resolution_generated")
+            rs.getBoolean("is_inconsistency_resolution_generated"),
+            extractComputationStrategy(rs)
           )
         }
         result.result()

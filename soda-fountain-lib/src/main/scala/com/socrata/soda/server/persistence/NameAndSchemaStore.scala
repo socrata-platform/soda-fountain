@@ -51,6 +51,7 @@ trait ColumnRecordLike {
   val fieldName: ColumnName
   val typ: SoQLType
   val isInconsistencyResolutionGenerated: Boolean
+  val computationStrategy: Option[ComputationStrategyRecord]
 }
 
 case class ComputationStrategyRecord(
@@ -69,7 +70,8 @@ case class MinimalColumnRecord(
   id: ColumnId,
   fieldName: ColumnName,
   typ: SoQLType,
-  isInconsistencyResolutionGenerated: Boolean)
+  isInconsistencyResolutionGenerated: Boolean,
+  computationStrategy: Option[ComputationStrategyRecord])
     extends ColumnRecordLike
 
 object MinimalColumnRecord {

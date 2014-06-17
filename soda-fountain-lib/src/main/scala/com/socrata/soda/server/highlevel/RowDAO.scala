@@ -29,6 +29,7 @@ object RowDAO {
   case class RowNotFound(specifier: RowSpecifier) extends Result with UpsertResult
   case class StreamSuccess(report: Iterator[ReportItem]) extends UpsertResult
   case class DatasetNotFound(dataset: ResourceName) extends Result with UpsertResult
+  case class ComputedColumnNotWritable(column: ColumnName) extends UpsertResult
   case class UnknownColumn(column: ColumnName) extends UpsertResult
   case object DeleteWithoutPrimaryKey extends UpsertResult
   case class InvalidRequest(status: Int, body: JValue) extends Result

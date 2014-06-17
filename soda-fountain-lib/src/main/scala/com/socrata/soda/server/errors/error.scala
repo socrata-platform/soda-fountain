@@ -107,3 +107,6 @@ case class RowColumnNotFound(value: ColumnName)
   extends SodaError(SC_BAD_REQUEST, "soda.row.column-not-found",
     "value" -> JString(value.name))
 
+case class ComputedColumnNotWritable(value: ColumnName)
+  extends SodaError(SC_BAD_REQUEST, "soda.row.computed-column-not-writable",
+    "value" -> JString(value.name))
