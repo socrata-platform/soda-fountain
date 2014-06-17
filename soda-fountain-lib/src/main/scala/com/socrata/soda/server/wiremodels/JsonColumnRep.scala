@@ -7,6 +7,7 @@ import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
 import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point}
 import java.io.IOException
+import scala.util.Try
 
 trait JsonColumnCommonRep {
   val representedType: SoQLType
@@ -202,7 +203,7 @@ object JsonColumnRep {
         case _ => {
           // TODO : Make this more efficient by being able to convert directly between GeoTools object and JValue
           val geometry = try { fromJson(CompactJsonWriter.toString(input)) } catch { case e: IOException => None }
-          geometry.map { geom => value(geom) }
+          Try(geometry.map { geom => value(geom) }).getOrElse(None)
         }
       }
     }
