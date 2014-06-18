@@ -22,10 +22,13 @@ object SodaFountainLib {
       "org.apache.curator"  % "curator-x-discovery"      % "2.4.2",
       "org.liquibase"       % "liquibase-core"           % "2.0.0",
       "org.liquibase"       % "liquibase-plugin"         % "1.9.5.0",
+      "org.scalaj"         %% "scalaj-http"              % "0.3.15",
       "postgresql"          % "postgresql"               % "9.1-901-1.jdbc4",
 
       "org.scalacheck"     %% "scalacheck"               % "1.10.0" % "test,it",
-      "org.scalatest"      %% "scalatest"                % "1.9.1" % "test,it"
+      "org.scalatest"      %% "scalatest"                % "1.9.1"  % "test,it",
+      "org.mock-server"     % "mockserver-netty"         % "3.0"    % "test"
+          exclude("ch.qos.logback", "logback-classic")
     )
   )
 

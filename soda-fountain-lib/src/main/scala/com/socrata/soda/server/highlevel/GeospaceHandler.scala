@@ -1,12 +1,16 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.ast.{JValue, JObject, JString}
+import com.rojoma.json.ast.{JValue, JObject, JString, JArray, JNumber}
+import com.rojoma.json.codec.JsonCodec
+import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLPoint
 import com.typesafe.config.{Config, ConfigFactory}
+import org.slf4j.LoggerFactory
 import scala.util.Try
+import scalaj.http.Http
 
 /**
  * A [[ComputationHandler]] for mapping points (or lat/long pairs) to geo features (point-in-polygon)
@@ -33,13 +37,13 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
   val geospaceHost = Try(config.getString("host")).getOrElse("localhost")
   val geospacePort = Try(config.getInt("port")).getOrElse(2020)
   val batchSize    = Try(config.getInt("batch-size")).getOrElse(200)
-  val fakeCoder    = Try(config.getBoolean("fake-coder")).getOrElse(false)
 
-  val pointRep = JsonColumnRep.forClientType(SoQLPoint)
+  private val urlPrefix = s"http://${geospaceHost}:${geospacePort}/experimental"
+  private val logger = LoggerFactory.getLogger(getClass)
 
   case class Point(x: Double, y: Double)
 
-  private val coder = if (fakeCoder) fakeRegionCoder(_) else geospaceRegionCoder(_)
+  private val pointRep = JsonColumnRep.forClientType(SoQLPoint)
 
   /**
    * A single-threaded (for now) geo-region-coding handler.  Batches and sends out the points
@@ -65,7 +69,7 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
       }
 
       // Now convert points to feature IDs, and splice IDs back into rows
-      val featureIds = coder(points)
+      val featureIds = geospaceRegionCoder(points, "TODO")
       rows.zip(featureIds).map { case (JObject(rowmap), featureId) =>
         JObject(rowmap + (column.fieldName.name -> JString(featureId)))
       }.toIterator
@@ -87,9 +91,30 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
     }
   }
 
-  // Strictly for testing.  Inputs just get serialized.
-  private def fakeRegionCoder(points: Seq[Point]): Seq[String] =
-    points.map { case Point(x, y) => s"$x/$y" }
+  private def geospaceRegionCoder(points: Seq[Point], region: String): Seq[String] = {
+    val url = urlPrefix + s"/regions/$region/geocode"
+    logger.debug("HTTP POST [{}] with {} points...", url, points.length)
 
-  private def geospaceRegionCoder(points: Seq[Point]): Seq[String] = ???
+    val jsonPoints = points.map { case Point(x, y) => JArray(Seq(JNumber(x), JNumber(y))) }
+    val (status, _, response) = try {
+        Http.postData(url, CompactJsonWriter.toString(JArray(jsonPoints))).
+             header("content-type", "application/json").
+             asHeadersAndParse(Http.readString)
+      } catch {
+        case e: scalaj.http.HttpException =>
+          logger.error("HTTP Error: ", e)
+          throw ComputationEx("HTTP Error reading " + url, Some(e))
+      }
+
+    logger.debug("Got back status {}, response [{}]", status, response)
+    status match {
+      case 200 =>
+        JsonCodec[Seq[String]].decode(JsonReader.fromString(response)).
+          getOrElse(throw ComputationEx("Error parsing JSON response: " + response, None))
+      case sc  =>
+        val errorMessage = s"Error: HTTP [$url] got response code $sc, body $response"
+        logger.error(errorMessage)
+        throw ComputationEx(errorMessage, None)
+    }
+  }
 }
