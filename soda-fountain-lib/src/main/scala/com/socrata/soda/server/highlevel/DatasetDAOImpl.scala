@@ -146,7 +146,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           datasetRecord.columnsById(datasetRecord.primaryKey).fieldName,
           datasetRecord.locale,
           datasetRecord.columnsByName.mapValues { cr =>
-            ColumnSpec(cr.id, cr.fieldName, cr.name, cr.description, cr.typ)
+            ColumnSpec(cr.id, cr.fieldName, cr.name, cr.description, cr.typ, cr.computationStrategy.asSpec)
           })
         Found(spec)
       case None =>
@@ -234,10 +234,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     }
 
   private[this] val _systemColumns = Map(
-    ColumnName(":id") -> ColumnSpec(ColumnId(":id"), ColumnName(":id"), ":id", "", SoQLID),
-    ColumnName(":version") -> ColumnSpec(ColumnId(":version"), ColumnName(":version"), ":version", "", SoQLVersion),
-    ColumnName(":created_at") -> ColumnSpec(ColumnId(":created_at"), ColumnName(":created_at"), ":created_at", "", SoQLFixedTimestamp),
-    ColumnName(":updated_at") -> ColumnSpec(ColumnId(":updated_at"), ColumnName(":updated_at"), ":updated_at", "", SoQLFixedTimestamp)
+    ColumnName(":id") -> ColumnSpec(ColumnId(":id"), ColumnName(":id"), ":id", "", SoQLID, None),
+    ColumnName(":version") -> ColumnSpec(ColumnId(":version"), ColumnName(":version"), ":version", "", SoQLVersion, None),
+    ColumnName(":created_at") -> ColumnSpec(ColumnId(":created_at"), ColumnName(":created_at"), ":created_at", "", SoQLFixedTimestamp, None),
+    ColumnName(":updated_at") -> ColumnSpec(ColumnId(":updated_at"), ColumnName(":updated_at"), ":updated_at", "", SoQLFixedTimestamp, None)
   )
 
   private[this] def systemColumns = {

@@ -73,6 +73,16 @@ case class ColumnSpecMaltyped(field: String, expected: String, got: JValue)
     "expected" -> JString(expected),
     "got" -> got)
 
+case class ComputationStrategySpecMaltyped(field: String, expected: String, got: JValue)
+  extends SodaError("soda.column_computation_strategy.maltyped",
+    "field" -> JString(field),
+    "expected" -> JString(expected),
+    "got" -> got)
+
+case class ComputationStrategySpecUnknownType(typ: String)
+  extends SodaError("soda.computation-strategy.unknown-type",
+    "type" -> JString(typ))
+
 case class NonUniqueRowId(column: String)
   extends SodaError("soda.column.not-unique",
     "column" -> JString(column)
@@ -97,3 +107,6 @@ case class RowColumnNotFound(value: ColumnName)
   extends SodaError(SC_BAD_REQUEST, "soda.row.column-not-found",
     "value" -> JString(value.name))
 
+case class ComputedColumnNotWritable(value: ColumnName)
+  extends SodaError(SC_BAD_REQUEST, "soda.row.computed-column-not-writable",
+    "value" -> JString(value.name))

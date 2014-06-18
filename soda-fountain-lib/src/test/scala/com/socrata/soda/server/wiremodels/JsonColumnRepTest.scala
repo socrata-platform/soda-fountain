@@ -1,7 +1,6 @@
 package com.socrata.soda.server.wiremodels
 
-import org.scalatest.{Assertions, FunSuite}
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.{Assertions, FunSuite, MustMatchers}
 import com.socrata.soql.types._
 import com.rojoma.json.ast._
 import com.rojoma.json.ast.JString

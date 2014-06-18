@@ -1,7 +1,7 @@
 package com.socrata.soda.server
 
-import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec}
-import com.socrata.soda.server.persistence.{ColumnRecordLike, ColumnRecord, DatasetRecord}
+import com.socrata.soda.server.wiremodels.{ComputationStrategySpec, ColumnSpec, DatasetSpec}
+import com.socrata.soda.server.persistence.{ColumnRecordLike, ColumnRecord, ComputationStrategyRecord, DatasetRecord}
 import com.socrata.soda.server.id.{ColumnId, DatasetId}
 import com.socrata.soda.server.util.schema.SchemaHash
 import org.joda.time.DateTime
@@ -16,7 +16,8 @@ package object highlevel {
         __underlying.datatype,
         __underlying.name,
         __underlying.description,
-        isInconsistencyResolutionGenerated = false
+        isInconsistencyResolutionGenerated = false,
+        __underlying.computationStrategy.asRecord
       )
   }
 
@@ -27,8 +28,21 @@ package object highlevel {
         __underlying.fieldName,
         __underlying.name,
         __underlying.description,
-        __underlying.typ
+        __underlying.typ,
+        __underlying.computationStrategy.asSpec
       )
+  }
+
+  implicit class csrec(val __underlying: Option[ComputationStrategySpec]) extends AnyVal {
+    def asRecord: Option[ComputationStrategyRecord] = __underlying.map { css =>
+      ComputationStrategyRecord(css.strategyType, css.recompute, css.sourceColumns, css.parameters)
+    }
+  }
+
+  implicit class csspec(val __underlying: Option[ComputationStrategyRecord]) extends AnyVal {
+    def asSpec: Option[ComputationStrategySpec] = __underlying.map { csr =>
+      ComputationStrategySpec(csr.strategyType, csr.recompute, csr.sourceColumns, csr.parameters)
+    }
   }
 
   implicit class dsrec(val __underlying: DatasetSpec) extends AnyVal {

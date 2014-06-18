@@ -50,16 +50,7 @@ case class UserProvidedDatasetSpec(resourceName: Option[ResourceName],
                                    locale: Option[Option[String]],
                                    columns: Option[Seq[UserProvidedColumnSpec]])
 
-object UserProvidedDatasetSpec {
-  def fromRequest(req: HttpServletRequest, approxLimit: Long): ExtractResult[UserProvidedDatasetSpec] = {
-    catchingInputProblems {
-      jsonSingleObjectStream(req, approxLimit) match {
-        case Right(obj) => fromObject(obj)
-        case Left(err) => RequestProblem(err)
-      }
-    }
-  }
-
+object UserProvidedDatasetSpec extends UserProvidedSpec[UserProvidedDatasetSpec] {
   def fromObject(obj: JObject): ExtractResult[UserProvidedDatasetSpec] = {
     val dex = new DatasetExtractor(obj.fields)
     for {
@@ -74,6 +65,8 @@ object UserProvidedDatasetSpec {
     }
   }
 
+  // Using this class instead of AutomaticJsonCodecBuilder allows us to
+  // return a specific SodaError citing what part of the extraction failed.
   private class DatasetExtractor(map: sc.Map[String, JValue]) {
     val context = new ExtractContext(DatasetSpecMaltyped)
     import context._
@@ -92,5 +85,4 @@ object UserProvidedDatasetSpec {
         case None => Extracted(None)
       }
   }
-
 }
