@@ -358,9 +358,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           csAdder.setString(3, cs.strategyType.toString)
           csAdder.setBoolean(4, cs.recompute)
           cs.sourceColumns match {
-            case Some(seq) =>
-              val arrayAsStr = seq.mkString(",")
-              csAdder.setString(5, arrayAsStr)
+            case Some(seq) => csAdder.setString(5, seq.mkString(","))
             case None      => csAdder.setNull(5, Types.ARRAY)
           }
           cs.parameters match {
