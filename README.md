@@ -15,8 +15,7 @@ For fast dev cycles:
 
 To build an assembly and run as a separate process:
 
-    sbt assembly
-    java -Dconfig.file=/etc/soda2.conf -jar soda-fountain-jetty/target/scala-2.10/soda-fountain-jetty-assembly-0.0.16-SNAPSHOT.jar &
+    bin/start_soda_fountain.sh
 
 ## Tests
 
@@ -27,10 +26,10 @@ To build an assembly and run as a separate process:
 Using sbt:
 `sbt -Dconfig.file=/etc/soda2.conf "soda-fountain-jetty/run-main com.socrata.soda.server.MigrateSchema [command] [numberOfChanges]"`
 
-Using an assembly jar:
-`java -Dconfig.file=/etc/soda2.conf -cp soda-fountain-jetty/target/scala-2.10/soda-fountain-jetty-assembly-0.0.16-SNAPSHOT.jar com.socrata.soda.server.MigrateSchema [command] [numberOfChanges]`
+To build and run migrations from command line:
+`bin/run_migrations.sh`
 
 ##### Commands: 
-* Migrate - apply all migrations to the database
-* Undo - rollback the latest change, or [numberOfChanges] if specified
-* Redo - runs undo then migrate in one command
+* migrate - apply all migrations to the database
+* undo - rollback the latest change, or [numberOfChanges] if specified
+* redo - runs undo then migrate in one command
