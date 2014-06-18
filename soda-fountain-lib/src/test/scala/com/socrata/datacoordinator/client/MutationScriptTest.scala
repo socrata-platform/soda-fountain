@@ -3,7 +3,7 @@ import java.io._
 import com.rojoma.json.ast.JString
 import com.socrata.soql.types.SoQLType
 import com.socrata.soql.environment.TypeName
-import com.socrata.soda.server.id.ColumnId
+import com.socrata.soda.server.id.{RollupName, ColumnId}
 import com.socrata.soda.clients.datacoordinator._
 
 class MutationScriptTest extends DataCoordinatorClientTest {
@@ -66,6 +66,20 @@ class MutationScriptTest extends DataCoordinatorClientTest {
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
         | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
         | ['row id string']
+        |]""".stripMargin
+    testCompare(mc, expected)
+  }
+
+  test("Mutation Script encodes a rollup delete"){
+    val dropRollup = new DropRollupInstruction(new RollupName("clown_type"))
+    val mc = new MutationScript(
+      user,
+      UpdateDataset(schemaString),
+      Array(dropRollup).iterator)
+    val expected =
+      """[
+        | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
+        | {c:'drop rollup',"name":"clown_type"}
         |]""".stripMargin
     testCompare(mc, expected)
   }

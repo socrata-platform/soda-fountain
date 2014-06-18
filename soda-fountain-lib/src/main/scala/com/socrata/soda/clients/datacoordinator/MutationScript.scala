@@ -17,12 +17,12 @@ class MutationScript(
     val dcInstructions = instructions.map{ instruction =>
       val ops = new scala.collection.mutable.ListBuffer[JValue]
       instruction match {
-        case i: ColumnMutation  => {
+        case _:ColumnMutation | _:RollupMutation  => {
           if (rowDataDeclared){
             rowDataDeclared = false
             ops += JNull
           }
-          ops += i.asJson
+          ops += instruction.asJson
         }
         case i: RowUpdate => {
           i match {
@@ -77,12 +77,12 @@ class MutationScript(
       val instruction = instructions.next
       out.write(',')
       instruction match {
-        case i: ColumnMutation  => {
+        case _:ColumnMutation | _:RollupMutation  => {
           if (rowDataDeclared){
             out.write("null,")
             rowDataDeclared = false
           }
-          out.write(i.toString)
+          out.write(instruction.toString)
         }
         case i: RowUpdate => {
           i match {
