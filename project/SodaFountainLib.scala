@@ -21,7 +21,7 @@ object SodaFountainLib {
       "postgresql" % "postgresql" % "9.1-901-1.jdbc4",
       "com.mchange" % "c3p0" % "0.9.2.1",
       "org.scalacheck" %% "scalacheck" % "1.10.0" % "test,it",
-      "org.scalatest" %% "scalatest" % "1.9.1" % "test,it",
+      "org.scalatest" %% "scalatest" % "2.2.0" % "test,it",
       "log4j" % "log4j" % "1.2.16",
       "org.liquibase" % "liquibase-core" % "2.0.0",
       "org.liquibase" % "liquibase-plugin" % "1.9.5.0"

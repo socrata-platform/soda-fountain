@@ -54,7 +54,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers {
 
     val f = store.translateResourceName(resourceName)
     f match {
-      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, Seq(MinimalColumnRecord(col1, _, _, _), MinimalColumnRecord(col2, _, _, _)), _, _)) =>
+      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, Seq(MinimalColumnRecord(col1, _, _, _, _), MinimalColumnRecord(col2, _, _, _, _)), _, _)) =>
         col1 should equal (ColumnId("abc123"))
         col2 should equal (ColumnId("def456"))
       case None => fail("didn't find columns")
@@ -76,7 +76,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers {
     val f = store.translateResourceName(resourceName)
     f match {
       case Some(MinimalDatasetRecord(rn, did, loc, sch, pky,
-        Seq(MinimalColumnRecord(columnId, columnName, _, _)), _, _)) =>
+        Seq(MinimalColumnRecord(columnId, columnName, _, _, _)), _, _)) =>
         columnId should be (ColumnId("one"))
         columnName should be (ColumnName("new_field_name"))
       case None => fail("didn't find columns")
