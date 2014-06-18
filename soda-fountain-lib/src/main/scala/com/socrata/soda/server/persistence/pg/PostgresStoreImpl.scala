@@ -1,15 +1,21 @@
 package com.socrata.soda.server.persistence.pg
 
-import javax.sql.DataSource
+import com.rojoma.json.ast.JObject
+import com.rojoma.json.io.JsonReader
 import com.rojoma.simplearm.util._
+import com.socrata.soda.server.highlevel.csrec
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
-import com.socrata.soql.environment.{TypeName, ColumnName}
-import java.sql.{Timestamp, Connection}
-import com.socrata.soql.types.SoQLType
-import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
-import com.socrata.soda.server.wiremodels.ColumnSpec
-import org.joda.time.DateTime
 import com.socrata.soda.server.persistence._
+import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
+import com.socrata.soda.server.wiremodels.{ComputationStrategyType, ColumnSpec}
+import com.socrata.soql.environment.{TypeName, ColumnName}
+import com.socrata.soql.types.SoQLType
+import java.sql.{Connection, ResultSet, Timestamp, Types}
+import javax.sql.DataSource
+import org.joda.time.DateTime
+import scala.util.Try
+
+case class SodaFountainStoreError(message: String) extends Exception(message)
 
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[PostgresStoreImpl])
@@ -174,7 +180,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             } while(existingColumnNames.contains(newName))
           }
 
-          ColumnRecord(cid, newFieldName, newSchema.schema(cid), newName, "Unknown column discovered by consistency checker", isInconsistencyResolutionGenerated = true)
+          // TODO : Understand what needs to happen to computation strategy here
+          ColumnRecord(cid, newFieldName, newSchema.schema(cid), newName, "Unknown column discovered by consistency checker", isInconsistencyResolutionGenerated = true, None)
         })
       }
 
@@ -204,7 +211,21 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def fetchMinimalColumns(conn: Connection, datasetId: DatasetId): Seq[MinimalColumnRecord] = {
-    using(conn.prepareStatement("select column_name, column_id, type_name, is_inconsistency_resolution_generated from columns where dataset_system_id = ?")) { colQuery =>
+    val sql =
+      """SELECT c.column_name,
+        |       c.column_id,
+        |       c.type_name,
+        |       c.is_inconsistency_resolution_generated,
+        |       cs.computation_strategy_type,
+        |       cs.recompute,
+        |       cs.source_columns,
+        |       cs.parameters
+        | FROM columns c
+        | LEFT JOIN computation_strategies cs
+        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id
+        | WHERE c.dataset_system_id = ?""".stripMargin
+
+    using(conn.prepareStatement(sql)) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
       using(colQuery.executeQuery()) { rs =>
         val result = Vector.newBuilder[MinimalColumnRecord]
@@ -213,7 +234,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             ColumnId(rs.getString("column_id")),
             new ColumnName(rs.getString("column_name")),
             SoQLType.typesByName(TypeName(rs.getString("type_name"))),
-            rs.getBoolean("is_inconsistency_resolution_generated")
+            rs.getBoolean("is_inconsistency_resolution_generated"),
+            extractComputationStrategy(rs)
           )
         }
         result.result()
@@ -222,7 +244,23 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def fetchFullColumns(conn: Connection, datasetId: DatasetId): Seq[ColumnRecord] = {
-    using(conn.prepareStatement("select column_name, column_id, type_name, name, description, is_inconsistency_resolution_generated from columns where dataset_system_id = ?")) { colQuery =>
+    val sql =
+      """SELECT c.column_name,
+        |       c.column_id,
+        |       c.type_name,
+        |       c.name,
+        |       c.description,
+        |       c.is_inconsistency_resolution_generated,
+        |       cs.computation_strategy_type,
+        |       cs.recompute,
+        |       cs.source_columns,
+        |       cs.parameters
+        | FROM columns c
+        | LEFT JOIN computation_strategies cs
+        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id
+        | WHERE c.dataset_system_id = ?""".stripMargin
+
+    using(conn.prepareStatement(sql)) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
       using(colQuery.executeQuery()) { rs =>
         val result = Vector.newBuilder[ColumnRecord]
@@ -233,7 +271,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             SoQLType.typesByName(TypeName(rs.getString("type_name"))),
             rs.getString("name"),
             rs.getString("description"),
-            rs.getBoolean("is_inconsistency_resolution_generated")
+            rs.getBoolean("is_inconsistency_resolution_generated"),
+            extractComputationStrategy(rs)
           )
         }
         result.result()
@@ -241,22 +280,95 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
+  def extractComputationStrategy(rs: ResultSet): Option[ComputationStrategyRecord] = {
+    val strategyType = rs.getString("computation_strategy_type") match {
+      case s: String => Try(ComputationStrategyType.withName(s)).toOption match {
+        case Some(csType) => csType
+        // I don't really like just throwing an exception here, but that seems
+        // to be how Soda Fountain deals with unexpected situations currently.
+        // It seems better than failing silently.
+        case None         => throw new SodaFountainStoreError(s"Invalid computation strategy type found in database: '$s'")
+      }
+      // Assume that this is not a computed column if no type is specified
+      case null      => return None
+    }
+
+    val recompute = rs.getBoolean("recompute") // getBoolean will return false if the value is missing in the table
+
+    val sourceColumns = rs.getArray("source_columns") match {
+      case arr: java.sql.Array => Some(arr.getArray.asInstanceOf[Array[String]].toSeq)
+      case _                   => None
+    }
+
+    val parameters = Option(rs.getString("parameters")).map(JsonReader.fromString(_))
+    parameters.filterNot(_.isInstanceOf[JObject]).foreach { x =>
+      throw new SodaFountainStoreError("Computation strategy source columns could not be parsed")
+    }
+
+    Some(ComputationStrategyRecord(strategyType, recompute, sourceColumns, parameters.map(_.asInstanceOf[JObject])))
+  }
+
   def addColumns(connection: Connection, datasetId: DatasetId, columns: TraversableOnce[ColumnRecord]) {
     if(columns.nonEmpty) {
-      using(connection.prepareStatement("insert into columns (dataset_system_id, column_name_casefolded, column_name, column_id, name, description, type_name, is_inconsistency_resolution_generated) values (?, ?, ?, ?, ?, ?, ?, ?)")) { colAdder =>
-        for(cspec <- columns) {
+      val addColumnSql =
+        """INSERT INTO columns
+          |   (dataset_system_id,
+          |    column_name_casefolded,
+          |    column_name,
+          |    column_id,
+          |    name,
+          |    description,
+          |    type_name,
+          |    is_inconsistency_resolution_generated)
+          | VALUES (?, ?, ?, ?, ?, ?, ?, ?)""".stripMargin
+
+      using(connection.prepareStatement(addColumnSql)) { colAdder =>
+        for(crec <- columns) {
           log.info("TODO: Ensure the names will fit in the space available")
           colAdder.setString(1, datasetId.underlying)
-          colAdder.setString(2, cspec.fieldName.caseFolded)
-          colAdder.setString(3, cspec.fieldName.name)
-          colAdder.setString(4, cspec.id.underlying)
-          colAdder.setString(5, cspec.name)
-          colAdder.setString(6, cspec.description)
-          colAdder.setString(7, cspec.typ.name.name)
-          colAdder.setBoolean(8, cspec.isInconsistencyResolutionGenerated)
-          colAdder.addBatch()
+          colAdder.setString(2, crec.fieldName.caseFolded)
+          colAdder.setString(3, crec.fieldName.name)
+          colAdder.setString(4, crec.id.underlying)
+          colAdder.setString(5, crec.name)
+          colAdder.setString(6, crec.description)
+          colAdder.setString(7, crec.typ.name.name)
+          colAdder.setBoolean(8, crec.isInconsistencyResolutionGenerated)
+          colAdder.addBatch
         }
-        colAdder.executeBatch()
+        colAdder.executeBatch
+      }
+
+      // The string_to_array function below is a workaround for Postgres JDBC4
+      // which does not implement connection.createArrayOf
+      val addCompStrategySql =
+        """INSERT INTO computation_strategies
+          |   (dataset_system_id,
+          |    column_id,
+          |    computation_strategy_type,
+          |    recompute,
+          |    source_columns,
+          |    parameters)
+          | VALUES (?, ?, ?, ?, string_to_array(?,','), ?)""".stripMargin
+
+      using (connection.prepareStatement(addCompStrategySql)) { csAdder =>
+        for (crec <- columns.filter(col => col.computationStrategy.isDefined)) {
+          val cs = crec.computationStrategy.get
+          csAdder.setString(1, datasetId.underlying)
+          csAdder.setString(2, crec.id.underlying)
+          csAdder.setString(3, cs.strategyType.toString)
+          csAdder.setBoolean(4, cs.recompute)
+          cs.sourceColumns match {
+            case Some(seq) => csAdder.setString(5, seq.mkString(","))
+            case None      => csAdder.setNull(5, Types.ARRAY)
+          }
+          cs.parameters match {
+            case Some(jObj) => csAdder.setString(6, jObj.toString)
+            case None       => csAdder.setNull(6, Types.VARCHAR)
+          }
+          csAdder.addBatch
+        }
+
+        csAdder.executeBatch
       }
     }
   }
@@ -291,6 +403,10 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         }
       }
       for(datasetId <- datasetIdOpt) {
+        using(connection.prepareStatement("delete from computation_strategies where dataset_system_id = ?")) { deleter =>
+          deleter.setString(1, datasetId.underlying)
+          deleter.execute()
+        }
         using(connection.prepareStatement("delete from columns where dataset_system_id = ?")) { deleter =>
           deleter.setString(1, datasetId.underlying)
           deleter.execute()
@@ -305,7 +421,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def addColumn(datasetId: DatasetId, spec: ColumnSpec): ColumnRecord =
     using(dataSource.getConnection()) { conn =>
-      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false)
+      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
       addColumns(conn, datasetId, Iterator.single(result))
       updateSchemaHash(conn, datasetId)
       result
@@ -348,6 +464,12 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit = {
     using(dataSource.getConnection) { conn =>
+      using(conn.prepareStatement("DELETE FROM computation_strategies WHERE dataset_system_id = ? AND column_id = ?")) { stmt =>
+        stmt.setString(1, datasetId.underlying)
+        stmt.setString(2, columnId.underlying)
+        stmt.execute()
+        updateSchemaHash(conn, datasetId)
+      }
       using(conn.prepareStatement("DELETE FROM columns WHERE dataset_system_id = ? AND column_id = ?")) { stmt =>
         stmt.setString(1, datasetId.underlying)
         stmt.setString(2, columnId.underlying)

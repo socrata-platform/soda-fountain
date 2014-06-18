@@ -1,12 +1,11 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.id.{DatasetId, ColumnId, ResourceName}
-import com.socrata.soql.environment.ColumnName
-import com.socrata.soda.server.highlevel.ColumnDAO.Result
-import com.socrata.soda.server.wiremodels.{ColumnSpec, UserProvidedColumnSpec}
-import scala.util.control.ControlThrowable
 import com.socrata.soda.clients.datacoordinator._
-import org.joda.time.DateTime
+import com.socrata.soda.server.highlevel.ColumnDAO.Result
+import com.socrata.soda.server.id.{ColumnId, ResourceName}
+import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
+import com.socrata.soql.environment.ColumnName
+import scala.util.control.ControlThrowable
 
 // TODO: This shouldn't be referenced here.
 import com.socrata.http.server.util.Precondition
@@ -114,7 +113,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
   def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result = {
     retryable(limit = 3) {
       spec match {
-        case UserProvidedColumnSpec(None, fieldName, _, _, datatype, None) =>
+        case UserProvidedColumnSpec(None, fieldName, _, _, datatype, None, _) =>
           store.lookupDataset(dataset) match {
             case Some(datasetRecord) =>
               datasetRecord.columnsByName.get(column) match {

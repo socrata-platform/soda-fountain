@@ -5,5 +5,6 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
 
     <include file="com/socrata/soda/server/persistence/pg/20140604-initial-db-bootstrap.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20140613-add-computation-strategies-table.xml"/>
 
 </databaseChangeLog>

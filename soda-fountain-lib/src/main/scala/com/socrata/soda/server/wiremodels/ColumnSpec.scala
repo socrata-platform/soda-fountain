@@ -6,10 +6,8 @@ import com.socrata.soda.server.id.ColumnId
 import com.socrata.soql.environment.{TypeName, ColumnName}
 import com.socrata.soql.types.SoQLType
 import com.rojoma.json.ast.{JValue, JObject}
-import javax.servlet.http.HttpServletRequest
 
-import com.socrata.soda.server.util.AdditionalJsonCodecs
-import AdditionalJsonCodecs._
+import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import InputUtils._
 import com.socrata.soda.server.errors.{ColumnSpecMaltyped, ColumnSpecUnknownType}
 
@@ -18,7 +16,8 @@ case class ColumnSpec(id: ColumnId,
                       fieldName: ColumnName,
                       name:String,
                       description:String,
-                      datatype: SoQLType)
+                      datatype: SoQLType,
+                      computationStrategy: Option[ComputationStrategySpec] = None)
 
 object ColumnSpec {
   implicit val jsonCodec = AutomaticJsonCodecBuilder[ColumnSpec]
@@ -32,17 +31,10 @@ case class UserProvidedColumnSpec(id: Option[ColumnId],
                                   name: Option[String],
                                   description:Option[String],
                                   datatype:Option[SoQLType],
-                                  delete: Option[Boolean])
+                                  delete: Option[Boolean],
+                                  computationStrategy: Option[UserProvidedComputationStrategySpec])
 
-object UserProvidedColumnSpec {
-  def fromRequest(request: HttpServletRequest, approxLimit: Long) : ExtractResult[UserProvidedColumnSpec] =
-    catchingInputProblems {
-      jsonSingleObjectStream(request, approxLimit) match {
-        case Right(jobj) => fromObject(jobj)
-        case Left(err) => RequestProblem(err)
-      }
-    }
-
+object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
   def fromObject(obj: JObject) : ExtractResult[UserProvidedColumnSpec] = {
     val cex = new ColumnExtractor(obj.fields)
     for {
@@ -52,11 +44,14 @@ object UserProvidedColumnSpec {
       description <- cex.description
       datatype <- cex.datatype
       delete <- cex.delete
+      computationStrategy <- cex.computationStrategy
     } yield {
-      UserProvidedColumnSpec(columnId, fieldName, name, description, datatype, delete)
+      UserProvidedColumnSpec(columnId, fieldName, name, description, datatype, delete, computationStrategy)
     }
   }
 
+  // Using this class instead of AutomaticJsonCodecBuilder allows us to
+  // return a specific SodaError citing what part of the extraction failed.
   class ColumnExtractor(map: sc.Map[String, JValue]) {
     val context = new ExtractContext(ColumnSpecMaltyped)
     import context._
@@ -71,13 +66,18 @@ object UserProvidedColumnSpec {
       case Some(typeName) =>
         SoQLType.typesByName.get(typeName) match {
           case Some(typ) => Extracted(Some(typ))
-          case None => RequestProblem(ColumnSpecUnknownType(typeName))
+          case None      => RequestProblem(ColumnSpecUnknownType(typeName))
         }
       case None =>
         Extracted(None)
     }
     def description = e[String]("description")
     def delete = e[Boolean]("delete")
+    def computationStrategy: ExtractResult[Option[UserProvidedComputationStrategySpec]] =
+      e[JObject]("computation_strategy") match {
+        case Extracted(Some(jobj)) => UserProvidedComputationStrategySpec.fromObject(jobj).map(Some(_))
+        case _ => Extracted(None)
+      }
   }
 
 }

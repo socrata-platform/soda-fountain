@@ -113,6 +113,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   val LegacyDeleteFlag = new ColumnName(":deleted")
 
   private case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends Exception
+  private case class ComputedColumnNotWritableEx(col: ColumnName) extends Exception
   private case class UnknownColumnEx(col: ColumnName) extends Exception
   private case class DeleteNoPKEx() extends Exception
   private case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends Exception
@@ -152,6 +153,9 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         val row: scala.collection.Map[String, JValue] = map.flatMap { case (uKey, uVal) =>
           ciFor(uKey) match {
             case ColumnInfo(cr, rRep, wRep) =>
+              if (cr.computationStrategy.isDefined) {
+                throw ComputedColumnNotWritableEx(cr.fieldName)
+              }
               rRep.fromJValue(uVal) match {
                 case Some(v) => (cr.id.underlying -> wRep.toJValue(v)) :: Nil
                 case None => throw MaltypedDataEx(cr.fieldName, rRep.representedType, uVal)
@@ -216,6 +220,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             f(DeleteWithoutPrimaryKey)
           case NotAnObjectOrSingleElementArrayEx(v) =>
             f(RowNotAnObject(v))
+          case ComputedColumnNotWritableEx(cn) =>
+            f(ComputedColumnNotWritable(cn))
           case MaltypedDataEx(cn, expected, got) =>
             f(MaltypedData(cn, expected, got))
         }

@@ -30,6 +30,6 @@ To build and run migrations from command line:
 `bin/run_migrations.sh`
 
 ##### Commands: 
-* Migrate - apply all migrations to the database
-* Undo - rollback the latest change, or [numberOfChanges] if specified
-* Redo - runs undo then migrate in one command
+* migrate - apply all migrations to the database
+* undo - rollback the latest change, or [numberOfChanges] if specified
+* redo - runs undo then migrate in one command

@@ -96,6 +96,8 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
         SodaUtils.errorResponse(request, RowNotFound(rowSpecifier))(response)
       case RowDAO.UnknownColumn(columnName) =>
         SodaUtils.errorResponse(request, RowColumnNotFound(columnName))(response)
+      case RowDAO.ComputedColumnNotWritable(columnName) =>
+        SodaUtils.errorResponse(request, ComputedColumnNotWritable(columnName))(response)
     }
   }
 

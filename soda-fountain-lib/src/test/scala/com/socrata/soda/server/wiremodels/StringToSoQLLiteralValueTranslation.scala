@@ -1,7 +1,6 @@
 package com.socrata.soda.server.wiremodels
 
-import org.scalatest.matchers.MustMatchers
-import org.scalatest.FunSuite
+import org.scalatest.{FunSuite, MustMatchers}
 import com.socrata.soql.types._
 
 /*
