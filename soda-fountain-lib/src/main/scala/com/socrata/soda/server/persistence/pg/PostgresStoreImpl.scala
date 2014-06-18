@@ -338,6 +338,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         colAdder.executeBatch
       }
 
+      // The string_to_array function below is a workaround for Postgres JDBC4
+      // which does not implement connection.createArrayOf
       val addCompStrategySql =
         """INSERT INTO computation_strategies
           |   (dataset_system_id,
@@ -346,7 +348,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           |    recompute,
           |    source_columns,
           |    parameters)
-          | VALUES (?, ?, ?, ?, ?, ?)""".stripMargin
+          | VALUES (?, ?, ?, ?, string_to_array(?,','), ?)""".stripMargin
 
       using (connection.prepareStatement(addCompStrategySql)) { csAdder =>
         for (crec <- columns.filter(col => col.computationStrategy.isDefined)) {
@@ -356,7 +358,9 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           csAdder.setString(3, cs.strategyType.toString)
           csAdder.setBoolean(4, cs.recompute)
           cs.sourceColumns match {
-            case Some(seq) => csAdder.setArray(5, connection.createArrayOf("text", seq.toArray))
+            case Some(seq) =>
+              val arrayAsStr = seq.mkString(",")
+              csAdder.setString(5, arrayAsStr)
             case None      => csAdder.setNull(5, Types.ARRAY)
           }
           cs.parameters match {

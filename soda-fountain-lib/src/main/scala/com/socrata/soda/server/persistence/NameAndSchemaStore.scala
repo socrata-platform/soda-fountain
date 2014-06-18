@@ -71,7 +71,7 @@ case class MinimalColumnRecord(
   fieldName: ColumnName,
   typ: SoQLType,
   isInconsistencyResolutionGenerated: Boolean,
-  computationStrategy: Option[ComputationStrategyRecord])
+  computationStrategy: Option[ComputationStrategyRecord] = None)
     extends ColumnRecordLike
 
 object MinimalColumnRecord {
