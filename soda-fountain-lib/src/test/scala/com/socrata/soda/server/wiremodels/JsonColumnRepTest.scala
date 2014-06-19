@@ -116,6 +116,11 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
     JsonColumnRep.forClientType(SoQLPoint).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLPoint(asGeom.get)))
   }
 
+  test("JSON type checker handles GeoJSON of different types") {
+    val input = """{"type":"MultiLineString","coordinates":[[[100,0.123456789012],[101,1]],[[102,2],[103,3]]]}"""
+    JsonColumnRep.forClientType(SoQLPoint).fromJValue(JsonReader.fromString(input)) must equal (None)
+  }
+
   test("JSON type checker with MultiLine"){
     val input = """{"type":"MultiLineString","coordinates":[[[100,0.123456789012],[101,1]],[[102,2],[103,3]]]}"""
     val SoQLMultiLine.JsonRep(asGeom) = input

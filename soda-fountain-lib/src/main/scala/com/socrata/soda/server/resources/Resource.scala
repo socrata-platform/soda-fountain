@@ -1,5 +1,6 @@
 package com.socrata.soda.server.resources
 
+import com.rojoma.json.ast.JValue
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.ContentNegotiation
@@ -12,9 +13,10 @@ import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherRepo
 import com.socrata.soda.clients.datacoordinator.HttpDataCoordinatorClient
 import com.socrata.soda.server.errors._
 import com.socrata.soda.server.export.Exporter
-import com.socrata.soda.server.highlevel.RowDAO
+import com.socrata.soda.server.highlevel.{ComputedColumns, RowDAO}
 import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
 import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
+import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
@@ -26,7 +28,7 @@ import scala.util.Random
 /**
  * Resource: services for upserting, deleting, and querying dataset rows.
  */
-case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: Long) {
+case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: ETagObfuscator, maxRowSize: Long) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
 
   val headerHashAlg = "SHA1"
@@ -159,18 +161,34 @@ case class Resource(rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxRowSize: 
     }
 
     override def post = { req => response =>
-      InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
-        case Right(boundedIt) =>
-          rowDAO.upsert(user(req), resourceName.value, boundedIt)(upsertResponse(req, response))
-        case Left(err) =>
-          SodaUtils.errorResponse(req, err, resourceName.value)(response)
-      }
+      upsertishFlow(req, response, rowDAO.upsert)
     }
 
     override def put = { req => response =>
+      upsertishFlow(req, response, rowDAO.replace)
+    }
+
+    type rowDaoFunc = (String, ResourceName, Iterator[JValue]) => (RowDAO.UpsertResult => Unit) => Unit
+
+    import ComputedColumns._
+
+    private def upsertishFlow(req: HttpServletRequest, response: HttpServletResponse, f: rowDaoFunc) {
       InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
-          rowDAO.replace(user(req), resourceName.value, boundedIt)(upsertResponse(req, response))
+          // Now look up the dataset schema to see if we need to compute columns
+          store.translateResourceName(resourceName.value) match {
+            case Some(datasetRecord) =>
+              val computedColumns = findComputedColumns(datasetRecord)
+              if (!computedColumns.isEmpty) {
+                val computedRows = addComputedColumns(boundedIt, computedColumns)
+                // NOTE: This will need to change to make computation multithreaded
+                f(user(req), resourceName.value, computedRows)(upsertResponse(req, response))
+              } else {
+                f(user(req), resourceName.value, boundedIt)(upsertResponse(req, response))
+              }
+            case None =>
+              upsertResponse(req, response)(RowDAO.DatasetNotFound(resourceName.value))
+          }
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName.value)(response)
       }
