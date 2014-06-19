@@ -3,7 +3,8 @@ package com.socrata.soda.server.highlevel
 import com.rojoma.json.ast._
 import com.rojoma.json.io.JsonReader
 import com.socrata.soda.server.id.ColumnId
-import com.socrata.soda.server.persistence.MinimalColumnRecord
+import com.socrata.soda.server.persistence.{MinimalColumnRecord, ComputationStrategyRecord}
+import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.typesafe.config.ConfigFactory
@@ -27,7 +28,11 @@ trait GeospaceHandlerData {
                    Map("geom" -> JsonReader.fromString(point4), "date" -> JString("1/14/2014"))
                  ).map(JObject(_))
 
-  val columnSpec = MinimalColumnRecord(ColumnId("foo"), ColumnName("ward_id"), SoQLText, false)
+  val computeStrategy = ComputationStrategyRecord(ComputationStrategyType.GeoRegion, false,
+                                                  Some(Seq("geom")),
+                                                  Some(JObject(Map("region" -> JString("wards")))))
+  val columnSpec = MinimalColumnRecord(ColumnId("foo"), ColumnName("ward_id"), SoQLText, false,
+                                       Some(computeStrategy))
 }
 
 class GeospaceHandlerTest extends FunSuite
@@ -58,7 +63,7 @@ with MustMatchers with Assertions with BeforeAndAfterAll with GeospaceHandlerDat
 
   private def mockGeocodeRoute(bodyRegex: String, returnedBody: String) {
     server.when(request.withMethod("POST").
-                        withPath("/experimental/regions/TODO/geocode").
+                        withPath("/experimental/regions/wards/geocode").
                         withBody(StringBody.regex(bodyRegex))).
            respond(response.withStatusCode(200).
                             withHeader(new Header("Content-Type", "application/json; charset=utf-8")).

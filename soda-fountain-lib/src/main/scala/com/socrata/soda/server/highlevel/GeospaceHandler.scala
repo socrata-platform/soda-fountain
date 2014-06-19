@@ -30,7 +30,7 @@ import scalaj.http.Http
 class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationHandler {
   import ComputationHandler._
 
-  val computationType = "geospace"
+  val computationType = "georegion"
 
   // Get config values
   // TODO: use ZK/Curator to discover Geospace
@@ -55,9 +55,8 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
    * parameters: {"region":  <<name of geo region dataset 4x4>>}
    */
   def compute(sourceIt: Iterator[JValue], column: MinimalColumnRecord): Iterator[JValue] = {
-    // TODO: check the columnRecord once we have urmilan's changes.
-    //    It should be a string type
-    val geoColumnName = "geom"   // TODO: incorporate urmilan's changes
+    // Only a single point column is allowed as a source for now
+    val (geoColumnName, region) = parsePointColumnSourceStrategy(column)
 
     val batches = sourceIt.grouped(batchSize)
     val computedBatches = batches.map { batch =>
@@ -69,12 +68,24 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
       }
 
       // Now convert points to feature IDs, and splice IDs back into rows
-      val featureIds = geospaceRegionCoder(points, "TODO")
+      val featureIds = geospaceRegionCoder(points, region)
       rows.zip(featureIds).map { case (JObject(rowmap), featureId) =>
         JObject(rowmap + (column.fieldName.name -> JString(featureId)))
       }.toIterator
     }
     computedBatches.flatten
+  }
+
+  private def parsePointColumnSourceStrategy(column: MinimalColumnRecord): (String, String) = {
+    require(column.computationStrategy.isDefined, "Not a target computed column")
+    column.computationStrategy match {
+      case Some(ComputationStrategyRecord(_, _, Some(Seq(sourceCol)), Some(JObject(map)))) =>
+        require(map contains "region", "parameters does not contain 'region'")
+        val JString(regionName) = map("region")
+        (sourceCol, regionName)
+      case x =>  throw new IllegalArgumentException("There must be exactly 1 sourceColumn, and " +
+                                                    "parameters must have a key 'region'")
+    }
   }
 
   // Note: this conversion from JValue to SoQLType is already done in RowDAOImpl.  Yes we are temporarily
