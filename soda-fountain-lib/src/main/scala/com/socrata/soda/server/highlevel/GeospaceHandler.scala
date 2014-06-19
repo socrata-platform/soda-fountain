@@ -6,7 +6,7 @@ import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.SoQLPoint
+import com.socrata.soql.types.{SoQLPoint, SoQLText}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.slf4j.LoggerFactory
 import scala.util.Try
@@ -43,8 +43,6 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
 
   case class Point(x: Double, y: Double)
 
-  private val pointRep = JsonColumnRep.forClientType(SoQLPoint)
-
   /**
    * A single-threaded (for now) geo-region-coding handler.  Batches and sends out the points
    * to Geospace, then incorporates the feature IDs into a new column.
@@ -54,23 +52,19 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
    * sourceColumns must be a list of one column, and it must be a Geo Point type.
    * parameters: {"region":  <<name of geo region dataset 4x4>>}
    */
-  def compute(sourceIt: Iterator[JValue], column: MinimalColumnRecord): Iterator[JValue] = {
+  def compute(sourceIt: Iterator[SoQLRow], column: MinimalColumnRecord): Iterator[SoQLRow] = {
     // Only a single point column is allowed as a source for now
     val (geoColumnName, region) = parsePointColumnSourceStrategy(column)
 
     val batches = sourceIt.grouped(batchSize)
     val computedBatches = batches.map { batch =>
       val rows = batch.toSeq
-      val points = rows.map {
-        case JObject(rowmap) => extractPointFromRow(rowmap, ColumnName(geoColumnName))
-        // Upserts must have a JSON Map on each row.  This is probably coding error.
-        case _  =>  throw new RuntimeException("Data for upserts must consist of a JSON Object per row")
-      }
+      val points = rows.map { rowmap => extractPointFromRow(rowmap, ColumnName(geoColumnName)) }
 
       // Now convert points to feature IDs, and splice IDs back into rows
       val featureIds = geospaceRegionCoder(points, region)
-      rows.zip(featureIds).map { case (JObject(rowmap), featureId) =>
-        JObject(rowmap + (column.fieldName.name -> JString(featureId)))
+      rows.zip(featureIds).map { case (rowmap, featureId) =>
+        rowmap + (column.fieldName.name -> SoQLText(featureId))
       }.toIterator
     }
     computedBatches.flatten
@@ -88,17 +82,11 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
     }
   }
 
-  // Note: this conversion from JValue to SoQLType is already done in RowDAOImpl.  Yes we are temporarily
-  // repeating it here.  What should really be done is to refactor RowDAO so that we can convert to SoQLTYpe
-  // once, then do computation and processing directly on SoQLType, then have RowDAO send it onwards.
-  private def extractPointFromRow(rowmap: collection.Map[String, JValue], colName: ColumnName): Point = {
-    val pointJValue = rowmap.get(colName.name).getOrElse(throw UnknownColumnEx(colName))
-    pointRep.fromJValue(pointJValue) match {
-      // TODO: remove the null check once the GeometryRep decoder handles nulls.
-      // @urmilan has been told about the bug.
-      // (see MaltypedDataEx test case)
-      case Some(point: SoQLPoint) if (point.value != null) => Point(point.value.getX, point.value.getY)
-      case x                      => throw MaltypedDataEx(colName, pointRep.representedType, pointJValue)
+  private def extractPointFromRow(rowmap: SoQLRow, colName: ColumnName): Point = {
+    val pointSoql = rowmap.get(colName.name).getOrElse(throw UnknownColumnEx(colName))
+    pointSoql match {
+      case point: SoQLPoint => Point(point.value.getX, point.value.getY)
+      case x                => throw MaltypedDataEx(colName, SoQLPoint, pointSoql.typ)
     }
   }
 

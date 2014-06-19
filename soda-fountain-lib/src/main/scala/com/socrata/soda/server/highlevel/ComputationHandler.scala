@@ -12,23 +12,24 @@ trait ComputationHandler {
   // The type of computation this handler handles.  Should be unique.
   val computationType: String
 
+  // Use an immutable map to guarantee no mutation for safe concurrency
+  type SoQLRow = collection.immutable.Map[String, SoQLValue]
+
   /**
-   * Handles the actual computation.  Should be lazy if possible, otherwise will introduce
-   * significant latency.  IE, try not to convert the Iterator to a regular Seq or Array.
+   * Handles the actual computation.  Must be lazy, otherwise will introduce significant latency
+   * and OOM errors for large upserts.  IE, try not to convert the Iterator to a regular Seq or Array.
    *
-   * @param sourceIt an Iterator of source rows, each row is a JValue (actually an JObject
-   *                 of key-value pairs, where the key is the column name).  Anything other
-   *                 than a JObject is not for upserts and can be ignored.
+   * @param sourceIt an Iterator of source rows, each row is a Map[String, SoQLValue], where the key is the
+   *                 fieldName and the value is a SoQLValue representation of source data
    * @param column a ColumnRecord describing the computation and parameters
-   * @return an Iterator[JValue] for the output rows.  The JValue must be a JObject containing
-   *        a key matching column.name with the computed value.
+   * @return an Iterator[SoQLRow] for the output rows.  One of the keys must containing the output column.
    */
-  def compute(sourceIt: Iterator[JValue], column: MinimalColumnRecord): Iterator[JValue]
+  def compute(sourceIt: Iterator[SoQLRow], column: MinimalColumnRecord): Iterator[SoQLRow]
 }
 
 object ComputationHandler {
   // TODO: These are repeated from RowDAOImpl.  Let's share these somehow.  Or maybe we just make them private.
   case class UnknownColumnEx(colName: ColumnName) extends Exception
-  case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends Exception
+  case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: SoQLType) extends Exception
   case class ComputationEx(message: String, underlying: Option[Throwable]) extends Exception
 }
