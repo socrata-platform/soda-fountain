@@ -10,7 +10,7 @@ import com.socrata.soql.types._
 import com.typesafe.config.ConfigFactory
 import org.mockserver.integration.ClientAndServer
 import org.mockserver.model.Header
-import org.scalatest.matchers.MustMatchers
+import org.scalatest.MustMatchers
 import org.scalatest.{Assertions, FunSuite, BeforeAndAfterAll}
 
 

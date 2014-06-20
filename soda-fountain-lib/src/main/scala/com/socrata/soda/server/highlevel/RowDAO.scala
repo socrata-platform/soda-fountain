@@ -1,20 +1,21 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
-import com.rojoma.json.ast.{JString, JValue}
-import RowDAO._
-import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.{SoQLValue, SoQLType}
-import com.socrata.soda.server.highlevel.ExportDAO.CSchema
+import com.rojoma.json.ast.JValue
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
+import com.socrata.soda.clients.datacoordinator.RowUpdate
+import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
+import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.types.{SoQLValue, SoQLType}
 import org.joda.time.DateTime
+
+import RowDAO._
 
 trait RowDAO {
   def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result
   def getRow(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier, secondaryInstance:Option[String]): Result
-  def upsert[T](user: String, dataset: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T
-  def replace[T](user: String, dataset: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T
+  def upsert[T](user: String, dataset: ResourceName, data: Iterator[RowUpdate])(f: UpsertResult => T): T
+  def replace[T](user: String, dataset: ResourceName, data: Iterator[RowUpdate])(f: UpsertResult => T): T
   def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T
 }
 

@@ -1,12 +1,14 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.ast.{JValue, JObject}
 import com.socrata.soda.server.persistence._
+import com.socrata.soql.types.SoQLValue
 
 /**
  * Utilities for computing columns
  */
 object ComputedColumns {
+  type SoQLRow = collection.immutable.Map[String, SoQLValue]
+
   /**
    * Finds the computed columns from the dataset schema.
    *
@@ -28,9 +30,9 @@ object ComputedColumns {
    * @param computedColumns the list of computed columns from [[findComputedColumns]]
    * @param handlers the set of ComputationHandlers available to fulfill computed column requests
    */
-  def addComputedColumns(sourceIt: Iterator[JValue],  // TODO: make this SoQLROw...
+  def addComputedColumns(sourceIt: Iterator[SoQLRow],
                          computedColumns: Seq[MinimalColumnRecord],
-                         handlers: Seq[ComputationHandler] = Nil): Iterator[JValue] = {
+                         handlers: Seq[ComputationHandler] = Nil): Iterator[SoQLRow] = {
     var rowIterator = sourceIt
     for (computedColumn <- computedColumns;
          handler <- handlers.find(_.computationType == computedColumn.computationStrategy.get.strategyType.toString)) {
