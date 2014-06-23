@@ -7,6 +7,7 @@ import javax.activation.MimeType
 import com.socrata.soql.environment.{ColumnName, TypeName}
 import com.socrata.http.server.util.EntityTag
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
+import com.socrata.soda.server.wiremodels.ComputationStrategyType
 
 case class ResourceNotModified(override val etags: Seq[EntityTag], override val vary: Option[String], override val hasContent: Boolean = false)
   extends SodaError(SC_NOT_MODIFIED, "not-modified")
@@ -107,6 +108,6 @@ case class RowColumnNotFound(value: ColumnName)
   extends SodaError(SC_BAD_REQUEST, "soda.row.column-not-found",
     "value" -> JString(value.name))
 
-case class ComputedColumnNotWritable(value: ColumnName)
-  extends SodaError(SC_BAD_REQUEST, "soda.row.computed-column-not-writable",
-    "value" -> JString(value.name))
+case class ComputationHandlerNotFound(typ: ComputationStrategyType.Value)
+  extends SodaError(SC_BAD_REQUEST, "soda.column.computation-handler-not-found",
+    "computation-strategy" -> JString(typ.toString))

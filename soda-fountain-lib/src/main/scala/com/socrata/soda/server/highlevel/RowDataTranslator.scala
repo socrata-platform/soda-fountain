@@ -47,7 +47,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
         ciFor(uKey) match {
           case ColumnInfo(cr, rRep, wRep) =>
             rRep.fromJValue(uVal) match {
-              case Some(v) => (cr.id.underlying -> v) :: Nil
+              case Some(v) => (cr.fieldName.name -> v) :: Nil
               case None => return MaltypedDataError(cr.fieldName, rRep.representedType, uVal)
             }
           case NoColumn(colName) =>

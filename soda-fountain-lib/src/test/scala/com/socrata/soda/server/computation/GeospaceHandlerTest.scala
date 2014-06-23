@@ -1,4 +1,4 @@
-package com.socrata.soda.server.highlevel
+package com.socrata.soda.server.computation
 
 import com.rojoma.json.ast._
 import com.rojoma.json.io.JsonReader

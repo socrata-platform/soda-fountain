@@ -1,10 +1,9 @@
-package com.socrata.soda.server.highlevel
+package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast.{JValue, JObject, JString, JArray, JNumber}
+import com.rojoma.json.ast.{JObject, JString, JArray, JNumber}
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import com.socrata.soda.server.persistence._
-import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLPoint, SoQLText}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -29,8 +28,6 @@ import scalaj.http.Http
  */
 class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationHandler {
   import ComputationHandler._
-
-  val computationType = "georegion"
 
   // Get config values
   // TODO: use ZK/Curator to discover Geospace

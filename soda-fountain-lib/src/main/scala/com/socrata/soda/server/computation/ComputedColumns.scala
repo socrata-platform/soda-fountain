@@ -1,13 +1,18 @@
-package com.socrata.soda.server.highlevel
+package com.socrata.soda.server.computation
 
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.types.SoQLValue
+import com.socrata.soda.server.wiremodels.ComputationStrategyType
 
 /**
  * Utilities for computing columns
  */
 object ComputedColumns {
   type SoQLRow = collection.immutable.Map[String, SoQLValue]
+
+  sealed trait ComputeResult
+  case class ComputeSuccess(it: Iterator[SoQLRow]) extends ComputeResult
+  case class HandlerNotFound(typ: ComputationStrategyType.Value) extends ComputeResult
 
   /**
    * Finds the computed columns from the dataset schema.
@@ -28,19 +33,22 @@ object ComputedColumns {
    *                 of key-value pairs, where the key is the column name).  Anything other
    *                 than a JObject is not for upserts and can be ignored.
    * @param computedColumns the list of computed columns from [[findComputedColumns]]
-   * @param handlers the set of ComputationHandlers available to fulfill computed column requests
    */
   def addComputedColumns(sourceIt: Iterator[SoQLRow],
-                         computedColumns: Seq[MinimalColumnRecord],
-                         handlers: Seq[ComputationHandler] = Nil): Iterator[SoQLRow] = {
+                         computedColumns: Seq[MinimalColumnRecord]): ComputeResult = {
     var rowIterator = sourceIt
-    for (computedColumn <- computedColumns;
-         handler <- handlers.find(_.computationType == computedColumn.computationStrategy.get.strategyType.toString)) {
-      // Now do something like this to chain:
-      // rowIterator = handler.compute(rowIterator, computedColumn)
-      //
-      // Also handle the case where we cannot find a handler matching the given computation type
+    for (computedColumn <- computedColumns) {
+      val tryGetHandler = handlers.get(computedColumn.computationStrategy.get.strategyType)
+      tryGetHandler match {
+        case Some(handler) => rowIterator = handler().compute(rowIterator, computedColumn)
+        case None          => return HandlerNotFound(computedColumn.computationStrategy.get.strategyType)
+      }
     }
-    rowIterator
+    ComputeSuccess(rowIterator)
   }
+
+  def handlers = Map[ComputationStrategyType.Value, () => ComputationHandler](
+    ComputationStrategyType.GeoRegion -> (() => new GeospaceHandler),
+    ComputationStrategyType.Test      -> (() => new TestComputationHandler)
+  )
 }

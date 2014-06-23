@@ -10,6 +10,7 @@ import com.socrata.soql.types.{SoQLValue, SoQLType}
 import org.joda.time.DateTime
 
 import RowDAO._
+import com.socrata.soda.server.wiremodels.ComputationStrategyType
 
 trait RowDAO {
   def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result
@@ -30,11 +31,11 @@ object RowDAO {
   case class RowNotFound(specifier: RowSpecifier) extends Result with UpsertResult
   case class StreamSuccess(report: Iterator[ReportItem]) extends UpsertResult
   case class DatasetNotFound(dataset: ResourceName) extends Result with UpsertResult
-  case class ComputedColumnNotWritable(column: ColumnName) extends UpsertResult
   case class UnknownColumn(column: ColumnName) extends UpsertResult
   case object DeleteWithoutPrimaryKey extends UpsertResult
   case class InvalidRequest(status: Int, body: JValue) extends Result
   case class MaltypedData(column: ColumnName, expected: SoQLType, got: JValue) extends Result with UpsertResult
   case class RowNotAnObject(value: JValue) extends UpsertResult
   case object SchemaOutOfSync extends UpsertResult
+  case class ComputationHandlerNotFound(typ: ComputationStrategyType.Value) extends UpsertResult
 }

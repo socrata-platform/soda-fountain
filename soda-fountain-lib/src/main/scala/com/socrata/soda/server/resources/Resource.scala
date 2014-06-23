@@ -8,21 +8,21 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag}
+import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
 import com.socrata.soda.clients.datacoordinator.{RowUpdate, DeleteRow, UpsertRow}
 import com.socrata.soda.server.{errors => SodaErrors}
 import com.socrata.soda.server.errors.SodaError
 import com.socrata.soda.server.export.Exporter
-import com.socrata.soda.server.highlevel.{RowDataTranslator, ComputedColumns, RowDAO}
+import com.socrata.soda.server.highlevel.{RowDataTranslator, RowDAO}
 import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.id.RowSpecifier
-import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
-import com.socrata.soql.types.SoQLValue
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
@@ -99,8 +99,8 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
         SodaUtils.errorResponse(request, SodaErrors.RowNotFound(rowSpecifier))(response)
       case RowDAO.UnknownColumn(columnName) =>
         SodaUtils.errorResponse(request, SodaErrors.RowColumnNotFound(columnName))(response)
-      case RowDAO.ComputedColumnNotWritable(columnName) =>
-        SodaUtils.errorResponse(request, SodaErrors.ComputedColumnNotWritable(columnName))(response)
+      case RowDAO.ComputationHandlerNotFound(typ) =>
+        SodaUtils.errorResponse(request, SodaErrors.ComputationHandlerNotFound(typ))(response)
     }
   }
 
@@ -172,6 +172,8 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
 
     type rowDaoFunc = (String, ResourceName, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
 
+    import ComputedColumns._
+
     private def upsertishFlow(req: HttpServletRequest, response: HttpServletResponse, f: rowDaoFunc) {
       InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
@@ -185,22 +187,35 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
               // Do we eventually want to change this to upsert the valid rows and return
               // a summary of errors found?
               // We would need to first inform API users of any change in behavior.
-              val firstInvalidRow = rowsAsSoql.collectFirst { case invalid: RowTranslatorError => invalid }
-              firstInvalidRow match {
-                case None                                               =>
-                  // All rows provided in the request are valid.
-                  val upserts = prepareUpserts(
-                    datasetRecord, trans, rowsAsSoql.collect { case upsert: ValidUpsert => upsert.rowData.toMap })
-                  val deletes = rowsAsSoql.collect { case delete: ValidDelete => delete.pk }.map(DeleteRow(_))
+              val validRows = rowsAsSoql.collect {
+                case validUpsert: ValidUpsert                     => validUpsert
+                case validDelete: ValidDelete                     => validDelete
+                case MaltypedDataError(columnName, expected, got) =>
+                  return upsertResponse(req, response)(MaltypedData(columnName, expected, got))
+                case UnknownColumnError(columnName)               =>
+                  return upsertResponse(req, response)(UnknownColumn(columnName))
+                case DeleteNoPKError                              =>
+                  return upsertResponse(req, response)(DeleteWithoutPrimaryKey)
+                case NotAnObjectOrSingleElementArrayError(obj)    =>
+                  return upsertResponse(req, response)(RowNotAnObject(obj))
+              }
+
+              val (upsertRows, deleteRows) = splitUpByOperation(validRows)
+              val computedColumns = findComputedColumns(datasetRecord)
+              val computedRows = addComputedColumns(upsertRows.map(_.rowData.toMap), computedColumns)
+              computedRows match {
+                case ComputeSuccess(rows) => {
+                  val upserts = rows.map { upsertRow =>
+                    trans.soqlToDataCoordinatorJson(upsertRow) match {
+                      case ValidUpsertForDataCoordinator(dcRow) => UpsertRow(dcRow)
+                    }
+                  }
+
+                  val deletes = deleteRows.map { dr => DeleteRow(dr.pk) }
+
                   f(user(req), resourceName.value, upserts ++ deletes)(upsertResponse(req, response))
-                case Some(MaltypedDataError(columnName, expected, got)) =>
-                  upsertResponse(req, response)(MaltypedData(columnName, expected, got))
-                case Some(UnknownColumnError(columnName))               =>
-                  upsertResponse(req, response)(UnknownColumn(columnName))
-                case Some(DeleteNoPKError)                              =>
-                  upsertResponse(req, response)(DeleteWithoutPrimaryKey)
-                case Some(NotAnObjectOrSingleElementArrayError(obj))    =>
-                  upsertResponse(req, response)(RowNotAnObject(obj))
+                }
+                case HandlerNotFound(typ) => upsertResponse(req, response)(ComputationHandlerNotFound(typ))
               }
             case None =>
               upsertResponse(req, response)(RowDAO.DatasetNotFound(resourceName.value))
@@ -210,17 +225,18 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
       }
     }
 
-    import ComputedColumns._
-
-    private def prepareUpserts(datasetRecord: MinimalDatasetRecord,
-                               trans: RowDataTranslator,
-                               upsertsAsSoql: Iterator[Map[String, SoQLValue]]): Iterator[RowUpdate] = {
-      val computedColumns = findComputedColumns(datasetRecord)
-      addComputedColumns(upsertsAsSoql, computedColumns).map { upsertRow =>
-        trans.soqlToDataCoordinatorJson(upsertRow) match {
-          case ValidUpsertForDataCoordinator(dcRow) => UpsertRow(dcRow)
+    private def splitUpByOperation(rows: Iterator[RowTranslatorSuccess]): (Iterator[ValidUpsert], Iterator[ValidDelete]) = {
+      val (upsertsRaw, deletesRaw) = rows.partition { row =>
+        row match {
+          case upsert: ValidUpsert => true
+          case delete: ValidDelete => false
         }
       }
+
+      val upserts = upsertsRaw.collect { case upsert: ValidUpsert => upsert }
+      val deletes = deletesRaw.collect { case delete: ValidDelete => delete }
+
+      (upserts, deletes)
     }
   }
 

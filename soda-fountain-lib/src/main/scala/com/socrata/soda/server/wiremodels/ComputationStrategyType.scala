@@ -8,6 +8,7 @@ object ComputationStrategyType extends Enumeration {
   implicit val JsonCodec = ComputationStrategyTypeCodec
 
   val GeoRegion = Value("georegion")
+  val Test      = Value("test")
 }
 
 object ComputationStrategyTypeCodec extends JsonCodec[ComputationStrategyType.Value] {

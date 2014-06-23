@@ -1,6 +1,6 @@
-package com.socrata.soda.server.highlevel
+package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast.{JValue, JObject}
+import com.rojoma.json.ast.JObject
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
@@ -9,9 +9,6 @@ import com.socrata.soql.types._
  *  Defines a handler capable of computing one type of computed column
  */
 trait ComputationHandler {
-  // The type of computation this handler handles.  Should be unique.
-  val computationType: String
-
   // Use an immutable map to guarantee no mutation for safe concurrency
   type SoQLRow = collection.immutable.Map[String, SoQLValue]
 
