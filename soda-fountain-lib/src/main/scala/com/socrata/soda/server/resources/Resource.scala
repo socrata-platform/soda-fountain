@@ -101,6 +101,8 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
         SodaUtils.errorResponse(request, SodaErrors.RowColumnNotFound(columnName))(response)
       case RowDAO.ComputationHandlerNotFound(typ) =>
         SodaUtils.errorResponse(request, SodaErrors.ComputationHandlerNotFound(typ))(response)
+      case RowDAO.ComputedColumnNotWritable(columnName) =>
+        SodaUtils.errorResponse(request, SodaErrors.ComputedColumnNotWritable(columnName))(response)
     }
   }
 
@@ -188,16 +190,18 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
               // a summary of errors found?
               // We would need to first inform API users of any change in behavior.
               val validRows = rowsAsSoql.collect {
-                case validUpsert: ValidUpsert                     => validUpsert
-                case validDelete: ValidDelete                     => validDelete
-                case MaltypedDataError(columnName, expected, got) =>
+                case validUpsert: ValidUpsert                                => validUpsert
+                case validDelete: ValidDelete                                => validDelete
+                case MaltypedDataError(columnName, expected, got)            =>
                   return upsertResponse(req, response)(MaltypedData(columnName, expected, got))
-                case UnknownColumnError(columnName)               =>
+                case UnknownColumnError(columnName)                          =>
                   return upsertResponse(req, response)(UnknownColumn(columnName))
-                case DeleteNoPKError                              =>
+                case DeleteNoPKError                                         =>
                   return upsertResponse(req, response)(DeleteWithoutPrimaryKey)
-                case NotAnObjectOrSingleElementArrayError(obj)    =>
+                case NotAnObjectOrSingleElementArrayError(obj)               =>
                   return upsertResponse(req, response)(RowNotAnObject(obj))
+                case RowDataTranslator.ComputedColumnNotWritable(columnName) =>
+                  return upsertResponse(req, response)(RowDAO.ComputedColumnNotWritable(columnName))
               }
 
               val (upsertRows, deleteRows) = splitUpByOperation(validRows)

@@ -46,6 +46,9 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
       val rowWithSoQLValues: scala.collection.Map[String, SoQLValue] = map.flatMap { case (uKey, uVal) =>
         ciFor(uKey) match {
           case ColumnInfo(cr, rRep, wRep) =>
+            if (cr.computationStrategy.isDefined) {
+              return ComputedColumnNotWritable(cr.fieldName)
+            }
             rRep.fromJValue(uVal) match {
               case Some(v) => (cr.fieldName.name -> v) :: Nil
               case None => return MaltypedDataError(cr.fieldName, rRep.representedType, uVal)
@@ -109,4 +112,5 @@ object RowDataTranslator {
   case class UnknownColumnError(col: ColumnName) extends RowTranslatorError
   case object DeleteNoPKError extends RowTranslatorError
   case class NotAnObjectOrSingleElementArrayError(obj: JValue) extends RowTranslatorError
+  case class ComputedColumnNotWritable(column: ColumnName) extends RowTranslatorError
 }
