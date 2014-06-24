@@ -1,17 +1,13 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator.{SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
-import com.socrata.soda.server.highlevel.DatasetDAO.Result
-import com.socrata.soda.server.id.{DatasetId, SecondaryId, ColumnId, ResourceName}
+import com.socrata.soda.server.id.{SecondaryId, ResourceName}
 import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
 import com.socrata.soql.brita.IdentifierFilter
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.{SoQLVersion, SoQLFixedTimestamp, SoQLID, SoQLType}
 import DatasetDAO._
-import org.joda.time.DateTime
 import scala.util.control.ControlThrowable
-import scala.util.{Success, Failure}
 
 class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils, instanceForCreate: () => String) extends DatasetDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetDAOImpl])
@@ -53,8 +49,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         val addRidInstruction =
           if(ridFieldName == defaultPrimaryKey) {
             Nil
-          } else if(systemColumns.contains(ridFieldName)) {
-            List(new SetRowIdColumnInstruction(systemColumns(ridFieldName).id))
+          } else if(columnSpecUtils.systemColumns.contains(ridFieldName)) {
+            List(new SetRowIdColumnInstruction(columnSpecUtils.systemColumns(ridFieldName).id))
           } else {
             if(!spec.columns.contains(ridFieldName)) return NonexistantColumn(ridFieldName)
             List(new SetRowIdColumnInstruction(spec.columns(ridFieldName).id))
@@ -66,7 +62,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
         val (reportMetaData, _) = dc.create(instanceForCreate(), user, Some(instructions.iterator), spec.locale)
 
-        val trueSpec = spec.copy(columns = spec.columns ++ systemColumns)
+        val trueSpec = spec.copy(columns = spec.columns ++ columnSpecUtils.systemColumns)
         val record = trueSpec.asRecord(reportMetaData)
 
         // sanity-check
@@ -232,16 +228,4 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       case None =>
         NotFound(dataset)
     }
-
-  private[this] val _systemColumns = Map(
-    ColumnName(":id") -> ColumnSpec(ColumnId(":id"), ColumnName(":id"), ":id", "", SoQLID, None),
-    ColumnName(":version") -> ColumnSpec(ColumnId(":version"), ColumnName(":version"), ":version", "", SoQLVersion, None),
-    ColumnName(":created_at") -> ColumnSpec(ColumnId(":created_at"), ColumnName(":created_at"), ":created_at", "", SoQLFixedTimestamp, None),
-    ColumnName(":updated_at") -> ColumnSpec(ColumnId(":updated_at"), ColumnName(":updated_at"), ":updated_at", "", SoQLFixedTimestamp, None)
-  )
-
-  private[this] def systemColumns = {
-    log.info("TODO: Grovel system columns out of the data coordinator instead of hardcoding")
-    _systemColumns
-  }
 }
