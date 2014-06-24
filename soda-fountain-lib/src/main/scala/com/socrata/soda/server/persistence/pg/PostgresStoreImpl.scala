@@ -422,7 +422,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   def addColumn(datasetId: DatasetId, spec: ColumnSpec): ColumnRecord =
     using(dataSource.getConnection()) { conn =>
       val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
-      addColumns(conn, datasetId, Iterator.single(result))
+      addColumns(conn, datasetId, Seq(result))
       updateSchemaHash(conn, datasetId)
       result
     }
