@@ -1,16 +1,8 @@
 package com.socrata.soda.server.export
 
+import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soql.types.SoQLValue
-import com.socrata.soda.server.SodaUtils
-import com.socrata.http.common.util.AliasedCharset
-import com.socrata.soda.server.util.AdditionalJsonCodecs._
-import com.socrata.soda.server.wiremodels.{CsvColumnRep, CsvColumnWriteRep, JsonColumnRep, JsonColumnWriteRep}
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.io.CompactJsonWriter
-import com.rojoma.json.ast.{JArray, JNumber, JNull, JString}
-import com.rojoma.simplearm.util._
-import java.io.BufferedWriter
 import java.util.Locale
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
