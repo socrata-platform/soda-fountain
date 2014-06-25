@@ -6,6 +6,7 @@ import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.soda.server.highlevel.ExportDAO
+import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.types.SoQLValue
 import java.io.BufferedWriter
