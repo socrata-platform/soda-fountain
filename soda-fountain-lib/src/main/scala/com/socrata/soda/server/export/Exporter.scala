@@ -14,7 +14,7 @@ trait Exporter {
 }
 
 object Exporter {
-  val exporters = List(JsonExporter, CJsonExporter, CsvExporter)
+  val exporters = List(JsonExporter, CJsonExporter, CsvExporter, GeoJsonExporter)
   val exportForMimeType = exporters.map { e => e.mimeType -> e }.toMap
   val exporterExtensions = exporters.flatMap(_.extension).map(canonicalizeExtension).toSet
 
