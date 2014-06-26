@@ -90,7 +90,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
         req.negotiateContent match {
           case Some((mimeType, charset, language)) =>
             val exporter = Exporter.exportForMimeType(mimeType)
-            exportDAO.export(resourceName, passOnPrecondition, ifModifiedSince, limit, offset, copy, sorted = sorted) {
+            exportDAO.export(resourceName, exporter.validForSchema, passOnPrecondition, ifModifiedSince, limit, offset, copy, sorted = sorted) {
               case ExportDAO.Success(schema, newTag, rows) =>
                 resp.setStatus(HttpServletResponse.SC_OK)
                 resp.setHeader("Vary", ContentNegotiation.headers.mkString(","))
@@ -102,6 +102,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                 SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
               case ExportDAO.NotModified(etags) =>
                 SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(resp)
+              case ExportDAO.SchemaInvalidForMimeType => NotAcceptable(resp)
             }
           case None =>
             // TODO better error

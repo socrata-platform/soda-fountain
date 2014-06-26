@@ -3,13 +3,21 @@ package com.socrata.soda.server.highlevel
 import com.socrata.soda.server.id.ResourceName
 
 import ExportDAO._
+import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.http.server.util.{Precondition, EntityTag}
 import org.joda.time.DateTime
 
 trait ExportDAO {
-  def export[T](dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], limit: Option[Long], offset: Option[Long], copy: String, sorted: Boolean)(f: Result => T): T
+  def export[T](dataset: ResourceName,
+                schemaCheck: Seq[ColumnRecord] => Boolean,
+                precondition: Precondition,
+                ifModifiedSince: Option[DateTime],
+                limit: Option[Long],
+                offset: Option[Long],
+                copy: String,
+                sorted: Boolean)(f: Result => T): T
 }
 
 object ExportDAO {
@@ -21,4 +29,5 @@ object ExportDAO {
   case object PreconditionFailed extends Result
   case class NotModified(etag: Seq[EntityTag]) extends Result
   case object NotFound extends Result
+  case object SchemaInvalidForMimeType extends Result
 }

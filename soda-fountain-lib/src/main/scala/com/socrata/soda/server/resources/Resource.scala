@@ -212,6 +212,7 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
               val exporter = Exporter.exportForMimeType(mimeType)
               rowDAO.getRow(
                 resourceName,
+                exporter.validForSchema,
                 newPrecondition.map(_.dropRight(suffix.length)),
                 req.dateTimeHeader("If-Modified-Since"),
                 rowId,
@@ -236,6 +237,7 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
                   SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
                 case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
                   SodaUtils.errorResponse(req, EtagPreconditionFailed)(response)
+                case RowDAO.SchemaInvalidForMimeType => NotAcceptable(response)
               }
             case None =>
               // TODO better error

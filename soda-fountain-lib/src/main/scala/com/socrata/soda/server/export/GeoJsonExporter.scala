@@ -10,6 +10,7 @@ import com.socrata.soql.types._
 import java.io.BufferedWriter
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
+import com.socrata.soda.server.persistence.ColumnRecord
 
 object GeoJsonExporter extends Exporter {
   val mimeTypeBase = "application/vnd.geo+json"
@@ -17,6 +18,10 @@ object GeoJsonExporter extends Exporter {
   val extension = Some("geojson")
 
   object InvalidGeoJsonSchema extends Exception
+
+  override def validForSchema(schema: Seq[ColumnRecord]): Boolean = {
+    schema.filter(col => col.typ.isInstanceOf[SoQLGeometryLike[_]]).size == 1
+  }
 
   def export(resp: HttpServletResponse,
              charset: AliasedCharset,
@@ -41,9 +46,9 @@ object GeoJsonExporter extends Exporter {
         val featureCollectionPrefix = """{ "type": "FeatureCollection", "features": ["""
         val featureCollectionSuffix = s"""], "crs" : $wgs84ProjectionInfo }"""
 
-        val (geomField, otherFields) = splitOutGeoColumn[ExportDAO.ColumnInfo](schema.schema, ci => ci.typ)
-        val names = otherFields.map { ci => ci.fieldName.name }
-        val reps = otherFields.map { ci => JsonColumnRep.forClientType(ci.typ) }
+        val (geometry, properties) = splitOutGeoColumn[ExportDAO.ColumnInfo](schema.schema, ci => ci.typ)
+        val propertyNames = properties.map { ci => ci.fieldName.name }
+        val propertyReps = properties.map { ci => JsonColumnRep.forClientType(ci.typ) }
 
         val writer = w
         val jsonWriter = new CompactJsonWriter(writer)
@@ -67,7 +72,7 @@ object GeoJsonExporter extends Exporter {
 
         private def writeGeoJsonRow(row: Array[SoQLValue]) {
           val (soqlGeom, soqlProperties) = splitOutGeoColumn[SoQLValue](row, field => field.typ)
-          val rowData = (names, reps, soqlProperties).zipped
+          val rowData = (propertyNames, propertyReps, soqlProperties).zipped
           val properties = rowData.map { (name, rep, soqlProperty) => name -> rep.toJValue(soqlProperty) }
           val map = Map("type" -> JString("Feature"),
                         "geometry" -> getGeometryJson(soqlGeom),

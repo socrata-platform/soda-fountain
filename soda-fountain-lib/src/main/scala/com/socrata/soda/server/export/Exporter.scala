@@ -2,6 +2,7 @@ package com.socrata.soda.server.export
 
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.highlevel.ExportDAO
+import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soql.types.SoQLValue
 import java.util.Locale
 import javax.activation.MimeType
@@ -11,6 +12,7 @@ trait Exporter {
   val mimeType: MimeType
   val extension: Option[String]
   def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false)
+  def validForSchema(schema: Seq[ColumnRecord]): Boolean = true
 }
 
 object Exporter {
