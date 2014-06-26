@@ -17,7 +17,6 @@ object GeoJsonExporter extends Exporter {
   val extension = Some("geojson")
 
   object InvalidGeoJsonSchema extends Exception
-  object InvalidGeoJsonRow extends Exception
 
   def export(resp: HttpServletResponse,
              charset: AliasedCharset,
@@ -38,43 +37,27 @@ object GeoJsonExporter extends Exporter {
       w <- managed(new BufferedWriter(rawWriter, 65536))
     } yield {
       class Processor {
-        val featureCollectionPrefix = """{ "type": "FeatureCollection",
-                                         |    "features": [""".stripMargin
-        val featureCollectionSuffix = """] }"""
+        val wgs84ProjectionInfo = """{ "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } }"""
+        val featureCollectionPrefix = """{ "type": "FeatureCollection", "features": ["""
+        val featureCollectionSuffix = s"""], "crs" : $wgs84ProjectionInfo }"""
 
-        val (geomField, otherFields) = splitSchema
+        val (geomField, otherFields) = splitOutGeoColumn[ExportDAO.ColumnInfo](schema.schema, ci => ci.typ)
         val names = otherFields.map { ci => ci.fieldName.name }
         val reps = otherFields.map { ci => JsonColumnRep.forClientType(ci.typ) }
 
         val writer = w
         val jsonWriter = new CompactJsonWriter(writer)
 
-        private def splitSchema: (ExportDAO.ColumnInfo, Seq[ExportDAO.ColumnInfo]) = {
-          val (geomField, otherFields) = schema.schema.partition(_.typ.isInstanceOf[SoQLGeometryLike[_]])
-
-          // If we are validating the dataset schema upfront and throwing a 406 on datasets
+        private def splitOutGeoColumn[T](columns: Seq[T], getSoQLType: T => SoQLType): (T, Seq[T]) = {
+          val (geom, other) = columns.partition(getSoQLType(_).isInstanceOf[SoQLGeometryLike[_]])
+          // Once we are validating the dataset schema upfront and throwing a 406 on datasets
           // that don't contain exactly one geo column, this should never happen :/
-          if (geomField.size != 1) throw InvalidGeoJsonSchema
-
-          (geomField(0), otherFields)
-        }
-
-        private def splitGeometryAndProperties(row: Array[SoQLValue]): (SoQLValue, Array[SoQLValue]) = {
-          row.foreach { field =>
-            println(s"${field.typ},${field.typ.isInstanceOf[SoQLGeometryLike[_]]},${field.toString}")
-          }
-          val (geom, properties) = row.partition(_.typ.isInstanceOf[SoQLGeometryLike[_]])
-
-          // If we are validating the dataset schema upfront and throwing a 406 on datasets
-          // that don't contain exactly one geo column, this should never happen :/
-          println(row.map(_.toString).mkString(","))
-          if (geom.size != 1) throw InvalidGeoJsonRow
-
-          (geom(0), properties)
+          if (geom.size != 1) throw InvalidGeoJsonSchema
+          (geom(0), other)
         }
 
         def writeGeoJsonRow(row: Array[SoQLValue]) {
-          val (soqlGeom, soqlProperties) = splitGeometryAndProperties(row)
+          val (soqlGeom, soqlProperties) = splitOutGeoColumn[SoQLValue](row, field => field.typ)
           val geomJson = soqlGeom match {
             case SoQLPoint(p)         => SoQLPoint.JsonRep.apply(p)
             case SoQLMultiLine(ml)    => SoQLMultiLine.JsonRep.apply(ml)
@@ -83,15 +66,14 @@ object GeoJsonExporter extends Exporter {
 
           val rowData = (names, reps, soqlProperties).zipped
           val properties = rowData.map { (name, rep, soqlProperty) => name -> rep.toJValue(soqlProperty) }
-
-          val map = JObject(Map("type" -> JString("Feature"),
-                                "geometry" -> JsonReader.fromString(geomJson),
-                                "properties" -> JObject(properties.toMap)))
-          jsonWriter.write(map)
+          val map = Map("type" -> JString("Feature"),
+                        "geometry" -> JsonReader.fromString(geomJson),
+                        "properties" -> JObject(properties.toMap))
+          val finalMap = if (singleRow) map + ("crs" -> JsonReader.fromString(wgs84ProjectionInfo)) else map
+          jsonWriter.write(JObject(finalMap))
         }
 
         def go(rows: Iterator[Array[SoQLValue]]) {
-          // TODO : Find a cleaner way to stream the geometry collection and not keep the whole thing in memory
           if (!singleRow) writer.write(featureCollectionPrefix)
 
           if(rows.hasNext) {
