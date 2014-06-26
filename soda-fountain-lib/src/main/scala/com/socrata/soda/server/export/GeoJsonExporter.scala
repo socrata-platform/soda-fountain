@@ -32,12 +32,7 @@ object GeoJsonExporter extends Exporter {
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
 
-    // TODO : Return HTTP 406 if the dataset doesn't contain exactly one geo column.
-    // This should happen in Resource before retrieving rows,
-    // so we aren't pulling a large dataset from secondary
-    // only to immediately throw it away.
-
-      for {
+    for {
       rawWriter <- managed(resp.getWriter)
       w <- managed(new BufferedWriter(rawWriter, 65536))
     } yield {
