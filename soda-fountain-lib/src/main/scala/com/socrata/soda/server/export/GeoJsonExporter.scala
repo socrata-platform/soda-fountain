@@ -85,12 +85,11 @@ object GeoJsonExporter extends Exporter {
           }
 
           while (rows.hasNext) {
-            writer.write("\n,")
+            writer.write(",")
             writeGeoJsonRow(rows.next())
           }
 
-          if(!singleRow) writer.write(s"\n$featureCollectionSuffix\n")
-          else writer.write("\n")
+          if(!singleRow) writer.write(featureCollectionSuffix)
         }
       }
       val processor = new Processor
