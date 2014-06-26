@@ -19,6 +19,13 @@ object GeoJsonExporter extends Exporter {
 
   object InvalidGeoJsonSchema extends Exception
 
+  // For now, GeoJSON only works if you have exactly ONE geo column in the dataset.
+  // Attempting to export a dataset with zero or more than one geo columns will return HTTP 406.
+  // For non-geo datasets the reason for this behavior is obvious.
+  // For datasets with >1 geo column, we don't currently have a way for the user to specify which
+  // column is the primary geo column that should be returned as the the top level "geometry" element
+  // (others would be relegated to "properties"). Until we have prioritize implementing a way to
+  // represent that in the store or pass it in the export request, we will error out.
   override def validForSchema(schema: Seq[ColumnRecord]): Boolean = {
     schema.filter(col => col.typ.isInstanceOf[SoQLGeometryLike[_]]).size == 1
   }
