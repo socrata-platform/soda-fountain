@@ -40,7 +40,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
       r
   }
 
-  def clientJsonToSoql(row: JValue): RowTranslatorResult = row match {
+  def clientJsonToSoql(row: JValue): Result = row match {
     case JObject(map) =>
       var rowHasLegacyDeleteFlag = false
       val rowWithSoQLValues: scala.collection.Map[String, SoQLValue] = map.flatMap { case (uKey, uVal) =>
@@ -70,7 +70,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
           case None        => DeleteNoPKError
         }
       } else {
-        ValidUpsert(rowWithSoQLValues)
+        UpsertAsSoQL(rowWithSoQLValues)
       }
     case JArray(Seq(rowIdJval)) =>
       val pkCol = dataset.columnsById(dataset.primaryKey)
@@ -82,13 +82,13 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
       NotAnObjectOrSingleElementArrayError(other)
   }
 
-  private def makeDeleteResponse(pk: SoQLValue): RowTranslatorResult = {
+  private def makeDeleteResponse(pk: SoQLValue): Result = {
     val pkColumn = dataset.columnsById(dataset.primaryKey)
     val idToDelete = JsonColumnRep.forDataCoordinatorType(pkColumn.typ).toJValue(pk)
-    ValidDelete(idToDelete)
+    DeleteAsCJson(idToDelete)
   }
 
-  def soqlToDataCoordinatorJson(row: Map[String, SoQLValue]): RowTranslatorResult = {
+  def soqlToDataCoordinatorJson(row: Map[String, SoQLValue]): Result = {
     val rowWithDCJValues: scala.collection.Map[String, JValue] = row.map { case (uKey, uVal) =>
       ciFor(uKey) match {
         case ColumnInfo(cr, rRep, wRep) => (cr.id.underlying -> wRep.toJValue(uVal))
@@ -96,21 +96,21 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
       }
     }
 
-    ValidUpsertForDataCoordinator(rowWithDCJValues)
+    UpsertAsCJson(rowWithDCJValues)
   }
 }
 
 object RowDataTranslator {
-  sealed trait RowTranslatorResult
-  sealed trait RowTranslatorSuccess extends RowTranslatorResult
-  sealed trait RowTranslatorError extends RowTranslatorResult
+  sealed trait Result
+  sealed trait Success extends Result
+  sealed trait Error extends Result
 
-  case class ValidUpsert(rowData: Map[String, SoQLValue]) extends RowTranslatorSuccess
-  case class ValidUpsertForDataCoordinator(rowData: Map[String, JValue]) extends RowTranslatorSuccess
-  case class ValidDelete(pk: JValue) extends RowTranslatorSuccess
-  case class MaltypedDataError(col: ColumnName, expected: SoQLType, got: JValue) extends RowTranslatorError
-  case class UnknownColumnError(col: ColumnName) extends RowTranslatorError
-  case object DeleteNoPKError extends RowTranslatorError
-  case class NotAnObjectOrSingleElementArrayError(obj: JValue) extends RowTranslatorError
-  case class ComputedColumnNotWritable(column: ColumnName) extends RowTranslatorError
+  case class UpsertAsSoQL(rowData: Map[String, SoQLValue]) extends Success
+  case class UpsertAsCJson(rowData: Map[String, JValue]) extends Success
+  case class DeleteAsCJson(pk: JValue) extends Success
+  case class MaltypedDataError(col: ColumnName, expected: SoQLType, got: JValue) extends Error
+  case class UnknownColumnError(col: ColumnName) extends Error
+  case object DeleteNoPKError extends Error
+  case class NotAnObjectOrSingleElementArrayError(obj: JValue) extends Error
+  case class ComputedColumnNotWritable(column: ColumnName) extends Error
 }

@@ -190,8 +190,8 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
               // a summary of errors found?
               // We would need to first inform API users of any change in behavior.
               val validRows = rowsAsSoql.collect {
-                case validUpsert: ValidUpsert                                => validUpsert
-                case validDelete: ValidDelete                                => validDelete
+                case validUpsert: UpsertAsSoQL                               => validUpsert
+                case validDelete: DeleteAsCJson                              => validDelete
                 case MaltypedDataError(columnName, expected, got)            =>
                   return upsertResponse(req, response)(MaltypedData(columnName, expected, got))
                 case UnknownColumnError(columnName)                          =>
@@ -204,21 +204,18 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
                   return upsertResponse(req, response)(RowDAO.ComputedColumnNotWritable(columnName))
               }
 
-              val (upsertRows, deleteRows) = splitUpByOperation(validRows)
               val computedColumns = findComputedColumns(datasetRecord)
-              val computedRows = addComputedColumns(upsertRows.map(_.rowData.toMap), computedColumns)
+              val computedRows = addComputedColumns(validRows, computedColumns)
               computedRows match {
-                case ComputeSuccess(rows) => {
-                  val upserts = rows.map { upsertRow =>
-                    trans.soqlToDataCoordinatorJson(upsertRow) match {
-                      case ValidUpsertForDataCoordinator(dcRow) => UpsertRow(dcRow)
+                case ComputeSuccess(rows) =>
+                  val rowUpdates = rows.map {
+                    case UpsertAsSoQL(rowData) => trans.soqlToDataCoordinatorJson(rowData) match {
+                      case UpsertAsCJson(row) => UpsertRow(row)
+                      case UnknownColumnError(columnName) => return upsertResponse(req, response)(UnknownColumn(columnName))
                     }
+                    case DeleteAsCJson(pk) => DeleteRow(pk)
                   }
-
-                  val deletes = deleteRows.map { dr => DeleteRow(dr.pk) }
-
-                  f(user(req), resourceName.value, upserts ++ deletes)(upsertResponse(req, response))
-                }
+                  f(user(req), resourceName.value, rowUpdates)(upsertResponse(req, response))
                 case HandlerNotFound(typ) => upsertResponse(req, response)(ComputationHandlerNotFound(typ))
               }
             case None =>
@@ -227,20 +224,6 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName.value)(response)
       }
-    }
-
-    private def splitUpByOperation(rows: Iterator[RowTranslatorSuccess]): (Iterator[ValidUpsert], Iterator[ValidDelete]) = {
-      val (upsertsRaw, deletesRaw) = rows.partition { row =>
-        row match {
-          case upsert: ValidUpsert => true
-          case delete: ValidDelete => false
-        }
-      }
-
-      val upserts = upsertsRaw.collect { case upsert: ValidUpsert => upsert }
-      val deletes = deletesRaw.collect { case delete: ValidDelete => delete }
-
-      (upserts, deletes)
     }
   }
 

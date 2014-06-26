@@ -3,6 +3,8 @@ package com.socrata.soda.server.computation
 import com.rojoma.json.ast.{JObject, JString, JArray, JNumber}
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
+import com.socrata.soda.server.highlevel.RowDataTranslator
+import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLPoint, SoQLText}
@@ -49,20 +51,29 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
    * sourceColumns must be a list of one column, and it must be a Geo Point type.
    * parameters: {"region":  <<name of geo region dataset 4x4>>}
    */
-  def compute(sourceIt: Iterator[SoQLRow], column: MinimalColumnRecord): Iterator[SoQLRow] = {
+  def compute(sourceIt: Iterator[RowDataTranslator.Success], column: MinimalColumnRecord): Iterator[RowDataTranslator.Success] = {
     // Only a single point column is allowed as a source for now
     val (geoColumnName, region) = parsePointColumnSourceStrategy(column)
 
     val batches = sourceIt.grouped(batchSize)
     val computedBatches = batches.map { batch =>
       val rows = batch.toSeq
-      val points = rows.map { rowmap => extractPointFromRow(rowmap, ColumnName(geoColumnName)) }
+
+      // Split the batch into upserts and deletes
+      // Doing the partition here, once we have already split the data into batches,
+      // is more memory efficient than partitioning at the dataset level.
+      val upserts = rows.collect { case upsert: UpsertAsSoQL => upsert }
+      val deletes = rows.collect { case delete: DeleteAsCJson => delete }
 
       // Now convert points to feature IDs, and splice IDs back into rows
+      val points = upserts.map { upsert => extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName)) }
       val featureIds = geospaceRegionCoder(points, region)
-      rows.zip(featureIds).map { case (rowmap, featureId) =>
-        rowmap + (column.fieldName.name -> SoQLText(featureId))
+      val upsertsWithComputed = upserts.zip(featureIds).map { case (upsert, featureId) =>
+        UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureId)))
       }.toIterator
+
+      // Return the upserts, now with computed column, along with the untouched deletes
+      upsertsWithComputed ++ deletes
     }
     computedBatches.flatten
   }

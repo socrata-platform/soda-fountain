@@ -2,6 +2,7 @@ package com.socrata.soda.server.computation
 
 import com.rojoma.json.ast._
 import com.rojoma.json.io.JsonReader
+import com.socrata.soda.server.highlevel.RowDataTranslator.UpsertAsSoQL
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.persistence.{MinimalColumnRecord, ComputationStrategyRecord}
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep}
@@ -12,7 +13,6 @@ import org.mockserver.integration.ClientAndServer
 import org.mockserver.model.Header
 import org.scalatest.MustMatchers
 import org.scalatest.{Assertions, FunSuite, BeforeAndAfterAll}
-
 
 trait GeospaceHandlerData {
   val point1 = "{\"type\":\"Point\",\"coordinates\":[47.6303,-122.3148]}"
@@ -78,9 +78,9 @@ with MustMatchers with Assertions with BeforeAndAfterAll with GeospaceHandlerDat
     mockGeocodeRoute(".+119.+", """["","Wards.5"]""")
     val expectedIds = Seq("Wards.1", "Wards.2", "", "Wards.5")
     val expectedRows = testRows.zip(expectedIds).map { case (map, id) =>
-      map + ("ward_id" -> SoQLText(id))
+      UpsertAsSoQL(map + ("ward_id" -> SoQLText(id)))
     }
-    val newRows = handler.compute(testRows.toIterator, columnSpec)
+    val newRows = handler.compute(testRows.map(UpsertAsSoQL(_)).toIterator, columnSpec)
     newRows.toSeq must equal (expectedRows)
   }
 
@@ -88,7 +88,7 @@ with MustMatchers with Assertions with BeforeAndAfterAll with GeospaceHandlerDat
     intercept[UnknownColumnEx] {
       val rows = Seq(Map("date" -> SoQLText("12/31/2013")))
       // NOTE: must call next on an iterator otherwise computation doesn't start
-      handler.compute(rows.toIterator, columnSpec).next
+      handler.compute(rows.map(UpsertAsSoQL(_)).toIterator, columnSpec).next
     }
   }
 
@@ -96,7 +96,7 @@ with MustMatchers with Assertions with BeforeAndAfterAll with GeospaceHandlerDat
     // The way we verify this is a variant of above test.  Unless we call next(), errors in the input
     // will not result in an exception because processing hasn't started yet
     val rows = Seq(Map("date" -> SoQLText("12/31/2013")))    // geom column missing
-    handler.compute(rows.toIterator, columnSpec)
+    handler.compute(rows.map(UpsertAsSoQL(_)).toIterator, columnSpec)
   }
 
   test("Will throw MaltypedDataEx if source column not right SoQLType") {
@@ -105,7 +105,7 @@ with MustMatchers with Assertions with BeforeAndAfterAll with GeospaceHandlerDat
     // If not MultiLine
     intercept[MaltypedDataEx] {
       val rows = Seq(Map("geom" -> converter(multiLine).get))
-      handler.compute(rows.toIterator, columnSpec).next
+      handler.compute(rows.map(UpsertAsSoQL(_)).toIterator, columnSpec).next
     }
 
   }

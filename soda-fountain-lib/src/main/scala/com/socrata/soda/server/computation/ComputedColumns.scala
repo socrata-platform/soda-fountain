@@ -1,17 +1,16 @@
 package com.socrata.soda.server.computation
 
+import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.persistence._
-import com.socrata.soql.types.SoQLValue
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
+import com.socrata.soql.types.SoQLValue
 
 /**
  * Utilities for computing columns
  */
 object ComputedColumns {
-  type SoQLRow = collection.immutable.Map[String, SoQLValue]
-
   sealed trait ComputeResult
-  case class ComputeSuccess(it: Iterator[SoQLRow]) extends ComputeResult
+  case class ComputeSuccess(it: Iterator[RowDataTranslator.Success]) extends ComputeResult
   case class HandlerNotFound(typ: ComputationStrategyType.Value) extends ComputeResult
 
   /**
@@ -34,7 +33,7 @@ object ComputedColumns {
    *                 than a JObject is not for upserts and can be ignored.
    * @param computedColumns the list of computed columns from [[findComputedColumns]]
    */
-  def addComputedColumns(sourceIt: Iterator[SoQLRow],
+  def addComputedColumns(sourceIt: Iterator[RowDataTranslator.Success],
                          computedColumns: Seq[MinimalColumnRecord]): ComputeResult = {
     var rowIterator = sourceIt
     for (computedColumn <- computedColumns) {
