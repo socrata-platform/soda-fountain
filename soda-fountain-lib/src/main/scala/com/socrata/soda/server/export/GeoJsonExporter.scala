@@ -5,12 +5,12 @@ import com.rojoma.json.io.{CompactJsonWriter, JsonReader}
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.highlevel.ExportDAO
+import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.types._
 import java.io.BufferedWriter
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
-import com.socrata.soda.server.persistence.ColumnRecord
 
 object GeoJsonExporter extends Exporter {
   val mimeTypeBase = "application/vnd.geo+json"
@@ -27,7 +27,7 @@ object GeoJsonExporter extends Exporter {
   // (others would be relegated to "properties"). Until we have prioritize implementing a way to
   // represent that in the store or pass it in the export request, we will error out.
   override def validForSchema(schema: Seq[ColumnRecord]): Boolean = {
-    schema.filter(col => col.typ.isInstanceOf[SoQLGeometryLike[_]]).size == 1
+    schema.count(_.typ.isInstanceOf[SoQLGeometryLike[_]]) == 1
   }
 
   def export(resp: HttpServletResponse,

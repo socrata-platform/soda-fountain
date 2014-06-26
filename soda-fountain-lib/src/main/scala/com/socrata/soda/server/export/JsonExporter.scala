@@ -1,9 +1,9 @@
 package com.socrata.soda.server.export
 
-import com.socrata.http.common.util.AliasedCharset
 import com.rojoma.json.ast.{JNull, JString, JArray}
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
+import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}

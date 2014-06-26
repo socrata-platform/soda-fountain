@@ -10,7 +10,6 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
-import com.socrata.soda.clients.datacoordinator.HttpDataCoordinatorClient
 import com.socrata.soda.server.errors._
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{ComputedColumns, RowDAO}
@@ -23,7 +22,6 @@ import com.socrata.soda.server.wiremodels.InputUtils
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
-import scala.util.Random
 
 /**
  * Resource: services for upserting, deleting, and querying dataset rows.

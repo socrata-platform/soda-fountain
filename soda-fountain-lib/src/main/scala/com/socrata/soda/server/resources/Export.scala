@@ -1,19 +1,19 @@
 package com.socrata.soda.server.resources
 
-import com.socrata.http.server.routing.OptionallyTypedPathComponent
-import com.socrata.soda.server.id.ResourceName
-import com.socrata.soda.server.highlevel.ExportDAO
-import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
-import com.socrata.soda.server.SodaUtils
 import com.socrata.http.common.util.ContentNegotiation
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
-import com.socrata.soda.server.util.ETagObfuscator
-import java.security.MessageDigest
-import java.nio.charset.StandardCharsets
+import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag}
+import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.errors.{BadParameter, ResourceNotModified, EtagPreconditionFailed}
 import com.socrata.soda.server.export.Exporter
+import com.socrata.soda.server.highlevel.ExportDAO
+import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.util.ETagObfuscator
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Export])
