@@ -56,18 +56,21 @@ object GeoJsonExporter extends Exporter {
           (geom(0), other)
         }
 
-        def writeGeoJsonRow(row: Array[SoQLValue]) {
-          val (soqlGeom, soqlProperties) = splitOutGeoColumn[SoQLValue](row, field => field.typ)
+        private def getGeometryJson(soqlGeom: SoQLValue) = {
           val geomJson = soqlGeom match {
             case SoQLPoint(p)         => SoQLPoint.JsonRep.apply(p)
             case SoQLMultiLine(ml)    => SoQLMultiLine.JsonRep.apply(ml)
             case SoQLMultiPolygon(mp) => SoQLMultiPolygon.JsonRep.apply(mp)
           }
+          JsonReader.fromString(geomJson)
+        }
 
+        private def writeGeoJsonRow(row: Array[SoQLValue]) {
+          val (soqlGeom, soqlProperties) = splitOutGeoColumn[SoQLValue](row, field => field.typ)
           val rowData = (names, reps, soqlProperties).zipped
           val properties = rowData.map { (name, rep, soqlProperty) => name -> rep.toJValue(soqlProperty) }
           val map = Map("type" -> JString("Feature"),
-                        "geometry" -> JsonReader.fromString(geomJson),
+                        "geometry" -> getGeometryJson(soqlGeom),
                         "properties" -> JObject(properties.toMap))
           val finalMap = if (singleRow) map + ("crs" -> JsonReader.fromString(wgs84ProjectionInfo)) else map
           jsonWriter.write(JObject(finalMap))
