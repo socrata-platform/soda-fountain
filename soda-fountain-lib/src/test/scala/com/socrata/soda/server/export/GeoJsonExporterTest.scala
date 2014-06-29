@@ -22,6 +22,9 @@ import org.scalatest.{FunSuite, Matchers}
 
 class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFactory with Matchers with DatasetsForTesting {
   val charset = AliasedCharset(StandardCharsets.UTF_8, StandardCharsets.UTF_8.name)
+  val expectedProjection = "crs" -> JObject(Map(
+    "type" -> JString("name"),
+    "properties" -> JObject(Map("name" -> JString("urn:ogc:def:crs:OGC:1.3:CRS84")))))
 
   test("Multi row - dataset with single geo column") {
     val columns = Seq(
@@ -37,7 +40,32 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
 
     val geoJson = getGeoJson(columns, "hym8-ivsj", rows)
     geoJson should not be (JNull)
-    // TODO add the rest of the validation
+    geoJson should be (JObject(Map(
+      "type"     -> JString("FeatureCollection"),
+      "features" -> JArray(Array(
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JObject(Map(
+            "type" -> JString("Point"),
+            "coordinates" -> JArray(Array(JNumber(-122.314822),
+                                          JNumber(47.630269))))),
+            "properties" -> JObject(Map("name" -> JString("Volunteer Park"))))),
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JObject(Map(
+            "type" -> JString("Point"),
+            "coordinates" -> JArray(Array(JNumber(-122.319071),
+                                          JNumber(47.617296))))),
+            "properties" -> JObject(Map("name" -> JString("Cal Anderson Park"))))),
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JObject(Map(
+            "type" -> JString("Point"),
+            "coordinates" -> JArray(Array(JNumber(-122.252513),
+                                          JNumber(47.555530))))),
+          "properties" -> JObject(Map("name" -> JString("Seward Park")))))
+      )),
+      expectedProjection)))
   }
 
   private def getGeoJson(columns: Seq[ColumnRecord], pk: String, rows: Seq[Array[SoQLValue]]): JValue = {
