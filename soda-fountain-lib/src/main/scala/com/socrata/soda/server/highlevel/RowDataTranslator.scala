@@ -32,15 +32,13 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
     columnInfos.getOrElseUpdate(rawColumnName, updateCiFor(rawColumnName))
   private[this] def updateCiFor(rawColumnName: String): ColumnResult = {
     val cn = ColumnName(rawColumnName)
-    val ci = columns.get(cn) match {
+    columns.get(cn) match {
       case Some(cr) =>
         if (columnInfos.size > columns.size * 10)
           columnInfos.clear // bad user, but I'd rather spend CPU than memory
         ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ), JsonColumnRep.forDataCoordinatorType(cr.typ))
       case None => NoColumn(cn)
     }
-    columnInfos.put(rawColumnName, ci)
-    ci
   }
 
   def clientJsonToSoql(row: JValue): Result = row match {
