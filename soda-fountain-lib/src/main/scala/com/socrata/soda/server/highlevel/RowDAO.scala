@@ -5,7 +5,7 @@ import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
-import com.socrata.soda.server.persistence.{MinimalDatasetRecord, ColumnRecord}
+import com.socrata.soda.server.persistence.{ColumnRecord, MinimalDatasetRecord}
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
@@ -22,6 +22,7 @@ trait RowDAO {
             secondaryInstance:Option[String]): Result
 
   def getRow(dataset: ResourceName,
+             schemaCheck: Seq[ColumnRecord] => Boolean,
              precondition: Precondition,
              ifModifiedSince: Option[DateTime],
              rowId: RowSpecifier,
