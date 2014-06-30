@@ -29,12 +29,15 @@ class ColumnSpecUtils(rng: Random) {
       else columnName
     IdentifierFilter(cnamePart.name) == cnamePart.name
   }
+  
+  def duplicateColumnName(columnName: ColumnName, existingColumns: Map[ColumnName, ColumnId]): Boolean =
+    existingColumns.map(_._1).exists(_.name.equalsIgnoreCase(columnName.name))
 
   def freezeForCreation(existingColumns: Map[ColumnName, ColumnId], ucs: UserProvidedColumnSpec): CreateResult =
     ucs match {
       case UserProvidedColumnSpec(None, Some(fieldName), Some(name), desc, Some(typ), None, uCompStrategy) =>
         if (!validColumnName(fieldName, uCompStrategy.isDefined)) return InvalidFieldName(fieldName)
-        if (existingColumns.map(_._1).exists(_.name.equalsIgnoreCase(fieldName.name))) return DuplicateFieldName(fieldName)
+        if (duplicateColumnName(fieldName, existingColumns)) return DuplicateColumnName(fieldName)
         val trueDesc = desc.getOrElse("")
         val id = selectId(existingColumns.values)
         freezeForCreation(uCompStrategy) match {
@@ -97,7 +100,7 @@ object ColumnSpecUtils {
   case object IdGiven extends CreateResult
   case object NoFieldName extends CreateResult
   case class InvalidFieldName(name: ColumnName) extends CreateResult
-  case class DuplicateFieldName(name: ColumnName) extends CreateResult
+  case class DuplicateColumnName(name: ColumnName) extends CreateResult
   case object NoName extends CreateResult
   case object NoType extends CreateResult
   case object DeleteSet extends CreateResult

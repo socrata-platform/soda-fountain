@@ -5,8 +5,15 @@ import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike}
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
-import scala.collection.Map
 
+/**
+ * Translates row data from SODA2 client JSON to SoQLValues
+ * and from SoQLValues to data coordinator JSON
+ * @param dataset Dataset schema information loaded from the database
+ * @param ignoreUnknownColumns Indicates whether unrecognized columns
+ *                             should cause an error to be thrown or
+ *                             simply be ignored.
+ */
 class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolean) {
   import RowDataTranslator._
 
@@ -20,30 +27,26 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
   // which represent either the fact that the key does not represent
   // a known column or the column's ID and type.
   private[this] val columns = dataset.columnsByName
-  private[this] val columnInfos = new java.util.HashMap[String, ColumnResult]
-  private[this] def ciFor(rawColumnName: String): ColumnResult = columnInfos.get(rawColumnName) match {
-    case null =>
-      val cn = ColumnName(rawColumnName)
-      columns.get(cn) match {
-        case Some(cr) =>
-          if(columnInfos.size > columns.size * 10)
-            columnInfos.clear() // bad user, but I'd rather spend CPU than memory
-        val ci = ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ), JsonColumnRep.forDataCoordinatorType(cr.typ))
-          columnInfos.put(rawColumnName, ci)
-          ci
-        case None =>
-          val nc = NoColumn(cn)
-          columnInfos.put(rawColumnName, nc)
-          nc
-      }
-    case r =>
-      r
+  private[this] val columnInfos = collection.mutable.Map.empty[String, ColumnResult]
+  private[this] def ciFor(rawColumnName: String): ColumnResult =
+    columnInfos.getOrElseUpdate(rawColumnName, updateCiFor(rawColumnName))
+  private[this] def updateCiFor(rawColumnName: String): ColumnResult = {
+    val cn = ColumnName(rawColumnName)
+    val ci = columns.get(cn) match {
+      case Some(cr) =>
+        if (columnInfos.size > columns.size * 10)
+          columnInfos.clear // bad user, but I'd rather spend CPU than memory
+        ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ), JsonColumnRep.forDataCoordinatorType(cr.typ))
+      case None => NoColumn(cn)
+    }
+    columnInfos.put(rawColumnName, ci)
+    ci
   }
 
   def clientJsonToSoql(row: JValue): Result = row match {
     case JObject(map) =>
       var rowHasLegacyDeleteFlag = false
-      val rowWithSoQLValues: scala.collection.Map[String, SoQLValue] = map.flatMap { case (uKey, uVal) =>
+      val rowWithSoQLValues = map.flatMap { case (uKey, uVal) =>
         ciFor(uKey) match {
           case ColumnInfo(cr, rRep, wRep) =>
             if (cr.computationStrategy.isDefined) {
@@ -70,7 +73,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
           case None        => DeleteNoPKError
         }
       } else {
-        UpsertAsSoQL(rowWithSoQLValues)
+        UpsertAsSoQL(rowWithSoQLValues.toMap)
       }
     case JArray(Seq(rowIdJval)) =>
       val pkCol = dataset.columnsById(dataset.primaryKey)
@@ -89,14 +92,14 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
   }
 
   def soqlToDataCoordinatorJson(row: Map[String, SoQLValue]): Result = {
-    val rowWithDCJValues: scala.collection.Map[String, JValue] = row.map { case (uKey, uVal) =>
+    val rowWithDCJValues = row.map { case (uKey, uVal) =>
       ciFor(uKey) match {
         case ColumnInfo(cr, rRep, wRep) => (cr.id.underlying -> wRep.toJValue(uVal))
         case NoColumn(colName) => return UnknownColumnError(colName)
       }
     }
 
-    UpsertAsCJson(rowWithDCJValues)
+    UpsertAsCJson(rowWithDCJValues.toMap)
   }
 }
 

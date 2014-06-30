@@ -59,21 +59,29 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
     val computedBatches = batches.map { batch =>
       val rows = batch.toSeq
 
-      // Split the batch into upserts and deletes
-      // Doing the partition here, once we have already split the data into batches,
-      // is more memory efficient than partitioning at the dataset level.
-      val upserts = rows.collect { case upsert: UpsertAsSoQL => upsert }
-      val deletes = rows.collect { case delete: DeleteAsCJson => delete }
+      // Grab just the upserts and get the point column for mapping to feature ID
+      val points = rows.collect {
+        case upsert: UpsertAsSoQL => extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName))
+      }
 
-      // Now convert points to feature IDs, and splice IDs back into rows
-      val points = upserts.map { upsert => extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName)) }
-      val featureIds = geospaceRegionCoder(points, region)
-      val upsertsWithComputed = upserts.zip(featureIds).map { case (upsert, featureId) =>
-        UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureId)))
+      // Convert points to feature IDs, and splice IDs back into rows.
+      // Deletes are returned untouched.
+      val featureIds = if (points.size > 0) geospaceRegionCoder(points, region).iterator else Iterator[String]()
+      rows.map {
+        case upsert: UpsertAsSoQL  =>
+          if (featureIds.hasNext) {
+            UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureIds.next)))
+          } else {
+            val message = "Not enough featureIds returned by Geospace"
+            logger.error(message)
+            throw ComputationEx(message, None)
+          }
+        case delete: DeleteAsCJson => delete
+        case _                     =>
+          val message = "Unsupported row update type passed into GeospaceHandler"
+          logger.error(message)
+          throw ComputationEx(message, None)
       }.toIterator
-
-      // Return the upserts, now with computed column, along with the untouched deletes
-      upsertsWithComputed ++ deletes
     }
     computedBatches.flatten
   }

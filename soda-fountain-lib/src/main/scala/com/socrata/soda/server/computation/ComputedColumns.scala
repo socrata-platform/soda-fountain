@@ -14,6 +14,14 @@ object ComputedColumns {
   case class HandlerNotFound(typ: ComputationStrategyType.Value) extends ComputeResult
 
   /**
+   * Instantiates a computation handler handle a given computation strategy type.
+   */
+  val handlers = Map[ComputationStrategyType.Value, () => ComputationHandler](
+    ComputationStrategyType.GeoRegion -> (() => new GeospaceHandler),
+    ComputationStrategyType.Test      -> (() => new TestComputationHandler)
+  )
+
+  /**
    * Finds the computed columns from the dataset schema.
    *
    * @param datasetRecord containing the schema of the dataset
@@ -28,9 +36,10 @@ object ComputedColumns {
    * thus if all computation handlers are lazy then the processing can happen incrementally.
    * NOTE: there is no way currently to know if an incoming dataset actually _needs_ all the computations
    * to be done.
-   * @param sourceIt an Iterator of source rows, each row is a JValue (actually an JObject
-   *                 of key-value pairs, where the key is the column name).  Anything other
-   *                 than a JObject is not for upserts and can be ignored.
+   * @param sourceIt an Iterator of row updates, includes both upsert and deletes.
+   *                 For upserts, each row is a Map[String, SoQLValue], where the key is the
+   *                 fieldName and the value is a SoQLValue representation of source data.
+   *                 Deletes contain only row PK and can be ignored.
    * @param computedColumns the list of computed columns from [[findComputedColumns]]
    */
   def addComputedColumns(sourceIt: Iterator[RowDataTranslator.Success],
@@ -45,9 +54,4 @@ object ComputedColumns {
     }
     ComputeSuccess(rowIterator)
   }
-
-  def handlers = Map[ComputationStrategyType.Value, () => ComputationHandler](
-    ComputationStrategyType.GeoRegion -> (() => new GeospaceHandler),
-    ComputationStrategyType.Test      -> (() => new TestComputationHandler)
-  )
 }

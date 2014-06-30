@@ -19,7 +19,7 @@ import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.id.RowSpecifier
-import com.socrata.soda.server.persistence.NameAndSchemaStore
+import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
@@ -172,7 +172,7 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
       upsertishFlow(req, response, rowDAO.replace)
     }
 
-    type rowDaoFunc = (String, ResourceName, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
+    type rowDaoFunc = (String, MinimalDatasetRecord, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
 
     import ComputedColumns._
 
@@ -215,7 +215,7 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
                     }
                     case DeleteAsCJson(pk) => DeleteRow(pk)
                   }
-                  f(user(req), resourceName.value, rowUpdates)(upsertResponse(req, response))
+                  f(user(req), datasetRecord, rowUpdates)(upsertResponse(req, response))
                 case HandlerNotFound(typ) => upsertResponse(req, response)(ComputationHandlerNotFound(typ))
               }
             case None =>
@@ -281,7 +281,12 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
     override def post = { req => response =>
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
         case Right(rowJVal) =>
-          rowDAO.upsert(user(req), resourceName, Iterator.single(UpsertRow(rowJVal.fields)))(upsertResponse(req, response))
+          store.translateResourceName(resourceName) match {
+            case Some(datasetRecord) =>
+              rowDAO.upsert(user(req), datasetRecord, Iterator.single(UpsertRow(rowJVal.fields)))(upsertResponse(req, response))
+            case None =>
+              SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+          }
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName)(response)
       }
