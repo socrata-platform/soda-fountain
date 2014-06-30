@@ -1,6 +1,5 @@
 package com.socrata.soda.server.resources
 
-import com.rojoma.json.ast.JValue
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.ContentNegotiation
@@ -9,21 +8,24 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag}
+import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
-import com.socrata.soda.clients.datacoordinator.HttpDataCoordinatorClient
-import com.socrata.soda.server.errors._
+import com.socrata.soda.clients.datacoordinator.{RowUpdate, DeleteRow, UpsertRow}
+import com.socrata.soda.server.{errors => SodaErrors}
+import com.socrata.soda.server.errors.SodaError
 import com.socrata.soda.server.export.Exporter
-import com.socrata.soda.server.highlevel.{ComputedColumns, RowDAO}
-import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
-import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
-import com.socrata.soda.server.persistence.NameAndSchemaStore
+import com.socrata.soda.server.highlevel.{RowDataTranslator, RowDAO}
+import com.socrata.soda.server.highlevel.RowDAO._
+import com.socrata.soda.server.highlevel.RowDataTranslator._
+import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.RowSpecifier
+import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
-import scala.util.Random
 
 /**
  * Resource: services for upserting, deleting, and querying dataset rows.
@@ -63,7 +65,7 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
       case RowDAO.Success(code, value) =>
         Status(code) ~> SodaUtils.JsonContent(value)
       case RowDAO.RowNotFound(value) =>
-        SodaUtils.errorResponse(req, RowNotFound(value))
+        SodaUtils.errorResponse(req, SodaErrors.RowNotFound(value))
     }
   }
 
@@ -92,13 +94,15 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
           w.write("]\n")
         }
       case mismatch : MaltypedData =>
-        SodaUtils.errorResponse(request, new ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
+        SodaUtils.errorResponse(request, new SodaErrors.ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
       case RowDAO.RowNotFound(rowSpecifier) =>
-        SodaUtils.errorResponse(request, RowNotFound(rowSpecifier))(response)
+        SodaUtils.errorResponse(request, SodaErrors.RowNotFound(rowSpecifier))(response)
       case RowDAO.UnknownColumn(columnName) =>
-        SodaUtils.errorResponse(request, RowColumnNotFound(columnName))(response)
+        SodaUtils.errorResponse(request, SodaErrors.RowColumnNotFound(columnName))(response)
+      case RowDAO.ComputationHandlerNotFound(typ) =>
+        SodaUtils.errorResponse(request, SodaErrors.ComputationHandlerNotFound(typ))(response)
       case RowDAO.ComputedColumnNotWritable(columnName) =>
-        SodaUtils.errorResponse(request, ComputedColumnNotWritable(columnName))(response)
+        SodaUtils.errorResponse(request, SodaErrors.ComputedColumnNotWritable(columnName))(response)
     }
   }
 
@@ -139,16 +143,16 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
                   createHeader(response)
                   exporter.export(response, charset, schema, rows)
                 case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
-                  SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
+                  SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
                 case RowDAO.DatasetNotFound(resourceName) =>
-                  SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(response)
+                  SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
                 case RowDAO.InvalidRequest(code, body) =>
                   SodaError.QueryCoordinatorErrorCodec.decode(body) match {
                     case Some(qcError) =>
-                      val err = ErrorReportedByQueryCoordinator(code, qcError)
+                      val err = SodaErrors.ErrorReportedByQueryCoordinator(code, qcError)
                       SodaUtils.errorResponse(req, err)(response)
                     case _ =>
-                      SodaUtils.errorResponse(req, InternalError("Cannot parse error from QC"))(response)
+                      SodaUtils.errorResponse(req, SodaErrors.InternalError("Cannot parse error from QC"))(response)
                   }
               }
             case None =>
@@ -156,7 +160,7 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
               NotAcceptable(response)
           }
         case Left(Precondition.FailedBecauseNoMatch) =>
-          SodaUtils.errorResponse(req, EtagPreconditionFailed)(response)
+          SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
       }
     }
 
@@ -168,7 +172,7 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
       upsertishFlow(req, response, rowDAO.replace)
     }
 
-    type rowDaoFunc = (String, ResourceName, Iterator[JValue]) => (RowDAO.UpsertResult => Unit) => Unit
+    type rowDaoFunc = (String, MinimalDatasetRecord, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
 
     import ComputedColumns._
 
@@ -178,13 +182,41 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
           // Now look up the dataset schema to see if we need to compute columns
           store.translateResourceName(resourceName.value) match {
             case Some(datasetRecord) =>
+              val trans = new RowDataTranslator(datasetRecord, ignoreUnknownColumns = false)
+              val rowsAsSoql = boundedIt.map(trans.clientJsonToSoql)
+
+              // Bail out of the whole upsert if any of the rows are invalid.
+              // Do we eventually want to change this to upsert the valid rows and return
+              // a summary of errors found?
+              // We would need to first inform API users of any change in behavior.
+              val validRows = rowsAsSoql.collect {
+                case validUpsert: UpsertAsSoQL                               => validUpsert
+                case validDelete: DeleteAsCJson                              => validDelete
+                case MaltypedDataError(columnName, expected, got)            =>
+                  return upsertResponse(req, response)(MaltypedData(columnName, expected, got))
+                case UnknownColumnError(columnName)                          =>
+                  return upsertResponse(req, response)(UnknownColumn(columnName))
+                case DeleteNoPKError                                         =>
+                  return upsertResponse(req, response)(DeleteWithoutPrimaryKey)
+                case NotAnObjectOrSingleElementArrayError(obj)               =>
+                  return upsertResponse(req, response)(RowNotAnObject(obj))
+                case RowDataTranslator.ComputedColumnNotWritable(columnName) =>
+                  return upsertResponse(req, response)(RowDAO.ComputedColumnNotWritable(columnName))
+              }
+
               val computedColumns = findComputedColumns(datasetRecord)
-              if (!computedColumns.isEmpty) {
-                val computedRows = addComputedColumns(boundedIt, computedColumns)
-                // NOTE: This will need to change to make computation multithreaded
-                f(user(req), resourceName.value, computedRows)(upsertResponse(req, response))
-              } else {
-                f(user(req), resourceName.value, boundedIt)(upsertResponse(req, response))
+              val computedRows = addComputedColumns(validRows, computedColumns)
+              computedRows match {
+                case ComputeSuccess(rows) =>
+                  val rowUpdates = rows.map {
+                    case UpsertAsSoQL(rowData) => trans.soqlToDataCoordinatorJson(rowData) match {
+                      case UpsertAsCJson(row) => UpsertRow(row)
+                      case UnknownColumnError(columnName) => return upsertResponse(req, response)(UnknownColumn(columnName))
+                    }
+                    case DeleteAsCJson(pk) => DeleteRow(pk)
+                  }
+                  f(user(req), datasetRecord, rowUpdates)(upsertResponse(req, response))
+                case HandlerNotFound(typ) => upsertResponse(req, response)(ComputationHandlerNotFound(typ))
               }
             case None =>
               upsertResponse(req, response)(RowDAO.DatasetNotFound(resourceName.value))
@@ -229,27 +261,32 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
                   createHeader(response)
                   exporter.export(response, charset, schema, Iterator.single(row), singleRow = true)
                 case RowDAO.RowNotFound(row) =>
-                  SodaUtils.errorResponse(req, RowNotFound(row))(response)
+                  SodaUtils.errorResponse(req, SodaErrors.RowNotFound(row))(response)
                 case RowDAO.DatasetNotFound(resourceName) =>
-                  SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(response)
+                  SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
                 case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
-                  SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
+                  SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
                 case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
-                  SodaUtils.errorResponse(req, EtagPreconditionFailed)(response)
+                  SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
               }
             case None =>
               // TODO better error
               NotAcceptable(response)
           }
         case Left(Precondition.FailedBecauseNoMatch) =>
-          SodaUtils.errorResponse(req, EtagPreconditionFailed)(response)
+          SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
       }
     }
 
     override def post = { req => response =>
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
         case Right(rowJVal) =>
-          rowDAO.upsert(user(req), resourceName, Iterator.single(rowJVal))(upsertResponse(req, response))
+          store.translateResourceName(resourceName) match {
+            case Some(datasetRecord) =>
+              rowDAO.upsert(user(req), datasetRecord, Iterator.single(UpsertRow(rowJVal.fields)))(upsertResponse(req, response))
+            case None =>
+              SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+          }
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName)(response)
       }

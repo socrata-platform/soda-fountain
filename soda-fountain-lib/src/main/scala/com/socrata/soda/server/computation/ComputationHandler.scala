@@ -1,6 +1,6 @@
-package com.socrata.soda.server.highlevel
+package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast.{JValue, JObject}
+import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
@@ -9,9 +9,6 @@ import com.socrata.soql.types._
  *  Defines a handler capable of computing one type of computed column
  */
 trait ComputationHandler {
-  // The type of computation this handler handles.  Should be unique.
-  val computationType: String
-
   // Use an immutable map to guarantee no mutation for safe concurrency
   type SoQLRow = collection.immutable.Map[String, SoQLValue]
 
@@ -19,12 +16,14 @@ trait ComputationHandler {
    * Handles the actual computation.  Must be lazy, otherwise will introduce significant latency
    * and OOM errors for large upserts.  IE, try not to convert the Iterator to a regular Seq or Array.
    *
-   * @param sourceIt an Iterator of source rows, each row is a Map[String, SoQLValue], where the key is the
-   *                 fieldName and the value is a SoQLValue representation of source data
+   * @param sourceIt an Iterator of row updates, includes both upsert and deletes.
+   *                 For upserts, each row is a Map[String, SoQLValue], where the key is the
+   *                 fieldName and the value is a SoQLValue representation of source data.
+   *                 Deletes contain only row PK and should be passed through untouched by the computation handler.
    * @param column a ColumnRecord describing the computation and parameters
    * @return an Iterator[SoQLRow] for the output rows.  One of the keys must containing the output column.
    */
-  def compute(sourceIt: Iterator[SoQLRow], column: MinimalColumnRecord): Iterator[SoQLRow]
+  def compute(sourceIt: Iterator[RowDataTranslator.Success], column: MinimalColumnRecord): Iterator[RowDataTranslator.Success]
 }
 
 object ComputationHandler {
