@@ -10,7 +10,6 @@ import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.SoQLType
 import java.nio.charset.StandardCharsets
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -117,131 +116,33 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  val LegacyDeleteFlag = new ColumnName(":deleted")
-
-  private case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends Exception
-  private case class ComputedColumnNotWritableEx(col: ColumnName) extends Exception
-  private case class UnknownColumnEx(col: ColumnName) extends Exception
-  private case class DeleteNoPKEx() extends Exception
-  private case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends Exception
-
-  class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolean) {
-    private[this] sealed abstract class ColumnResult
-    private[this] case class NoColumn(fieldName: ColumnName) extends ColumnResult
-    private[this] case class ColumnInfo(columnRecord: ColumnRecordLike, rRep: JsonColumnReadRep, wRep: JsonColumnWriteRep) extends ColumnResult
-
-    // A cache from the keys of the JSON objects which are rows to values
-    // which represent either the fact that the key does not represent
-    // a known column or the column's ID and type.
-    private[this] val columns = dataset.columnsByName
-    private[this] val columnInfos = new java.util.HashMap[String, ColumnResult]
-    private[this] def ciFor(rawColumnName: String): ColumnResult = columnInfos.get(rawColumnName) match {
-      case null =>
-        val cn = ColumnName(rawColumnName)
-        columns.get(cn) match {
-          case Some(cr) =>
-            if(columnInfos.size > columns.size * 10)
-              columnInfos.clear() // bad user, but I'd rather spend CPU than memory
-            val ci = ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ), JsonColumnRep.forDataCoordinatorType(cr.typ))
-            columnInfos.put(rawColumnName, ci)
-            ci
-          case None =>
-            val nc = NoColumn(cn)
-            columnInfos.put(rawColumnName, nc)
-            nc
-        }
-      case r =>
-        r
-    }
-
-    def convert(row: JValue): RowUpdate = row match {
-      case JObject(map) =>
-        var rowHasLegacyDeleteFlag = false
-        val row: scala.collection.Map[String, JValue] = map.flatMap { case (uKey, uVal) =>
-          ciFor(uKey) match {
-            case ColumnInfo(cr, rRep, wRep) =>
-              if (cr.computationStrategy.isDefined) {
-                throw ComputedColumnNotWritableEx(cr.fieldName)
-              }
-              rRep.fromJValue(uVal) match {
-                case Some(v) => (cr.id.underlying -> wRep.toJValue(v)) :: Nil
-                case None => throw MaltypedDataEx(cr.fieldName, rRep.representedType, uVal)
-              }
-            case NoColumn(colName) =>
-              if(colName == LegacyDeleteFlag && JBoolean.canonicalTrue == uVal) {
-                rowHasLegacyDeleteFlag = true
-                Nil
-              } else if(ignoreUnknownColumns) {
-                Nil
-              } else {
-                throw UnknownColumnEx(colName)
-              }
-          }
-        }
-        if(rowHasLegacyDeleteFlag) {
-          row.get(dataset.primaryKey.underlying) match {
-            case Some(pkVal) => DeleteRow(pkVal)
-            case None => throw DeleteNoPKEx()
-          }
-        } else {
-          UpsertRow(row)
-        }
-      case JArray(Seq(rowIdJval)) =>
-        val pkCol = dataset.columnsById(dataset.primaryKey)
-        JsonColumnRep.forClientType(pkCol.typ).fromJValue(rowIdJval) match {
-          case Some(soqlVal) =>
-            val idToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlVal)
-            DeleteRow(idToDelete)
-          case None => throw MaltypedDataEx( pkCol.fieldName, pkCol.typ, rowIdJval)
-        }
-      case other =>
-        throw NotAnObjectOrSingleElementArrayEx(other)
+  def doUpsertish[T](user: String,
+                     datasetRecord: MinimalDatasetRecord,
+                     data: Iterator[RowUpdate],
+                     instructions: Iterator[DataCoordinatorInstruction],
+                     f: UpsertResult => T): T = {
+    dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ data) {
+      case DataCoordinatorClient.Success(result, _, newVersion, lastModified) =>
+        store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+        f(StreamSuccess(result))
+      case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+        // hm, if we get schema out of date here, we're pretty much out of luck, since we'll
+        // have used up "upserts".  Unless we want to spool it to disk, but for something
+        // that SHOULD occur with only low probability that's pretty expensive.
+        //
+        // I guess we'll refresh our own schema and then toss an error to the user?
+        store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
+        f(SchemaOutOfSync)
+      case DataCoordinatorClient.UpsertUserError(code, data) =>
+        f(DataCoordinatorUserErrorCode(code, data))
     }
   }
 
-  def doUpsertish[T](user: String, resourceName: ResourceName, data: Iterator[JValue], instructions: Iterator[DataCoordinatorInstruction], f: UpsertResult => T): T = {
-    store.translateResourceName(resourceName) match {
-      case Some(datasetRecord) =>
-        val trans = new RowDataTranslator(datasetRecord, ignoreUnknownColumns = false)
-        val upserts = data.map(trans.convert)
-        try {
-          dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ upserts) {
-            case DataCoordinatorClient.Success(result, _, newVersion, lastModified) =>
-              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
-              f(StreamSuccess(result))
-            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
-              // hm, if we get schema out of date here, we're pretty much out of luck, since we'll
-              // have used up "upserts".  Unless we want to spool it to disk, but for something
-              // that SHOULD occur with only low probability that's pretty expensive.
-              //
-              // I guess we'll refresh our own schema and then toss an error to the user?
-              store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
-              f(SchemaOutOfSync)
-            case DataCoordinatorClient.UpsertUserError(code, data) =>
-              f(DataCoordinatorUserErrorCode(code, data))
-          }
-        } catch {
-          case UnknownColumnEx(col) =>
-            f(UnknownColumn(col))
-          case DeleteNoPKEx() =>
-            f(DeleteWithoutPrimaryKey)
-          case NotAnObjectOrSingleElementArrayEx(v) =>
-            f(RowNotAnObject(v))
-          case ComputedColumnNotWritableEx(cn) =>
-            f(ComputedColumnNotWritable(cn))
-          case MaltypedDataEx(cn, expected, got) =>
-            f(MaltypedData(cn, expected, got))
-        }
-      case None =>
-        f(DatasetNotFound(resourceName))
-    }
-  }
+  def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T =
+    doUpsertish(user, datasetRecord, data, Iterator.empty, f)
 
-  def upsert[T](user: String, resourceName: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T =
-    doUpsertish(user, resourceName, data, Iterator.empty, f)
-
-  def replace[T](user: String, resourceName: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T =
-    doUpsertish(user, resourceName, data, Iterator.single(RowUpdateOptionChange(truncate = true)), f)
+  def replace[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T =
+    doUpsertish(user, datasetRecord, data, Iterator.single(RowUpdateOptionChange(truncate = true)), f)
 
   def deleteRow[T](user: String, resourceName: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T = {
     store.translateResourceName(resourceName) match {
@@ -250,7 +151,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         StringColumnRep.forType(pkCol.typ).fromString(rowId.underlying) match {
           case Some(soqlValue) =>
             val jvalToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlValue)
-            doUpsertish(user, resourceName, Iterator.single(JArray(Seq(jvalToDelete))), Iterator.empty, f)
+            doUpsertish(user, datasetRecord, Iterator.single(DeleteRow(jvalToDelete)), Iterator.empty, f)
           case None => f(MaltypedData(pkCol.fieldName, pkCol.typ, JString(rowId.underlying)))
         }
       case None => f(DatasetNotFound(resourceName))

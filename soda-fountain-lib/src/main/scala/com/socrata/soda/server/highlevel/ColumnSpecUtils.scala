@@ -4,6 +4,7 @@ import com.socrata.soda.server.wiremodels.{ComputationStrategySpec, UserProvided
 import com.socrata.soql.brita.IdentifierFilter
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.id.ColumnId
+import com.socrata.soql.types.{SoQLFixedTimestamp, SoQLVersion, SoQLID}
 import com.socrata.soql.types.obfuscation.Quadifier
 import scala.util.Random
 
@@ -12,17 +13,31 @@ import ColumnSpecUtils._
 class ColumnSpecUtils(rng: Random) {
   private val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnSpecUtils])
 
-  def validColumnName(columnName: ColumnName) = {
+  def validColumnName(columnName: ColumnName, isComputed: Boolean): Boolean = {
+    // Computed columns must start with : to prevent being returned in a SELECT * call.
+    // In the future, we could enhance computed columns to have a more distinct identity from
+    // system columns, but for now we decided to enforce this rule so that computed columns
+    // behave like system columns (not writable thru API, not returned in SELECT *).
+    if (isComputed &&
+        (!columnName.name.startsWith(":") ||
+         systemColumns.exists { sysCol => columnName.name.equalsIgnoreCase(sysCol._1.name) }))
+      return false
+
     val cnamePart =
-      if(columnName.name.startsWith(":@")) ColumnName(columnName.name.substring(2))
+      if (columnName.name.startsWith(":@")) ColumnName(columnName.name.substring(2))
+      else if (isComputed) ColumnName(columnName.name.substring(1))
       else columnName
     IdentifierFilter(cnamePart.name) == cnamePart.name
   }
+  
+  def duplicateColumnName(columnName: ColumnName, existingColumns: Map[ColumnName, ColumnId]): Boolean =
+    existingColumns.map(_._1).exists(_.name.equalsIgnoreCase(columnName.name))
 
   def freezeForCreation(existingColumns: Map[ColumnName, ColumnId], ucs: UserProvidedColumnSpec): CreateResult =
     ucs match {
       case UserProvidedColumnSpec(None, Some(fieldName), Some(name), desc, Some(typ), None, uCompStrategy) =>
-        if(!validColumnName(fieldName)) return InvalidFieldName(fieldName)
+        if (!validColumnName(fieldName, uCompStrategy.isDefined)) return InvalidFieldName(fieldName)
+        if (duplicateColumnName(fieldName, existingColumns)) return DuplicateColumnName(fieldName)
         val trueDesc = desc.getOrElse("")
         val id = selectId(existingColumns.values)
         freezeForCreation(uCompStrategy) match {
@@ -64,6 +79,18 @@ class ColumnSpecUtils(rng: Random) {
     val a = rng.nextLong() & ((1L << 40) - 1)
     new ColumnId(Quadifier.quadify(a.toInt) + "-" + Quadifier.quadify((a >> 20).toInt))
   }
+
+  def systemColumns = {
+    log.info("TODO: Grovel system columns out of the data coordinator instead of hardcoding")
+    _systemColumns
+  }
+
+  private[this] val _systemColumns = Map(
+    ColumnName(":id") -> ColumnSpec(ColumnId(":id"), ColumnName(":id"), ":id", "", SoQLID, None),
+    ColumnName(":version") -> ColumnSpec(ColumnId(":version"), ColumnName(":version"), ":version", "", SoQLVersion, None),
+    ColumnName(":created_at") -> ColumnSpec(ColumnId(":created_at"), ColumnName(":created_at"), ":created_at", "", SoQLFixedTimestamp, None),
+    ColumnName(":updated_at") -> ColumnSpec(ColumnId(":updated_at"), ColumnName(":updated_at"), ":updated_at", "", SoQLFixedTimestamp, None)
+  )
 }
 
 object ColumnSpecUtils {
@@ -73,6 +100,7 @@ object ColumnSpecUtils {
   case object IdGiven extends CreateResult
   case object NoFieldName extends CreateResult
   case class InvalidFieldName(name: ColumnName) extends CreateResult
+  case class DuplicateColumnName(name: ColumnName) extends CreateResult
   case object NoName extends CreateResult
   case object NoType extends CreateResult
   case object DeleteSet extends CreateResult

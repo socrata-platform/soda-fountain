@@ -3,11 +3,14 @@ package com.socrata.soda.server.highlevel
 import com.rojoma.json.ast.JValue
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
+import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
-import com.socrata.soda.server.persistence.ColumnRecord
+import com.socrata.soda.server.persistence.{MinimalDatasetRecord, ColumnRecord}
+import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import org.joda.time.DateTime
+
 import RowDAO._
 
 trait RowDAO {
@@ -17,14 +20,17 @@ trait RowDAO {
             query: String,
             rowCount: Option[String],
             secondaryInstance:Option[String]): Result
+
   def getRow(dataset: ResourceName,
-             schemaCheck: Seq[ColumnRecord] => Boolean,
              precondition: Precondition,
              ifModifiedSince: Option[DateTime],
              rowId: RowSpecifier,
              secondaryInstance:Option[String]): Result
-  def upsert[T](user: String, dataset: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T
-  def replace[T](user: String, dataset: ResourceName, data: Iterator[JValue])(f: UpsertResult => T): T
+
+  def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T
+
+  def replace[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T
+
   def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T
 }
 
@@ -40,11 +46,12 @@ object RowDAO {
   case class RowNotFound(specifier: RowSpecifier) extends Result with UpsertResult
   case class StreamSuccess(report: Iterator[ReportItem]) extends UpsertResult
   case class DatasetNotFound(dataset: ResourceName) extends Result with UpsertResult
-  case class ComputedColumnNotWritable(column: ColumnName) extends UpsertResult
   case class UnknownColumn(column: ColumnName) extends UpsertResult
   case object DeleteWithoutPrimaryKey extends UpsertResult
   case class InvalidRequest(status: Int, body: JValue) extends Result
   case class MaltypedData(column: ColumnName, expected: SoQLType, got: JValue) extends Result with UpsertResult
   case class RowNotAnObject(value: JValue) extends UpsertResult
   case object SchemaOutOfSync extends UpsertResult
+  case class ComputationHandlerNotFound(typ: ComputationStrategyType.Value) extends UpsertResult
+  case class ComputedColumnNotWritable(columnName: ColumnName) extends UpsertResult
 }

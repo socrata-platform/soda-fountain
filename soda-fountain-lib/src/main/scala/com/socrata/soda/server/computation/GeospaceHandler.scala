@@ -1,10 +1,11 @@
-package com.socrata.soda.server.highlevel
+package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast.{JValue, JObject, JString, JArray, JNumber}
+import com.rojoma.json.ast.{JObject, JString, JArray, JNumber}
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
+import com.socrata.soda.server.highlevel.RowDataTranslator
+import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.persistence._
-import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLPoint, SoQLText}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -30,8 +31,6 @@ import scalaj.http.Http
 class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationHandler {
   import ComputationHandler._
 
-  val computationType = "georegion"
-
   // Get config values
   // TODO: use ZK/Curator to discover Geospace
   val geospaceHost = Try(config.getString("host")).getOrElse("localhost")
@@ -52,19 +51,36 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
    * sourceColumns must be a list of one column, and it must be a Geo Point type.
    * parameters: {"region":  <<name of geo region dataset 4x4>>}
    */
-  def compute(sourceIt: Iterator[SoQLRow], column: MinimalColumnRecord): Iterator[SoQLRow] = {
+  def compute(sourceIt: Iterator[RowDataTranslator.Success], column: MinimalColumnRecord): Iterator[RowDataTranslator.Success] = {
     // Only a single point column is allowed as a source for now
     val (geoColumnName, region) = parsePointColumnSourceStrategy(column)
 
     val batches = sourceIt.grouped(batchSize)
     val computedBatches = batches.map { batch =>
       val rows = batch.toSeq
-      val points = rows.map { rowmap => extractPointFromRow(rowmap, ColumnName(geoColumnName)) }
 
-      // Now convert points to feature IDs, and splice IDs back into rows
-      val featureIds = geospaceRegionCoder(points, region)
-      rows.zip(featureIds).map { case (rowmap, featureId) =>
-        rowmap + (column.fieldName.name -> SoQLText(featureId))
+      // Grab just the upserts and get the point column for mapping to feature ID
+      val points = rows.collect {
+        case upsert: UpsertAsSoQL => extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName))
+      }
+
+      // Convert points to feature IDs, and splice IDs back into rows.
+      // Deletes are returned untouched.
+      val featureIds = if (points.size > 0) geospaceRegionCoder(points, region).iterator else Iterator[String]()
+      rows.map {
+        case upsert: UpsertAsSoQL  =>
+          if (featureIds.hasNext) {
+            UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureIds.next)))
+          } else {
+            val message = "Not enough featureIds returned by Geospace"
+            logger.error(message)
+            throw ComputationEx(message, None)
+          }
+        case delete: DeleteAsCJson => delete
+        case _                     =>
+          val message = "Unsupported row update type passed into GeospaceHandler"
+          logger.error(message)
+          throw ComputationEx(message, None)
       }.toIterator
     }
     computedBatches.flatten
