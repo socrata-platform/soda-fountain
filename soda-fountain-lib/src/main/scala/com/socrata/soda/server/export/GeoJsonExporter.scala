@@ -99,7 +99,7 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
 
     if(rows.hasNext) {
       writeGeoJsonRow(rows.next())
-      if(singleRow && rows.hasNext) throw new Exception("Expect to get exactly one row but got more.")
+      if(singleRow && rows.hasNext) throw new IllegalArgumentException("Expect to get exactly one row but got more.")
     }
 
     while (rows.hasNext) {
