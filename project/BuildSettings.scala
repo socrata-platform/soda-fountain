@@ -8,7 +8,6 @@ object BuildSettings {
     SocrataCloudbeesSbt.socrataBuildSettings ++
     Defaults.itSettings ++
       Seq(
-        version := "0.0.16-SNAPSHOT",
         scalaVersion := "2.10.4"
       )
 
