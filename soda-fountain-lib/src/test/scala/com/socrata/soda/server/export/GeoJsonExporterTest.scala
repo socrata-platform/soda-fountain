@@ -5,7 +5,7 @@ import com.rojoma.json.ast._
 import com.rojoma.json.io.JsonReader
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.DatasetsForTesting
-import com.socrata.soda.server.export.GeoJsonExporter.InvalidGeoJsonSchema
+import com.socrata.soda.server.export.GeoJsonProcessor.InvalidGeoJsonSchema
 import com.socrata.soda.server.highlevel.{ExportDAO, CJson}
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.ColumnId
