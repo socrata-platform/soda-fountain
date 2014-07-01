@@ -8,8 +8,8 @@ import sbtassembly.AssemblyUtils._
 object SodaFountainJetty {
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings(assembly = true) ++ Seq(
     libraryDependencies ++= Seq(
-      "com.socrata" %% "socrata-http-jetty" % "2.0.0-SNAPSHOT",
-      "com.socrata" %% "socrata-http-curator-broker" % "2.0.0-SNAPSHOT"
+      "com.socrata" %% "socrata-http-jetty" % "[2.0.0,3.0.0)",
+      "com.socrata" %% "socrata-http-curator-broker" % "[2.0.0,3.0.0)"
     ),
     mainClass := Some("com.socrata.soda.server.SodaFountainJetty"),
     mergeStrategy in assembly <<= (mergeStrategy in assembly) { old =>
