@@ -12,6 +12,9 @@ import java.io.BufferedWriter
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
 
+/**
+ * Exports rows as GeoJSON
+ */
 object GeoJsonExporter extends Exporter {
   val mimeTypeBase = "application/vnd.geo+json"
   val mimeType = new MimeType(mimeTypeBase)

@@ -11,9 +11,9 @@ object SodaFountainLib {
     libraryDependencies ++= Seq(
       "com.mchange"         % "c3p0"                        % "0.9.2.1",
       "com.rojoma"         %% "simple-arm"                  % "[1.2.0,2.0.0)",
-      "com.socrata"        %% "socrata-http-client"         % "2.0.0-SNAPSHOT",
-      "com.socrata"        %% "socrata-http-server"         % "2.0.0-SNAPSHOT",
-      "com.socrata"        %% "socrata-thirdparty-utils"    % "2.0.1-SNAPSHOT",
+      "com.socrata"        %% "socrata-http-client"         % "2.0.0",
+      "com.socrata"        %% "socrata-http-server"         % "2.0.0",
+      "com.socrata"        %% "socrata-thirdparty-utils"    % "2.2.0",
       "com.socrata"        %% "soql-brita"                  % "[1.2.1,2.0.0)",
       "com.socrata"        %% "soql-types"                  % "0.0.16-SNAPSHOT",
       "com.typesafe"        % "config"                      % "1.0.2",
