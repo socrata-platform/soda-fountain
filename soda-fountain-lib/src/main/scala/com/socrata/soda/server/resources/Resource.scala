@@ -8,9 +8,10 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag}
-import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
 import com.socrata.soda.clients.datacoordinator.{RowUpdate, DeleteRow, UpsertRow}
+import com.socrata.soda.server.SodaUtils
+import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.server.{errors => SodaErrors}
 import com.socrata.soda.server.errors.SodaError
 import com.socrata.soda.server.export.Exporter
@@ -20,7 +21,6 @@ import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.id.RowSpecifier
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
-import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
 import java.nio.charset.StandardCharsets
@@ -244,6 +244,7 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
               val exporter = Exporter.exportForMimeType(mimeType)
               rowDAO.getRow(
                 resourceName,
+                exporter.validForSchema,
                 newPrecondition.map(_.dropRight(suffix.length)),
                 req.dateTimeHeader("If-Modified-Since"),
                 rowId,
@@ -268,6 +269,7 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
                   SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
                 case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
                   SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
+                case RowDAO.SchemaInvalidForMimeType => NotAcceptable(response)
               }
             case None =>
               // TODO better error

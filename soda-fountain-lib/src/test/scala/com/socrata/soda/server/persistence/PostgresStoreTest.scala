@@ -1,14 +1,14 @@
 package com.socrata.soda.server.persistence
 
 import com.rojoma.json.ast.{JString, JObject}
-import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
-import com.socrata.soql.environment.ColumnName
+import com.socrata.soda.server.DatasetsForTesting
+import com.socrata.soda.server.id.{ResourceName, DatasetId, ColumnId}
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
+import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText}
-import org.joda.time.DateTime
-import org.scalatest.{ShouldMatchers, FunSuite}
+import org.scalatest.ShouldMatchers
 
-class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers {
+class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers with DatasetsForTesting {
 
   test("Postgres add/get/remove resourceName and datasetId - no columns") {
     val (resourceName, datasetId) = createMockDataset(Seq.empty[ColumnRecord])
@@ -120,24 +120,10 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers {
   }
 
   private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetId) = {
-    val time = System.currentTimeMillis().toString
-    val resourceName = new ResourceName("postgres name store column integration test @" + time)
-    val datasetId = new DatasetId("postgres.name.store.column.test @" + time)
+    val dataset = mockDataset("PostgresStoreTest", columns)
+    store.addResource(dataset)
 
-    val record = new DatasetRecord(
-      resourceName,
-      datasetId,
-      "human name",
-      "human description",
-      "locale string",
-      "mock schema string",
-      new ColumnId("mock column id"),
-      columns,
-      0,
-      new DateTime(0))
-
-    store.addResource(record)
-
-    (resourceName, datasetId)
+    (dataset.resourceName, dataset.systemId)
   }
+
 }
