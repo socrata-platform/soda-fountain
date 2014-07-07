@@ -110,7 +110,7 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
     val url = urlPrefix + s"/regions/$region/geocode"
     logger.debug("HTTP POST [{}] with {} points...", url, points.length)
 
-    val jsonPoints = points.map { case Point(x, y) => JArray(Seq(JNumber(x), JNumber(y))) }
+    val jsonPoints = points.map { case Point(x, y) => JArray(Seq(JNumber(y), JNumber(x))) }
     val (status, _, response) = try {
         Http.postData(url, CompactJsonWriter.toString(JArray(jsonPoints))).
              header("content-type", "application/json").
