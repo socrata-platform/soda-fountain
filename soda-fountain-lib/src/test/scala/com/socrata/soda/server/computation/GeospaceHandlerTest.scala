@@ -16,11 +16,11 @@ import org.scalatest.MustMatchers
 import org.scalatest.{Assertions, FunSuite, BeforeAndAfterAll}
 
 trait GeospaceHandlerData {
-  val point1 = "{\"type\":\"Point\",\"coordinates\":[47.6303,-122.3148]}"
-  val point2 = "{\"type\":\"Point\",\"coordinates\":[48.6303,-121.3148]}"
-  val point3 = "{\"type\":\"Point\",\"coordinates\":[49.6303,-120.3148]}"
-  val point4 = "{\"type\":\"Point\",\"coordinates\":[50.11,  -119.98]}"
-  val multiLine = """{"type":"MultiLineString","coordinates":[[[100,0.123456789012],[101,1]],[[102,2],[103,3]]]}"""
+  val point1 = "{\"type\":\"Point\",\"coordinates\":[-122.3148,47.6303]}"
+  val point2 = "{\"type\":\"Point\",\"coordinates\":[-121.3148,48.6303]}"
+  val point3 = "{\"type\":\"Point\",\"coordinates\":[-120.3148,49.6303]}"
+  val point4 = "{\"type\":\"Point\",\"coordinates\":[-119.98,50.11]}"
+  val multiLine = """{"type":"MultiLineString","coordinates":[[[0.123456789012,100],[1,101]],[[2,102],[3,103]]]}"""
 
   val pointRep = JsonColumnRep.forClientType(SoQLPoint)
   def toSoQLPoint(str: String) = pointRep.fromJValue(JsonReader.fromString(str)).get.asInstanceOf[SoQLPoint]
