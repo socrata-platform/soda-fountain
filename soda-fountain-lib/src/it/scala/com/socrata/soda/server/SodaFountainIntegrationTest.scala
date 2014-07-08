@@ -20,7 +20,7 @@ trait IntegrationTestHelpers {
   val sodaHost: String = "localhost"
   val secondaryStore = "es"
   val hashHeader = "x-socrata-version-hash"
-  val sodaPort = 8080
+  val sodaPort = 6010
   val httpClient = new HttpClientHttpClient(NoopLivenessChecker, Executors.newCachedThreadPool(), userAgent = "soda fountain integration test")
 
 
@@ -107,9 +107,6 @@ trait IntegrationTestHelpers {
   def readBody(response: SimpleResponse) = { response.body.toString }
 }
 
-object SodaFountainForTest extends SodaFountain(new SodaFountainConfig(ConfigFactory.load())) {
-
-}
 
 trait SodaFountainIntegrationTest extends FunSuite with MustMatchers with IntegrationTestHelpers {
 
