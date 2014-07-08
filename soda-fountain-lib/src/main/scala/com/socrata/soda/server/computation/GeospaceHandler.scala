@@ -28,7 +28,7 @@ import scalaj.http.Http
  *   batch-size = 200    # Number of rows to send to Geospace server at once
  * }}}
  */
-class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationHandler {
+class GeospaceHandler(config: Config) extends ComputationHandler {
   import ComputationHandler._
 
   // Get config values
