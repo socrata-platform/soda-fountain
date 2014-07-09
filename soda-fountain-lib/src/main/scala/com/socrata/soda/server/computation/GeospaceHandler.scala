@@ -64,7 +64,7 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
         case upsert: UpsertAsSoQL => extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName))
       }
 
-      // Convert points to feature IDs, and splice IDs back into rows.
+      // Convert points to feature IDs, and splice featureIDs back into rows.
       // Deletes are returned untouched.
       val featureIds = if (points.size > 0) geospaceRegionCoder(points, region).iterator else Iterator[String]()
       rows.map {
@@ -98,34 +98,53 @@ class GeospaceHandler(config: Config = ConfigFactory.empty) extends ComputationH
     }
   }
 
-  private def extractPointFromRow(rowmap: SoQLRow, colName: ColumnName): Point = {
-    val pointSoql = rowmap.get(colName.name).getOrElse(throw UnknownColumnEx(colName))
-    pointSoql match {
-      case point: SoQLPoint => Point(point.value.getX, point.value.getY)
-      case x                => throw MaltypedDataEx(colName, SoQLPoint, pointSoql.typ)
+  private def extractPointFromRow(rowmap: SoQLRow, colName: ColumnName): Option[Point] = {
+    rowmap.get(colName.name) match {
+      case Some(point: SoQLPoint) => Some(Point(point.value.getX, point.value.getY))
+      case Some(x)                => throw MaltypedDataEx(colName, SoQLPoint, x.typ)
+      case None                   => None
     }
   }
 
-  private def geospaceRegionCoder(points: Seq[Point], region: String): Seq[String] = {
+  private def geospaceRegionCoder(points: Seq[Option[Point]], region: String): Seq[String] = {
+    // Don't send any empty points to Geospace.
+    val validPoints = points.collect { case Some(point: Point) => point }
+    if (validPoints.size == 0) return points.map { p => "" }
+
+    withGeospaceResponse(validPoints, region) { response =>
+      val featureIds: Seq[String] = JsonCodec[Seq[String]].decode(JsonReader.fromString(response)).
+        getOrElse(throw ComputationEx("Error parsing JSON response: " + response, None))
+
+      // Map the non-empty points to the feature IDs from Geospace
+      // Map the empty points to ""
+      val featureIdIter = featureIds.iterator
+      points.map {
+        case Some(point) => featureIdIter.next
+        case None => ""
+      }
+    }
+  }
+
+  private def withGeospaceResponse(points: Seq[Point], region: String)(f: (String) => Seq[String]) = {
     val url = urlPrefix + s"/regions/$region/geocode"
     logger.debug("HTTP POST [{}] with {} points...", url, points.length)
 
     val jsonPoints = points.map { case Point(x, y) => JArray(Seq(JNumber(x), JNumber(y))) }
     val (status, _, response) = try {
-        Http.postData(url, CompactJsonWriter.toString(JArray(jsonPoints))).
-             header("content-type", "application/json").
-             asHeadersAndParse(Http.readString)
-      } catch {
-        case e: scalaj.http.HttpException =>
-          logger.error("HTTP Error: ", e)
-          throw ComputationEx("HTTP Error reading " + url, Some(e))
-      }
+      Http.postData(url, CompactJsonWriter.toString(JArray(jsonPoints))).
+        header("content-type", "application/json").
+        asHeadersAndParse(Http.readString)
+    } catch {
+      case e: scalaj.http.HttpException =>
+        logger.error("HTTP Error: ", e)
+        throw ComputationEx("HTTP Error reading " + url, Some(e))
+    }
 
     logger.debug("Got back status {}, response [{}]", status, response)
+
     status match {
       case 200 =>
-        JsonCodec[Seq[String]].decode(JsonReader.fromString(response)).
-          getOrElse(throw ComputationEx("Error parsing JSON response: " + response, None))
+        f(response)
       case sc  =>
         val errorMessage = s"Error: HTTP [$url] got response code $sc, body $response"
         logger.error(errorMessage)
