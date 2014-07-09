@@ -4,6 +4,7 @@ import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.types.SoQLValue
+import com.typesafe.config.ConfigFactory
 
 /**
  * Utilities for computing columns
@@ -13,11 +14,13 @@ object ComputedColumns {
   case class ComputeSuccess(it: Iterator[RowDataTranslator.Success]) extends ComputeResult
   case class HandlerNotFound(typ: ComputationStrategyType.Value) extends ComputeResult
 
+  val handlersConfig = ConfigFactory.load().getConfig("com.socrata.soda-fountain.handlers")
+
   /**
    * Instantiates a computation handler handle a given computation strategy type.
    */
   val handlers = Map[ComputationStrategyType.Value, () => ComputationHandler](
-    ComputationStrategyType.GeoRegion -> (() => new GeospaceHandler),
+    ComputationStrategyType.GeoRegion -> (() => new GeospaceHandler(handlersConfig.getConfig("geospace"))),
     ComputationStrategyType.Test      -> (() => new TestComputationHandler)
   )
 
