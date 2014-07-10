@@ -57,26 +57,23 @@ class GeospaceHandler(config: Config) extends ComputationHandler {
 
     val batches = sourceIt.grouped(batchSize)
     val computedBatches = batches.map { batch =>
-      val rows = batch.toSeq
+      val rowsWithIndex = batch.zipWithIndex.toSeq
 
       // Grab just the upserts and get the point column for mapping to feature ID
-      val points = rows.collect {
-        case upsert: UpsertAsSoQL => extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName))
+      val pointsWithIndex = rowsWithIndex.collect {
+        case (upsert: UpsertAsSoQL, i) => (extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName)), i)
+      }.collect {
+        case (Some(point), i)          => (point, i)
       }
 
-      // Convert points to feature IDs, and splice featureIDs back into rows.
+      // Convert points to feature IDs, and splice feature IDs back into rows.
       // Deletes are returned untouched.
-      val featureIds = if (points.size > 0) geospaceRegionCoder(points, region).iterator else Iterator[String]()
-      rows.map {
-        case upsert: UpsertAsSoQL  =>
-          if (featureIds.hasNext) {
-            UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureIds.next)))
-          } else {
-            val message = "Not enough featureIds returned by Geospace"
-            logger.error(message)
-            throw ComputationEx(message, None)
-          }
-        case delete: DeleteAsCJson => delete
+      val featureIds = geospaceRegionCoder(pointsWithIndex.map(_._1), region).iterator
+      rowsWithIndex.map {
+        case (upsert: UpsertAsSoQL, i) =>
+          val featureId = if (pointsWithIndex.map(_._2).contains(i)) featureIds.next() else ""
+          UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureId)))
+        case (delete: DeleteAsCJson, i) => delete
         case _                     =>
           val message = "Unsupported row update type passed into GeospaceHandler"
           logger.error(message)
@@ -94,7 +91,7 @@ class GeospaceHandler(config: Config) extends ComputationHandler {
         val JString(regionName) = map("region")
         (sourceCol, regionName)
       case x =>  throw new IllegalArgumentException("There must be exactly 1 sourceColumn, and " +
-                                                    "parameters must have a key 'region'")
+        "parameters must have a key 'region'")
     }
   }
 
@@ -106,26 +103,9 @@ class GeospaceHandler(config: Config) extends ComputationHandler {
     }
   }
 
-  private def geospaceRegionCoder(points: Seq[Option[Point]], region: String): Seq[String] = {
-    // Don't send any empty points to Geospace.
-    val validPoints = points.collect { case Some(point: Point) => point }
-    if (validPoints.size == 0) return points.map { p => "" }
+  private def geospaceRegionCoder(points: Seq[Point], region: String): Seq[String] = {
+    if (points.size == 0) return Seq[String]()
 
-    withGeospaceResponse(validPoints, region) { response =>
-      val featureIds: Seq[String] = JsonCodec[Seq[String]].decode(JsonReader.fromString(response)).
-        getOrElse(throw ComputationEx("Error parsing JSON response: " + response, None))
-
-      // Map the non-empty points to the feature IDs from Geospace
-      // Map the empty points to ""
-      val featureIdIter = featureIds.iterator
-      points.map {
-        case Some(point) => featureIdIter.next
-        case None => ""
-      }
-    }
-  }
-
-  private def withGeospaceResponse(points: Seq[Point], region: String)(f: (String) => Seq[String]) = {
     val url = urlPrefix + s"/regions/$region/geocode"
     logger.debug("HTTP POST [{}] with {} points...", url, points.length)
 
@@ -141,10 +121,10 @@ class GeospaceHandler(config: Config) extends ComputationHandler {
     }
 
     logger.debug("Got back status {}, response [{}]", status, response)
-
     status match {
       case 200 =>
-        f(response)
+        JsonCodec[Seq[String]].decode(JsonReader.fromString(response)).
+          getOrElse(throw ComputationEx("Error parsing JSON response: " + response, None))
       case sc  =>
         val errorMessage = s"Error: HTTP [$url] got response code $sc, body $response"
         logger.error(errorMessage)
