@@ -57,26 +57,24 @@ class GeospaceHandler(config: Config) extends ComputationHandler {
 
     val batches = sourceIt.grouped(batchSize)
     val computedBatches = batches.map { batch =>
-      val rows = batch.toSeq
+      val rowsWithIndex = batch.zipWithIndex.toSeq
 
       // Grab just the upserts and get the point column for mapping to feature ID
-      val points = rows.collect {
-        case upsert: UpsertAsSoQL => extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName))
+      val pointsWithIndex = rowsWithIndex.collect {
+        case (upsert: UpsertAsSoQL, i) => (extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName)), i)
+      }.collect {
+        case (Some(point), i)          => (point, i)
       }
 
-      // Convert points to feature IDs, and splice IDs back into rows.
+      // Convert points to feature IDs, and splice feature IDs back into rows.
       // Deletes are returned untouched.
-      val featureIds = if (points.size > 0) geospaceRegionCoder(points, region).iterator else Iterator[String]()
-      rows.map {
-        case upsert: UpsertAsSoQL  =>
-          if (featureIds.hasNext) {
-            UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureIds.next)))
-          } else {
-            val message = "Not enough featureIds returned by Geospace"
-            logger.error(message)
-            throw ComputationEx(message, None)
-          }
-        case delete: DeleteAsCJson => delete
+      val featureIds = geospaceRegionCoder(pointsWithIndex.map(_._1), region)
+      val featureIdsWithIndex = pointsWithIndex.map(_._2).zip(featureIds).toMap
+      rowsWithIndex.map {
+        case (upsert: UpsertAsSoQL, i) =>
+          val featureId = featureIdsWithIndex.getOrElse(i, "")
+          UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureId)))
+        case (delete: DeleteAsCJson, i) => delete
         case _                     =>
           val message = "Unsupported row update type passed into GeospaceHandler"
           logger.error(message)
@@ -94,32 +92,34 @@ class GeospaceHandler(config: Config) extends ComputationHandler {
         val JString(regionName) = map("region")
         (sourceCol, regionName)
       case x =>  throw new IllegalArgumentException("There must be exactly 1 sourceColumn, and " +
-                                                    "parameters must have a key 'region'")
+        "parameters must have a key 'region'")
     }
   }
 
-  private def extractPointFromRow(rowmap: SoQLRow, colName: ColumnName): Point = {
-    val pointSoql = rowmap.get(colName.name).getOrElse(throw UnknownColumnEx(colName))
-    pointSoql match {
-      case point: SoQLPoint => Point(point.value.getX, point.value.getY)
-      case x                => throw MaltypedDataEx(colName, SoQLPoint, pointSoql.typ)
+  private def extractPointFromRow(rowmap: SoQLRow, colName: ColumnName): Option[Point] = {
+    rowmap.get(colName.name) match {
+      case Some(point: SoQLPoint) => Some(Point(point.value.getX, point.value.getY))
+      case Some(x)                => throw MaltypedDataEx(colName, SoQLPoint, x.typ)
+      case None                   => None
     }
   }
 
   private def geospaceRegionCoder(points: Seq[Point], region: String): Seq[String] = {
+    if (points.size == 0) return Seq[String]()
+
     val url = urlPrefix + s"/regions/$region/geocode"
     logger.debug("HTTP POST [{}] with {} points...", url, points.length)
 
     val jsonPoints = points.map { case Point(x, y) => JArray(Seq(JNumber(x), JNumber(y))) }
     val (status, _, response) = try {
-        Http.postData(url, CompactJsonWriter.toString(JArray(jsonPoints))).
-             header("content-type", "application/json").
-             asHeadersAndParse(Http.readString)
-      } catch {
-        case e: scalaj.http.HttpException =>
-          logger.error("HTTP Error: ", e)
-          throw ComputationEx("HTTP Error reading " + url, Some(e))
-      }
+      Http.postData(url, CompactJsonWriter.toString(JArray(jsonPoints))).
+        header("content-type", "application/json").
+        asHeadersAndParse(Http.readString)
+    } catch {
+      case e: scalaj.http.HttpException =>
+        logger.error("HTTP Error: ", e)
+        throw ComputationEx("HTTP Error reading " + url, Some(e))
+    }
 
     logger.debug("Got back status {}, response [{}]", status, response)
     status match {
