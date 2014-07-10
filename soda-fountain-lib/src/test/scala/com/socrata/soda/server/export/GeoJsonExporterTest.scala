@@ -90,6 +90,53 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
           expectedProjection)))
   }
 
+
+  test("Multi row - dataset with single geo column and some rows with empty geo value") {
+    val columns = Seq(
+      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
+      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
+    )
+
+    val rows = Seq[Array[SoQLValue]](
+      Array(SoQLText("Volunteer Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.314822 47.630269)").get)),
+      Array(SoQLText("Cal Anderson Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.319071 47.617296)").get)),
+      Array(SoQLText("Phantom Park"), null),
+      Array(SoQLText("Seward Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.252513 47.555530)").get))
+    )
+
+    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, false)
+    geoJson should be (JObject(Map(
+      "type"     -> JString("FeatureCollection"),
+      "features" -> JArray(Array(
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JObject(Map(
+            "type" -> JString("Point"),
+            "coordinates" -> JArray(Array(JNumber(-122.314822),
+              JNumber(47.630269))))),
+          "properties" -> JObject(Map("name" -> JString("Volunteer Park"))))),
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JObject(Map(
+            "type" -> JString("Point"),
+            "coordinates" -> JArray(Array(JNumber(-122.319071),
+              JNumber(47.617296))))),
+          "properties" -> JObject(Map("name" -> JString("Cal Anderson Park"))))),
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JNull,
+          "properties" -> JObject(Map("name" -> JString("Phantom Park"))))),
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JObject(Map(
+            "type" -> JString("Point"),
+            "coordinates" -> JArray(Array(JNumber(-122.252513),
+              JNumber(47.555530))))),
+          "properties" -> JObject(Map("name" -> JString("Seward Park")))))
+      )),
+      expectedProjection)))
+  }
+
   test("Dataset with no geo column") {
     val columns = Seq(
       new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
