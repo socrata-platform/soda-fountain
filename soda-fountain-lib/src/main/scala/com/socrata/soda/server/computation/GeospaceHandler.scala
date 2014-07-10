@@ -42,8 +42,9 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
 
   class GeospaceService[T](discovery: ServiceDiscovery[T]) extends CuratorServiceBase(discovery, serviceName)
   val service = new GeospaceService(discovery)
+  service.start()
 
-  def urlPrefix = Option(service.provider.getInstance()).map { serv => serv.buildUriSpec() + "/experimental" }.
+  def urlPrefix = Option(service.provider.getInstance()).map { serv => serv.buildUriSpec() + "experimental" }.
                     getOrElse(throw new RuntimeException("Unable to get Geospace instance from Curator/ZK"))
 
   private val logger = LoggerFactory.getLogger(getClass)
