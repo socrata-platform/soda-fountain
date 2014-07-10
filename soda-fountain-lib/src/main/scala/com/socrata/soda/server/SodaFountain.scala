@@ -6,6 +6,7 @@ import com.socrata.http.common.AuxiliaryData
 import com.socrata.http.server.util.handlers.{LoggingHandler, ThreadRenamingHandler}
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
+import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
@@ -139,6 +140,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
 
+  val computedColumns = new ComputedColumns(config.handlers, discovery)
+
   val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
   val columnDAO = i(new ColumnDAOImpl(dc, store, columnSpecUtils))
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
@@ -149,7 +152,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val router = i {
     import com.socrata.soda.server.resources._
 
-    val resource = Resource(rowDAO, store, etagObfuscator, config.maxDatumSize) // TODO: this should probably be a different max size value
+    // TODO: this should probably be a different max size value
+    val resource = Resource(rowDAO, store, etagObfuscator, config.maxDatumSize, computedColumns)
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
     val column = DatasetColumn(columnDAO, etagObfuscator, config.maxDatumSize)
     val export = Export(exportDAO, etagObfuscator)

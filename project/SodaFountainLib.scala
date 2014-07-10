@@ -13,7 +13,7 @@ object SodaFountainLib {
       "com.rojoma"         %% "simple-arm"                  % "[1.2.0,2.0.0)",
       "com.socrata"        %% "socrata-http-client"         % "[2.0.0,3.0.0)",
       "com.socrata"        %% "socrata-http-server"         % "[2.0.0,3.0.0)",
-      "com.socrata"        %% "socrata-thirdparty-utils"    % "[2.1.0,3.0.0)",
+      "com.socrata"        %% "socrata-thirdparty-utils"    % "2.3.0",
       "com.socrata"        %% "soql-brita"                  % "[1.2.1,2.0.0)",
       "com.socrata"        %% "soql-types"                  % "[0.1.0,1.0.0)",
       "com.typesafe"        % "config"                      % "1.0.2",

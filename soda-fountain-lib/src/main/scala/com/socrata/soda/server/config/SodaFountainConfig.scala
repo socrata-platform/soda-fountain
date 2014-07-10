@@ -14,6 +14,8 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val queryCoordinatorClient = getConfig("query-coordinator-client", new QueryCoordinatorClientConfig(_, _))
   val database = getConfig("database", new DataSourceConfig(_, _))
   val log4j = getRawConfig("log4j")
+  // This is a Typesafe config because there are variable number of subentries, one per handler
+  val handlers = config.getConfig("com.socrata.soda-fountain.handlers")
 }
 
 class ServiceAdvertisementConfig(config: Config, root: String) extends ConfigClass(config, root) {

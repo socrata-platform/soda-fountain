@@ -54,11 +54,11 @@ with MustMatchers with Assertions with BeforeAndAfterAll with GeospaceHandlerDat
   var server: ClientAndServer = _
 
   val testConfig = ConfigFactory.parseMap(Map(
-                     "port" -> port,
+                     "service-name" -> "geospace",
                      "batch-size" -> 2
                    ).asJava)
 
-  val handler = new GeospaceHandler(testConfig)
+  val handler = new GeospaceHandler[Void](testConfig, null)
 
   override def beforeAll {
     server = ClientAndServer.startClientAndServer(port)
