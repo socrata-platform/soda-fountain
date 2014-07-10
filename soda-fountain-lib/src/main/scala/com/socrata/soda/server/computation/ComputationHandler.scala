@@ -8,7 +8,7 @@ import com.socrata.soql.types._
 /**
  *  Defines a handler capable of computing one type of computed column
  */
-trait ComputationHandler {
+trait ComputationHandler extends java.io.Closeable {
   // Use an immutable map to guarantee no mutation for safe concurrency
   type SoQLRow = collection.immutable.Map[String, SoQLValue]
 
@@ -24,6 +24,11 @@ trait ComputationHandler {
    * @return an Iterator[SoQLRow] for the output rows.  One of the keys must containing the output column.
    */
   def compute(sourceIt: Iterator[RowDataTranslator.Success], column: MinimalColumnRecord): Iterator[RowDataTranslator.Success]
+
+  /**
+   * Releases any resources taken up by the handler
+   */
+  def close()
 }
 
 object ComputationHandler {

@@ -13,4 +13,6 @@ class TestComputationHandler extends ComputationHandler {
       case d: DeleteAsCJson      => d
     }.toIterator
   }
+
+  def close() {}
 }

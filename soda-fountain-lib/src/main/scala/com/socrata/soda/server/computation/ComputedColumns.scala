@@ -58,7 +58,13 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
     for (computedColumn <- computedColumns) {
       val tryGetHandler = handlers.get(computedColumn.computationStrategy.get.strategyType)
       tryGetHandler match {
-        case Some(handler) => rowIterator = handler().compute(rowIterator, computedColumn)
+        case Some(handlerCreator) =>
+          val handler = handlerCreator()
+          try {
+            rowIterator = handler.compute(rowIterator, computedColumn)
+          } finally {
+            handler.close()
+          }
         case None          => return HandlerNotFound(computedColumn.computationStrategy.get.strategyType)
       }
     }

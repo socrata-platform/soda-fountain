@@ -93,6 +93,10 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
     computedBatches.flatten
   }
 
+  def close() {
+    service.close()
+  }
+
   private def parsePointColumnSourceStrategy(column: MinimalColumnRecord): (String, String) = {
     require(column.computationStrategy.isDefined, "Not a target computed column")
     column.computationStrategy match {
