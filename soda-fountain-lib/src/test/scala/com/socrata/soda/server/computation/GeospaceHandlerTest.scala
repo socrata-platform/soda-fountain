@@ -12,8 +12,7 @@ import com.socrata.soql.types._
 import com.typesafe.config.ConfigFactory
 import org.mockserver.integration.ClientAndServer
 import org.mockserver.model.Header
-import org.scalatest.MustMatchers
-import org.scalatest.{Assertions, FunSuite, BeforeAndAfterAll}
+import org.scalatest._
 
 trait GeospaceHandlerData {
   val point1 = "{\"type\":\"Point\",\"coordinates\":[47.6303,-122.3148]}"
@@ -43,7 +42,7 @@ trait GeospaceHandlerData {
 }
 
 class GeospaceHandlerTest extends FunSuite
-with MustMatchers with Assertions with BeforeAndAfterAll with GeospaceHandlerData {
+with MustMatchers with Assertions with BeforeAndAfterAll with BeforeAndAfterEach with GeospaceHandlerData {
   import collection.JavaConverters._
   import ComputationHandler._
   import org.mockserver.model.HttpRequest._
@@ -65,7 +64,11 @@ with MustMatchers with Assertions with BeforeAndAfterAll with GeospaceHandlerDat
   }
 
   override def afterAll {
-    server.stop()
+    server.stop
+  }
+
+  override def beforeEach {
+    server.reset
   }
 
   private def mockGeocodeRoute(bodyRegex: String, returnedBody: String) {
@@ -90,12 +93,35 @@ with MustMatchers with Assertions with BeforeAndAfterAll with GeospaceHandlerDat
     newRows.toSeq must equal (expectedRows)
   }
 
-  test("Will throw UnknownColumnEx if source column missing") {
-    intercept[UnknownColumnEx] {
-      val rows = Seq(Map("date" -> SoQLText("12/31/2013")))
-      // NOTE: must call next on an iterator otherwise computation doesn't start
-      handler.compute(rows.map(UpsertAsSoQL(_)).toIterator, columnSpec).next
+  test("Will return empty featureIds if source column missing for some rows") {
+    val rows = Seq(UpsertAsSoQL(Map("date" -> SoQLText("12/31/2013"))),
+                   UpsertAsSoQL(Map("date" -> SoQLText("12/31/2014"))),
+                   UpsertAsSoQL(Map("date" -> SoQLText("12/31/2015")))) ++ testRows
+
+    mockGeocodeRoute(".+122.+", """["Wards.3","Wards.4"]""")
+    mockGeocodeRoute(".+120.+", """[""]""")
+    mockGeocodeRoute(".+119.+", """["Wards.6"]""")
+    val expectedIds = Iterator("", "", "", "Wards.3", "Wards.4", "", "Wards.6")
+
+    val expectedRows = rows.map {
+      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("ward_id" -> SoQLText(expectedIds.next)))
+      case d: DeleteAsCJson  => d
     }
+
+    val newRows = handler.compute(rows.toIterator, columnSpec)
+    newRows.toSeq must equal (expectedRows)
+  }
+
+  test("Will return empty featureIds if source column missing for all rows") {
+    val rows = Seq(UpsertAsSoQL(Map("date" -> SoQLText("12/31/2013"))),
+      UpsertAsSoQL(Map("date" -> SoQLText("12/31/2014"))),
+      UpsertAsSoQL(Map("date" -> SoQLText("12/31/2015"))))
+    val expectedRows = rows.map { upsert =>
+      UpsertAsSoQL(upsert.rowData + ("ward_id" -> SoQLText("")))
+    }
+
+    val newRows = handler.compute(rows.toIterator, columnSpec)
+    newRows.toSeq must equal (expectedRows)
   }
 
   test("handler.compute() returns lazy iterator") {
