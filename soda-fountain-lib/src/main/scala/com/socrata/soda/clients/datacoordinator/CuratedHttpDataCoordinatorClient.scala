@@ -1,11 +1,11 @@
 package com.socrata.soda.clients.datacoordinator
 
-import com.socrata.http.common.AuxiliaryData
-import org.apache.curator.x.discovery.{strategies => providerStrategies, ServiceDiscovery}
 import com.socrata.http.client.{RequestBuilder, HttpClient}
+import com.socrata.http.common.AuxiliaryData
+import com.socrata.thirdparty.curator.ProviderCache
 import java.io.Closeable
+import org.apache.curator.x.discovery.{strategies => providerStrategies, ServiceDiscovery}
 import scala.concurrent.duration.FiniteDuration
-import com.socrata.soda.server.util.ProviderCache
 
 class CuratedHttpDataCoordinatorClient(httpClient: HttpClient,
                                        discovery: ServiceDiscovery[AuxiliaryData],

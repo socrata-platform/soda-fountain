@@ -11,8 +11,9 @@ import org.apache.http.HttpStatus
 import scala.io.{Codec, Source}
 import org.joda.time.DateTime
 
-abstract class HttpQueryCoordinatorClient(httpClient: HttpClient) extends QueryCoordinatorClient {
+trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   def qchost : Option[RequestBuilder]
+  val httpClient: HttpClient
 
   private[this] val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpQueryCoordinatorClient])
 
