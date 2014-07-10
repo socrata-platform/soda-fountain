@@ -5,7 +5,7 @@ import com.socrata.http.server.routing.SimpleRouteContext._
 import com.socrata.http.server.routing.{OptionallyTypedPathComponent, Extractor}
 import com.socrata.http.server.{HttpService, HttpResponse}
 import com.socrata.soda.server.errors.GeneralNotFoundError
-import com.socrata.soda.server.id.{RowSpecifier, SecondaryId, ResourceName}
+import com.socrata.soda.server.id.{RollupName, RowSpecifier, SecondaryId, ResourceName}
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletRequest
 
@@ -22,7 +22,8 @@ class SodaRouter(versionResource: HttpService,
                  datasetVersionResource: (ResourceName, SecondaryId) => HttpService,
                  datasetExportResource: OptionallyTypedPathComponent[ResourceName] => HttpService,
                  datasetExportCopyResource: (ResourceName, OptionallyTypedPathComponent[String]) => HttpService,
-                 exportExtensions: String => Boolean)
+                 exportExtensions: String => Boolean,
+                 datasetRollupResource: (ResourceName, RollupName) => HttpService)
 {
   private[this] implicit val ResourceNameExtractor = new Extractor[ResourceName] {
     def extract(s: String): Option[ResourceName] = Some(new ResourceName(s))
@@ -38,6 +39,10 @@ class SodaRouter(versionResource: HttpService,
 
   private[this] implicit val RowSpecifierExtractor = new Extractor[RowSpecifier] {
     def extract(s: String) = Some(new RowSpecifier(s))
+  }
+
+  private[this] implicit val RollupNameExtractor = new Extractor[RollupName] {
+    def extract(s: String): Option[RollupName] = Some(new RollupName(s))
   }
 
   // NOTE: until there's something like Swagger, document routes with comments
@@ -57,7 +62,8 @@ class SodaRouter(versionResource: HttpService,
     Route("/dataset-copy/{ResourceName}/{SecondaryId}", datasetSecondaryCopyResource),
     Route("/dataset-version/{ResourceName}/{SecondaryId}", datasetVersionResource),
     Route("/export/{{ResourceName:exportExtensions}}", datasetExportResource),
-    Route("/export/{ResourceName}/{{String:exportExtensions}}", datasetExportCopyResource)
+    Route("/export/{ResourceName}/{{String:exportExtensions}}", datasetExportCopyResource),
+    Route("/dataset-rollup/{ResourceName}/{RollupName}", datasetRollupResource)
   )
 
   def route(req: HttpServletRequest): HttpResponse =

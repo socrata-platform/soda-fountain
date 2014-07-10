@@ -1,11 +1,19 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.clients.datacoordinator.{SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
-import com.socrata.soda.server.id.{SecondaryId, ResourceName}
-import com.socrata.soda.server.persistence.NameAndSchemaStore
-import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
+import com.socrata.soda.clients.datacoordinator.{DropRollupInstruction, CreateOrUpdateRollupInstruction, SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
+import com.socrata.soda.server.id.{SecondaryId, ResourceName, RollupName}
+import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
+import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
+import com.socrata.soql.collection.OrderedMap
+import com.socrata.soql.exceptions.{NoSuchColumn, SoQLException}
+import com.socrata.soql.mapping.ColumnNameMapper
+import com.socrata.soql.parsing.StandaloneParser
+import com.socrata.soql.types.{SoQLType, SoQLAnalysisType}
+import com.socrata.soql.{SoQLAnalysis, SoQLAnalyzer}
 import com.socrata.soql.brita.IdentifierFilter
-import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.environment.{DatasetContext, ColumnName}
+import com.socrata.soql.functions.SoQLFunctionInfo
+import com.socrata.soql.functions.SoQLTypeInfo
 import DatasetDAO._
 import scala.util.control.ControlThrowable
 
@@ -228,4 +236,77 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       case None =>
         NotFound(dataset)
     }
+
+  def replaceOrCreateRollup(user: String, dataset: ResourceName, rollup: RollupName, spec: UserProvidedRollupSpec): Result =
+      store.translateResourceName(dataset) match {
+        case Some(datasetRecord) =>
+          spec.soql match {
+            case Some(soql) =>
+              // We don't actually need the analysis, we are just running it here so we
+              // can give feedback to the API caller if something is wrong with the query.
+              analyzeQuery(datasetRecord, spec.soql.get) match {
+                case Left(result) => result
+                case Right(_) =>
+                  val columnIdMap: Map[ColumnName, String] = datasetRecord.columnsByName.mapValues(_.id.underlying)
+                  val columnNameMap = columnIdMap.map { case (k, v) => (k, ColumnName(v))}
+
+                  val parsedQuery = new StandaloneParser().selectStatement(soql)
+                  val mappedQuery = new ColumnNameMapper(columnNameMap).mapSelect(parsedQuery)
+                  log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
+                  log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
+
+                  val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQuery.toString())
+                  dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(instruction)) {
+                    // TODO better support for error handling in various failure cases
+                    case DataCoordinatorClient.Success(report, etag, newVersion, lastModified) =>
+                      store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+                      RollupCreatedOrUpdated
+                  }
+              }
+            case None =>
+              RollupError("soql field missing")
+          }
+        case None =>
+          NotFound(dataset)
+      }
+
+  private def analyzeQuery(ds: MinimalDatasetRecord, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLAnalysisType]] = {
+    val columnIdMap: Map[ColumnName, String] = ds.columnsByName.mapValues(_.id.underlying)
+    val rawSchema: Map[String, SoQLType] = ds.schemaSpec.schema.map { case (k, v) => (k.underlying, v) }
+
+    val analyzer = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
+
+    val dsCtx = new DatasetContext[SoQLAnalysisType] {
+      val schema = OrderedMap(columnIdMap.mapValues(rawSchema).toSeq.sortBy(_._1) : _*)
+    }
+    try {
+      val analysis = analyzer.analyzeFullQuery(query)(dsCtx)
+      log.debug(s"Rollup analysis successful: ${analysis}")
+      Right(analysis)
+    } catch {
+      case NoSuchColumn(name, _) => Left(RollupColumnNotFound(name))
+      case e: SoQLException => Left(RollupError(e.getMessage))
+    }
+  }
+
+  // TODO implement
+  def getRollup(user: String, dataset: ResourceName, rollup: RollupName): Result = ???
+
+  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName): Result = {
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        val instruction = DropRollupInstruction(rollup)
+
+        dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(instruction)) {
+          // TODO better support for error handling in various failure cases
+          case DataCoordinatorClient.Success(report, etag, newVersion, lastModified) =>
+            store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+            RollupDropped
+          case DataCoordinatorClient.UpsertUserError("delete.rollup.does-not-exist", _) =>
+            RollupNotFound(rollup)
+        }
+      case None =>
+        NotFound(dataset)
+    }
+  }
 }

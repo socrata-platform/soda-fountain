@@ -6,7 +6,7 @@ import com.rojoma.json.codec.JsonCodec
 import javax.activation.MimeType
 import com.socrata.soql.environment.{ColumnName, TypeName}
 import com.socrata.http.server.util.EntityTag
-import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
+import com.socrata.soda.server.id.{RollupName, ResourceName, RowSpecifier}
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
 
 case class ResourceNotModified(override val etags: Seq[EntityTag], override val vary: Option[String], override val hasContent: Boolean = false)
@@ -83,6 +83,24 @@ case class ComputationStrategySpecMaltyped(field: String, expected: String, got:
 case class ComputationStrategySpecUnknownType(typ: String)
   extends SodaError("soda.computation-strategy.unknown-type",
     "type" -> JString(typ))
+
+case class RollupSpecMaltyped(field: String, expected: String, got: JValue)
+  extends SodaError("soda.rollup.maltyped",
+    "field" -> JString(field),
+    "expected" -> JString(expected),
+    "got" -> got)
+
+case class RollupCreationFailed(error: String)
+  extends SodaError("soda.rollup.creation-failed",
+    "error" -> JString(error))
+
+case class RollupColumnNotFound(value: ColumnName)
+  extends SodaError("soda.rollup.column-not-found",
+    "value" -> JString(value.name))
+
+case class RollupNotFound(value: RollupName)
+  extends SodaError("soda.rollup.not-found",
+    "value" -> JString(value.name))
 
 case class NonUniqueRowId(column: String)
   extends SodaError("soda.column.not-unique",
