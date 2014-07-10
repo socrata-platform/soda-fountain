@@ -68,10 +68,11 @@ class GeospaceHandler(config: Config) extends ComputationHandler {
 
       // Convert points to feature IDs, and splice feature IDs back into rows.
       // Deletes are returned untouched.
-      val featureIds = geospaceRegionCoder(pointsWithIndex.map(_._1), region).iterator
+      val featureIds = geospaceRegionCoder(pointsWithIndex.map(_._1), region)
+      val featureIdsWithIndex = pointsWithIndex.map(_._2).zip(featureIds).toMap
       rowsWithIndex.map {
         case (upsert: UpsertAsSoQL, i) =>
-          val featureId = if (pointsWithIndex.map(_._2).contains(i)) featureIds.next() else ""
+          val featureId = featureIdsWithIndex.getOrElse(i, "")
           UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureId)))
         case (delete: DeleteAsCJson, i) => delete
         case _                     =>
