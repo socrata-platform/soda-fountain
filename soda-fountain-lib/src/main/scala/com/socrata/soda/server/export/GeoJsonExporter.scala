@@ -1,10 +1,11 @@
 package com.socrata.soda.server.export
 
-import com.rojoma.json.ast.{JObject, JString}
+import com.rojoma.json.ast.{JValue, JNull, JObject, JString}
 import com.rojoma.json.io.{CompactJsonWriter, JsonReader}
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.highlevel.ExportDAO
+import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.types._
@@ -60,21 +61,27 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
   val featureCollectionPrefix = """{ "type": "FeatureCollection", "features": ["""
   val featureCollectionSuffix = s"""], "crs" : $wgs84ProjectionInfo }"""
 
-  val (geometry, properties) = splitOutGeoColumn[ExportDAO.ColumnInfo](schema.schema, ci => ci.typ)
-  val propertyNames = properties.map { ci => ci.fieldName.name }
-  val propertyReps = properties.map { ci => JsonColumnRep.forClientType(ci.typ) }
+  val geoColumnIndex = getGeoColumnIndex(schema.schema)
+  val propertyNames = schema.schema.map { ci => ci.fieldName.name }
+  val propertyReps = schema.schema.map { ci => JsonColumnRep.forClientType(ci.typ) }
 
   val jsonWriter = new CompactJsonWriter(writer)
 
-  private def splitOutGeoColumn[T](columns: Seq[T], getSoQLType: T => SoQLType): (T, Seq[T]) = {
-    val (geom, other) = columns.partition(getSoQLType(_).isInstanceOf[SoQLGeometryLike[_]])
-    // Once we are validating the dataset schema upfront and throwing a 406 on datasets
-    // that don't contain exactly one geo column, this should never happen :/
-    if (geom.size != 1) throw InvalidGeoJsonSchema
-    (geom(0), other)
+  private def getGeoColumnIndex(columns: Seq[ColumnInfo]): Int = {
+    val geoColumnIndices = columns.zipWithIndex.collect {
+      case (columnInfo, index) if columnInfo.typ.isInstanceOf[SoQLGeometryLike[_]] => index
+    }
+
+    // We validate the dataset schema upfront and throw a 406 on datasets that don't
+    // contain exactly one geo column, so theoretically this should never happen :/
+    if (geoColumnIndices.size != 1) throw InvalidGeoJsonSchema
+    
+    geoColumnIndices(0)
   }
 
-  private def getGeometryJson(soqlGeom: SoQLValue) = {
+  private def getGeometryJson(soqlGeom: SoQLValue): JValue = {
+    if (soqlGeom == null) return JNull
+
     val geomJson = soqlGeom match {
       case SoQLPoint(p)         => SoQLPoint.JsonRep.apply(p)
       case SoQLMultiLine(ml)    => SoQLMultiLine.JsonRep.apply(ml)
@@ -84,13 +91,15 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
   }
 
   private def writeGeoJsonRow(row: Array[SoQLValue]) {
-    val (soqlGeom, soqlProperties) = splitOutGeoColumn[SoQLValue](row, field => field.typ)
-    val rowData = (propertyNames, propertyReps, soqlProperties).zipped
-    val properties = rowData.map { (name, rep, soqlProperty) => name -> rep.toJValue(soqlProperty) }
-    val map = Map("type" -> JString("Feature"),
-      "geometry" -> getGeometryJson(soqlGeom),
-      "properties" -> JObject(properties.toMap))
+    val properties = row.zipWithIndex.filterNot(_._2 == geoColumnIndex).map { case (value, index) =>
+      propertyNames(index) -> propertyReps(index).toJValue(value)
+    }
+
+    val map = Map("type"       -> JString("Feature"),
+                  "geometry"   -> getGeometryJson(row(geoColumnIndex)),
+                  "properties" -> JObject(properties.toMap))
     val finalMap = if (singleRow) map + ("crs" -> JsonReader.fromString(wgs84ProjectionInfo)) else map
+
     jsonWriter.write(JObject(finalMap))
   }
 
