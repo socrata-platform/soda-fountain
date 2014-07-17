@@ -2,6 +2,7 @@ package com.socrata.soda.server.computation
 
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.persistence._
+import com.socrata.soda.server.util.ManagedIterator
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.types.SoQLValue
 import com.typesafe.config.Config
@@ -60,12 +61,9 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
       tryGetHandler match {
         case Some(handlerCreator) =>
           val handler = handlerCreator()
-          try {
-            rowIterator = handler.compute(rowIterator, computedColumn)
-          } finally {
-            handler.close()
-          }
-        case None          => return HandlerNotFound(computedColumn.computationStrategy.get.strategyType)
+          rowIterator = new ManagedIterator(handler.compute(rowIterator, computedColumn), handler)
+        case None =>
+          return HandlerNotFound(computedColumn.computationStrategy.get.strategyType)
       }
     }
     ComputeSuccess(rowIterator)

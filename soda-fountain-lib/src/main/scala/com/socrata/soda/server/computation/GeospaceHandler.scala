@@ -94,6 +94,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
   }
 
   def close() {
+    logger.info("Closing GeospaceHandler...")
     service.close()
   }
 
