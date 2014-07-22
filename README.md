@@ -21,6 +21,8 @@ To build an assembly and run as a separate process:
 
 `sbt "soda-fountain/test"`
 
+For soda-fountain-lib, log output goes to `sbt-test.log`.  Logging is controlled via `soda-fountain-lib/src/test/resources/log4j.properties`.
+
 ## Migrations
 
 Using sbt:

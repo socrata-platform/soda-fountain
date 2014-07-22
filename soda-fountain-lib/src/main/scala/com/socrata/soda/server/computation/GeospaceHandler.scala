@@ -3,19 +3,25 @@ package com.socrata.soda.server.computation
 import com.rojoma.json.ast.{JObject, JString, JArray, JNumber}
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
+import com.socrata.http.common.AuxiliaryData
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLPoint, SoQLText}
+import com.socrata.thirdparty.curator.CuratorServiceBase
 import com.typesafe.config.{Config, ConfigFactory}
+import org.apache.curator.x.discovery.ServiceDiscovery
 import org.slf4j.LoggerFactory
 import scala.util.Try
 import scalaj.http.Http
 
+
 /**
  * A [[ComputationHandler]] for mapping points (or lat/long pairs) to geo features (point-in-polygon)
  * using the Geospace microservice (http://github.com/socrata/geospace).
+ *
+ * Source rows that don't have points or that don't map to a region are encoded using an empty string.
  *
  * To instantiate, pass the sub-config only, like so:
  *
@@ -23,21 +29,24 @@ import scalaj.http.Http
  *
  * == Config ==
  * {{{
- *   host = "localhost"
- *   port = 2020
+ *   service-name = "geospace"
  *   batch-size = 200    # Number of rows to send to Geospace server at once
  * }}}
  */
-class GeospaceHandler(config: Config) extends ComputationHandler {
+class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends ComputationHandler {
   import ComputationHandler._
 
   // Get config values
-  // TODO: use ZK/Curator to discover Geospace
-  val geospaceHost = Try(config.getString("host")).getOrElse("localhost")
-  val geospacePort = Try(config.getInt("port")).getOrElse(2020)
-  val batchSize    = Try(config.getInt("batch-size")).getOrElse(200)
+  val serviceName  = config.getString("service-name")
+  val batchSize    = config.getInt("batch-size")
 
-  private val urlPrefix = s"http://${geospaceHost}:${geospacePort}/experimental"
+  class GeospaceService[T](discovery: ServiceDiscovery[T]) extends CuratorServiceBase(discovery, serviceName)
+  val service = new GeospaceService(discovery)
+  service.start()
+
+  def urlPrefix = Option(service.provider.getInstance()).map { serv => serv.buildUriSpec() + "experimental" }.
+                    getOrElse(throw new RuntimeException("Unable to get Geospace instance from Curator/ZK"))
+
   private val logger = LoggerFactory.getLogger(getClass)
 
   case class Point(x: Double, y: Double)
@@ -82,6 +91,11 @@ class GeospaceHandler(config: Config) extends ComputationHandler {
       }.toIterator
     }
     computedBatches.flatten
+  }
+
+  def close() {
+    logger.info("Closing GeospaceHandler...")
+    service.close()
   }
 
   private def parsePointColumnSourceStrategy(column: MinimalColumnRecord): (String, String) = {

@@ -1,6 +1,7 @@
 package com.socrata.soda.server.config
 
 import com.typesafe.config.Config
+import com.socrata.thirdparty.curator.{CuratorConfig, DiscoveryConfig}
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
 
 class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(config), "com.socrata.soda-fountain") {
@@ -8,12 +9,15 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val etagObfuscationKey = optionally(getString("etag-obfuscation-key"))
 
   val curator = getConfig("curator", new CuratorConfig(_, _))
+  val discovery = getConfig("curator", new DiscoveryConfig(_, _))
   val serviceAdvertisement = getConfig("service-advertisement", new ServiceAdvertisementConfig(_, _))
   val network = getConfig("network", new NetworkConfig(_, _))
   val dataCoordinatorClient = getConfig("data-coordinator-client", new DataCoordinatorClientConfig(_, _))
   val queryCoordinatorClient = getConfig("query-coordinator-client", new QueryCoordinatorClientConfig(_, _))
   val database = getConfig("database", new DataSourceConfig(_, _))
   val log4j = getRawConfig("log4j")
+  // This is a Typesafe config because there are variable number of subentries, one per handler
+  val handlers = config.getConfig("com.socrata.soda-fountain.handlers")
 }
 
 class ServiceAdvertisementConfig(config: Config, root: String) extends ConfigClass(config, root) {
@@ -45,17 +49,6 @@ class LivenessClientConfig(config: Config, root: String) extends ConfigClass(con
   val interval = getDuration("interval")
   val range = getDuration("range")
   val missable = getInt("missable")
-}
-
-class CuratorConfig(config: Config, root: String) extends ConfigClass(config, root) {
-  val ensemble = getStringList("ensemble").mkString(",")
-  val sessionTimeout = getDuration("session-timeout")
-  val connectTimeout = getDuration("connect-timeout")
-  val maxRetries = getInt("max-retries")
-  val baseRetryWait = getDuration("base-retry-wait")
-  val maxRetryWait = getDuration("max-retry-wait")
-  val namespace = getString("namespace")
-  val serviceBasePath = getString("service-base-path")
 }
 
 class DataSourceConfig(config: Config, root: String) extends ConfigClass(config, root) {

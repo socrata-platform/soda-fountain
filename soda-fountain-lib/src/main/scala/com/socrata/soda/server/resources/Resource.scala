@@ -30,7 +30,11 @@ import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 /**
  * Resource: services for upserting, deleting, and querying dataset rows.
  */
-case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: ETagObfuscator, maxRowSize: Long) {
+case class Resource(rowDAO: RowDAO,
+                    store: NameAndSchemaStore,
+                    etagObfuscator: ETagObfuscator,
+                    maxRowSize: Long,
+                    cc: ComputedColumns[_]) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
 
   val headerHashAlg = "SHA1"
@@ -204,8 +208,8 @@ case class Resource(rowDAO: RowDAO, store: NameAndSchemaStore, etagObfuscator: E
                   return upsertResponse(req, response)(RowDAO.ComputedColumnNotWritable(columnName))
               }
 
-              val computedColumns = findComputedColumns(datasetRecord)
-              val computedRows = addComputedColumns(validRows, computedColumns)
+              val computedColumns = cc.findComputedColumns(datasetRecord)
+              val computedRows = cc.addComputedColumns(validRows, computedColumns)
               computedRows match {
                 case ComputeSuccess(rows) =>
                   val rowUpdates = rows.map {

@@ -9,6 +9,7 @@ import com.socrata.soda.server.persistence.{MinimalColumnRecord, ComputationStra
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
+import com.socrata.thirdparty.curator.{CuratorBroker, CuratorServiceIntegration}
 import com.typesafe.config.ConfigFactory
 import org.mockserver.integration.ClientAndServer
 import org.mockserver.model.Header
@@ -42,7 +43,10 @@ trait GeospaceHandlerData {
 }
 
 class GeospaceHandlerTest extends FunSuite
-with MustMatchers with Assertions with BeforeAndAfterAll with BeforeAndAfterEach with GeospaceHandlerData {
+with MustMatchers with Assertions with BeforeAndAfterAll with BeforeAndAfterEach with GeospaceHandlerData
+with CuratorServiceIntegration {
+  override val curatorConfigPrefix = "com.socrata.soda-fountain.curator"
+
   import collection.JavaConverters._
   import ComputationHandler._
   import org.mockserver.model.HttpRequest._
@@ -51,20 +55,26 @@ with MustMatchers with Assertions with BeforeAndAfterAll with BeforeAndAfterEach
 
   val port = 51234
   var server: ClientAndServer = _
+  lazy val broker = new CuratorBroker(discovery, "localhost", "geospace", None)
+  lazy val cookie = broker.register(port)
 
   val testConfig = ConfigFactory.parseMap(Map(
-                     "port" -> port,
+                     "service-name" -> "geospace",
                      "batch-size" -> 2
                    ).asJava)
 
-  val handler = new GeospaceHandler(testConfig)
+  lazy val handler = new GeospaceHandler(testConfig, discovery)
 
   override def beforeAll {
+    startServices()
     server = ClientAndServer.startClientAndServer(port)
+    cookie
   }
 
   override def afterAll {
+    broker.deregister(cookie)
     server.stop
+    stopServices()
   }
 
   override def beforeEach {

@@ -6,22 +6,20 @@ import com.socrata.http.common.AuxiliaryData
 import com.socrata.http.server.util.handlers.{LoggingHandler, ThreadRenamingHandler}
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
+import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
+import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
 import com.socrata.soda.server.util._
+import com.socrata.thirdparty.curator.{CuratorFromConfig, DiscoveryFromConfig}
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import java.io.Closeable
 import java.security.SecureRandom
 import java.util.concurrent.Executors
 import javax.sql.DataSource
-import org.apache.curator.framework.CuratorFrameworkFactory
-import org.apache.curator.{retry => retryPolicies}
-import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
 import org.apache.log4j.PropertyConfigurator
 import scala.collection.mutable
-import scala.concurrent.duration.FiniteDuration
-import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -103,27 +101,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     res
   }
 
-  val curator = si {
-    def ms(value: String, d: FiniteDuration) = {
-      val m = d.toMillis.toInt
-      if(m != d.toMillis) throw new IllegalArgumentException(value + " out of range (milliseconds must fit in an int)")
-      m
-    }
-    CuratorFrameworkFactory.builder.
-      connectString(config.curator.ensemble).
-      sessionTimeoutMs(ms("Session timeout", config.curator.sessionTimeout)).
-      connectionTimeoutMs(ms("Connect timeout", config.curator.connectTimeout)).
-      retryPolicy(new retryPolicies.BoundedExponentialBackoffRetry(ms("Base retry wait", config.curator.baseRetryWait),
-        ms("Max retry wait", config.curator.maxRetryWait),
-        config.curator.maxRetries)).
-      namespace(config.curator.namespace).
-      build()
-  }
+  val curator = si(CuratorFromConfig.unmanaged(config.curator))
 
-  val discovery = si(ServiceDiscoveryBuilder.builder(classOf[AuxiliaryData]).
-    client(curator).
-    basePath(config.curator.serviceBasePath).
-    build())
+  val discovery = si(DiscoveryFromConfig.unmanaged(classOf[AuxiliaryData], curator, config.discovery))
 
   val executor = i(new CloseableExecutorService(Executors.newCachedThreadPool()))
 
@@ -139,6 +119,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
 
+  val computedColumns = new ComputedColumns(config.handlers, discovery)
+
   val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
   val columnDAO = i(new ColumnDAOImpl(dc, store, columnSpecUtils))
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
@@ -149,7 +131,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val router = i {
     import com.socrata.soda.server.resources._
 
-    val resource = Resource(rowDAO, store, etagObfuscator, config.maxDatumSize) // TODO: this should probably be a different max size value
+    // TODO: this should probably be a different max size value
+    val resource = Resource(rowDAO, store, etagObfuscator, config.maxDatumSize, computedColumns)
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
     val column = DatasetColumn(columnDAO, etagObfuscator, config.maxDatumSize)
     val export = Export(exportDAO, etagObfuscator)
