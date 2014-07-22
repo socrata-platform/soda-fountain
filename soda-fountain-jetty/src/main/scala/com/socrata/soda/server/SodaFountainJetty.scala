@@ -1,13 +1,11 @@
 package com.socrata.soda.server
 
 import com.rojoma.simplearm.util._
-import com.typesafe.config.ConfigFactory
-import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.http.server.SocrataServerJetty
 import com.socrata.http.server.curator.CuratorBroker
-import org.apache.curator.x.discovery.ServiceDiscoveryBuilder
+import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.thirdparty.curator.DiscoveryFromConfig
-import com.socrata.http.common.AuxiliaryData
+import com.typesafe.config.ConfigFactory
 
 object SodaFountainJetty extends App {
   val config = new SodaFountainConfig(ConfigFactory.load())
