@@ -4,6 +4,7 @@ import Keys._
 import sbtassembly.Plugin.AssemblyKeys._
 import sbtassembly.Plugin.MergeStrategy
 import sbtassembly.AssemblyUtils._
+import com.socrata.cloudbeessbt.SocrataCloudbeesSbt.SocrataSbtKeys._
 
 object SodaFountainJetty {
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings(assembly = true) ++ Seq(
@@ -11,6 +12,12 @@ object SodaFountainJetty {
       "com.socrata" %% "socrata-http-jetty" % "[2.0.0,3.0.0)",
       "com.socrata" %% "socrata-http-curator-broker" % "[2.0.0,3.0.0)"
     ),
+    dependenciesSnippet :=
+      <xml.group>
+        <exclude org="commons-logging" module="commons-logging"/>
+        <exclude org="commons-logging" module="commons-logging-api"/>
+      </xml.group>
+    ,
     mainClass := Some("com.socrata.soda.server.SodaFountainJetty"),
     mergeStrategy in assembly <<= (mergeStrategy in assembly) { old =>
       {

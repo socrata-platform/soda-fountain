@@ -9,6 +9,7 @@ import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorCli
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
+import com.socrata.soda.server.metrics.{BalboaMetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.util._
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import java.io.Closeable
@@ -144,12 +145,14 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
   val exportDAO = i(new ExportDAOImpl(store, dc))
 
+  val metricProvider = config.metrics.map( balboaConfig => si(new BalboaMetricProvider(balboaConfig)) ).getOrElse( i(new NoopMetricProvider) )
+
   val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
 
   val router = i {
     import com.socrata.soda.server.resources._
 
-    val resource = Resource(rowDAO, store, etagObfuscator, config.maxDatumSize) // TODO: this should probably be a different max size value
+    val resource = Resource(rowDAO, store, etagObfuscator, config.maxDatumSize, metricProvider) // TODO: this should probably be a different max size value
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
     val column = DatasetColumn(columnDAO, etagObfuscator, config.maxDatumSize)
     val export = Export(exportDAO, etagObfuscator)

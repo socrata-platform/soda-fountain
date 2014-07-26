@@ -14,6 +14,7 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val queryCoordinatorClient = getConfig("query-coordinator-client", new QueryCoordinatorClientConfig(_, _))
   val database = getConfig("database", new DataSourceConfig(_, _))
   val log4j = getRawConfig("log4j")
+  val metrics =  optionally(getConfig("metrics", new BalboaConfig(_,_)))
 }
 
 class ServiceAdvertisementConfig(config: Config, root: String) extends ConfigClass(config, root) {
@@ -66,4 +67,9 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
   val password = getString("password")
   val applicationName = getString("app-name")
   val poolOptions = optionally(getRawConfig("c3p0")) // these are the c3p0 configuration properties
+}
+
+class BalboaConfig(config: Config, root: String) extends ConfigClass(config, root) {
+  val activeMQConnectionUri = getString("activemq-connection-uri")
+  val jmsQueue = getString("jms-queue")
 }

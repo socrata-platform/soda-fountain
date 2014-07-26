@@ -3,6 +3,7 @@ import Keys._
 
 import com.rojoma.simplearm.util._
 import com.rojoma.json.util.JsonUtil.writeJson
+import com.socrata.cloudbeessbt.SocrataCloudbeesSbt.SocrataSbtKeys._
 
 object SodaFountainLib {
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings() ++ Seq(
@@ -11,6 +12,8 @@ object SodaFountainLib {
     libraryDependencies ++= Seq(
       "com.mchange"         % "c3p0"                        % "0.9.2.1",
       "com.rojoma"         %% "simple-arm"                  % "[1.2.0,2.0.0)",
+      "com.socrata"        %% "balboa-common"               % "[0.2.0-SNAPSHOT,1.0.0)",
+      "com.socrata"        %% "balboa-client"               % "[0.2.0-SNAPSHOT,1.0.0)",
       "com.socrata"        %% "socrata-http-client"         % "[2.0.0,3.0.0)",
       "com.socrata"        %% "socrata-http-server"         % "[2.0.0,3.0.0)",
       "com.socrata"        %% "socrata-thirdparty-utils"    % "[2.1.0,3.0.0)",
@@ -27,15 +30,14 @@ object SodaFountainLib {
       "org.liquibase"       % "liquibase-plugin"            % "1.9.5.0",
       "org.scalaj"         %% "scalaj-http"                 % "0.3.15",
       "postgresql"          % "postgresql"                  % "9.1-901-1.jdbc4",
-
       "org.scalacheck"     %% "scalacheck"                  % "1.10.0"  % "test,it",
       "org.scalatest"      %% "scalatest"                   % "2.2.0"   % "test,it",
       "org.scalamock"      %% "scalamock-scalatest-support" % "3.1.RC1" % "test",
+      "org.springframework" % "spring-test"                 % "3.2.10.RELEASE" % "test",
       "org.mock-server"     % "mockserver-netty"            % "3.0"     % "test"
           exclude("ch.qos.logback", "logback-classic")
     )
   )
-
   def genVersion(resourceManaged: File, name: String, version: String, scalaVersion: String): Seq[File] = {
     val file = resourceManaged / "soda-fountain-version.json"
 
