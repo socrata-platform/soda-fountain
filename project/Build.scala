@@ -19,4 +19,5 @@ object Build extends sbt.Build {
   val sodaFountainLib = p("soda-fountain-lib", SodaFountainLib, sodaFountainLibMacros)
   val sodaFountainJetty = p("soda-fountain-jetty", SodaFountainJetty,  sodaFountainLib)
   val sodaFountainWar = p("soda-fountain-war", SodaFountainWar,  sodaFountainLib)
+  val sodaFountainExternal = p("soda-fountain-external", SodaFountainExternal)
 }
