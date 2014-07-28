@@ -108,6 +108,8 @@ class SodaFountainClient(httpClient: HttpClient,
         case Some(response) =>
           for {reader <- managed(response.asReader())} yield {
             try {
+              // TODO : Distinguish between empty response and invalid-JSON response
+              // TODO : May need to support non-JSON body (eg. CSV) in the future
               val json = Try(JsonReader.fromReader(reader)).toOption
               Complete(Response(response.resultCode, json))
             }
