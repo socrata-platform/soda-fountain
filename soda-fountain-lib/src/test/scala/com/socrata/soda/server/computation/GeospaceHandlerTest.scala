@@ -60,7 +60,9 @@ with CuratorServiceIntegration {
 
   val testConfig = ConfigFactory.parseMap(Map(
                      "service-name" -> "geospace",
-                     "batch-size" -> 2
+                     "batch-size"   -> 2,
+                     "max-retries"  -> 1,
+                     "retry-wait"   -> "500ms"
                    ).asJava)
 
   lazy val handler = new GeospaceHandler(testConfig, discovery)
@@ -111,7 +113,7 @@ with CuratorServiceIntegration {
 
     // Set up the mock server to fail on the first attempt,
     // succeed on the second attempt, then fail on the third attempt.
-    // GeospaceHandler retries once, so the second attempt should succeed.
+    // GeospaceHandler is configured to retry once, so the second attempt should succeed.
     mockGeocodeRoute(".+122.+", "", 500)
     mockGeocodeRoute(".+122.+", """["Wards.1"]""", 200)
     mockGeocodeRoute(".+122.+", "", 500)
