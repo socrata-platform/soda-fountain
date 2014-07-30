@@ -121,6 +121,6 @@ class SodaFountainClient(httpClient: HttpClient,
       }
     }
     catch {
-      case e => Failed(e)
+      case e: Exception => Failed(e)
     }
 }
