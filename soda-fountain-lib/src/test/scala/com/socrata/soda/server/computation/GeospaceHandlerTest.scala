@@ -81,11 +81,11 @@ with CuratorServiceIntegration {
     server.reset
   }
 
-  private def mockGeocodeRoute(bodyRegex: String, returnedBody: String) {
+  private def mockGeocodeRoute(bodyRegex: String, returnedBody: String, returnedCode: Int = 200) {
     server.when(request.withMethod("POST").
                         withPath("/experimental/regions/wards/geocode").
                         withBody(StringBody.regex(bodyRegex))).
-           respond(response.withStatusCode(200).
+           respond(response.withStatusCode(returnedCode).
                             withHeader(new Header("Content-Type", "application/json; charset=utf-8")).
                             withBody(returnedBody))
   }
@@ -101,6 +101,23 @@ with CuratorServiceIntegration {
     }
     val newRows = handler.compute(testRows.toIterator, columnSpec)
     newRows.toSeq must equal (expectedRows)
+  }
+
+  test("Retry works") {
+    val testRow = UpsertAsSoQL(
+      Map("geom" -> toSoQLPoint(point1), "date" -> SoQLText("12/31/2013")))
+    val expectedRow = UpsertAsSoQL(
+      Map("geom" -> toSoQLPoint(point1), "date" -> SoQLText("12/31/2013"), "ward_id" -> SoQLText("Wards.1")))
+
+    // Set up the mock server to fail on the first attempt,
+    // succeed on the second attempt, then fail on the third attempt.
+    // GeospaceHandler retries once, so the second attempt should succeed.
+    mockGeocodeRoute(".+122.+", "", 500)
+    mockGeocodeRoute(".+122.+", """["Wards.1"]""", 200)
+    mockGeocodeRoute(".+122.+", "", 500)
+
+    val newRows = handler.compute(Iterator(testRow), columnSpec)
+    newRows.toSeq must equal (Stream(expectedRow))
   }
 
   test("Will return empty featureIds if source column missing for some rows") {

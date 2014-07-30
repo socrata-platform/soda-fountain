@@ -3,17 +3,16 @@ package com.socrata.soda.server.computation
 import com.rojoma.json.ast.{JObject, JString, JArray, JNumber}
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
-import com.socrata.http.common.AuxiliaryData
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLPoint, SoQLText}
 import com.socrata.thirdparty.curator.CuratorServiceBase
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
 import org.slf4j.LoggerFactory
-import scala.util.Try
+import scala.annotation.tailrec
 import scalaj.http.Http
 
 
@@ -125,15 +124,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
     logger.debug("HTTP POST [{}] with {} points...", url, points.length)
 
     val jsonPoints = points.map { case Point(x, y) => JArray(Seq(JNumber(x), JNumber(y))) }
-    val (status, _, response) = try {
-      Http.postData(url, CompactJsonWriter.toString(JArray(jsonPoints))).
-        header("content-type", "application/json").
-        asHeadersAndParse(Http.readString)
-    } catch {
-      case e: scalaj.http.HttpException =>
-        logger.error("HTTP Error: ", e)
-        throw ComputationEx("HTTP Error reading " + url, Some(e))
-    }
+    val (status, response) = postWithRetry(url, jsonPoints, 1)
 
     logger.debug("Got back status {}, response [{}]", status, response)
     status match {
@@ -144,6 +135,25 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
         val errorMessage = s"Error: HTTP [$url] got response code $sc, body $response"
         logger.error(errorMessage)
         throw ComputationEx(errorMessage, None)
+    }
+  }
+
+  @tailrec
+  private def postWithRetry(url: String, jsonPoints: Seq[JArray], retriesLeft: Int): (Int, String) = {
+    try {
+      val (status, _, response) = Http.postData(url, CompactJsonWriter.toString(JArray(jsonPoints))).
+        header("content-type", "application/json").
+        asHeadersAndParse(Http.readString)
+      (status, response)
+    } catch {
+      case e: scalaj.http.HttpException =>
+        if (retriesLeft > 0) {
+          postWithRetry(url, jsonPoints, retriesLeft - 1)
+        }
+        else {
+          logger.error("HTTP Error: ", e)
+          throw ComputationEx("HTTP Error reading " + url, Some(e))
+        }
     }
   }
 }
