@@ -13,7 +13,6 @@ import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
 import org.slf4j.LoggerFactory
 import scala.annotation.tailrec
-import scala.concurrent.duration._
 import scalaj.http.Http
 
 /**
@@ -61,7 +60,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
    * sourceColumns must be a list of one column, and it must be a Geo Point type.
    * parameters: {"region":  <<name of geo region dataset 4x4>>}
    */
-  def compute(sourceIt: Iterator[RowDataTranslator.Success], column: MinimalColumnRecord): Iterator[RowDataTranslator.Success] = {
+  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: MinimalColumnRecord): Iterator[RowDataTranslator.Computable] = {
     // Only a single point column is allowed as a source for now
     val (geoColumnName, region) = parsePointColumnSourceStrategy(column)
 

@@ -1,5 +1,6 @@
 package com.socrata.soda.server.resources
 
+import com.rojoma.json.ast.JValue
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.ContentNegotiation
@@ -8,8 +9,8 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag}
+import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
-import com.socrata.soda.clients.datacoordinator.{RowUpdate, DeleteRow, UpsertRow}
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.server.{errors => SodaErrors}
@@ -75,6 +76,39 @@ case class Resource(rowDAO: RowDAO,
         Status(code) ~> SodaUtils.JsonContent(value)
       case RowDAO.RowNotFound(value) =>
         SodaUtils.errorResponse(req, SodaErrors.RowNotFound(value))
+    }
+  }
+
+  type rowDaoFunc = (MinimalDatasetRecord, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
+
+  def upsertishFlow(req: HttpServletRequest,
+                            response: HttpServletResponse,
+                            resourceName: ResourceName,
+                            rows: Iterator[JValue],
+                            f: rowDaoFunc) = {
+    store.translateResourceName(resourceName) match {
+      case Some(datasetRecord) =>
+        try {
+          val transformer = new RowDataTranslator(datasetRecord, false)
+          val transformedRows = transformer.transformRowsForUpsert(cc, rows)
+          f(datasetRecord, transformedRows)(upsertResponse(req, response))
+        }
+        catch {
+          case MaltypedDataEx(columnName, expected, got) =>
+            upsertResponse(req, response)(RowDAO.MaltypedData(columnName, expected, got))
+          case UnknownColumnEx(columnName)               =>
+            upsertResponse(req, response)(RowDAO.UnknownColumn(columnName))
+          case DeleteNoPKEx                              =>
+            upsertResponse(req, response)(RowDAO.DeleteWithoutPrimaryKey)
+          case NotAnObjectOrSingleElementArrayEx(obj)    =>
+            upsertResponse(req, response)(RowDAO.RowNotAnObject(obj))
+          case ComputedColumnNotWritableEx(columnName)   =>
+            upsertResponse(req, response)(RowDAO.ComputedColumnNotWritable(columnName))
+          case ComputationHandlerNotFoundEx(typ)         =>
+            upsertResponse(req, response)(RowDAO.ComputationHandlerNotFound(typ))
+        }
+      case None =>
+        SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
     }
   }
 
@@ -207,62 +241,17 @@ case class Resource(rowDAO: RowDAO,
     }
 
     override def post = { req => response =>
-      upsertishFlow(req, response, rowDAO.upsert)
+      upsertMany(req, response, rowDAO.upsert(user(req), _, _))
     }
 
     override def put = { req => response =>
-      upsertishFlow(req, response, rowDAO.replace)
+      upsertMany(req, response, rowDAO.replace(user(req), _, _))
     }
 
-    type rowDaoFunc = (String, MinimalDatasetRecord, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
-
-    import ComputedColumns._
-
-    private def upsertishFlow(req: HttpServletRequest, response: HttpServletResponse, f: rowDaoFunc) {
+    private def upsertMany(req: HttpServletRequest, response: HttpServletResponse, f: rowDaoFunc) {
       InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
-          // Now look up the dataset schema to see if we need to compute columns
-          store.translateResourceName(resourceName.value) match {
-            case Some(datasetRecord) =>
-              val trans = new RowDataTranslator(datasetRecord, ignoreUnknownColumns = false)
-              val rowsAsSoql = boundedIt.map(trans.clientJsonToSoql)
-
-              // Bail out of the whole upsert if any of the rows are invalid.
-              // Do we eventually want to change this to upsert the valid rows and return
-              // a summary of errors found?
-              // We would need to first inform API users of any change in behavior.
-              val validRows = rowsAsSoql.collect {
-                case validUpsert: UpsertAsSoQL                               => validUpsert
-                case validDelete: DeleteAsCJson                              => validDelete
-                case MaltypedDataError(columnName, expected, got)            =>
-                  return upsertResponse(req, response)(MaltypedData(columnName, expected, got))
-                case UnknownColumnError(columnName)                          =>
-                  return upsertResponse(req, response)(UnknownColumn(columnName))
-                case DeleteNoPKError                                         =>
-                  return upsertResponse(req, response)(DeleteWithoutPrimaryKey)
-                case NotAnObjectOrSingleElementArrayError(obj)               =>
-                  return upsertResponse(req, response)(RowNotAnObject(obj))
-                case RowDataTranslator.ComputedColumnNotWritable(columnName) =>
-                  return upsertResponse(req, response)(RowDAO.ComputedColumnNotWritable(columnName))
-              }
-
-              val computedColumns = cc.findComputedColumns(datasetRecord)
-              val computedRows = cc.addComputedColumns(validRows, computedColumns)
-              computedRows match {
-                case ComputeSuccess(rows) =>
-                  val rowUpdates = rows.map {
-                    case UpsertAsSoQL(rowData) => trans.soqlToDataCoordinatorJson(rowData) match {
-                      case UpsertAsCJson(row) => UpsertRow(row)
-                      case UnknownColumnError(columnName) => return upsertResponse(req, response)(UnknownColumn(columnName))
-                    }
-                    case DeleteAsCJson(pk) => DeleteRow(pk)
-                  }
-                  f(user(req), datasetRecord, rowUpdates)(upsertResponse(req, response))
-                case HandlerNotFound(typ) => upsertResponse(req, response)(ComputationHandlerNotFound(typ))
-              }
-            case None =>
-              upsertResponse(req, response)(RowDAO.DatasetNotFound(resourceName.value))
-          }
+          upsertishFlow(req, response, resourceName.value, boundedIt, f)
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName.value)(response)
       }
@@ -346,12 +335,7 @@ case class Resource(rowDAO: RowDAO,
     override def post = { req => response =>
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
         case Right(rowJVal) =>
-          store.translateResourceName(resourceName) match {
-            case Some(datasetRecord) =>
-              rowDAO.upsert(user(req), datasetRecord, Iterator.single(UpsertRow(rowJVal.fields)))(upsertResponse(req, response))
-            case None =>
-              SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
-          }
+          upsertishFlow(req, response, resourceName, Iterator.single(rowJVal), rowDAO.upsert(user(req), _, _))
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName)(response)
       }
