@@ -189,7 +189,6 @@ case class Resource(rowDAO: RowDAO,
                 ) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, schema, rows) =>
                     metric(QuerySuccessMetric)
-                    metric(QueryRows(rows.size))
                     if (isConditionalGet(req)) {
                       metric(QueryCacheMiss)
                     }
@@ -286,7 +285,6 @@ case class Resource(rowDAO: RowDAO,
                   ) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
-                      metric(QueryRows(1))
                       if (isConditionalGet(req)) {
                         metric(QueryCacheMiss)
                       }

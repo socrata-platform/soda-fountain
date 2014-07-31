@@ -14,6 +14,5 @@ object Metrics {
   object QuerySuccess extends CountMetric("sf-query-success")
   object QueryErrorUser extends CountMetric("sf-query-error-user")
   object QueryErrorInternal extends CountMetric("sf-query-error-internal")
-  case class QueryRows(rowCount: Int) extends CountMetric("sf-query-rows", rowCount)
 }
 
