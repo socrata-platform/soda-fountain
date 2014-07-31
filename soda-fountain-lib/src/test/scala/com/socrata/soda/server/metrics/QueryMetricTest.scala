@@ -82,7 +82,7 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
   test("Sending an If-Modified-Since request for an uncached dataset records a cache miss") {
     mockDatasetQuery(
       SingleRowCacheMiss,
-      mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryRows(1), QueryCacheMiss)),
+      mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryCacheMiss)),
       Map(
         domainIdHeader -> testDomainId,
         "If-Modified-Since" -> "Sat, 09 Jun 2007 23:55:38 GMT"
@@ -93,7 +93,7 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
   test("Sending an If-None-Match request for an uncached dataset records a cache miss") {
     mockDatasetQuery(
       SingleRowCacheMiss,
-      mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryRows(1), QueryCacheMiss)),
+      mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryCacheMiss)),
       Map(
         domainIdHeader -> testDomainId,
         "If-None-Match" -> ""
@@ -101,10 +101,10 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
     )
   }
 
-  test("Successfully querying a single row records a success metric and rowcount metric") {
+  test("Successfully querying a single row records a success metric") {
     mockDatasetQuery(
       SingleRowSuccess,
-      mockMetricProvider(testDomainId,  Seq(QuerySuccess, QueryRows(1))),
+      mockMetricProvider(testDomainId,  Seq(QuerySuccess)),
       Map(domainIdHeader -> testDomainId)
     )
   }
@@ -151,7 +151,7 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
   test("Sending an If-Modified-Since request for an uncached dataset records a cache miss") {
     mockDatasetQuery(
       MultiRowCacheMiss,
-      mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryRows(1), QueryCacheMiss)),
+      mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryCacheMiss)),
       Map(
         domainIdHeader -> testDomainId,
         "If-Modified-Since" -> "Sat, 09 Jun 2007 23:55:38 GMT"
@@ -162,7 +162,7 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
   test("Sending an If-None-Match request for an uncached dataset records a cache miss") {
     mockDatasetQuery(
       MultiRowCacheMiss,
-      mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryRows(1), QueryCacheMiss)),
+      mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryCacheMiss)),
       Map(
         domainIdHeader -> testDomainId,
         "If-None-Match" -> ""
@@ -170,10 +170,10 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
     )
   }
 
-  test("Successfully querying a dataset records a success metric and rowcount metric") {
+  test("Successfully querying a dataset records a success metric") {
     mockDatasetQuery(
-      SuccessTenRows,
-      mockMetricProvider(testDomainId,  Seq(QuerySuccess, QueryRows(10))),
+      MultiRowSuccess,
+      mockMetricProvider(testDomainId,  Seq(QuerySuccess)),
       Map(domainIdHeader -> testDomainId)
     )
   }
@@ -198,7 +198,7 @@ private object TestDatasets {
   }
 
   // Convenience
-  def querySuccess(rowCount: Int) = RowDAO.QuerySuccess(Seq.empty, 1, DateTime.now(), new CSchema(Some(rowCount), None, None, "en-us", None, Some(rowCount), Seq.empty), new Array[Array[SoQLValue]](rowCount).iterator)
+  def querySuccess = RowDAO.QuerySuccess(Seq.empty, 1, DateTime.now(), new CSchema(None, None, None, "en-us", None, None, Seq.empty), Array(new Array[SoQLValue](0)).iterator)
   def singleRowQuerySuccess = RowDAO.SingleRowQuerySuccess(Seq.empty, 1, DateTime.now(),  new CSchema(Some(1), None, None, "en-us", None, Some(1), Seq.empty), new Array[SoQLValue](0))
 
   // Shared datasets
@@ -213,13 +213,13 @@ private object TestDatasets {
   case object SingleRowMissing extends TestDataset("missing-row", RowDAO.RowNotFound(new RowSpecifier("missing-row")))
 
   // Datasets for multi row tests
-  case object SuccessTenRows extends TestDataset("ten-rows-dataset", querySuccess(10))
-  case object MultiRowCacheMiss extends TestDataset("multi-row-cache-miss", querySuccess(1))
+  case object MultiRowSuccess extends TestDataset("multi-rows-dataset", querySuccess)
+  case object MultiRowCacheMiss extends TestDataset("multi-row-cache-miss", querySuccess)
   case object InvalidUserRequest extends TestDataset("invalid-user-request-dataset", RowDAO.InvalidRequest(400, JString("you goofed")))
   case object InvalidInternalRequest extends TestDataset("invalid-internal-request-dataset", RowDAO.InvalidRequest(500, JString("we goofed")))
 
   def datasets: Set[TestDataset] = Set(
-    SuccessTenRows,
+    MultiRowSuccess,
     InvalidUserRequest,
     InvalidInternalRequest,
     CacheHit,
