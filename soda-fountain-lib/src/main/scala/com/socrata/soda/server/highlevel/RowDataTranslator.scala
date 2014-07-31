@@ -1,8 +1,10 @@
 package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.ast._
-import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike}
-import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
+import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
+import com.socrata.soda.server.computation.ComputedColumns
+import com.socrata.soda.server.persistence.{MinimalDatasetRecord, ColumnRecordLike}
+import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 
@@ -14,7 +16,7 @@ import com.socrata.soql.types.{SoQLValue, SoQLType}
  *                             should cause an error to be thrown or
  *                             simply be ignored.
  */
-class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolean) {
+class RowDataTranslator(dataset: MinimalDatasetRecord, ignoreUnknownColumns: Boolean) {
   import RowDataTranslator._
 
   private[this] sealed abstract class ColumnResult
@@ -41,18 +43,36 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
     }
   }
 
-  def clientJsonToSoql(row: JValue): Result = row match {
+  def transformRowsForUpsert(cc: ComputedColumns[_], rows: Iterator[JValue]): Iterator[RowUpdate] = {
+    import ComputedColumns._
+
+      val rowsAsSoql = rows.map(clientJsonToSoql)
+
+      val computedColumns = cc.findComputedColumns(dataset)
+      val computedResult = cc.addComputedColumns(rowsAsSoql, computedColumns)
+      computedResult match {
+        case ComputeSuccess(computedRows) =>
+          val rowUpdates = computedRows.map {
+            case UpsertAsSoQL(rowData) => UpsertRow(soqlToDataCoordinatorJson(rowData))
+            case DeleteAsCJson(pk) => DeleteRow(pk)
+          }
+          rowUpdates
+        case HandlerNotFound(typ) => throw ComputationHandlerNotFoundEx(typ)
+      }
+  }
+
+  def clientJsonToSoql(row: JValue): Computable = row match {
     case JObject(map) =>
       var rowHasLegacyDeleteFlag = false
       val rowWithSoQLValues = map.flatMap { case (uKey, uVal) =>
         ciFor(uKey) match {
           case ColumnInfo(cr, rRep, wRep) =>
             if (cr.computationStrategy.isDefined) {
-              return ComputedColumnNotWritable(cr.fieldName)
+              throw ComputedColumnNotWritableEx(cr.fieldName)
             }
             rRep.fromJValue(uVal) match {
               case Some(v) => (cr.fieldName.name -> v) :: Nil
-              case None => return MaltypedDataError(cr.fieldName, rRep.representedType, uVal)
+              case None => throw MaltypedDataEx(cr.fieldName, rRep.representedType, uVal)
             }
           case NoColumn(colName) =>
             if(colName == legacyDeleteFlag && JBoolean.canonicalTrue == uVal) {
@@ -61,14 +81,14 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
             } else if(ignoreUnknownColumns) {
               Nil
             } else {
-              return UnknownColumnError(colName)
+              throw UnknownColumnEx(colName)
             }
         }
       }
       if(rowHasLegacyDeleteFlag) {
         rowWithSoQLValues.get(dataset.primaryKey.underlying) match {
           case Some(pkVal) => makeDeleteResponse(pkVal)
-          case None        => DeleteNoPKError
+          case None        => throw DeleteNoPKEx
         }
       } else {
         UpsertAsSoQL(rowWithSoQLValues.toMap)
@@ -77,41 +97,39 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
       val pkCol = dataset.columnsById(dataset.primaryKey)
       JsonColumnRep.forClientType(pkCol.typ).fromJValue(rowIdJval) match {
         case Some(soqlVal) => makeDeleteResponse(soqlVal)
-        case None => MaltypedDataError(pkCol.fieldName, pkCol.typ, rowIdJval)
+        case None => throw MaltypedDataEx(pkCol.fieldName, pkCol.typ, rowIdJval)
       }
     case other =>
-      NotAnObjectOrSingleElementArrayError(other)
+      throw NotAnObjectOrSingleElementArrayEx(other)
   }
 
-  private def makeDeleteResponse(pk: SoQLValue): Result = {
+  private def makeDeleteResponse(pk: SoQLValue): DeleteAsCJson = {
     val pkColumn = dataset.columnsById(dataset.primaryKey)
     val idToDelete = JsonColumnRep.forDataCoordinatorType(pkColumn.typ).toJValue(pk)
     DeleteAsCJson(idToDelete)
   }
 
-  def soqlToDataCoordinatorJson(row: Map[String, SoQLValue]): Result = {
+  def soqlToDataCoordinatorJson(row: Map[String, SoQLValue]): Map[String, JValue] = {
     val rowWithDCJValues = row.map { case (uKey, uVal) =>
       ciFor(uKey) match {
         case ColumnInfo(cr, rRep, wRep) => (cr.id.underlying -> wRep.toJValue(uVal))
-        case NoColumn(colName) => return UnknownColumnError(colName)
+        case NoColumn(colName) => throw UnknownColumnEx(colName)
       }
     }
 
-    UpsertAsCJson(rowWithDCJValues.toMap)
+    rowWithDCJValues.toMap
   }
 }
 
 object RowDataTranslator {
-  sealed trait Result
-  sealed trait Success extends Result
-  sealed trait Error extends Result
+  sealed trait Computable
+  case class UpsertAsSoQL(rowData: Map[String, SoQLValue]) extends Computable
+  case class DeleteAsCJson(pk: JValue) extends Computable
 
-  case class UpsertAsSoQL(rowData: Map[String, SoQLValue]) extends Success
-  case class UpsertAsCJson(rowData: Map[String, JValue]) extends Success
-  case class DeleteAsCJson(pk: JValue) extends Success
-  case class MaltypedDataError(col: ColumnName, expected: SoQLType, got: JValue) extends Error
-  case class UnknownColumnError(col: ColumnName) extends Error
-  case object DeleteNoPKError extends Error
-  case class NotAnObjectOrSingleElementArrayError(obj: JValue) extends Error
-  case class ComputedColumnNotWritable(column: ColumnName) extends Error
+  case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends Exception
+  case class UnknownColumnEx(col: ColumnName) extends Exception
+  case object DeleteNoPKEx extends Exception
+  case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends Exception
+  case class ComputedColumnNotWritableEx(column: ColumnName) extends Exception
+  case class ComputationHandlerNotFoundEx(typ: ComputationStrategyType.Value) extends Exception
 }

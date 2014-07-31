@@ -3,19 +3,16 @@ package com.socrata.soda.server.computation
 import com.rojoma.json.ast.{JObject, JString, JArray, JNumber}
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
-import com.socrata.http.common.AuxiliaryData
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLPoint, SoQLText}
 import com.socrata.thirdparty.curator.CuratorServiceBase
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
 import org.slf4j.LoggerFactory
-import scala.util.Try
 import scalaj.http.Http
-
 
 /**
  * A [[ComputationHandler]] for mapping points (or lat/long pairs) to geo features (point-in-polygon)
@@ -60,7 +57,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
    * sourceColumns must be a list of one column, and it must be a Geo Point type.
    * parameters: {"region":  <<name of geo region dataset 4x4>>}
    */
-  def compute(sourceIt: Iterator[RowDataTranslator.Success], column: MinimalColumnRecord): Iterator[RowDataTranslator.Success] = {
+  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: MinimalColumnRecord): Iterator[RowDataTranslator.Computable] = {
     // Only a single point column is allowed as a source for now
     val (geoColumnName, region) = parsePointColumnSourceStrategy(column)
 

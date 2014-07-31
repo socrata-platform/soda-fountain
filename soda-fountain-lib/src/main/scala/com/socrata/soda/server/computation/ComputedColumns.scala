@@ -4,13 +4,12 @@ import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.util.ManagedIterator
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
-import com.socrata.soql.types.SoQLValue
 import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
 
 object ComputedColumns {
   sealed trait ComputeResult
-  case class ComputeSuccess(it: Iterator[RowDataTranslator.Success]) extends ComputeResult
+  case class ComputeSuccess(it: Iterator[RowDataTranslator.Computable]) extends ComputeResult
   case class HandlerNotFound(typ: ComputationStrategyType.Value) extends ComputeResult
 }
 
@@ -53,7 +52,7 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
    *                 Deletes contain only row PK and can be ignored.
    * @param computedColumns the list of computed columns from [[findComputedColumns]]
    */
-  def addComputedColumns(sourceIt: Iterator[RowDataTranslator.Success],
+  def addComputedColumns(sourceIt: Iterator[RowDataTranslator.Computable],
                          computedColumns: Seq[MinimalColumnRecord]): ComputeResult = {
     var rowIterator = sourceIt
     for (computedColumn <- computedColumns) {

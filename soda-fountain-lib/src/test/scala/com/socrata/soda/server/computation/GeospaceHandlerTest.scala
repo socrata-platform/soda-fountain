@@ -25,7 +25,7 @@ trait GeospaceHandlerData {
   val pointRep = JsonColumnRep.forClientType(SoQLPoint)
   def toSoQLPoint(str: String) = pointRep.fromJValue(JsonReader.fromString(str)).get.asInstanceOf[SoQLPoint]
 
-  val testRows = Seq[RowDataTranslator.Success](
+  val testRows = Seq[RowDataTranslator.Computable](
                    DeleteAsCJson(JString("abcd-1234")),
                    UpsertAsSoQL(Map("geom" -> toSoQLPoint(point1), "date" -> SoQLText("12/31/2013"))),
                    UpsertAsSoQL(Map("geom" -> toSoQLPoint(point2), "date" -> SoQLText("11/30/2013"))),
