@@ -18,7 +18,7 @@ class SodaFountainClientTest extends FunSuite with Matchers with BeforeAndAfterA
   lazy val broker = new CuratorBroker(discovery, "localhost", "soda-fountain", None)
   lazy val cookie = broker.register(mockServerPort)
 
-  case object MyCustomNoServersException extends Throwable
+  case object MyCustomNoServersException extends Exception
   lazy val sodaFountain = new SodaFountainClient(httpClient,
                                                  discovery,
                                                  "soda-fountain",

@@ -14,7 +14,7 @@ import scala.util.Try
 
 object SodaFountainClient {
   sealed abstract class Result
-  case class Failed(exception: Throwable) extends Result
+  case class Failed(exception: Exception) extends Result
   case class Response(responseCode: Int, body: Option[JValue]) extends Result
 }
 
