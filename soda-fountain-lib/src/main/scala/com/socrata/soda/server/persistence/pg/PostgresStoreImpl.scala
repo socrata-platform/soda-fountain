@@ -14,6 +14,7 @@ import java.sql.{Connection, ResultSet, Timestamp, Types}
 import javax.sql.DataSource
 import org.joda.time.DateTime
 import scala.util.Try
+import com.socrata.soda.server.copy.{Latest, Stage}
 
 case class SodaFountainStoreError(message: String) extends Exception(message)
 
@@ -23,20 +24,71 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   def toTimestamp(time: DateTime): Timestamp = new Timestamp(time.getMillis)
   def toDateTime(time: Timestamp): DateTime = new DateTime(time.getTime)
 
-  def translateResourceName(resourceName: ResourceName): Option[MinimalDatasetRecord] = {
+  def latestCopyNumber(resourceName: ResourceName): Long = {
+    lookupCopyNumber(resourceName, None).getOrElse(throw new Exception("there should always be a latest copy"))
+  }
+
+  def lookupCopyNumber(resourceName: ResourceName, stage: Option[Stage]): Option[Long] = {
     using(dataSource.getConnection()){ connection =>
-      using(connection.prepareStatement("select resource_name, dataset_system_id, locale, schema_hash, primary_key_column_id, latest_version, last_modified from datasets where resource_name_casefolded = ?")){ translator =>
+      using(connection.prepareStatement(
+        """
+        SELECT dc.copy_number
+          FROM datasets d
+          Join dataset_copies dc On dc.dataset_system_id = d.dataset_system_id
+         WHERE d.resource_name_casefolded = ?
+           And dc.id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
+        """.format(latestStageAsNone(stage).map(_ => " And lifecycle_stage = ?").getOrElse("")))) { stmt =>
+        stmt.setString(1, resourceName.caseFolded)
+        latestStageAsNone(stage).map(s => stmt.setString(2, s.name))
+        val rs = stmt.executeQuery()
+        if (rs.next()) Option(rs.getLong(1))
+        else None
+      }
+    }
+  }
+
+  def lookupCopyNumber(datasetId: DatasetId, stage: Option[Stage]): Option[Long] = {
+    using(dataSource.getConnection()){ connection =>
+      using(connection.prepareStatement(
+        """
+        SELECT copy_number
+          FROM dataset_copies
+         WHERE id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
+        """.format(latestStageAsNone(stage).map(_ => " And lifecycle_stage = ?").getOrElse("")))) { stmt =>
+        stmt.setString(1, datasetId.underlying)
+        latestStageAsNone(stage).map(s => stmt.setString(2, s.name))
+        val rs = stmt.executeQuery()
+        if (rs.next()) Option(rs.getLong(1))
+        else None
+      }
+    }
+  }
+
+  def translateResourceName(resourceName: ResourceName, stage: Option[Stage] = None): Option[MinimalDatasetRecord] = {
+    using(dataSource.getConnection()){ connection =>
+      using(connection.prepareStatement(
+        """
+        SELECT d.resource_name, d.dataset_system_id, d.locale, dc.schema_hash, dc.primary_key_column_id,
+               d.latest_version, d.last_modified, dc.copy_number
+          FROM datasets d
+          Join dataset_copies dc On dc.dataset_system_id = d.dataset_system_id
+         WHERE d.resource_name_casefolded = ?
+           And dc.id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
+         """.format(stage.map(_ => " And lifecycle_stage = ?").getOrElse(""))
+      )){ translator =>
         translator.setString(1, resourceName.caseFolded)
+        stage.map(s => translator.setString(2, s.name))
         val rs = translator.executeQuery()
         if(rs.next()) {
           val datasetId = DatasetId(rs.getString("dataset_system_id"))
+          val copyNumber = rs.getLong("copy_number")
           Some(MinimalDatasetRecord(
             new ResourceName(rs.getString("resource_name")),
             datasetId,
             rs.getString("locale"),
             rs.getString("schema_hash"),
             ColumnId(rs.getString("primary_key_column_id")),
-            fetchMinimalColumns(connection, datasetId),
+            fetchMinimalColumns(connection, datasetId, copyNumber),
             rs.getLong("latest_version"),
             toDateTime(rs.getTimestamp("last_modified"))
             ))
@@ -47,11 +99,21 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def lookupDataset(resourceName: ResourceName): Option[DatasetRecord] =
+  def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord] =
     using(dataSource.getConnection()) { conn =>
       conn.setAutoCommit(false)
-      using(conn.prepareStatement("select resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id, latest_version, last_modified from datasets where resource_name_casefolded = ?")) { dsQuery =>
+      using(conn.prepareStatement(
+        """
+        SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, c.schema_hash,
+               c.primary_key_column_id, d.latest_version, d.last_modified
+          FROM datasets d
+          Join dataset_copies c on c.dataset_system_id = d.dataset_system_id
+         WHERE d.resource_name_casefolded = ?
+           And c.copy_number = ?
+           And c.deleted_at is null
+        """.stripMargin)) { dsQuery =>
         dsQuery.setString(1, resourceName.caseFolded)
+        dsQuery.setLong(2, copyNumber)
         using(dsQuery.executeQuery()) { dsResult =>
           if(dsResult.next()) {
             val datasetId = DatasetId(dsResult.getString("dataset_system_id"))
@@ -63,7 +125,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
               dsResult.getString("locale"),
               dsResult.getString("schema_hash"),
               ColumnId(dsResult.getString("primary_key_column_id")),
-              fetchFullColumns(conn, datasetId),
+              fetchFullColumns(conn, datasetId, copyNumber),
               dsResult.getLong("latest_version"),
               toDateTime(dsResult.getTimestamp("last_modified"))
               ))
@@ -74,9 +136,18 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       }
     }
 
-  def updateSchemaHash(conn: Connection, datasetId: DatasetId) {
-    val (locale, pkcol) = using(conn.prepareStatement("select locale, primary_key_column_id from datasets where dataset_system_id = ?")){ stmt =>
+  def updateSchemaHash(conn: Connection, datasetId: DatasetId, copyNumber: Long) {
+    val (locale, pkcol) = using(conn.prepareStatement(
+      """
+      SELECT d.locale, c.primary_key_column_id
+        FROM datasets d
+        Join dataset_copies c on d.dataset_system_id = c.dataset_system_id
+       WHERE d.dataset_system_id = ?
+         And c.copy_number = ?
+         And c.deleted_at is null
+      """.stripMargin)){ stmt =>
       stmt.setString(1, datasetId.underlying)
+      stmt.setLong(2, copyNumber)
       val rs = stmt.executeQuery()
       if(rs.next()) {
         val locale = rs.getString("locale")
@@ -87,11 +158,12 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         return
       }
     }
-    val cols = fetchMinimalColumns(conn, datasetId)
+    val cols = fetchMinimalColumns(conn, datasetId, copyNumber)
     val hash = SchemaHash.computeHash(locale, pkcol, cols)
-    using(conn.prepareStatement("update datasets set schema_hash = ? where dataset_system_id = ?")) { stmt =>
+    using(conn.prepareStatement("update dataset_copies set schema_hash = ? where dataset_system_id = ? and copy_number = ? And deleted_at is null")) { stmt =>
       stmt.setString(1, hash)
       stmt.setString(2, datasetId.underlying)
+      stmt.setLong(3, copyNumber)
       stmt.executeUpdate()
     }
   }
@@ -161,7 +233,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             (fns.result(), cns.result())
           }
         }
-        addColumns(conn, datasetId, toCreate.iterator.map { cid =>
+        val copyNumber = lookupCopyNumber(datasetId, Some(Latest)).getOrElse(throw new Exception("cannot find the latest copy"))
+        addColumns(conn, datasetId, copyNumber, toCreate.iterator.map { cid =>
           var newFieldName = ColumnName("unknown_" + cid.underlying)
           if(existingFieldNames.contains(newFieldName)) {
             var i = 1
@@ -210,7 +283,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def fetchMinimalColumns(conn: Connection, datasetId: DatasetId): Seq[MinimalColumnRecord] = {
+  def fetchMinimalColumns(conn: Connection, datasetId: DatasetId, copyNumber: Long): Seq[MinimalColumnRecord] = {
     val sql =
       """SELECT c.column_name,
         |       c.column_id,
@@ -221,12 +294,17 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         |       cs.source_columns,
         |       cs.parameters
         | FROM columns c
+        | JOIN dataset_copies dc on dc.id = c.copy_id
         | LEFT JOIN computation_strategies cs
-        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id
-        | WHERE c.dataset_system_id = ?""".stripMargin
+        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id AND c.copy_id = cs.copy_id
+        | WHERE dc.dataset_system_id = ?
+        |   AND dc.copy_number = ?
+            And dc.deleted_at is null
+      """.stripMargin
 
     using(conn.prepareStatement(sql)) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
+      colQuery.setLong(2, copyNumber)
       using(colQuery.executeQuery()) { rs =>
         val result = Vector.newBuilder[MinimalColumnRecord]
         while(rs.next()) {
@@ -243,7 +321,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def fetchFullColumns(conn: Connection, datasetId: DatasetId): Seq[ColumnRecord] = {
+  def fetchFullColumns(conn: Connection, datasetId: DatasetId, copyNumber: Long): Seq[ColumnRecord] = {
     val sql =
       """SELECT c.column_name,
         |       c.column_id,
@@ -256,12 +334,17 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         |       cs.source_columns,
         |       cs.parameters
         | FROM columns c
+        | JOIN dataset_copies dc on dc.id = c.copy_id
         | LEFT JOIN computation_strategies cs
-        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id
-        | WHERE c.dataset_system_id = ?""".stripMargin
+        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id AND c.copy_id = cs.copy_id
+        | WHERE dc.dataset_system_id = ?
+        |   AND dc.copy_number = ?
+            And dc.deleted_at is null
+      """.stripMargin
 
     using(conn.prepareStatement(sql)) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
+      colQuery.setLong(2, copyNumber)
       using(colQuery.executeQuery()) { rs =>
         val result = Vector.newBuilder[ColumnRecord]
         while(rs.next()) {
@@ -308,7 +391,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     Some(ComputationStrategyRecord(strategyType, recompute, sourceColumns, parameters.map(_.asInstanceOf[JObject])))
   }
 
-  def addColumns(connection: Connection, datasetId: DatasetId, columns: TraversableOnce[ColumnRecord]) {
+  def addColumns(connection: Connection, datasetId: DatasetId, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
     if(columns.nonEmpty) {
       val addColumnSql =
         """INSERT INTO columns
@@ -319,8 +402,12 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           |    name,
           |    description,
           |    type_name,
-          |    is_inconsistency_resolution_generated)
-          | VALUES (?, ?, ?, ?, ?, ?, ?, ?)""".stripMargin
+          |    is_inconsistency_resolution_generated,
+          |    copy_id)
+          | SELECT ?, ?, ?, ?, ?, ?, ?, ?, id FROM dataset_copies
+          |  WHERE dataset_system_id = ? AND copy_number = ?
+          |    And deleted_at is null
+          | """.stripMargin
 
       using(connection.prepareStatement(addColumnSql)) { colAdder =>
         for(crec <- columns) {
@@ -333,6 +420,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           colAdder.setString(6, crec.description)
           colAdder.setString(7, crec.typ.name.name)
           colAdder.setBoolean(8, crec.isInconsistencyResolutionGenerated)
+          colAdder.setString(9, datasetId.underlying)
+          colAdder.setLong(10, copyNumber)
           colAdder.addBatch
         }
         colAdder.executeBatch
@@ -342,21 +431,30 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       // which does not implement connection.createArrayOf
       val addCompStrategySql =
         """INSERT INTO computation_strategies
-          |   (dataset_system_id,
-          |    column_id,
-          |    computation_strategy_type,
-          |    recompute,
-          |    source_columns,
-          |    parameters)
-          | VALUES (?,
-          |         ?,
-          |         ?,
-          |         ?,
-          |         ARRAY(SELECT column_id
-          |               FROM columns
-          |               WHERE column_name = ANY (string_to_array(?, ','))
-          |                 AND dataset_system_id = ?),
-          |         ?)""".stripMargin
+              (dataset_system_id,
+               column_id,
+               computation_strategy_type,
+               recompute,
+               source_columns,
+               parameters,
+               copy_id)
+               SELECT ?,
+                      ?,
+                      ?,
+                      ?,
+                      ARRAY(SELECT c.column_id
+                              FROM columns c
+                              Join dataset_copies dc on dc.dataset_system_id = c.dataset_system_id
+                             WHERE c.column_name = ANY (string_to_array(?, ','))
+                               AND dc.dataset_system_id = ?
+                               AND dc.copy_number = ?),
+                      ?,
+                      id
+                 FROM dataset_copies
+                WHERE dataset_system_id = ?
+                  And copy_number = ?
+                  And deleted_at is null
+        """.stripMargin
 
       using (connection.prepareStatement(addCompStrategySql)) { csAdder =>
         for (crec <- columns.filter(col => col.computationStrategy.isDefined)) {
@@ -370,10 +468,13 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             case None      => csAdder.setNull(5, Types.ARRAY)
           }
           csAdder.setString(6, datasetId.underlying)
+          csAdder.setLong(7, copyNumber)
           cs.parameters match {
-            case Some(jObj) => csAdder.setString(7, jObj.toString)
-            case None       => csAdder.setNull(7, Types.VARCHAR)
+            case Some(jObj) => csAdder.setString(8, jObj.toString)
+            case None       => csAdder.setNull(8, Types.VARCHAR)
           }
+          csAdder.setString(9, datasetId.underlying)
+          csAdder.setLong(10, copyNumber)
           csAdder.addBatch
         }
 
@@ -385,7 +486,11 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   def addResource(newRecord: DatasetRecord): Unit =
     using(dataSource.getConnection()){ connection =>
       connection.setAutoCommit(false)
-      using(connection.prepareStatement("insert into datasets (resource_name_casefolded, resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id) values(?, ?, ?, ?, ?, ?, ?, ?)")){ adder =>
+      using(connection.prepareStatement(
+        """
+        insert into datasets (resource_name_casefolded, resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id) values(?, ?, ?, ?, ?, ?, ?, ?);
+        insert into dataset_copies(dataset_system_id, copy_number, schema_hash, primary_key_column_id, lifecycle_stage, latest_version) values(?, 1, ?, ?, 'Unpublished', 1);
+        """)) { adder =>
         log.info("TODO: Ensure the names will fit in the space available")
         adder.setString(1, newRecord.resourceName.caseFolded)
         adder.setString(2, newRecord.resourceName.name)
@@ -395,9 +500,12 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         adder.setString(6, newRecord.locale)
         adder.setString(7, newRecord.schemaHash)
         adder.setString(8, newRecord.primaryKey.underlying)
+        adder.setString(9, newRecord.systemId.underlying)
+        adder.setString(10, newRecord.schemaHash)
+        adder.setString(11, newRecord.primaryKey.underlying)
         adder.execute()
       }
-      addColumns(connection, newRecord.systemId, newRecord.columns)
+      addColumns(connection, newRecord.systemId, 1L, newRecord.columns)
       connection.commit()
     }
 
@@ -412,79 +520,153 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         }
       }
       for(datasetId <- datasetIdOpt) {
-        using(connection.prepareStatement("delete from computation_strategies where dataset_system_id = ?")) { deleter =>
-          deleter.setString(1, datasetId.underlying)
-          deleter.execute()
-        }
-        using(connection.prepareStatement("delete from columns where dataset_system_id = ?")) { deleter =>
-          deleter.setString(1, datasetId.underlying)
-          deleter.execute()
-        }
-        using(connection.prepareStatement("delete from datasets where dataset_system_id = ?")) { deleter =>
-          deleter.setString(1, datasetId.underlying)
+        using(connection.prepareStatement(
+          """
+            delete from computation_strategies where dataset_system_id = ?;
+            delete from columns where dataset_system_id = ?;
+            delete from dataset_copies where dataset_system_id = ?;
+            delete from datasets where dataset_system_id = ?;
+          """)) { deleter =>
+          for (i <- 1 to 4) {
+            deleter.setString(i, datasetId.underlying)
+          }
           deleter.execute()
         }
       }
       connection.commit()
     }
 
-  def addColumn(datasetId: DatasetId, spec: ColumnSpec): ColumnRecord =
+  def addColumn(datasetId: DatasetId, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
     using(dataSource.getConnection()) { conn =>
       val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
-      addColumns(conn, datasetId, Seq(result))
-      updateSchemaHash(conn, datasetId)
+      addColumns(conn, datasetId, copyNumber, Seq(result))
+      updateSchemaHash(conn, datasetId, copyNumber)
       result
     }
 
-  def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId) {
+  def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId, copyNumber: Long) {
     using(dataSource.getConnection()) { conn =>
-      using(conn.prepareStatement("update datasets set primary_key_column_id = ? where dataset_system_id = ?")) { stmt =>
-        log.info("TODO: Update schemahash too")
+      using(conn.prepareStatement("update dataset_copies set primary_key_column_id = ? where dataset_system_id = ? and copy_number = ?")) { stmt =>
         stmt.setString(1, pkCol.underlying)
         stmt.setString(2, datasetId.underlying)
+        stmt.setLong(3, copyNumber)
         stmt.executeUpdate()
-        updateSchemaHash(conn, datasetId)
+        updateSchemaHash(conn, datasetId, copyNumber)
       }
     }
   }
 
-  def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName): Int = {
+  def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName, copyNumber: Long): Int = {
     using(dataSource.getConnection()) { conn =>
-      using(conn.prepareStatement("update columns set column_name = ?, column_name_casefolded = ? where dataset_system_id = ? and column_id = ?")) { stmt =>
+      using(conn.prepareStatement(
+        """
+          UPDATE columns set column_name = ?, column_name_casefolded = ?
+           WHERE column_id = ?
+             AND copy_id = (SELECT id FROM dataset_copies WHERE dataset_system_id = ? AND copy_number = ?)
+        """.stripMargin)) { stmt =>
         stmt.setString(1, newFieldName.name)
         stmt.setString(2, newFieldName.caseFolded)
-        stmt.setString(3, datasetId.underlying)
-        stmt.setString(4, columnId.underlying)
+        stmt.setString(3, columnId.underlying)
+        stmt.setString(4, datasetId.underlying)
+        stmt.setLong(5, copyNumber)
         stmt.executeUpdate()
       }
     }
   }
 
-  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime) = {
+  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long) = {
     using(dataSource.getConnection) { conn =>
-      using (conn.prepareStatement("UPDATE datasets SET latest_version = ?, last_modified = ? where dataset_system_id = ?")) { stmt =>
+      using (conn.prepareStatement(
+        """
+        UPDATE datasets SET latest_version = ?, last_modified = ? WHERE dataset_system_id = ?;
+        UPDATE dataset_copies
+           SET lifecycle_stage = ?,
+               deleted_at = case when ? = 'Discarded' then now() else deleted_at end,
+               latest_version = ?, updated_at = now()
+         WHERE dataset_system_id = ?
+           And copy_number = ?
+           And deleted_at is null
+           And ?
+        """)) { stmt =>
         stmt.setLong(1, dataVersion)
         stmt.setTimestamp(2, toTimestamp(lastModified))
         stmt.setString(3, datasetId.underlying)
+        stmt.setString(4, stage.map(_.name).getOrElse(""))
+        stmt.setString(5, stage.map(_.name).getOrElse(""))
+        stmt.setLong(6, dataVersion)
+        stmt.setString(7, datasetId.underlying)
+        stmt.setLong(8, copyNumber)
+        stmt.setBoolean(9, stage.isDefined)
         stmt.executeUpdate()
       }
     }
   }
 
-  def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit = {
+  def makeCopy(datasetId: DatasetId, copyNumber: Long) = {
     using(dataSource.getConnection) { conn =>
-      using(conn.prepareStatement("DELETE FROM computation_strategies WHERE dataset_system_id = ? AND column_id = ?")) { stmt =>
+      using (conn.prepareStatement(
+        """
+        CREATE TEMP TABLE tmp_last_copy on commit drop as
+               SELECT * FROM dataset_copies WHERE dataset_system_id = ? And copy_number < ? And deleted_at is null ORDER By copy_number DESC LIMIT 1;
+        INSERT INTO dataset_copies(dataset_system_id, copy_number, schema_hash, latest_version, lifecycle_stage, primary_key_column_id)
+               SELECT dataset_system_id, ?, schema_hash, latest_version, 'Unpublished', primary_key_column_id FROM tmp_last_copy;
+        INSERT INTO columns (
+               dataset_system_id,
+          |    column_name_casefolded,
+          |    column_name,
+          |    column_id,
+          |    name,
+          |    description,
+          |    type_name,
+          |    is_inconsistency_resolution_generated,
+          |    copy_id)
+          |    SELECT dataset_system_id,
+          |           column_name_casefolded,
+          |           column_name,
+          |           column_id,
+          |           name,
+          |           description,
+          |           type_name,
+          |           is_inconsistency_resolution_generated,
+          |           (SELECT id FROM dataset_copies WHERE dataset_system_id = ? And copy_number = ? And deleted_at is null)
+          |      FROM columns
+          |     WHERE copy_id = (SELECT id FROM tmp_last_copy);
+        """.stripMargin)) { stmt =>
         stmt.setString(1, datasetId.underlying)
-        stmt.setString(2, columnId.underlying)
-        stmt.execute()
-        updateSchemaHash(conn, datasetId)
+        stmt.setLong(2, copyNumber)
+        stmt.setLong(3, copyNumber)
+        stmt.setString(4, datasetId.underlying)
+        stmt.setLong(5, copyNumber)
+        stmt.executeUpdate()
       }
-      using(conn.prepareStatement("DELETE FROM columns WHERE dataset_system_id = ? AND column_id = ?")) { stmt =>
-        stmt.setString(1, datasetId.underlying)
-        stmt.setString(2, columnId.underlying)
+    }
+  }
+
+  def dropColumn(datasetId: DatasetId, columnId: ColumnId, copyNumber: Long) : Unit = {
+    using(dataSource.getConnection) { conn =>
+      using(conn.prepareStatement(
+        """
+          DELETE FROM computation_strategies WHERE column_id = ?
+             AND copy_id = (SELECT id FROM dataset_copies WHERE dataset_system_id = ? AND copy_number = ?);
+          DELETE FROM columns WHERE column_id = ?
+             AND copy_id = (SELECT id FROM dataset_copies WHERE dataset_system_id = ? AND copy_number = ?);
+        """)) { stmt =>
+        for (i <- 0 to 1) {
+          val i2 = 3 * i
+          stmt.setString(i2 + 1, columnId.underlying)
+          stmt.setString(i2 + 2, datasetId.underlying)
+          stmt.setLong(i2 + 3, copyNumber)
+        }
         stmt.execute()
-        updateSchemaHash(conn, datasetId)
+        updateSchemaHash(conn, datasetId, copyNumber)
       }
+    }
+  }
+
+  private def latestStageAsNone(stage: Option[Stage]) = {
+    stage match {
+      case Some(Latest) => None
+      case _ => stage
     }
   }
 }

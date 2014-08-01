@@ -6,6 +6,7 @@ import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soql.environment.ColumnName
 import scala.util.control.ControlThrowable
+import com.socrata.soda.server.copy.Latest
 
 // TODO: This shouldn't be referenced here.
 import com.socrata.http.server.util.Precondition
@@ -17,7 +18,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
   def replaceOrCreateColumn(user: String, dataset: ResourceName, precondition: Precondition, column: ColumnName, rawSpec: UserProvidedColumnSpec): ColumnDAO.Result = {
     log.info("TODO: This really needs to be a transaction.  It WILL FAIL if a dataset frequently read is being updated, because one of the readers will have generated dummy columns as part of inconsistency resolution")
     val spec = rawSpec.copy(fieldName = rawSpec.fieldName.orElse(Some(column)))
-    store.lookupDataset(dataset) match {
+    store.lookupDataset(dataset, Some(Latest)) match {
       case Some(datasetRecord) =>
         datasetRecord.columnsByName.get(column) match {
           case Some(columnRecord) =>
@@ -38,10 +39,10 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
         precondition.check(None, sideEffectFree = true) match {
           case Precondition.Passed =>
             dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(AddColumnInstruction(spec.datatype, spec.fieldName.name, Some(spec.id)))) {
-              case DataCoordinatorClient.Success(report, etag, newVersion, lastModified) =>
+              case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
                 log.info("TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here")
-                store.addColumn(datasetRecord.systemId, spec)
-                store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+                store.addColumn(datasetRecord.systemId, copyNumber, spec)
+                store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
                 ColumnDAO.Created(spec, etag)
             }
           case f: Precondition.Failure =>
@@ -72,7 +73,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
 
   def makePK(user: String, resource: ResourceName, column: ColumnName): Result = {
     retryable(limit = 5) {
-      store.lookupDataset(resource) match {
+      store.lookupDataset(resource, Some(Latest)) match {
         case Some(datasetRecord) =>
           datasetRecord.columnsByName.get(column) match {
             case Some(columnRecord) =>
@@ -90,9 +91,9 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                       SetRowIdColumnInstruction(columnRecord.id))
                   }
                 dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator) {
-                  case DataCoordinatorClient.Success(_, _, newVersion, lastModified) =>
-                    store.setPrimaryKey(datasetRecord.systemId, columnRecord.id)
-                    store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+                  case DataCoordinatorClient.Success(_, _, copyNumber, newVersion, lastModified) =>
+                    store.setPrimaryKey(datasetRecord.systemId, columnRecord.id, copyNumber)
+                    store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
                     ColumnDAO.Updated(columnRecord.asSpec, None)
                   case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -114,7 +115,8 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
     retryable(limit = 3) {
       spec match {
         case UserProvidedColumnSpec(None, fieldName, _, _, datatype, None, _) =>
-          store.lookupDataset(dataset) match {
+          val copyNumber = store.latestCopyNumber(dataset)
+          store.lookupDataset(dataset, copyNumber) match {
             case Some(datasetRecord) =>
               datasetRecord.columnsByName.get(column) match {
                 case Some(columnRef) =>
@@ -122,7 +124,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                     // TODO: Allow some datatype conversions?
                     throw new Exception("Does not support changing datatype.")
                   } else {
-                    store.updateColumnFieldName(datasetRecord.systemId, columnRef.id, spec.fieldName.get) match {
+                    store.updateColumnFieldName(datasetRecord.systemId, columnRef.id, spec.fieldName.get, copyNumber) match {
                       case 1 =>
                         val updatedColumnRef = columnRef.copy(fieldName = spec.fieldName.get)
                         ColumnDAO.Updated(updatedColumnRef.asSpec, None)
@@ -145,14 +147,14 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
 
   def deleteColumn(user: String, dataset: ResourceName, column: ColumnName): Result = {
     retryable(limit = 3) {
-      store.lookupDataset(dataset) match {
+      store.lookupDataset(dataset, Some(Latest)) match {
         case Some(datasetRecord) =>
           datasetRecord.columnsByName.get(column) match {
             case Some(columnRef) =>
               dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(DropColumnInstruction(columnRef.id))) {
-                case DataCoordinatorClient.Success(_, etag, newVersion, lastModified) =>
-                  store.dropColumn(datasetRecord.systemId, columnRef.id)
-                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+                case DataCoordinatorClient.Success(_, etag, copyNumber, newVersion, lastModified) =>
+                  store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber)
+                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
                   ColumnDAO.Deleted(columnRef.asSpec, etag)
                 case DataCoordinatorClient.SchemaOutOfDate(realSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)
@@ -170,7 +172,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
   }
 
   def getColumn(dataset: ResourceName, column: ColumnName): Result = {
-    store.lookupDataset(dataset) match {
+    store.lookupDataset(dataset, Some(Latest)) match {
       case Some(datasetRecord) =>
         datasetRecord.columnsByName.get(column) match {
           case Some(columnRef) =>

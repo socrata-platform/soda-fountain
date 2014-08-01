@@ -7,5 +7,6 @@
     <include file="com/socrata/soda/server/persistence/pg/20140604-initial-db-bootstrap.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20140613-add-computation-strategies-table.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20140804-computation-strategies-use-source-column-id.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20140815-copy-number.xml"/>
 
 </databaseChangeLog>

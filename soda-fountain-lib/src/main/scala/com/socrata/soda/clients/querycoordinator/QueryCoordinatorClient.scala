@@ -5,6 +5,7 @@ import com.socrata.soql.environment.ColumnName
 import com.rojoma.json.ast.JValue
 import com.socrata.http.server.util.{Precondition, EntityTag}
 import org.joda.time.DateTime
+import com.socrata.soda.server.copy.Stage
 
 object QueryCoordinatorClient {
   sealed abstract class Result
@@ -16,5 +17,6 @@ object QueryCoordinatorClient {
 
 trait QueryCoordinatorClient {
   import QueryCoordinatorClient._
-  def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String], secondaryInstance:Option[String])(f: Result => T): T
+  def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, columnIdMap: Map[ColumnName, ColumnId],
+    rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String])(f: Result => T): T
 }

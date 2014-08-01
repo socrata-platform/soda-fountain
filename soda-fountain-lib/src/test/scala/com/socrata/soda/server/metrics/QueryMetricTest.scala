@@ -22,6 +22,7 @@ import org.joda.time.DateTime
 import org.scalatest.FunSuite
 import org.scalamock.scalatest.MockFactory
 import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResponse}
+import com.socrata.soda.server.copy.Stage
 
 /**
  * Metric scenarios which are common between multi-row queries and single-row operations
@@ -236,11 +237,13 @@ private object TestDatasets {
  * Dummy RowDAO that accepts a collection of TestDatasets and simply returns whatever RowDAO.Result they contain.
  */
 private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
-  def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String], secondaryInstance: Option[String]): Result = {
+  def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String],
+            stage: Option[Stage], secondaryInstance: Option[String]): Result = {
     testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
   }
-  def getRow(dataset: ResourceName, schemaCheck: (Seq[ColumnRecord]) => Boolean, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier, secondaryInstance: Option[String]): Result = {
-    query(dataset, precondition, ifModifiedSince, "give me one row!", None, secondaryInstance)
+  def getRow(dataset: ResourceName, schemaCheck: (Seq[ColumnRecord]) => Boolean, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
+             stage: Option[Stage], secondaryInstance: Option[String]): Result = {
+    query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance)
   }
   def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
   def replace[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???

@@ -25,6 +25,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   val dateTimeParser = ISODateTimeFormat.dateTimeParser
   val xhDataVersion = "X-SODA2-Truth-Version"
   val xhLastModified = "X-SODA2-Truth-Last-Modified"
+  val xhCopyNumber = "X-SODA2-Truth-Copy-Number"
 
   def hostO(instance: String): Option[RequestBuilder]
   def createUrl(host: RequestBuilder) = host.p("dataset")
@@ -186,6 +187,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         f(Success(
             arrayOfResults(r.asJsonEvents().buffered),
             None,
+            getHeader(xhCopyNumber, r).toLong,
             getHeader(xhDataVersion, r).toLong,
             dateTimeParser.parseDateTime(getHeader(xhLastModified, r))))
       case Left(e) => f(e)

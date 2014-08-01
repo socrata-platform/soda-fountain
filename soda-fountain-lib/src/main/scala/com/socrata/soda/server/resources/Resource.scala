@@ -4,6 +4,7 @@ import com.rojoma.json.ast.JValue
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.ContentNegotiation
+import com.socrata.soda.server.copy.Stage
 import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -30,6 +31,9 @@ import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import com.socrata.soda.server.metrics.{NoopMetricProvider, MetricProvider}
 import com.socrata.soda.server.metrics.Metrics.{ QuerySuccess => QuerySuccessMetric } // conflict with RowDAO.QuerySuccess
 import com.socrata.soda.server.metrics.Metrics._
+import scala.language.existentials
+
+
 /**
  * Resource: services for upserting, deleting, and querying dataset rows.
  */
@@ -115,8 +119,9 @@ case class Resource(rowDAO: RowDAO,
       val domainId = req.header(domainIdHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       try {
-        val qpQuery = "$query" // Query parameter row count
+        val qpQuery = "$query" // Query parameter query
         val qpRowCount = "$$row_count" // Query parameter row count
+        val qpCopy = "$$copy" // Query parameter for copy.  Optional, "latest", "published", "unpublished"
         val qpSecondary = "$$store"
         val suffix = headerHash(req)
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
@@ -132,6 +137,7 @@ case class Resource(rowDAO: RowDAO,
                   req.dateTimeHeader("If-Modified-Since"),
                   Option(req.getParameter(qpQuery)).getOrElse("select *"),
                   Option(req.getParameter(qpRowCount)),
+                  Stage(req.getParameter(qpCopy)),
                   Option(req.getParameter(qpSecondary))
                 ) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, schema, rows) =>
@@ -213,6 +219,7 @@ case class Resource(rowDAO: RowDAO,
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       try {
         val suffix = headerHash(req)
+        val qpCopy = "$$copy"
         val qpSecondary = "$$store"
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
         def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
@@ -228,6 +235,7 @@ case class Resource(rowDAO: RowDAO,
                     newPrecondition.map(_.dropRight(suffix.length)),
                     req.dateTimeHeader("If-Modified-Since"),
                     rowId,
+                    Stage(req.getParameter(qpCopy)),
                     Option(req.getParameter(qpSecondary))
                   ) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>

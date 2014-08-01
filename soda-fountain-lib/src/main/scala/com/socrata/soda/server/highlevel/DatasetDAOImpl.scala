@@ -16,6 +16,7 @@ import com.socrata.soql.functions.SoQLFunctionInfo
 import com.socrata.soql.functions.SoQLTypeInfo
 import DatasetDAO._
 import scala.util.control.ControlThrowable
+import com.socrata.soda.server.copy.{Discarded, Published, Unpublished, Stage}
 
 class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils, instanceForCreate: () => String) extends DatasetDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetDAOImpl])
@@ -81,7 +82,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         }
 
         store.addResource(record)
-        store.updateVersionInfo(reportMetaData.datasetId, reportMetaData.version, reportMetaData.lastModified)
+        store.updateVersionInfo(reportMetaData.datasetId, reportMetaData.version, reportMetaData.lastModified, None, Stage.InitialCopyNumber)
         Created(trueSpec)
       case Some(_) =>
         DatasetAlreadyExists(spec.resourceName)
@@ -118,7 +119,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, user) {
-            case DataCoordinatorClient.Success(_, _, _, _) =>
+            case DataCoordinatorClient.Success(_, _, _, _, _) =>
               store.removeResource(dataset)
               Deleted
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
@@ -140,8 +141,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         NotFound(dataset)
     }
 
-  def getDataset(dataset: ResourceName): Result =
-    store.lookupDataset(dataset) match {
+  def getDataset(dataset: ResourceName, stage: Option[Stage]): Result =
+    store.lookupDataset(dataset, stage) match {
       case Some(datasetRecord) =>
         val spec = DatasetSpec(
           datasetRecord.resourceName,
@@ -182,8 +183,9 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user) {
-            case DataCoordinatorClient.Success(_, _, newVersion, lastModified) =>
-              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+            case DataCoordinatorClient.Success(_, _, newCopyNumber, newVersion, lastModified) =>
+              //store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Unpublished), newCopyNumber)
+              store.makeCopy(datasetRecord.systemId, newCopyNumber)
               WorkingCopyCreated
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -198,13 +200,19 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
-          dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user) {
-            case DataCoordinatorClient.Success(_, _, newVersion, lastModified) =>
-              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
-              WorkingCopyDropped
-            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
-              store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
-              retry()
+          // Cannot use copy number from DC because it indicates the latest surviving copy.
+          store.lookupCopyNumber(dataset, Some(Unpublished)) match {
+            case Some(unpublishCopyNumber) =>
+              dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user) {
+                case DataCoordinatorClient.Success(_, _, _, newVersion, lastModified) =>
+                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber)
+                  WorkingCopyDropped
+                case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+                  store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
+                  retry()
+              }
+            case None =>
+              NotFound(dataset)
           }
         case None =>
           NotFound(dataset)
@@ -216,8 +224,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user) {
-            case DataCoordinatorClient.Success(_, _, newVersion, lastModified) =>
-              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+            case DataCoordinatorClient.Success(_, _, copyNumber, newVersion, lastModified) =>
+              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber)
               WorkingCopyPublished
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -258,8 +266,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                   val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQuery.toString())
                   dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(instruction)) {
                     // TODO better support for error handling in various failure cases
-                    case DataCoordinatorClient.Success(report, etag, newVersion, lastModified) =>
-                      store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+                    case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
+                      store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
                       RollupCreatedOrUpdated
                   }
               }
@@ -299,8 +307,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
         dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(instruction)) {
           // TODO better support for error handling in various failure cases
-          case DataCoordinatorClient.Success(report, etag, newVersion, lastModified) =>
-            store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+          case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
+            store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
             RollupDropped
           case DataCoordinatorClient.UpsertUserError("delete.rollup.does-not-exist", _) =>
             RollupNotFound(rollup)

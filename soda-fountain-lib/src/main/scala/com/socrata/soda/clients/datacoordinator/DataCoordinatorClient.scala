@@ -25,7 +25,7 @@ object DataCoordinatorClient {
   case class UpsertReportItem(data: Iterator[JValue] /* Note: this MUST be completely consumed before calling hasNext/next on parent iterator! */) extends ReportItem
   case object OtherReportItem extends ReportItem
 
-  case class Success(report: Iterator[ReportItem], etag: Option[EntityTag], newVersion: Long, lastModified: DateTime) extends Result
+  case class Success(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, lastModified: DateTime) extends Result
   case class Export(json: Iterator[JValue], etag: Option[EntityTag]) extends Result
 }
 

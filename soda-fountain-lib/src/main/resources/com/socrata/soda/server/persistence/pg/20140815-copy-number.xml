@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+
+    <changeSet id="20140815-copy-version-1" author="chi" >
+        <dropForeignKeyConstraint constraintName="computation_strategies_dataset_system_id_fkey" baseTableName="computation_strategies" />
+        <dropUniqueConstraint constraintName="computation_strategies_dataset_system_id_column_id_key" tableName="computation_strategies"/>
+        <dropForeignKeyConstraint constraintName="columns_dataset_system_id_fkey" baseTableName="columns"/>
+        <dropUniqueConstraint constraintName="columns_dataset_system_id_column_id_key" tableName="columns"/>
+        <dropUniqueConstraint constraintName="columns_dataset_system_id_column_name_casefolded_key" tableName="columns"/>
+
+        <rollback>
+            <addForeignKeyConstraint constraintName="columns_dataset_system_id_fkey"
+                                     baseTableName="columns" baseColumnNames="dataset_system_id"
+                                     referencedTableName="datasets"  referencedColumnNames="dataset_system_id"/>
+            <addUniqueConstraint constraintName="columns_dataset_system_id_column_id_key" tableName="columns" columnNames="dataset_system_id,column_id" />
+            <addUniqueConstraint constraintName="columns_dataset_system_id_column_name_casefolded_key" tableName="columns" columnNames="dataset_system_id,column_name_casefolded" />
+
+            <addForeignKeyConstraint constraintName="computation_strategies_dataset_system_id_fkey"
+                                     baseTableName="computation_strategies" baseColumnNames="dataset_system_id,column_id"
+                                     referencedTableName="columns" referencedColumnNames="dataset_system_id,column_id" />
+            <addUniqueConstraint constraintName="computation_strategies_dataset_system_id_column_id_key" tableName="computation_strategies" columnNames="dataset_system_id,column_id" />
+        </rollback>
+    </changeSet>
+
+    <changeSet id="20140815-copy-version-2" author="chi" >
+        <createTable tableName="dataset_copies">
+            <column name="id" type="bigserial"/>
+            <column name="dataset_system_id" type="varchar(64)"><constraints nullable="false" /></column>
+            <column name="copy_number" type="bigint"><constraints nullable="false" /></column>
+            <column name="schema_hash" type="varchar(64)"/>
+            <column name="primary_key_column_id" type="varchar(64)"><constraints nullable="false" /></column>
+            <column name="latest_version" type="bigint"></column>
+            <column name="lifecycle_stage" type="varchar(12)"/>
+            <column name="created_at" type="timestamp with timezone" defaultValueComputed="now()"><constraints nullable="false" /></column>
+            <column name="updated_at" type="timestamp with timezone" defaultValueComputed="now()"><constraints nullable="false" /></column>
+            <column name="deleted_at" type="timestamp with timezone"/>
+        </createTable>
+        <addPrimaryKey tableName="dataset_copies" columnNames="id" />
+
+        <addColumn tableName="columns">
+            <column name="copy_id" type="bigint" defaultValue="1" />
+        </addColumn>
+
+        <addColumn tableName="computation_strategies">
+            <column name="copy_id" type="bigint" defaultValue="1" />
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="20140815-copy-version-3" author="chi" >
+        <sql>
+            INSERT Into dataset_copies(dataset_system_id, copy_number, schema_hash, latest_version)
+            SELECT dataset_system_id, 1, schema_hash, latest_version FROM datasets
+        </sql>
+
+        <sql>
+            UPDATE columns SET copy_id = dc.id
+              FROM dataset_copies dc
+             WHERE columns.dataset_system_id = dc.dataset_system_id
+               And dc.copy_number = 1
+        </sql>
+
+        <sql>
+            UPDATE computation_strategies SET copy_id = c.copy_id
+              FROM columns c
+             WHERE computation_strategies.dataset_system_id = c.dataset_system_id
+               And computation_strategies.column_id = c.column_id
+        </sql>
+        <rollback></rollback>
+    </changeSet>
+
+    <changeSet id="20140815-copy-version-4" author="chi"  >
+        <addUniqueConstraint constraintName="dataset_copies_dataset_system_id_copy_number"  tableName="dataset_copies" columnNames="dataset_system_id,copy_number" />
+
+        <addForeignKeyConstraint constraintName="columns_copy_id_fkey"
+                                 baseTableName="columns" baseColumnNames="copy_id"
+                                 referencedTableName="dataset_copies"  referencedColumnNames="id"/>
+
+        <addNotNullConstraint tableName="columns" columnName="copy_id" />
+        <addUniqueConstraint constraintName="columns_copy_id_column_id" tableName="columns" columnNames="copy_id,column_id" />
+        <addUniqueConstraint constraintName="columns_copy_id_column_name_casefolded" tableName="columns" columnNames="copy_id,column_name_casefolded" />
+
+        <addForeignKeyConstraint constraintName="computation_strategies_copy_id_column_id_fkey"
+                                 baseTableName="computation_strategies" baseColumnNames="copy_id,column_id"
+                                 referencedTableName="columns" referencedColumnNames="copy_id,column_id" />
+        <addNotNullConstraint tableName="computation_strategies" columnName="copy_id" />
+        <addUniqueConstraint constraintName="computation_strategies_copy_id_column_id" tableName="computation_strategies" columnNames="copy_id,column_id" />
+    </changeSet>
+
+</databaseChangeLog>

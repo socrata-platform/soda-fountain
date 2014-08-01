@@ -9,6 +9,7 @@ import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
 import com.socrata.soda.server.wiremodels.{UserProvidedSpec, RequestProblem, Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
 import com.socrata.soda.server.{SodaUtils, LogTag}
 import javax.servlet.http.HttpServletRequest
+import com.socrata.soda.server.copy.Stage
 
 /**
  * Dataset: CRUD operations for dataset schema and metadata
@@ -76,7 +77,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
 
     override def get = { req =>
-      response(req, datasetDAO.getDataset(resourceName))
+      val copy = Stage(req.getParameter("$$copy")) // Query parameter for copy.  Optional, "latest", "published", "unpublished", or "latest"
+      response(req, datasetDAO.getDataset(resourceName, copy))
     }
 
     override def patch = { req =>

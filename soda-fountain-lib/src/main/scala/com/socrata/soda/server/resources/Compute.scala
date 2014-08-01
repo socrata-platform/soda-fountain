@@ -43,7 +43,7 @@ case class Compute(store: NameAndSchemaStore,
   case class service(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def post = {
       req => response =>
-        store.translateResourceName(resourceName) match {
+        store.translateResourceName(resourceName, None) match {
           case Some(dataset) =>
             computedColumns.findComputedColumns(dataset).find(_.fieldName.name == columnName.name) match {
               case Some(columnToCompute) =>
