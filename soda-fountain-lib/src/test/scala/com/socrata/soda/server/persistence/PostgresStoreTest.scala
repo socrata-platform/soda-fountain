@@ -3,10 +3,15 @@ package com.socrata.soda.server.persistence
 import com.rojoma.json.ast.{JString, JObject}
 import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.id.{ResourceName, DatasetId, ColumnId}
-import com.socrata.soda.server.wiremodels.ComputationStrategyType
+import com.socrata.soda.server.wiremodels.{ColumnSpec, ComputationStrategyType}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText}
 import org.scalatest.ShouldMatchers
+import com.socrata.soda.server.copy.{Discarded, Unpublished, Published, Latest}
+import com.socrata.soda.server.highlevel.csrec
+import org.joda.time.DateTime
+
+import com.rojoma.json.ast.JString
 
 class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers with DatasetsForTesting {
 
@@ -72,7 +77,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     val columns = Seq(ColumnRecord(ColumnId("one"), ColumnName("field_name"), SoQLText, "name", "desc",false, None))
     val (resourceName, datasetId) = createMockDataset(columns)
 
-    store.updateColumnFieldName(datasetId, ColumnId("one"), ColumnName("new_field_name"))
+    store.updateColumnFieldName(datasetId, ColumnId("one"), ColumnName("new_field_name"), 1L)
     val f = store.translateResourceName(resourceName)
     f match {
       case Some(MinimalDatasetRecord(rn, did, loc, sch, pky,
@@ -110,13 +115,70 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     )
 
     val (resourceName, datasetId) = createMockDataset(columns)
-    val lookupResult = store.lookupDataset(resourceName)
+    val lookupResult = store.lookupDataset(resourceName, Some(Latest))
     lookupResult should not be (None)
     lookupResult.get.columns.size should be (2)
 
     for (i <- 0 to lookupResult.get.columns.size - 1) {
       lookupResult.get.columns(i) should equal (columns(i))
     }
+  }
+
+  test("Two copies with different columns"){
+    val columnSpecs = Seq(
+      ColumnSpec(ColumnId("one"), ColumnName("one"), "one", "desc", SoQLText, None),
+      ColumnSpec(ColumnId("two"), ColumnName("two"), "two", "desc",SoQLText, None)
+    )
+    val columns = columnSpecs.map(columnSpecTocolumnRecord)
+    val (resourceName, datasetId) = createMockDataset(columns.take(1))
+    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L)
+    store.makeCopy(datasetId, 2L)
+    store.addColumn(datasetId, 2L, columnSpecs(1))
+
+    val publishedCopy = store.lookupDataset(resourceName, Some(Published))
+    publishedCopy should not be (None)
+    publishedCopy.get.columns.foreach(println)
+    publishedCopy.get.columns should be (columns.take(1))
+
+    val unpublishedCopy = store.lookupDataset(resourceName, Some(Unpublished))
+    unpublishedCopy should not be (None)
+    unpublishedCopy.get.columns.foreach(println)
+    unpublishedCopy.get.columns should be (columns)
+  }
+
+  test("drop working copies"){
+    val columnSpecs = Seq(
+      ColumnSpec(ColumnId("one"), ColumnName("one"), "one", "desc", SoQLText, None),
+      ColumnSpec(ColumnId("two"), ColumnName("two"), "two", "deleted", SoQLText, None),
+      ColumnSpec(ColumnId("three"), ColumnName("three"), "three", "desc",SoQLText, None),
+      ColumnSpec(ColumnId("four"), ColumnName("four"), "four", "deleted",SoQLText, None)
+    )
+    val columns = columnSpecs.map(columnSpecTocolumnRecord)
+    val (resourceName, datasetId) = createMockDataset(columns.take(1))
+    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L)
+
+    // make working copy
+    store.makeCopy(datasetId, 2L)
+    store.addColumn(datasetId, 2L, columnSpecs(1))
+
+    // drop working copy
+    store.updateVersionInfo(datasetId, 2L, new DateTime(), Some(Discarded), 2L)
+
+    // make another working copy
+    store.makeCopy(datasetId, 3L)
+    store.addColumn(datasetId, 3L, columnSpecs(2))
+    store.addColumn(datasetId, 3L, columnSpecs(3))
+    store.dropColumn(datasetId, ColumnId("four"), 3L)
+
+    val publishedCopy = store.lookupDataset(resourceName, Some(Published))
+    publishedCopy should not be (None)
+    publishedCopy.get.columns.foreach(println)
+    publishedCopy.get.columns should be (columns.take(1))
+
+    val unpublishedCopy = store.lookupDataset(resourceName, Some(Unpublished))
+    unpublishedCopy should not be (None)
+    unpublishedCopy.get.columns.foreach(println)
+    unpublishedCopy.get.columns should be (columns.filter(_.description != "deleted"))
   }
 
   private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetId) = {
@@ -126,4 +188,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     (dataset.resourceName, dataset.systemId)
   }
 
+  private def columnSpecTocolumnRecord(spec: ColumnSpec) = {
+    ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
+  }
 }

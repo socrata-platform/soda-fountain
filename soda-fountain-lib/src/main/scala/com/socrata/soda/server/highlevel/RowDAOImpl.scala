@@ -1,16 +1,17 @@
 package com.socrata.soda.server.highlevel
 
+import java.nio.charset.StandardCharsets
 import com.rojoma.json.ast._
-import com.socrata.http.server.util.{NoPrecondition, StrongEntityTag, Precondition}
+import com.socrata.http.server.util.{NoPrecondition, Precondition, StrongEntityTag}
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
-import java.nio.charset.StandardCharsets
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 
@@ -22,10 +23,11 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
 
   val dateTimeParser = ISODateTimeFormat.dateTimeParser
 
-  def query(resourceName: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
-    store.lookupDataset(resourceName)  match {
+  def query(resourceName: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime],
+            query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String]): Result = {
+    store.lookupDataset(resourceName, copy) match {
       case Some(ds) =>
-        getRows(ds, precondition, ifModifiedSince, query, rowCount, secondaryInstance)
+        getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance)
       case None =>
         DatasetNotFound(resourceName)
     }
@@ -36,8 +38,9 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
              precondition: Precondition,
              ifModifiedSince: Option[DateTime],
              rowId: RowSpecifier,
+             copy: Option[Stage],
              secondaryInstance:Option[String]): Result = {
-    store.lookupDataset(resourceName) match {
+    store.lookupDataset(resourceName, copy) match {
       case Some(datasetRecord) =>
         if (schemaCheck(datasetRecord.columns)) {
           val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
@@ -47,7 +50,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
               val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
               val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
               val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
-              getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, secondaryInstance) match {
+              getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance) match {
                 case QuerySuccess(_, truthVersion, truthLastModified, simpleSchema, rows) =>
                   val version = ColumnName(":version")
                   val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
@@ -85,8 +88,9 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  private def getRows(ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String], secondaryInstance:Option[String]): Result = {
-    qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount, secondaryInstance) {
+  private def getRows(ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime],
+                      query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String]): Result = {
+    qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount, copy, secondaryInstance) {
       case QueryCoordinatorClient.Success(etags, response) =>
         val cjson = response.asInstanceOf[JArray]
         CJson.decode(cjson.toIterator) match {
@@ -122,8 +126,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                      instructions: Iterator[DataCoordinatorInstruction],
                      f: UpsertResult => T): T = {
     dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ data) {
-      case DataCoordinatorClient.Success(result, _, newVersion, lastModified) =>
-        store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
+      case DataCoordinatorClient.Success(result, _, copyNumber, newVersion, lastModified) =>
+        store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
         f(StreamSuccess(result))
       case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
         // hm, if we get schema out of date here, we're pretty much out of luck, since we'll

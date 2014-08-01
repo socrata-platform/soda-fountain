@@ -15,6 +15,7 @@ import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import scala.runtime.AbstractFunction1
 import scala.util.control.ControlThrowable
+import com.socrata.soda.server.copy.Published
 
 object CJson {
   case class Field(c: ColumnId, t: SoQLType)
@@ -98,7 +99,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 copy: String,
                 sorted: Boolean)(f: ExportDAO.Result => T): T =
     retryable(limit = 5) {
-      store.lookupDataset(dataset) match {
+      store.lookupDataset(dataset, Some(Published)) match { // TODO: Do we want to allow unpublished export?
         case Some(ds) =>
           if (schemaCheck(ds.columns)) {
             dc.export(ds.systemId, ds.schemaHash, precondition, ifModifiedSince, limit, offset, copy, sorted = sorted) {

@@ -26,6 +26,8 @@ import com.socrata.soda.server.wiremodels.InputUtils
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+import scala.language.existentials
+import com.socrata.soda.server.copy.Stage
 
 /**
  * Resource: services for upserting, deleting, and querying dataset rows.
@@ -116,8 +118,9 @@ case class Resource(rowDAO: RowDAO,
 
   case class service(resourceName: OptionallyTypedPathComponent[ResourceName]) extends SodaResource {
     override def get = { req: HttpServletRequest => response: HttpServletResponse =>
-      val qpQuery = "$query" // Query parameter row count
+      val qpQuery = "$query" // Query parameter soql
       val qpRowCount = "$$row_count" // Query parameter row count
+      val qpCopy = "$$copy" // Query parameter for copy.  Optional, "latest", "published", "unpublished"
       val qpSecondary = "$$store"
       val suffix = headerHash(req)
       val precondition = req.precondition.map(etagObfuscator.deobfuscate)
@@ -133,6 +136,7 @@ case class Resource(rowDAO: RowDAO,
                 req.dateTimeHeader("If-Modified-Since"),
                 Option(req.getParameter(qpQuery)).getOrElse("select *"),
                 Option(req.getParameter(qpRowCount)),
+                Stage(req.getParameter(qpCopy)),
                 Option(req.getParameter(qpSecondary))
               ) match {
                 case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, schema, rows) =>
@@ -237,6 +241,7 @@ case class Resource(rowDAO: RowDAO,
 
     override def get = { req: HttpServletRequest => response: HttpServletResponse =>
       val suffix = headerHash(req)
+      val qpCopy = "$$copy"
       val qpSecondary = "$$store"
       val precondition = req.precondition.map(etagObfuscator.deobfuscate)
       def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
@@ -252,6 +257,7 @@ case class Resource(rowDAO: RowDAO,
                 newPrecondition.map(_.dropRight(suffix.length)),
                 req.dateTimeHeader("If-Modified-Since"),
                 rowId,
+                Stage(req.getParameter(qpCopy)),
                 Option(req.getParameter(qpSecondary))
               ) match {
                 case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
