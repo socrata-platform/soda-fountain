@@ -9,22 +9,28 @@ import com.socrata.soda.server.wiremodels.{ComputationStrategyType, ColumnSpec}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLType
 import org.joda.time.DateTime
+import com.socrata.soda.server.copy.Stage
 
 // TODO: this needs to expose a notion of transactions
 trait NameAndSchemaStore {
   def addResource(newRecord: DatasetRecord)
   def removeResource(resourceName: ResourceName)
-  def translateResourceName(resourceName: ResourceName): Option[MinimalDatasetRecord]
-  def lookupDataset(resourceName: ResourceName): Option[DatasetRecord]
-
+  def translateResourceName(resourceName: ResourceName, copy: Option[Stage] = None): Option[MinimalDatasetRecord]
+  def latestCopyNumber(resourceName: ResourceName): Long
+  def lookupCopyNumber(resourceName: ResourceName, copy: Option[Stage]): Option[Long]
+  def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord]
+  def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
+    lookupCopyNumber(resourceName, copy).flatMap(lookupDataset(resourceName, _))
+  }
   def resolveSchemaInconsistency(datasetId: DatasetId, newSchema: SchemaSpec)
 
-  def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId)
+  def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId, copyNumber: Long)
 
-  def addColumn(datasetId: DatasetId, columnSpec: ColumnSpec) : ColumnRecord
-  def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName) : Int
-  def dropColumn(datasetId: DatasetId, columnId: ColumnId) : Unit
-  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime): Unit
+  def addColumn(datasetId: DatasetId, copyNumber: Long, columnSpec: ColumnSpec) : ColumnRecord
+  def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName, copyNumber: Long) : Int
+  def dropColumn(datasetId: DatasetId, columnId: ColumnId, copyNumber: Long) : Unit
+  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long): Unit
+  def makeCopy(datasetId: DatasetId, copyNumber: Long): Unit
 }
 
 trait DatasetRecordLike {

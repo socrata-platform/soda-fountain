@@ -4,6 +4,7 @@ import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.VersionRep
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
 import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, DatasetSpec, UserProvidedDatasetSpec}
 import com.socrata.soql.environment.ColumnName
+import com.socrata.soda.server.copy.Stage
 
 trait DatasetDAO {
   import DatasetDAO.Result
@@ -11,7 +12,7 @@ trait DatasetDAO {
   def replaceOrCreateDataset(user: String, dataset: ResourceName, spec: UserProvidedDatasetSpec): Result
   def updateDataset(user: String, dataset: ResourceName, spec: UserProvidedDatasetSpec): Result
   def deleteDataset(user: String, dataset: ResourceName): Result
-  def getDataset(dataset: ResourceName): Result
+  def getDataset(dataset: ResourceName, stage: Option[Stage]): Result
   def getVersion(dataset: ResourceName, secondary: SecondaryId): Result
 
   def makeCopy(user: String, dataset: ResourceName, copyData: Boolean): Result

@@ -12,6 +12,7 @@ import com.socrata.soql.types.{SoQLValue, SoQLType}
 import org.joda.time.DateTime
 
 import RowDAO._
+import com.socrata.soda.server.copy.Stage
 
 trait RowDAO {
   def query(dataset: ResourceName,
@@ -19,6 +20,7 @@ trait RowDAO {
             ifModifiedSince: Option[DateTime],
             query: String,
             rowCount: Option[String],
+            stage: Option[Stage],
             secondaryInstance:Option[String]): Result
 
   def getRow(dataset: ResourceName,
@@ -26,6 +28,7 @@ trait RowDAO {
              precondition: Precondition,
              ifModifiedSince: Option[DateTime],
              rowId: RowSpecifier,
+             stage: Option[Stage],
              secondaryInstance:Option[String]): Result
 
   def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T

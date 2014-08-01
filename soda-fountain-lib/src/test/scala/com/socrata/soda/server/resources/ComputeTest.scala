@@ -52,7 +52,7 @@ class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsF
     val response = new MockHttpServletResponse()
     val resource = new Compute(store, exportDAO, rowDAO, TestComputedColumns, NoopEtagObfuscator)
 
-    store.expects('translateResourceName)(*).returning(dataset)
+    store.expects('translateResourceName)(*, *).returning(dataset)
     if (dataset.isDefined && dataset.get.columns.filter(_.computationStrategy.isDefined).map(_.fieldName).contains(col))
     {
       exportDAO.expects('export)(*, *, *, *, *, *, *, *, *).returning(exportResult)

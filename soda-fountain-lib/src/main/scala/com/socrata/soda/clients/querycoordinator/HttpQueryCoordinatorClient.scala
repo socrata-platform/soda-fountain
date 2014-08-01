@@ -10,6 +10,7 @@ import com.socrata.http.server.implicits._
 import org.apache.http.HttpStatus
 import scala.io.{Codec, Source}
 import org.joda.time.DateTime
+import com.socrata.soda.server.copy.Stage
 
 trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   def qchost : Option[RequestBuilder]
@@ -21,9 +22,12 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   private val qpQuery = "q"
   private val qpIdMap = "idMap"
   private val qpRowCount = "rowCount"
+  private val qpCopy = "copy"
   private val secondaryStoreOverride = "store"
 
-  def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String], secondaryInstance:Option[String])(f: Result => T): T = {
+  def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
+    columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String],
+    copy: Option[Stage], secondaryInstance:Option[String])(f: Result => T): T = {
     import HttpStatus._
 
     def resultFrom(response: Response): Result = {
@@ -46,6 +50,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
       case Some(host) =>
         val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
         val params = List(qpDataset -> datasetId.underlying, qpQuery -> query, qpIdMap -> jsonizedColumnIdMap) ++
+          copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
           rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
           secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)
         log.info("Query Coordinator request parameters: " + params)
