@@ -6,7 +6,7 @@ import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
-import com.socrata.soda.server.persistence.ColumnRecord
+import com.socrata.soda.server.persistence.ColumnRecordLike
 import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.types._
 import java.io.BufferedWriter
@@ -28,7 +28,7 @@ object GeoJsonExporter extends Exporter {
   // column is the primary geo column that should be returned as the the top level "geometry" element
   // (others would be relegated to "properties"). Until we have prioritize implementing a way to
   // represent that in the store or pass it in the export request, we will error out.
-  override def validForSchema(schema: Seq[ColumnRecord]): Boolean = {
+  override def validForSchema(schema: Seq[ColumnRecordLike]): Boolean = {
     schema.count(_.typ.isInstanceOf[SoQLGeometryLike[_]]) == 1
   }
 

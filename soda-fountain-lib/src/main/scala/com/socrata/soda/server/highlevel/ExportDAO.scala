@@ -1,18 +1,17 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.id.ResourceName
-
 import ExportDAO._
-import com.socrata.soda.server.persistence.{MinimalColumnRecord, ColumnRecord}
+import com.socrata.http.server.util.{Precondition, EntityTag}
+import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.persistence.ColumnRecordLike
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import com.socrata.soql.environment.ColumnName
-import com.socrata.http.server.util.{Precondition, EntityTag}
 import org.joda.time.DateTime
 
 trait ExportDAO {
   def export[T](dataset: ResourceName,
-                schemaCheck: Seq[ColumnRecord] => Boolean,
-                onlyColumns: Seq[MinimalColumnRecord],
+                schemaCheck: Seq[ColumnRecordLike] => Boolean,
+                onlyColumns: Seq[ColumnRecordLike],
                 precondition: Precondition,
                 ifModifiedSince: Option[DateTime],
                 limit: Option[Long],

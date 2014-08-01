@@ -4,7 +4,7 @@ import com.rojoma.json.ast.{JString, JObject}
 import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
-import com.socrata.soda.server.persistence.{ComputationStrategyRecord, MinimalColumnRecord}
+import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRecordLike}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLText
 
@@ -16,7 +16,7 @@ import com.socrata.soql.types.SoQLText
  * { "type": "test", "recompute": true, "source_columns": ["my_source"], "parameters": { "concat_text" : "foo" } }
  */
 class TestComputationHandler extends ComputationHandler {
-  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: MinimalColumnRecord): Iterator[RowDataTranslator.Computable] = {
+  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: ColumnRecordLike): Iterator[RowDataTranslator.Computable] = {
     require(column.computationStrategy.isDefined, "Computation strategy not defined")
     val (sourceColumn, concatText) = parseStrategy(column.computationStrategy.get)
 

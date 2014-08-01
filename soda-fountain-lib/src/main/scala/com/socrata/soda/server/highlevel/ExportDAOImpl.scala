@@ -7,7 +7,7 @@ import com.socrata.http.server.util.Precondition
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
-import com.socrata.soda.server.persistence.{MinimalColumnRecord, ColumnRecord, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{ColumnRecordLike, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnReadRep}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soql.types.{SoQLValue, SoQLType}
@@ -91,8 +91,8 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
   def retry() = throw new Retry
 
   def export[T](dataset: ResourceName,
-                schemaCheck: Seq[ColumnRecord] => Boolean,
-                onlyColumns: Seq[MinimalColumnRecord],
+                schemaCheck: Seq[ColumnRecordLike] => Boolean,
+                onlyColumns: Seq[ColumnRecordLike],
                 precondition: Precondition,
                 ifModifiedSince: Option[DateTime],
                 limit: Option[Long],
@@ -105,7 +105,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
           if (schemaCheck(ds.columns)) {
             val schemaHash = onlyColumns match {
               case Seq() => ds.schemaHash
-              case _         => SchemaHash.computeHash(ds.locale, ds.primaryKey, onlyColumns.map { col => (col.id, col.typ) })
+              case _     => SchemaHash.computeHash(ds.locale, ds.primaryKey, onlyColumns.map { col => (col.id, col.typ) })
             }
             val dcColumnIds = onlyColumns.map(_.id.underlying)
             dc.export(ds.systemId, schemaHash, dcColumnIds, precondition, ifModifiedSince, limit, offset, copy, sorted = sorted) {

@@ -60,7 +60,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
    * sourceColumns must be a list of one column, and it must be a Geo Point type.
    * parameters: {"region":  <<name of geo region dataset 4x4>>}
    */
-  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: MinimalColumnRecord): Iterator[RowDataTranslator.Computable] = {
+  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: ColumnRecordLike): Iterator[RowDataTranslator.Computable] = {
     // Only a single point column is allowed as a source for now
     val (geoColumnName, region) = parsePointColumnSourceStrategy(column)
 
@@ -98,7 +98,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
     service.close()
   }
 
-  private def parsePointColumnSourceStrategy(column: MinimalColumnRecord): (String, String) = {
+  private def parsePointColumnSourceStrategy(column: ColumnRecordLike): (String, String) = {
     require(column.computationStrategy.isDefined, "Not a target computed column")
     column.computationStrategy match {
       case Some(ComputationStrategyRecord(_, _, Some(Seq(sourceCol)), Some(JObject(map)))) =>

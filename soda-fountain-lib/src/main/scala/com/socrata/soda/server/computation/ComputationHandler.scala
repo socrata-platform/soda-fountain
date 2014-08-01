@@ -23,7 +23,7 @@ trait ComputationHandler extends java.io.Closeable {
    * @param column a ColumnRecord describing the computation and parameters
    * @return an Iterator[SoQLRow] for the output rows.  One of the keys must containing the output column.
    */
-  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: MinimalColumnRecord): Iterator[RowDataTranslator.Computable]
+  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: ColumnRecordLike): Iterator[RowDataTranslator.Computable]
 
   /**
    * Releases any resources taken up by the handler

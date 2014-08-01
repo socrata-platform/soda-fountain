@@ -3,7 +3,7 @@ package com.socrata.soda.server.highlevel
 import com.rojoma.json.ast._
 import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
 import com.socrata.soda.server.computation.ComputedColumns
-import com.socrata.soda.server.persistence.{MinimalDatasetRecord, ColumnRecordLike}
+import com.socrata.soda.server.persistence.{DatasetRecordLike, MinimalDatasetRecord, ColumnRecordLike}
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
@@ -16,7 +16,7 @@ import com.socrata.soql.types.{SoQLValue, SoQLType}
  *                             should cause an error to be thrown or
  *                             simply be ignored.
  */
-class RowDataTranslator(dataset: MinimalDatasetRecord, ignoreUnknownColumns: Boolean) {
+class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolean) {
   import RowDataTranslator._
 
   private[this] sealed abstract class ColumnResult
@@ -40,6 +40,15 @@ class RowDataTranslator(dataset: MinimalDatasetRecord, ignoreUnknownColumns: Boo
           columnInfos.clear // bad user, but I'd rather spend CPU than memory
         ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ), JsonColumnRep.forDataCoordinatorType(cr.typ))
       case None => NoColumn(cn)
+    }
+  }
+
+  def getInfoForColumnList(userColumnList: Seq[String]): Seq[ColumnRecordLike] = {
+    userColumnList.map { userColumnName =>
+      ciFor(userColumnName) match {
+        case ColumnInfo(ci, _, _) => ci
+        case NoColumn(colName)    => throw UnknownColumnEx(colName)
+      }
     }
   }
 

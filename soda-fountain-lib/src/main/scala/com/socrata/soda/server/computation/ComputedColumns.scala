@@ -37,7 +37,7 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
    * @param datasetRecord containing the schema of the dataset
    * @return a Seq[ColumnRecord] containing all the columns described in the dataset with a computationStrategy
    */
-  def findComputedColumns(datasetRecord: MinimalDatasetRecord): Seq[MinimalColumnRecord] =
+  def findComputedColumns(datasetRecord: DatasetRecordLike): Seq[ColumnRecordLike] =
     datasetRecord.columns.filter { col => col.computationStrategy.isDefined }
 
   /**
@@ -53,7 +53,7 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
    * @param computedColumns the list of computed columns from [[findComputedColumns]]
    */
   def addComputedColumns(sourceIt: Iterator[RowDataTranslator.Computable],
-                         computedColumns: Seq[MinimalColumnRecord]): ComputeResult = {
+                         computedColumns: Seq[ColumnRecordLike]): ComputeResult = {
     var rowIterator = sourceIt
     for (computedColumn <- computedColumns) {
       val tryGetHandler = handlers.get(computedColumn.computationStrategy.get.strategyType)
