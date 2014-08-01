@@ -14,7 +14,7 @@ import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherRepo
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.server.{errors => SodaErrors}
-import com.socrata.soda.server.errors.SodaError
+import com.socrata.soda.server.errors.{SchemaInvalidForMimeType, SodaError}
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{RowDataTranslator, RowDAO}
 import com.socrata.soda.server.highlevel.RowDAO._
@@ -312,7 +312,7 @@ case class Resource(rowDAO: RowDAO,
                       SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
                     case RowDAO.SchemaInvalidForMimeType =>
                       metric(QueryErrorUser)
-                      NotAcceptable(response)
+                      SodaUtils.errorResponse(req, SchemaInvalidForMimeType)
                   }
               case None =>
                 metric(QueryErrorUser)

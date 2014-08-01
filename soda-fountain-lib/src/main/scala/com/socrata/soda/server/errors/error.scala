@@ -15,6 +15,9 @@ case class ResourceNotModified(override val etags: Seq[EntityTag], override val 
 case object EtagPreconditionFailed
   extends SodaError(SC_PRECONDITION_FAILED, "precondition-failed")
 
+case object SchemaInvalidForMimeType
+  extends SodaError(SC_NOT_ACCEPTABLE, "schema-invalid-for-mime-type")
+
 case class GeneralNotFoundError(path: String)
   extends SodaError(SC_NOT_FOUND, "not-found", "path" -> JString(path))
 
@@ -115,6 +118,11 @@ case class DatasetNotFound(value: ResourceName)
   extends SodaError(SC_NOT_FOUND, "soda.dataset.not-found",
     "dataset" -> JString(value.name))
 
+case class ColumnNotFound(resourceName: ResourceName, columnName: ColumnName)
+  extends SodaError(SC_NOT_FOUND, "soda.dataset.column-not-found",
+    "dataset" -> JString(resourceName.name),
+    "column"  -> JString(columnName.name))
+
 case class RowNotFound(value: RowSpecifier)
   extends SodaError(SC_NOT_FOUND, "soda.row.not-found",
      "value" -> JString(value.underlying))
@@ -132,4 +140,8 @@ case class ComputationHandlerNotFound(typ: ComputationStrategyType.Value)
 
 case class ComputedColumnNotWritable(value: ColumnName)
   extends SodaError(SC_BAD_REQUEST, "soda.row.computed-column-not-writable",
+    "value" -> JString(value.name))
+
+case class NotAComputedColumn(value: ColumnName)
+  extends SodaError(SC_BAD_REQUEST, "soda.column.not-a-computed-column",
     "value" -> JString(value.name))
