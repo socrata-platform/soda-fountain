@@ -23,7 +23,7 @@ class TestComputationHandler extends ComputationHandler {
     sourceIt.map {
       case UpsertAsSoQL(rowData) =>
         val sourceText = getSourceColumnText(rowData, ColumnName(sourceColumn))
-        UpsertAsSoQL(rowData + (column.fieldName.name -> SoQLText(s"$sourceText $concatText")))
+        UpsertAsSoQL(rowData + (column.id.underlying -> SoQLText(s"$sourceText $concatText")))
       case d: DeleteAsCJson      => d
     }.toIterator
   }

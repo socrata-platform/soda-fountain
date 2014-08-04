@@ -48,7 +48,7 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
    * to be done.
    * @param sourceIt an Iterator of row updates, includes both upsert and deletes.
    *                 For upserts, each row is a Map[String, SoQLValue], where the key is the
-   *                 fieldName and the value is a SoQLValue representation of source data.
+   *                 columnId and the value is a SoQLValue representation of source data.
    *                 Deletes contain only row PK and can be ignored.
    * @param computedColumns the list of computed columns from [[findComputedColumns]]
    */

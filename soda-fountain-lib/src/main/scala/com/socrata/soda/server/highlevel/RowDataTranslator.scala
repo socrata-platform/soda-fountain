@@ -3,6 +3,7 @@ package com.socrata.soda.server.highlevel
 import com.rojoma.json.ast._
 import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
 import com.socrata.soda.server.computation.ComputedColumns
+import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecordLike}
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
 import com.socrata.soql.environment.ColumnName
@@ -43,6 +44,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
   }
 
   private[this] val columnNameCache = new ColumnCache(dataset.columnsByName, ColumnName(_))
+  private[this] val columnIdCache = new ColumnCache(dataset.columnsById, ColumnId(_))
 
   def getInfoForColumnList(userColumnList: Seq[String]): Seq[ColumnRecordLike] = {
     userColumnList.map { userColumnName =>
@@ -80,7 +82,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
               throw ComputedColumnNotWritableEx(cr.fieldName)
             }
             rRep.fromJValue(uVal) match {
-              case Some(v) => (cr.fieldName.name -> v) :: Nil
+              case Some(v) => (cr.id.underlying -> v) :: Nil
               case None => throw MaltypedDataEx(cr.fieldName, rRep.representedType, uVal)
             }
           case NoColumn(colName) =>
@@ -120,7 +122,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
 
   def soqlToDataCoordinatorJson(row: Map[String, SoQLValue]): Map[String, JValue] = {
     val rowWithDCJValues = row.map { case (uKey, uVal) =>
-      columnNameCache.get(uKey) match {
+      columnIdCache.get(uKey) match {
         case ColumnInfo(cr, rRep, wRep) => cr.id.underlying -> wRep.toJValue(uVal)
         case NoColumn(colName)          => throw UnknownColumnEx(colName)
       }

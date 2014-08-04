@@ -40,7 +40,7 @@ class ColumnSpecUtils(rng: Random) {
         if (duplicateColumnName(fieldName, existingColumns)) return DuplicateColumnName(fieldName)
         val trueDesc = desc.getOrElse("")
         val id = selectId(existingColumns.values)
-        freezeForCreation(uCompStrategy) match {
+        freezeForCreation(existingColumns, uCompStrategy) match {
           case ComputationStrategySuccess(compStrategy) =>
             Success(ColumnSpec(id, fieldName, name, trueDesc, typ, compStrategy))
           case cr: CreateResult => cr
@@ -57,10 +57,19 @@ class ColumnSpecUtils(rng: Random) {
         DeleteSet
     }
 
-  def freezeForCreation(ucs: Option[UserProvidedComputationStrategySpec]): CreateResult =
+  def freezeForCreation(existingColumns: Map[ColumnName, ColumnId],
+                        ucs: Option[UserProvidedComputationStrategySpec]): CreateResult =
     ucs match {
       case Some(UserProvidedComputationStrategySpec(Some(typ), Some(recompute), sourceColumns, parameters)) =>
-        ComputationStrategySuccess(Some(ComputationStrategySpec(typ, recompute, sourceColumns, parameters)))
+        // The logic below assumes that the computed column is defined after the source column in the schema.
+        // TODO : Validation should be independent of column ordering in the schema definition.
+        if (sourceColumns.isDefined &&
+            sourceColumns.get.exists { sc => !existingColumns.map(_._1.name).toSeq.contains(sc) }) {
+          InvalidComputationStrategy
+        }
+        else {
+          ComputationStrategySuccess(Some(ComputationStrategySpec(typ, recompute, sourceColumns, parameters)))
+        }
       case Some(UserProvidedComputationStrategySpec(None, _, _, _)) => InvalidComputationStrategy
       case Some(UserProvidedComputationStrategySpec(_, None, _, _)) => InvalidComputationStrategy
       case None => ComputationStrategySuccess(None)

@@ -62,7 +62,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
    */
   def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: ColumnRecordLike): Iterator[RowDataTranslator.Computable] = {
     // Only a single point column is allowed as a source for now
-    val (geoColumnName, region) = parsePointColumnSourceStrategy(column)
+    val (geoColumnId, region) = parsePointColumnSourceStrategy(column)
 
     val batches = sourceIt.grouped(batchSize)
     val computedBatches = batches.map { batch =>
@@ -70,7 +70,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
 
       // Grab just the upserts and get the point column for mapping to feature ID
       val pointsWithIndex = rowsWithIndex.collect {
-        case (upsert: UpsertAsSoQL, i) => (extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName)), i)
+        case (upsert: UpsertAsSoQL, i) => (extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnId)), i)
       }.collect {
         case (Some(point), i)          => (point, i)
       }
@@ -82,7 +82,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
       rowsWithIndex.map {
         case (upsert: UpsertAsSoQL, i) =>
           val featureId = featureIdsWithIndex.getOrElse(i, "")
-          UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureId)))
+          UpsertAsSoQL(upsert.rowData + (column.id.underlying -> SoQLText(featureId)))
         case (delete: DeleteAsCJson, i) => delete
         case _                     =>
           val message = "Unsupported row update type passed into GeospaceHandler"

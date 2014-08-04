@@ -358,7 +358,14 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           csAdder.setString(3, cs.strategyType.toString)
           csAdder.setBoolean(4, cs.recompute)
           cs.sourceColumns match {
-            case Some(seq) => csAdder.setString(5, seq.mkString(","))
+            case Some(seq) =>
+              // Source column validation is done during freezeForCreation,
+              // so columns.find.get shouldn't fail here.
+              val sourceColumnIds = seq.map { colName =>
+                val sourceColumn = columns.find { c => c.fieldName.name == colName }
+                sourceColumn.get.id.underlying
+              }
+              csAdder.setString(5, sourceColumnIds.mkString(","))
             case None      => csAdder.setNull(5, Types.ARRAY)
           }
           cs.parameters match {
