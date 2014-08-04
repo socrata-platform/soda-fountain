@@ -5,6 +5,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util.NoPrecondition
 import com.socrata.soda.server.SodaUtils
+import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.server.{errors => SodaError}
 import com.socrata.soda.server.export.JsonExporter
 import com.socrata.soda.server.highlevel.{RowDataTranslator, ExportDAO}
@@ -14,7 +15,7 @@ import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletRequest
 
-case class Compute(store: NameAndSchemaStore, exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
+case class Compute[T](store: NameAndSchemaStore, exportDAO: ExportDAO, computedColumns: ComputedColumns[T], etagObfuscator: ETagObfuscator) {
   sealed trait ComputeResult
   case class Success(seq: Seq[String]) extends ComputeResult
   case object Failed extends ComputeResult
@@ -45,7 +46,7 @@ case class Compute(store: NameAndSchemaStore, exportDAO: ExportDAO, etagObfuscat
     override def post = { req =>
       store.lookupDataset(resourceName) match {
         case Some(dataset) =>
-          dataset.columns.find(_.fieldName.name.equals(columnName.name)) match {
+          computedColumns.findComputedColumns(dataset).find(_.fieldName.name == columnName.name) match {
             case Some(column) =>
               column.computationStrategy match {
                 case Some(strategy) =>

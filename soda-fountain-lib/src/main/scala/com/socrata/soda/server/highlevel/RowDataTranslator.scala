@@ -3,7 +3,7 @@ package com.socrata.soda.server.highlevel
 import com.rojoma.json.ast._
 import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
 import com.socrata.soda.server.computation.ComputedColumns
-import com.socrata.soda.server.persistence.{DatasetRecordLike, MinimalDatasetRecord, ColumnRecordLike}
+import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecordLike}
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
@@ -25,27 +25,28 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
 
   private[this] val legacyDeleteFlag = new ColumnName(":deleted")
 
-  // A cache from the keys of the JSON objects which are rows to values
-  // which represent either the fact that the key does not represent
-  // a known column or the column's ID and type.
-  private[this] val columns = dataset.columnsByName
-  private[this] val columnInfos = collection.mutable.Map.empty[String, ColumnResult]
-  private[this] def ciFor(rawColumnName: String): ColumnResult =
-    columnInfos.getOrElseUpdate(rawColumnName, updateCiFor(rawColumnName))
-  private[this] def updateCiFor(rawColumnName: String): ColumnResult = {
-    val cn = ColumnName(rawColumnName)
-    columns.get(cn) match {
-      case Some(cr) =>
-        if (columnInfos.size > columns.size * 10)
-          columnInfos.clear // bad user, but I'd rather spend CPU than memory
-        ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ), JsonColumnRep.forDataCoordinatorType(cr.typ))
-      case None => NoColumn(cn)
+  private[this] class ColumnCache[T](map: Map[T, ColumnRecordLike], makeKey: String => T) {
+    private val cache = collection.mutable.Map.empty[String, ColumnResult]
+
+    def get(rawKey: String): ColumnResult = cache.getOrElseUpdate(rawKey, addToCache(rawKey))
+
+    private def addToCache(rawKey: String): ColumnResult = {
+      val key = makeKey(rawKey)
+      map.get(key) match {
+        case Some(cr) =>
+          if (cache.size > map.size * 10)
+            cache.clear() // bad user, but I'd rather spend CPU than memory
+          ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ), JsonColumnRep.forDataCoordinatorType(cr.typ))
+        case None     => NoColumn(ColumnName(rawKey))
+      }
     }
   }
 
+  private[this] val columnNameCache = new ColumnCache(dataset.columnsByName, ColumnName(_))
+
   def getInfoForColumnList(userColumnList: Seq[String]): Seq[ColumnRecordLike] = {
     userColumnList.map { userColumnName =>
-      ciFor(userColumnName) match {
+      columnNameCache.get(userColumnName) match {
         case ColumnInfo(ci, _, _) => ci
         case NoColumn(colName)    => throw UnknownColumnEx(colName)
       }
@@ -55,26 +56,25 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
   def transformRowsForUpsert(cc: ComputedColumns[_], rows: Iterator[JValue]): Iterator[RowUpdate] = {
     import ComputedColumns._
 
-      val rowsAsSoql = rows.map(clientJsonToSoql)
-
-      val computedColumns = cc.findComputedColumns(dataset)
-      val computedResult = cc.addComputedColumns(rowsAsSoql, computedColumns)
-      computedResult match {
-        case ComputeSuccess(computedRows) =>
-          val rowUpdates = computedRows.map {
-            case UpsertAsSoQL(rowData) => UpsertRow(soqlToDataCoordinatorJson(rowData))
-            case DeleteAsCJson(pk) => DeleteRow(pk)
-          }
-          rowUpdates
-        case HandlerNotFound(typ) => throw ComputationHandlerNotFoundEx(typ)
-      }
+    val rowsAsSoql = rows.map(clientJsonToSoql)
+    val computedColumns = cc.findComputedColumns(dataset)
+    val computedResult = cc.addComputedColumns(rowsAsSoql, computedColumns)
+    computedResult match {
+      case ComputeSuccess(computedRows) =>
+        val rowUpdates = computedRows.map {
+          case UpsertAsSoQL(rowData) => UpsertRow(soqlToDataCoordinatorJson(rowData))
+          case DeleteAsCJson(pk) => DeleteRow(pk)
+        }
+        rowUpdates
+      case HandlerNotFound(typ) => throw ComputationHandlerNotFoundEx(typ)
+    }
   }
 
   def clientJsonToSoql(row: JValue): Computable = row match {
     case JObject(map) =>
       var rowHasLegacyDeleteFlag = false
       val rowWithSoQLValues = map.flatMap { case (uKey, uVal) =>
-        ciFor(uKey) match {
+        columnNameCache.get(uKey) match {
           case ColumnInfo(cr, rRep, wRep) =>
             if (cr.computationStrategy.isDefined) {
               throw ComputedColumnNotWritableEx(cr.fieldName)
@@ -120,9 +120,9 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
 
   def soqlToDataCoordinatorJson(row: Map[String, SoQLValue]): Map[String, JValue] = {
     val rowWithDCJValues = row.map { case (uKey, uVal) =>
-      ciFor(uKey) match {
-        case ColumnInfo(cr, rRep, wRep) => (cr.id.underlying -> wRep.toJValue(uVal))
-        case NoColumn(colName) => throw UnknownColumnEx(colName)
+      columnNameCache.get(uKey) match {
+        case ColumnInfo(cr, rRep, wRep) => cr.id.underlying -> wRep.toJValue(uVal)
+        case NoColumn(colName)          => throw UnknownColumnEx(colName)
       }
     }
 
