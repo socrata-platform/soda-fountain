@@ -200,7 +200,7 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
       decoded.pk.map(dataset.columnsById(_).fieldName),
       decoded.rowCount,
       decoded.schema.map {
-        f => ColumnInfo(dataset.columnsById(f.c).fieldName, dataset.columnsById(f.c).name, f.t)
+        f => ColumnInfo(dataset.columnsById(f.c).id, dataset.columnsById(f.c).fieldName, dataset.columnsById(f.c).name, f.t)
       })
   }
 

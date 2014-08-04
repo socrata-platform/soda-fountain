@@ -120,7 +120,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                       schema.pk.map(ds.columnsById(_).fieldName),
                       schema.rowCount,
                       schema.schema.map {
-                        f => ColumnInfo(ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t)
+                        f => ColumnInfo(ds.columnsById(f.c).id, ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t)
                       }
                     )
                     f(ExportDAO.Success(simpleSchema, etag, rows))

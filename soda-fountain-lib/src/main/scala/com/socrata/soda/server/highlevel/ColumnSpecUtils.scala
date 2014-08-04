@@ -65,13 +65,13 @@ class ColumnSpecUtils(rng: Random) {
         // TODO : Validation should be independent of column ordering in the schema definition.
         if (sourceColumns.isDefined &&
             sourceColumns.get.exists { sc => !existingColumns.map(_._1.name).toSeq.contains(sc) }) {
-          InvalidComputationStrategy
+          UnknownComputationStrategySourceColumn
         }
         else {
           ComputationStrategySuccess(Some(ComputationStrategySpec(typ, recompute, sourceColumns, parameters)))
         }
-      case Some(UserProvidedComputationStrategySpec(None, _, _, _)) => InvalidComputationStrategy
-      case Some(UserProvidedComputationStrategySpec(_, None, _, _)) => InvalidComputationStrategy
+      case Some(UserProvidedComputationStrategySpec(None, _, _, _)) => ComputationStrategyNoStrategyType
+      case Some(UserProvidedComputationStrategySpec(_, None, _, _)) => ComputationStrategyNoRecompute
       case None => ComputationStrategySuccess(None)
     }
 
@@ -113,5 +113,7 @@ object ColumnSpecUtils {
   case object NoName extends CreateResult
   case object NoType extends CreateResult
   case object DeleteSet extends CreateResult
-  case object InvalidComputationStrategy extends CreateResult
+  case object UnknownComputationStrategySourceColumn extends CreateResult
+  case object ComputationStrategyNoStrategyType extends CreateResult
+  case object ComputationStrategyNoRecompute extends CreateResult
 }

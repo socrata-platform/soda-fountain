@@ -46,21 +46,42 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
   private[this] val columnNameCache = new ColumnCache(dataset.columnsByName, ColumnName(_))
   private[this] val columnIdCache = new ColumnCache(dataset.columnsById, ColumnId(_))
 
-  def getInfoForColumnList(userColumnList: Seq[String]): Seq[ColumnRecordLike] = {
-    userColumnList.map { userColumnName =>
-      columnNameCache.get(userColumnName) match {
+  def getInfoForColumnList(columnIds: Seq[String]): Seq[ColumnRecordLike] = {
+    columnIds.map { id =>
+      columnIdCache.get(id) match {
         case ColumnInfo(ci, _, _) => ci
-        case NoColumn(colName)    => throw UnknownColumnEx(colName)
+        case NoColumn(colName)    => throw UnknownColumnEx(ColumnName(id))
       }
     }
   }
 
-  def transformRowsForUpsert(cc: ComputedColumns[_], rows: Iterator[JValue]): Iterator[RowUpdate] = {
+  def transformClientRowsForUpsert(cc: ComputedColumns[_],
+                                   rows: Iterator[JValue]): Iterator[RowUpdate] = {
+    val rowsAsSoql = rows.map(clientJsonToComputable)
+    transformRowsForUpsert(cc, cc.findComputedColumns(dataset), rowsAsSoql)
+  }
+
+  def transformDcRowsForUpsert(cc: ComputedColumns[_],
+                               toCompute: Seq[ColumnRecordLike],
+                               schema: ExportDAO.CSchema,
+                               rows: Iterator[Array[SoQLValue]]): Iterator[RowUpdate] = {
+    val columnIds = schema.schema.map(_.id.underlying)
+    val computableRows = rows.map { fields =>
+      val fieldMap = for (idx <- 0 to columnIds.length - 1) yield {
+        columnIds(idx) -> fields(idx)
+      }
+      UpsertAsSoQL(fieldMap.toMap)
+    }
+
+    transformRowsForUpsert(cc, toCompute, computableRows)
+  }
+
+  private def transformRowsForUpsert(cc: ComputedColumns[_],
+                                     toCompute: Seq[ColumnRecordLike],
+                                     rows: Iterator[Computable]): Iterator[RowUpdate] = {
     import ComputedColumns._
 
-    val rowsAsSoql = rows.map(clientJsonToSoql)
-    val computedColumns = cc.findComputedColumns(dataset)
-    val computedResult = cc.addComputedColumns(rowsAsSoql, computedColumns)
+    val computedResult = cc.addComputedColumns(rows, toCompute)
     computedResult match {
       case ComputeSuccess(computedRows) =>
         val rowUpdates = computedRows.map {
@@ -72,7 +93,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
     }
   }
 
-  def clientJsonToSoql(row: JValue): Computable = row match {
+  private def clientJsonToComputable(row: JValue): Computable = row match {
     case JObject(map) =>
       var rowHasLegacyDeleteFlag = false
       val rowWithSoQLValues = map.flatMap { case (uKey, uVal) =>
@@ -120,7 +141,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
     DeleteAsCJson(idToDelete)
   }
 
-  def soqlToDataCoordinatorJson(row: Map[String, SoQLValue]): Map[String, JValue] = {
+  private def soqlToDataCoordinatorJson(row: Map[String, SoQLValue]): Map[String, JValue] = {
     val rowWithDCJValues = row.map { case (uKey, uVal) =>
       columnIdCache.get(uKey) match {
         case ColumnInfo(cr, rRep, wRep) => cr.id.underlying -> wRep.toJValue(uVal)

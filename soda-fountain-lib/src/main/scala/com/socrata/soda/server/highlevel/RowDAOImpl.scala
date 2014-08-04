@@ -6,7 +6,7 @@ import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.highlevel.RowDAO._
-import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
+import com.socrata.soda.server.id.{ColumnId, ResourceName, RowSpecifier}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
@@ -99,7 +99,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
               schema.locale,
               schema.pk.map(ds.columnsById(_).fieldName),
               schema.rowCount,
-              schema.schema.map { f => ColumnInfo(ColumnName(f.c.underlying), f.c.underlying, f.t) }
+              schema.schema.map { f => ColumnInfo(f.c, ColumnName(f.c.underlying), f.c.underlying, f.t) }
             )
             // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
             QuerySuccess(etags, ds.truthVersion, ds.lastModified, simpleSchema, rows)
@@ -119,12 +119,11 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   def doUpsertish[T](user: String,
                      datasetRecord: MinimalDatasetRecord,
                      data: Iterator[RowUpdate],
-                     instructions: Iterator[DataCoordinatorInstruction],
-                     f: UpsertResult => T): T = {
+                     instructions: Iterator[DataCoordinatorInstruction]): UpsertResult = {
     dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ data) {
       case DataCoordinatorClient.Success(result, _, newVersion, lastModified) =>
         store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified)
-        f(StreamSuccess(result))
+        StreamSuccess(result)
       case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
         // hm, if we get schema out of date here, we're pretty much out of luck, since we'll
         // have used up "upserts".  Unless we want to spool it to disk, but for something
@@ -132,29 +131,29 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         //
         // I guess we'll refresh our own schema and then toss an error to the user?
         store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
-        f(SchemaOutOfSync)
+        SchemaOutOfSync
       case DataCoordinatorClient.UpsertUserError(code, data) =>
-        f(DataCoordinatorUserErrorCode(code, data))
+        DataCoordinatorUserErrorCode(code, data)
     }
   }
 
-  def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T =
-    doUpsertish(user, datasetRecord, data, Iterator.empty, f)
+  def upsert(user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate]): UpsertResult =
+    doUpsertish(user, datasetRecord, data, Iterator.empty)
 
-  def replace[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T =
-    doUpsertish(user, datasetRecord, data, Iterator.single(RowUpdateOptionChange(truncate = true)), f)
+  def replace(user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate]): UpsertResult =
+    doUpsertish(user, datasetRecord, data, Iterator.single(RowUpdateOptionChange(truncate = true)))
 
-  def deleteRow[T](user: String, resourceName: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T = {
+  def deleteRow(user: String, resourceName: ResourceName, rowId: RowSpecifier): UpsertResult = {
     store.translateResourceName(resourceName) match {
       case Some(datasetRecord) =>
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
         StringColumnRep.forType(pkCol.typ).fromString(rowId.underlying) match {
           case Some(soqlValue) =>
             val jvalToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlValue)
-            doUpsertish(user, datasetRecord, Iterator.single(DeleteRow(jvalToDelete)), Iterator.empty, f)
-          case None => f(MaltypedData(pkCol.fieldName, pkCol.typ, JString(rowId.underlying)))
+            doUpsertish(user, datasetRecord, Iterator.single(DeleteRow(jvalToDelete)), Iterator.empty)
+          case None => MaltypedData(pkCol.fieldName, pkCol.typ, JString(rowId.underlying))
         }
-      case None => f(DatasetNotFound(resourceName))
+      case None => DatasetNotFound(resourceName)
     }
   }
 }
