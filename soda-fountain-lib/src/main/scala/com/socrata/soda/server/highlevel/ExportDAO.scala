@@ -9,7 +9,7 @@ import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
 
 trait ExportDAO {
-  def export[T](dataset: ResourceName,
+  def export(dataset: ResourceName,
                 schemaCheck: Seq[ColumnRecordLike] => Boolean,
                 onlyColumns: Seq[ColumnRecordLike],
                 precondition: Precondition,
@@ -17,7 +17,7 @@ trait ExportDAO {
                 limit: Option[Long],
                 offset: Option[Long],
                 copy: String,
-                sorted: Boolean)(f: Result => T): T
+                sorted: Boolean): Result
 }
 
 object ExportDAO {
