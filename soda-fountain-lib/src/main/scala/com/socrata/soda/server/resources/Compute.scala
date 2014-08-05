@@ -5,7 +5,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util.NoPrecondition
 import com.socrata.soda.server.SodaUtils
-import com.socrata.soda.server.computation.ComputedColumns
+import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.{errors => SodaError}
 import com.socrata.soda.server.export.JsonExporter
 import com.socrata.soda.server.highlevel.{RowDAO, RowDataTranslator, ExportDAO}
@@ -15,10 +15,10 @@ import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletRequest
 
-case class Compute[T](store: NameAndSchemaStore,
+case class Compute(store: NameAndSchemaStore,
                       exportDAO: ExportDAO,
                       rowDAO: RowDAO,
-                      computedColumns: ComputedColumns[T],
+                      computedColumns: ComputedColumnsLike,
                       etagObfuscator: ETagObfuscator) {
 
   sealed trait ComputeResult

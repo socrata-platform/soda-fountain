@@ -22,7 +22,6 @@ import org.joda.time.DateTime
 import org.scalatest.FunSuite
 import org.scalamock.scalatest.MockFactory
 import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResponse}
-import com.socrata.soda.server.computation.ComputedColumns
 
 /**
  * Metric scenarios which are common between multi-row queries and single-row operations

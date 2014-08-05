@@ -136,7 +136,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
   }
 
   private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetId) = {
-    val dataset = mockDataset("PostgresStoreTest", columns)
+    val dataset = generateDataset("PostgresStoreTest", columns)
     store.addResource(dataset)
 
     (dataset.resourceName, dataset.systemId)

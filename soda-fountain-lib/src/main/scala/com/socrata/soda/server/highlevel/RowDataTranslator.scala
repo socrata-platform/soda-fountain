@@ -2,7 +2,7 @@ package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.ast._
 import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
-import com.socrata.soda.server.computation.ComputedColumns
+import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecordLike}
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
@@ -55,13 +55,13 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
     }
   }
 
-  def transformClientRowsForUpsert(cc: ComputedColumns[_],
+  def transformClientRowsForUpsert(cc: ComputedColumnsLike,
                                    rows: Iterator[JValue]): Iterator[RowUpdate] = {
     val rowsAsSoql = rows.map(clientJsonToComputable)
     transformRowsForUpsert(cc, cc.findComputedColumns(dataset), rowsAsSoql)
   }
 
-  def transformDcRowsForUpsert(cc: ComputedColumns[_],
+  def transformDcRowsForUpsert(cc: ComputedColumnsLike,
                                toCompute: Seq[ColumnRecordLike],
                                schema: ExportDAO.CSchema,
                                rows: Iterator[Array[SoQLValue]]): Iterator[RowUpdate] = {
@@ -76,10 +76,10 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
     transformRowsForUpsert(cc, toCompute, computableRows)
   }
 
-  private def transformRowsForUpsert(cc: ComputedColumns[_],
+  private def transformRowsForUpsert(cc: ComputedColumnsLike,
                                      toCompute: Seq[ColumnRecordLike],
                                      rows: Iterator[Computable]): Iterator[RowUpdate] = {
-    import ComputedColumns._
+    import ComputedColumnsLike._
 
     val computedResult = cc.addComputedColumns(rows, toCompute)
     computedResult match {

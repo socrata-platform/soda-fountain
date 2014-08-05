@@ -12,7 +12,7 @@ import com.socrata.http.server.util.{Precondition, EntityTag}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
 import com.socrata.soda.server.SodaUtils
-import com.socrata.soda.server.computation.ComputedColumns
+import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.{errors => SodaErrors}
 import com.socrata.soda.server.errors.{SchemaInvalidForMimeType, SodaError}
 import com.socrata.soda.server.export.Exporter
@@ -37,7 +37,7 @@ case class Resource(rowDAO: RowDAO,
                     store: NameAndSchemaStore,
                     etagObfuscator: ETagObfuscator,
                     maxRowSize: Long,
-                    cc: ComputedColumns[_],
+                    cc: ComputedColumnsLike,
                     metricProvider: MetricProvider) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
 
