@@ -5,12 +5,11 @@ import com.socrata.soda.server.highlevel.{RowDAO, ExportDAO}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.util.NoopEtagObfuscator
 import com.socrata.soql.environment.ColumnName
-import com.socrata.thirdparty.curator.CuratorServiceIntegration
 import org.scalamock.scalatest.proxy.MockFactory
 import org.scalatest.{Matchers, FunSuite}
 import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResponse}
 
-class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsForTesting with CuratorServiceIntegration {
+class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsForTesting {
   val dsInfo = TestDatasetWithComputedColumn
   val ds = TestDatasetWithComputedColumn.dataset
 
