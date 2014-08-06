@@ -85,7 +85,7 @@ trait DatasetsForTesting {
       Some(3), Some(2), Some(DateTime.now), "en_US", Some(ColumnName(":id")), Some(3), dcColumns)
 
     val dcRows = Iterator(Array[SoQLValue](SoQLID(1), SoQLText("giraffe")),
-      Array[SoQLValue](SoQLID(2), SoQLText("marmot")),
-      Array[SoQLValue](SoQLID(3), SoQLText("axolotl")))
+                          Array[SoQLValue](SoQLID(2), SoQLText("marmot")),
+                          Array[SoQLValue](SoQLID(3), SoQLText("axolotl")))
   }
 }
