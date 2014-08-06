@@ -10,6 +10,7 @@ import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletRequest
 
 class SodaRouter(versionResource: HttpService,
+                 healthZResource: HttpService,
                  datasetCreateResource: HttpService,
                  datasetResource: ResourceName => HttpService,
                  datasetColumnResource: (ResourceName, ColumnName) => HttpService,
@@ -48,6 +49,7 @@ class SodaRouter(versionResource: HttpService,
   // NOTE: until there's something like Swagger, document routes with comments
   val router = Routes(
     Route("/version", versionResource),
+    Route("/healthz", healthZResource),
     // Dataset schema and metadata CRUD operations
     Route("/dataset", datasetCreateResource),
     Route("/dataset/{ResourceName}", datasetResource),

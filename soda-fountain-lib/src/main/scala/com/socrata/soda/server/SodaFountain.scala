@@ -141,6 +141,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     val export = Export(exportDAO, etagObfuscator)
 
     new SodaRouter(
+      versionResource = Version.service,
+      healthZResource = HealthZ.service,
       datasetColumnResource = column.service,
       datasetColumnPKResource = column.pkservice,
       datasetCreateResource = dataset.createService,
@@ -151,7 +153,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       datasetCopyResource = dataset.copyService,
       datasetSecondaryCopyResource = dataset.secondaryCopyService,
       datasetVersionResource = dataset.versionService,
-      versionResource = Version.service,
       datasetExportResource = export.publishedService,
       datasetExportCopyResource = export.service,
       exportExtensions = export.extensions,

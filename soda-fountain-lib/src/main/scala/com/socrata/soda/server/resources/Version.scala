@@ -1,14 +1,13 @@
 package com.socrata.soda.server.resources
 
-import javax.servlet.http.HttpServletRequest
-import com.socrata.http.server.responses._
-import com.socrata.http.server.implicits._
-import com.socrata.soda.server.SodaUtils
+import com.rojoma.json.io.JsonReader
 import com.rojoma.simplearm.util._
+import com.socrata.http.server.implicits._
+import com.socrata.http.server.responses._
+import com.socrata.soda.server.SodaUtils
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
-import com.rojoma.json.util.JsonUtil
-import com.rojoma.json.io.JsonReader
+import javax.servlet.http.HttpServletRequest
 
 final abstract class Version
 
