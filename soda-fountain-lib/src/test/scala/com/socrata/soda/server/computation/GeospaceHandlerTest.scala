@@ -38,7 +38,7 @@ trait GeospaceHandlerData {
   val computeStrategy = ComputationStrategyRecord(ComputationStrategyType.GeoRegion, false,
                                                   Some(Seq("geom-1234")),
                                                   Some(JObject(Map("region" -> JString("wards")))))
-  val columnSpec = MinimalColumnRecord(ColumnId("foo1-bar1"), ColumnName("ward_id"), SoQLText, false,
+  val columnSpec = MinimalColumnRecord(ColumnId("ward-1234"), ColumnName("ward_id"), SoQLText, false,
                                        Some(computeStrategy))
 }
 
@@ -98,7 +98,7 @@ with CuratorServiceIntegration {
     mockGeocodeRoute(".+120.+", """["","Wards.5"]""")
     val expectedIds = Iterator("Wards.1", "Wards.2", "", "Wards.5")
     val expectedRows = testRows.map {
-      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("foo1-bar1" -> SoQLText(expectedIds.next)))
+      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("ward-1234" -> SoQLText(expectedIds.next)))
       case d: DeleteAsCJson  => d
     }
     val newRows = handler.compute(testRows.toIterator, columnSpec)
@@ -109,7 +109,7 @@ with CuratorServiceIntegration {
     val testRow = UpsertAsSoQL(
       Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013")))
     val expectedRow = UpsertAsSoQL(
-      Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013"), "foo1-bar1" -> SoQLText("Wards.1")))
+      Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013"), "ward-1234" -> SoQLText("Wards.1")))
 
     // Set up the mock server to fail on the first attempt,
     // succeed on the second attempt, then fail on the third attempt.
@@ -133,7 +133,7 @@ with CuratorServiceIntegration {
     val expectedIds = Iterator("", "", "", "Wards.3", "Wards.4", "", "Wards.6")
 
     val expectedRows = rows.map {
-      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("foo1-bar1" -> SoQLText(expectedIds.next)))
+      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("ward-1234" -> SoQLText(expectedIds.next)))
       case d: DeleteAsCJson  => d
     }
 
@@ -146,7 +146,7 @@ with CuratorServiceIntegration {
       UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"))),
       UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015"))))
     val expectedRows = rows.map { upsert =>
-      UpsertAsSoQL(upsert.rowData + ("foo1-bar1" -> SoQLText("")))
+      UpsertAsSoQL(upsert.rowData + ("ward-1234" -> SoQLText("")))
     }
 
     val newRows = handler.compute(rows.toIterator, columnSpec)
