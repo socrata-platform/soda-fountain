@@ -6,6 +6,12 @@
 * soda-fountain-jetty - a Main for running within embedded Jetty
 * soda-fountain-war - stuff for running in an application container
 
+## Dependencies
+* Zookeeper
+* PostgreSQL (stores metadata about datasets)
+* Query Coordinator (registered through Zookeeper)
+* Data Coordinator (registered through Zookeeper)
+
 ## Running
 
 For fast dev cycles:
