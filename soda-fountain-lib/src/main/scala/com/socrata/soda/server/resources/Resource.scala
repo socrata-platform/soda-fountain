@@ -12,9 +12,9 @@ import com.socrata.http.server.util.{Precondition, EntityTag}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
 import com.socrata.soda.server.SodaUtils
-import com.socrata.soda.server.computation.ComputedColumns
+import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.{errors => SodaErrors}
-import com.socrata.soda.server.errors.SodaError
+import com.socrata.soda.server.errors.{SchemaInvalidForMimeType, SodaError}
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{RowDataTranslator, RowDAO}
 import com.socrata.soda.server.highlevel.RowDAO._
@@ -37,7 +37,7 @@ case class Resource(rowDAO: RowDAO,
                     store: NameAndSchemaStore,
                     etagObfuscator: ETagObfuscator,
                     maxRowSize: Long,
-                    cc: ComputedColumns[_],
+                    cc: ComputedColumnsLike,
                     metricProvider: MetricProvider) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
 
@@ -79,74 +79,23 @@ case class Resource(rowDAO: RowDAO,
     }
   }
 
-  type rowDaoFunc = (MinimalDatasetRecord, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
+  type rowDaoFunc = (MinimalDatasetRecord, Iterator[RowUpdate]) => RowDAO.UpsertResult
 
   def upsertishFlow(req: HttpServletRequest,
-                            response: HttpServletResponse,
-                            resourceName: ResourceName,
-                            rows: Iterator[JValue],
-                            f: rowDaoFunc) = {
-    store.translateResourceName(resourceName) match {
-      case Some(datasetRecord) =>
-        try {
+                    response: HttpServletResponse,
+                    resourceName: ResourceName,
+                    rows: Iterator[JValue],
+                    f: rowDaoFunc) = {
+      store.translateResourceName(resourceName) match {
+        case Some(datasetRecord) =>
           val transformer = new RowDataTranslator(datasetRecord, false)
-          val transformedRows = transformer.transformRowsForUpsert(cc, rows)
-          f(datasetRecord, transformedRows)(upsertResponse(req, response))
-        }
-        catch {
-          case MaltypedDataEx(columnName, expected, got) =>
-            upsertResponse(req, response)(RowDAO.MaltypedData(columnName, expected, got))
-          case UnknownColumnEx(columnName)               =>
-            upsertResponse(req, response)(RowDAO.UnknownColumn(columnName))
-          case DeleteNoPKEx                              =>
-            upsertResponse(req, response)(RowDAO.DeleteWithoutPrimaryKey)
-          case NotAnObjectOrSingleElementArrayEx(obj)    =>
-            upsertResponse(req, response)(RowDAO.RowNotAnObject(obj))
-          case ComputedColumnNotWritableEx(columnName)   =>
-            upsertResponse(req, response)(RowDAO.ComputedColumnNotWritable(columnName))
-          case ComputationHandlerNotFoundEx(typ)         =>
-            upsertResponse(req, response)(RowDAO.ComputationHandlerNotFound(typ))
-        }
-      case None =>
-        SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
-    }
-  }
-
-  def upsertResponse(request: HttpServletRequest, response: HttpServletResponse)(result: RowDAO.UpsertResult) {
-    log.info("TODO: Negotiate content-type")
-    result match {
-      case RowDAO.StreamSuccess(report) =>
-        response.setStatus(HttpServletResponse.SC_OK)
-        response.setContentType(SodaUtils.jsonContentTypeUtf8) // TODO: negotiate charset too
-        using(response.getWriter) { w =>
-          // TODO: send actual response
-          val jw = new CompactJsonWriter(w)
-          w.write('[')
-          var wroteOne = false
-          while(report.hasNext) {
-            report.next() match {
-              case UpsertReportItem(items) =>
-                while(items.hasNext) {
-                  if(wroteOne) w.write(',')
-                  else wroteOne = true
-                  jw.write(items.next())
-                }
-              case OtherReportItem => // nothing; probably shouldn't have occurred!
-            }
+          val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
+          UpsertUtils.handleUpsertErrors(req, response, resourceName) {
+            f(datasetRecord, transformedRows)
           }
-          w.write("]\n")
-        }
-      case mismatch : MaltypedData =>
-        SodaUtils.errorResponse(request, new SodaErrors.ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
-      case RowDAO.RowNotFound(rowSpecifier) =>
-        SodaUtils.errorResponse(request, SodaErrors.RowNotFound(rowSpecifier))(response)
-      case RowDAO.UnknownColumn(columnName) =>
-        SodaUtils.errorResponse(request, SodaErrors.RowColumnNotFound(columnName))(response)
-      case RowDAO.ComputationHandlerNotFound(typ) =>
-        SodaUtils.errorResponse(request, SodaErrors.ComputationHandlerNotFound(typ))(response)
-      case RowDAO.ComputedColumnNotWritable(columnName) =>
-        SodaUtils.errorResponse(request, SodaErrors.ComputedColumnNotWritable(columnName))(response)
-    }
+        case None =>
+          SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+      }
   }
 
   implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
@@ -312,7 +261,7 @@ case class Resource(rowDAO: RowDAO,
                       SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
                     case RowDAO.SchemaInvalidForMimeType =>
                       metric(QueryErrorUser)
-                      NotAcceptable(response)
+                      SodaUtils.errorResponse(req, SchemaInvalidForMimeType)
                   }
               case None =>
                 metric(QueryErrorUser)
@@ -340,7 +289,7 @@ case class Resource(rowDAO: RowDAO,
     }
 
     override def delete = { req => response =>
-      rowDAO.deleteRow(user(req), resourceName, rowId)(upsertResponse(req, response))
+      UpsertUtils.upsertResponse(req, response)(rowDAO.deleteRow(user(req), resourceName, rowId))
     }
   }
 }

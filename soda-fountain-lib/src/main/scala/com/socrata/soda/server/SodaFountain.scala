@@ -139,6 +139,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
     val column = DatasetColumn(columnDAO, etagObfuscator, config.maxDatumSize)
     val export = Export(exportDAO, etagObfuscator)
+    val compute = Compute(store, exportDAO, rowDAO, computedColumns, etagObfuscator)
 
     new SodaRouter(
       datasetColumnResource = column.service,
@@ -155,7 +156,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       datasetExportResource = export.publishedService,
       datasetExportCopyResource = export.service,
       exportExtensions = export.extensions,
-      datasetRollupResource = dataset.rollupService
+      datasetRollupResource = dataset.rollupService,
+      computeResource = compute.service
     )
   }
 

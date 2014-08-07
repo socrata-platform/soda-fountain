@@ -86,7 +86,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
   test("Postgres validate column storage and retrieval") {
     val columns = Seq[ColumnRecord](
       new ColumnRecord(
-        ColumnId("abc123"),
+        ColumnId("abcd-1234"),
         ColumnName("location"),
         SoQLPoint,
         "Location",
@@ -94,7 +94,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         false,
         None),
       new ColumnRecord(
-        ColumnId("def456"),
+        ColumnId("defg-4567"),
         ColumnName("ward"),
         SoQLNumber,
         "Ward",
@@ -103,24 +103,40 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         Some(ComputationStrategyRecord(
           ComputationStrategyType.GeoRegion,
           true,
-          Some(Seq("abc123")),
+          Some(Seq("location")),
           Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))
         ))
       )
     )
 
-    val (resourceName, datasetId) = createMockDataset(columns)
+    val (resourceName, _) = createMockDataset(columns)
     val lookupResult = store.lookupDataset(resourceName)
-    lookupResult should not be (None)
+    lookupResult should not be None
     lookupResult.get.columns.size should be (2)
 
-    for (i <- 0 to lookupResult.get.columns.size - 1) {
-      lookupResult.get.columns(i) should equal (columns(i))
+    lookupResult.get.columns(0) should equal (columns(0))
+    lookupResult.get.columns(1) match {
+      case ColumnRecord(id,
+                        fieldName,
+                        typ,
+                        displayName,
+                        description,
+                        isInconsistencyResolutionGenerated,
+                        Some(ComputationStrategyRecord(strategy, recompute, Some(sourceColumns), Some(params)))) =>
+        id should equal (columns(1).id)
+        fieldName should equal (columns(1).fieldName)
+        displayName should equal (columns(1).name)
+        description should equal (columns(1).description)
+        isInconsistencyResolutionGenerated should equal (columns(1).isInconsistencyResolutionGenerated)
+        strategy should equal (columns(1).computationStrategy.get.strategyType)
+        recompute should equal (columns(1).computationStrategy.get.recompute)
+        sourceColumns should equal (Seq(columns(0).id.underlying))
+        params should equal (columns(1).computationStrategy.get.parameters.get)
     }
   }
 
   private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetId) = {
-    val dataset = mockDataset("PostgresStoreTest", columns)
+    val dataset = generateDataset("PostgresStoreTest", columns)
     store.addResource(dataset)
 
     (dataset.resourceName, dataset.systemId)

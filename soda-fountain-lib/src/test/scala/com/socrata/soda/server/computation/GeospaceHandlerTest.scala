@@ -27,18 +27,18 @@ trait GeospaceHandlerData {
 
   val testRows = Seq[RowDataTranslator.Computable](
                    DeleteAsCJson(JString("abcd-1234")),
-                   UpsertAsSoQL(Map("geom" -> toSoQLPoint(point1), "date" -> SoQLText("12/31/2013"))),
-                   UpsertAsSoQL(Map("geom" -> toSoQLPoint(point2), "date" -> SoQLText("11/30/2013"))),
+                   UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013"))),
+                   UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point2), "date-1234" -> SoQLText("11/30/2013"))),
                    DeleteAsCJson(JString("efgh-5678")),
-                   UpsertAsSoQL(Map("geom" -> toSoQLPoint(point3), "date" -> SoQLText("12/4/2013"))),
-                   UpsertAsSoQL(Map("geom" -> toSoQLPoint(point4), "date" -> SoQLText("1/14/2014"))),
+                   UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point3), "date-1234" -> SoQLText("12/4/2013"))),
+                   UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point4), "date-1234" -> SoQLText("1/14/2014"))),
                    DeleteAsCJson(JString("ijkl-9012"))
                  )
 
   val computeStrategy = ComputationStrategyRecord(ComputationStrategyType.GeoRegion, false,
-                                                  Some(Seq("geom")),
+                                                  Some(Seq("geom-1234")),
                                                   Some(JObject(Map("region" -> JString("wards")))))
-  val columnSpec = MinimalColumnRecord(ColumnId("foo"), ColumnName("ward_id"), SoQLText, false,
+  val columnSpec = MinimalColumnRecord(ColumnId("ward-1234"), ColumnName("ward_id"), SoQLText, false,
                                        Some(computeStrategy))
 }
 
@@ -98,7 +98,7 @@ with CuratorServiceIntegration {
     mockGeocodeRoute(".+120.+", """["","Wards.5"]""")
     val expectedIds = Iterator("Wards.1", "Wards.2", "", "Wards.5")
     val expectedRows = testRows.map {
-      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("ward_id" -> SoQLText(expectedIds.next)))
+      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("ward-1234" -> SoQLText(expectedIds.next)))
       case d: DeleteAsCJson  => d
     }
     val newRows = handler.compute(testRows.toIterator, columnSpec)
@@ -107,9 +107,9 @@ with CuratorServiceIntegration {
 
   test("Retry works") {
     val testRow = UpsertAsSoQL(
-      Map("geom" -> toSoQLPoint(point1), "date" -> SoQLText("12/31/2013")))
+      Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013")))
     val expectedRow = UpsertAsSoQL(
-      Map("geom" -> toSoQLPoint(point1), "date" -> SoQLText("12/31/2013"), "ward_id" -> SoQLText("Wards.1")))
+      Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013"), "ward-1234" -> SoQLText("Wards.1")))
 
     // Set up the mock server to fail on the first attempt,
     // succeed on the second attempt, then fail on the third attempt.
@@ -123,9 +123,9 @@ with CuratorServiceIntegration {
   }
 
   test("Will return empty featureIds if source column missing for some rows") {
-    val rows = Seq(UpsertAsSoQL(Map("date" -> SoQLText("12/31/2013"))),
-                   UpsertAsSoQL(Map("date" -> SoQLText("12/31/2014"))),
-                   UpsertAsSoQL(Map("date" -> SoQLText("12/31/2015")))) ++ testRows
+    val rows = Seq(UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2013"))),
+                   UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"))),
+                   UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015")))) ++ testRows
 
     mockGeocodeRoute(".+122.+", """["Wards.3","Wards.4"]""")
     mockGeocodeRoute(".+120.+", """[""]""")
@@ -133,7 +133,7 @@ with CuratorServiceIntegration {
     val expectedIds = Iterator("", "", "", "Wards.3", "Wards.4", "", "Wards.6")
 
     val expectedRows = rows.map {
-      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("ward_id" -> SoQLText(expectedIds.next)))
+      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("ward-1234" -> SoQLText(expectedIds.next)))
       case d: DeleteAsCJson  => d
     }
 
@@ -143,10 +143,10 @@ with CuratorServiceIntegration {
 
   test("Will return empty featureIds if source column missing for all rows") {
     val rows = Seq(UpsertAsSoQL(Map("date" -> SoQLText("12/31/2013"))),
-      UpsertAsSoQL(Map("date" -> SoQLText("12/31/2014"))),
-      UpsertAsSoQL(Map("date" -> SoQLText("12/31/2015"))))
+      UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"))),
+      UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015"))))
     val expectedRows = rows.map { upsert =>
-      UpsertAsSoQL(upsert.rowData + ("ward_id" -> SoQLText("")))
+      UpsertAsSoQL(upsert.rowData + ("ward-1234" -> SoQLText("")))
     }
 
     val newRows = handler.compute(rows.toIterator, columnSpec)
@@ -156,7 +156,7 @@ with CuratorServiceIntegration {
   test("handler.compute() returns lazy iterator") {
     // The way we verify this is a variant of above test.  Unless we call next(), errors in the input
     // will not result in an exception because processing hasn't started yet
-    val rows = Seq(Map("date" -> SoQLText("12/31/2013")))    // geom column missing
+    val rows = Seq(Map("date-1234" -> SoQLText("12/31/2013")))    // geom column missing
     handler.compute(rows.map(UpsertAsSoQL(_)).toIterator, columnSpec)
   }
 
@@ -165,7 +165,7 @@ with CuratorServiceIntegration {
 
     // If not MultiLine
     intercept[MaltypedDataEx] {
-      val rows = Seq(Map("geom" -> converter(multiLine).get))
+      val rows = Seq(Map("geom-1234" -> converter(multiLine).get))
       handler.compute(rows.map(UpsertAsSoQL(_)).toIterator, columnSpec).next
     }
 

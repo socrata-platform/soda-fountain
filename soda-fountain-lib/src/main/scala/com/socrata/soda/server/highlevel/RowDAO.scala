@@ -28,11 +28,11 @@ trait RowDAO {
              rowId: RowSpecifier,
              secondaryInstance:Option[String]): Result
 
-  def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T
+  def upsert(user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate]): UpsertResult
 
-  def replace[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T
+  def replace(user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate]): UpsertResult
 
-  def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T
+  def deleteRow(user: String, dataset: ResourceName, rowId: RowSpecifier): UpsertResult
 }
 
 object RowDAO {

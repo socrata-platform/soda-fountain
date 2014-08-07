@@ -60,9 +60,9 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
    * sourceColumns must be a list of one column, and it must be a Geo Point type.
    * parameters: {"region":  <<name of geo region dataset 4x4>>}
    */
-  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: MinimalColumnRecord): Iterator[RowDataTranslator.Computable] = {
+  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: ColumnRecordLike): Iterator[RowDataTranslator.Computable] = {
     // Only a single point column is allowed as a source for now
-    val (geoColumnName, region) = parsePointColumnSourceStrategy(column)
+    val (geoColumnId, region) = parsePointColumnSourceStrategy(column)
 
     val batches = sourceIt.grouped(batchSize)
     val computedBatches = batches.map { batch =>
@@ -70,7 +70,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
 
       // Grab just the upserts and get the point column for mapping to feature ID
       val pointsWithIndex = rowsWithIndex.collect {
-        case (upsert: UpsertAsSoQL, i) => (extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnName)), i)
+        case (upsert: UpsertAsSoQL, i) => (extractPointFromRow(upsert.rowData.toMap, ColumnName(geoColumnId)), i)
       }.collect {
         case (Some(point), i)          => (point, i)
       }
@@ -82,7 +82,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
       rowsWithIndex.map {
         case (upsert: UpsertAsSoQL, i) =>
           val featureId = featureIdsWithIndex.getOrElse(i, "")
-          UpsertAsSoQL(upsert.rowData + (column.fieldName.name -> SoQLText(featureId)))
+          UpsertAsSoQL(upsert.rowData + (column.id.underlying -> SoQLText(featureId)))
         case (delete: DeleteAsCJson, i) => delete
         case _                     =>
           val message = "Unsupported row update type passed into GeospaceHandler"
@@ -98,7 +98,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
     service.close()
   }
 
-  private def parsePointColumnSourceStrategy(column: MinimalColumnRecord): (String, String) = {
+  private def parsePointColumnSourceStrategy(column: ColumnRecordLike): (String, String) = {
     require(column.computationStrategy.isDefined, "Not a target computed column")
     column.computationStrategy match {
       case Some(ComputationStrategyRecord(_, _, Some(Seq(sourceCol)), Some(JObject(map)))) =>

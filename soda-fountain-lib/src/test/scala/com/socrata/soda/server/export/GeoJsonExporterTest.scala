@@ -191,7 +191,7 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
       case _ => fail("Something got messed up here")
     }
 
-    val dataset = mockDataset("GeoJsonExporterTest", columns)
+    val dataset = generateDataset("GeoJsonExporterTest", columns)
 
     ExportDAO.CSchema(decoded.approximateRowCount,
       decoded.dataVersion,
@@ -200,7 +200,7 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
       decoded.pk.map(dataset.columnsById(_).fieldName),
       decoded.rowCount,
       decoded.schema.map {
-        f => ColumnInfo(dataset.columnsById(f.c).fieldName, dataset.columnsById(f.c).name, f.t)
+        f => ColumnInfo(dataset.columnsById(f.c).id, dataset.columnsById(f.c).fieldName, dataset.columnsById(f.c).name, f.t)
       })
   }
 
