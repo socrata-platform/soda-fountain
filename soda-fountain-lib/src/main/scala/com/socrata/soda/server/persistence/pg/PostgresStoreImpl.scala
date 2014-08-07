@@ -348,7 +348,15 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           |    recompute,
           |    source_columns,
           |    parameters)
-          | VALUES (?, ?, ?, ?, string_to_array(?,','), ?)""".stripMargin
+          | VALUES (?,
+          |         ?,
+          |         ?,
+          |         ?,
+          |         ARRAY(SELECT column_id
+          |               FROM columns
+          |               WHERE column_name = ANY (string_to_array(?, ','))
+          |                 AND dataset_system_id = ?),
+          |         ?)""".stripMargin
 
       using (connection.prepareStatement(addCompStrategySql)) { csAdder =>
         for (crec <- columns.filter(col => col.computationStrategy.isDefined)) {
@@ -361,9 +369,10 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             case Some(seq) => csAdder.setString(5, seq.mkString(","))
             case None      => csAdder.setNull(5, Types.ARRAY)
           }
+          csAdder.setString(6, datasetId.underlying)
           cs.parameters match {
-            case Some(jObj) => csAdder.setString(6, jObj.toString)
-            case None       => csAdder.setNull(6, Types.VARCHAR)
+            case Some(jObj) => csAdder.setString(7, jObj.toString)
+            case None       => csAdder.setNull(7, Types.VARCHAR)
           }
           csAdder.addBatch
         }

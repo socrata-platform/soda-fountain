@@ -24,7 +24,8 @@ class SodaRouter(versionResource: HttpService,
                  datasetExportResource: OptionallyTypedPathComponent[ResourceName] => HttpService,
                  datasetExportCopyResource: (ResourceName, OptionallyTypedPathComponent[String]) => HttpService,
                  exportExtensions: String => Boolean,
-                 datasetRollupResource: (ResourceName, RollupName) => HttpService)
+                 datasetRollupResource: (ResourceName, RollupName) => HttpService,
+                 computeResource: (ResourceName, ColumnName) => HttpService)
 {
   private[this] implicit val ResourceNameExtractor = new Extractor[ResourceName] {
     def extract(s: String): Option[ResourceName] = Some(new ResourceName(s))
@@ -65,7 +66,8 @@ class SodaRouter(versionResource: HttpService,
     Route("/dataset-version/{ResourceName}/{SecondaryId}", datasetVersionResource),
     Route("/export/{{ResourceName:exportExtensions}}", datasetExportResource),
     Route("/export/{ResourceName}/{{String:exportExtensions}}", datasetExportCopyResource),
-    Route("/dataset-rollup/{ResourceName}/{RollupName}", datasetRollupResource)
+    Route("/dataset-rollup/{ResourceName}/{RollupName}", datasetRollupResource),
+    Route("/compute/{ResourceName}/{ColumnName}", computeResource)
   )
 
   def route(req: HttpServletRequest): HttpResponse =

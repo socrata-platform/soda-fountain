@@ -7,7 +7,7 @@ import com.socrata.http.server.util.Precondition
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
-import com.socrata.soda.server.persistence.{ColumnRecord, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{ColumnRecordLike, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnReadRep}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soql.types.{SoQLValue, SoQLType}
@@ -15,6 +15,7 @@ import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import scala.runtime.AbstractFunction1
 import scala.util.control.ControlThrowable
+import com.socrata.soda.server.util.schema.SchemaHash
 
 object CJson {
   case class Field(c: ColumnId, t: SoQLType)
@@ -89,19 +90,25 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
   }
   def retry() = throw new Retry
 
-  def export[T](dataset: ResourceName,
-                schemaCheck: Seq[ColumnRecord] => Boolean,
+  def export(dataset: ResourceName,
+                schemaCheck: Seq[ColumnRecordLike] => Boolean,
+                onlyColumns: Seq[ColumnRecordLike],
                 precondition: Precondition,
                 ifModifiedSince: Option[DateTime],
                 limit: Option[Long],
                 offset: Option[Long],
                 copy: String,
-                sorted: Boolean)(f: ExportDAO.Result => T): T =
+                sorted: Boolean): ExportDAO.Result =
     retryable(limit = 5) {
       store.lookupDataset(dataset) match {
         case Some(ds) =>
           if (schemaCheck(ds.columns)) {
-            dc.export(ds.systemId, ds.schemaHash, precondition, ifModifiedSince, limit, offset, copy, sorted = sorted) {
+            val schemaHash = onlyColumns match {
+              case Seq() => ds.schemaHash
+              case _     => SchemaHash.computeHash(ds.locale, ds.primaryKey, onlyColumns.map { col => (col.id, col.typ) })
+            }
+            val dcColumnIds = onlyColumns.map(_.id.underlying)
+            dc.export(ds.systemId, schemaHash, dcColumnIds, precondition, ifModifiedSince, limit, offset, copy, sorted = sorted) {
               case DataCoordinatorClient.Export(jvalues, etag) =>
                 CJson.decode(jvalues) match {
                   case CJson.Decoded(schema, rows) =>
@@ -113,25 +120,25 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                       schema.pk.map(ds.columnsById(_).fieldName),
                       schema.rowCount,
                       schema.schema.map {
-                        f => ColumnInfo(ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t)
+                        f => ColumnInfo(ds.columnsById(f.c).id, ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t)
                       }
                     )
-                    f(ExportDAO.Success(simpleSchema, etag, rows))
+                    ExportDAO.Success(simpleSchema, etag, rows)
                 }
               case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                 store.resolveSchemaInconsistency(ds.systemId, newSchema)
                 retry()
               case DataCoordinatorClient.NotModified(etags) =>
-                f(ExportDAO.NotModified(etags))
+                ExportDAO.NotModified(etags)
               case DataCoordinatorClient.PreconditionFailed =>
-                f(ExportDAO.PreconditionFailed)
+                ExportDAO.PreconditionFailed
             }
           }
           else {
-            f(ExportDAO.SchemaInvalidForMimeType)
+            ExportDAO.SchemaInvalidForMimeType
           }
         case None =>
-          f(ExportDAO.NotFound)
+          ExportDAO.NotFound
       }
     }
 }

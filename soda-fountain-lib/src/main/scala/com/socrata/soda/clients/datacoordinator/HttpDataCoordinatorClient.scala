@@ -5,7 +5,7 @@ import com.socrata.soda.server.id.{DatasetId, SecondaryId}
 import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.implicits._
 import com.rojoma.json.ast.JValue
-import com.socrata.soda.server.util.schema.SchemaSpec
+import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
 import javax.servlet.http.HttpServletResponse
 import com.socrata.http.server.util._
 import com.socrata.soda.clients.datacoordinator
@@ -266,15 +266,16 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
-  def export[T](datasetId: DatasetId, schemaHash: String, precondition: Precondition, ifModifiedSince: Option[DateTime], limit: Option[Long], offset: Option[Long], copy: String, sorted: Boolean)(f: Result => T): T = {
+  def export[T](datasetId: DatasetId, schemaHash: String, columns: Seq[String], precondition: Precondition, ifModifiedSince: Option[DateTime], limit: Option[Long], offset: Option[Long], copy: String, sorted: Boolean)(f: Result => T): T = {
     withHost(datasetId) { host =>
       val limParam = limit.map { limLong => "limit" -> limLong.toString }
       val offParam = offset.map { offLong => "offset" -> offLong.toString }
+      val columnsParam = if (columns.isEmpty) None else Some("c" -> columns.mkString(","))
       val sortedParam = "sorted" -> sorted.toString
       val request = exportUrl(host, datasetId)
                     .q("schemaHash" -> schemaHash)
                     .addParameter("copy"->copy)
-                    .addParameters(limParam ++ offParam)
+                    .addParameters(limParam ++ offParam ++ columnsParam)
                     .addParameter(sortedParam)
                     .addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate))
                     .get
