@@ -79,7 +79,7 @@ case class Resource(rowDAO: RowDAO,
     }
   }
 
-  type rowDaoFunc = (MinimalDatasetRecord, Iterator[RowUpdate]) => RowDAO.UpsertResult
+  type rowDaoFunc = (MinimalDatasetRecord, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
 
   def upsertishFlow(req: HttpServletRequest,
                     response: HttpServletResponse,
@@ -90,9 +90,7 @@ case class Resource(rowDAO: RowDAO,
         case Some(datasetRecord) =>
           val transformer = new RowDataTranslator(datasetRecord, false)
           val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
-          UpsertUtils.handleUpsertErrors(req, response, resourceName) {
-            f(datasetRecord, transformedRows)
-          }
+          f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response, resourceName))
         case None =>
           SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
       }
@@ -289,7 +287,7 @@ case class Resource(rowDAO: RowDAO,
     }
 
     override def delete = { req => response =>
-      UpsertUtils.upsertResponse(req, response)(rowDAO.deleteRow(user(req), resourceName, rowId))
+      rowDAO.deleteRow(user(req), resourceName, rowId)(UpsertUtils.upsertResponse(req, response))
     }
   }
 }

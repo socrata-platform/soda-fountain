@@ -13,13 +13,12 @@ object UpsertUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
   def handleUpsertErrors(req: HttpServletRequest,
-                    response: HttpServletResponse,
-                    resourceName: ResourceName)
-                    (doUpsert: => RowDAO.UpsertResult) = {
+                         response: HttpServletResponse,
+                         resourceName: ResourceName)(upsertResult: RowDAO.UpsertResult) = {
     import RowDataTranslator._
 
     try {
-      upsertResponse(req, response)(doUpsert)
+      upsertResponse(req, response)(upsertResult)
     } catch {
       case MaltypedDataEx(columnName, expected, got) =>
         upsertResponse(req, response)(RowDAO.MaltypedData(columnName, expected, got))

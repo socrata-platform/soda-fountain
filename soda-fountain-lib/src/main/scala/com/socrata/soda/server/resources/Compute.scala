@@ -51,22 +51,19 @@ case class Compute(store: NameAndSchemaStore,
                   case Some(strategy) =>
                     val columns = columnsToExport(dataset, strategy)
                     // TODO : Is it actually the published copy we want to compute on, or a different copy?
-                    val exportResult = exportDAO.export(resourceName,
-                                                        JsonExporter.validForSchema,
-                                                        columns,
-                                                        NoPrecondition,
-                                                        None,
-                                                        None,
-                                                        None,
-                                                        "published",
-                                                        sorted = false)
-                    exportResult match {
+                    exportDAO.export(resourceName,
+                                     JsonExporter.validForSchema,
+                                     columns,
+                                     NoPrecondition,
+                                     None,
+                                     None,
+                                     None,
+                                     "published",
+                                     sorted = false) {
                       case ExportDAO.Success(schema, newTag, rows) =>
                         val transformer = new RowDataTranslator(dataset, false)
                         val upsertRows = transformer.transformDcRowsForUpsert(computedColumns, Seq(columnToCompute), schema, rows)
-                        UpsertUtils.handleUpsertErrors(req, response, resourceName) {
-                          rowDAO.upsert(user(req), dataset, upsertRows)
-                        }
+                        rowDAO.upsert(user(req), dataset, upsertRows)(UpsertUtils.handleUpsertErrors(req, response, resourceName))
                       case ExportDAO.PreconditionFailed => SodaUtils.errorResponse(req, SodaError.EtagPreconditionFailed)(response)
                       case ExportDAO.NotModified(etags) => SodaUtils.errorResponse(req, SodaError.ResourceNotModified(Nil, None))(response)
                       case ExportDAO.NotFound => SodaUtils.errorResponse(req, SodaError.DatasetNotFound(resourceName))(response)
