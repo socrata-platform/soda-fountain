@@ -242,7 +242,7 @@ private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
   def getRow(dataset: ResourceName, schemaCheck: (Seq[ColumnRecord]) => Boolean, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier, secondaryInstance: Option[String]): Result = {
     query(dataset, precondition, ifModifiedSince, "give me one row!", None, secondaryInstance)
   }
-  def upsert(user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate]): UpsertResult = ???
-  def replace(user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate]): UpsertResult = ???
-  def deleteRow(user: String, dataset: ResourceName, rowId: RowSpecifier): UpsertResult = ???
+  def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
+  def replace[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
+  def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T = ???
 }
