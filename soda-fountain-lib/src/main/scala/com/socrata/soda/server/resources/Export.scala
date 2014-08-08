@@ -90,8 +90,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
         req.negotiateContent match {
           case Some((mimeType, charset, language)) =>
             val exporter = Exporter.exportForMimeType(mimeType)
-            val result = exportDAO.export(resourceName, exporter.validForSchema, Seq.empty, passOnPrecondition, ifModifiedSince, limit, offset, copy, sorted = sorted)
-            result match {
+            exportDAO.export(resourceName, exporter.validForSchema, Seq.empty, passOnPrecondition, ifModifiedSince, limit, offset, copy, sorted = sorted) {
               case ExportDAO.Success(schema, newTag, rows) =>
                 resp.setStatus(HttpServletResponse.SC_OK)
                 resp.setHeader("Vary", ContentNegotiation.headers.mkString(","))

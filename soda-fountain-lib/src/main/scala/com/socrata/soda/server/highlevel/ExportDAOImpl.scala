@@ -90,7 +90,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
   }
   def retry() = throw new Retry
 
-  def export(dataset: ResourceName,
+  def export[T](dataset: ResourceName,
                 schemaCheck: Seq[ColumnRecordLike] => Boolean,
                 onlyColumns: Seq[ColumnRecordLike],
                 precondition: Precondition,
@@ -98,7 +98,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 limit: Option[Long],
                 offset: Option[Long],
                 copy: String,
-                sorted: Boolean): ExportDAO.Result =
+                sorted: Boolean)(f: ExportDAO.Result => T): T =
     retryable(limit = 5) {
       store.lookupDataset(dataset) match {
         case Some(ds) =>
@@ -123,22 +123,22 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                         f => ColumnInfo(ds.columnsById(f.c).id, ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t)
                       }
                     )
-                    ExportDAO.Success(simpleSchema, etag, rows)
+                    f(ExportDAO.Success(simpleSchema, etag, rows))
                 }
               case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                 store.resolveSchemaInconsistency(ds.systemId, newSchema)
                 retry()
               case DataCoordinatorClient.NotModified(etags) =>
-                ExportDAO.NotModified(etags)
+                f(ExportDAO.NotModified(etags))
               case DataCoordinatorClient.PreconditionFailed =>
-                ExportDAO.PreconditionFailed
+                f(ExportDAO.PreconditionFailed)
             }
           }
           else {
-            ExportDAO.SchemaInvalidForMimeType
+            f(ExportDAO.SchemaInvalidForMimeType)
           }
         case None =>
-          ExportDAO.NotFound
+          f(ExportDAO.NotFound)
       }
     }
 }
