@@ -49,6 +49,7 @@ class SodaRouter(versionResource: HttpService,
 
   // NOTE: until there's something like Swagger, document routes with comments
   val router = Routes(
+    // Health checks
     Route("/version", versionResource),
     Route("/healthz", healthZResource),
     // Dataset schema and metadata CRUD operations
