@@ -23,6 +23,8 @@ To build an assembly and run as a separate process:
 
 For soda-fountain-lib, log output goes to `sbt-test.log`.  Logging is controlled via `soda-fountain-lib/src/test/resources/log4j.properties`.
 
+For test coverage reports, do `sbt soda-fountain-lib/scoverage:test`.  XML and HTML coverage reports are generated.  Unfortunately due to a bug in scalac, HTML line by line highlighting is broken.
+
 ## Migrations
 
 Using sbt:
