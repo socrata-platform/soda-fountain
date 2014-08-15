@@ -5,6 +5,7 @@ import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import com.socrata.http.common.AuxiliaryData
 import com.socrata.http.server.util.handlers.{LoggingHandler, ThreadRenamingHandler}
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
+import com.socrata.soda.clients.geospace.CuratedGeospaceClient
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.server.config.SodaFountainConfig
@@ -116,6 +117,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val qc: QueryCoordinatorClient = si(new CuratedHttpQueryCoordinatorClient(httpClient, discovery, config.queryCoordinatorClient.serviceName, config.queryCoordinatorClient.connectTimeout))
 
+  val geospace = si(new CuratedGeospaceClient(discovery, config.geospaceClient.serviceName))
+
   val dataSource = i(DataSourceFromConfig(config.database))
 
   val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
@@ -134,6 +137,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val router = i {
     import com.socrata.soda.server.resources._
 
+    val healthZ = HealthZ(geospace)
     // TODO: this should probably be a different max size value
     val resource = Resource(rowDAO, store, etagObfuscator, config.maxDatumSize, computedColumns, metricProvider)
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
@@ -142,6 +146,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     val compute = Compute(store, exportDAO, rowDAO, computedColumns, etagObfuscator)
 
     new SodaRouter(
+      versionResource = Version.service,
+      healthZResource = healthZ.service,
       datasetColumnResource = column.service,
       datasetColumnPKResource = column.pkservice,
       datasetCreateResource = dataset.createService,
@@ -152,7 +158,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       datasetCopyResource = dataset.copyService,
       datasetSecondaryCopyResource = dataset.secondaryCopyService,
       datasetVersionResource = dataset.versionService,
-      versionResource = Version.service,
       datasetExportResource = export.publishedService,
       datasetExportCopyResource = export.service,
       exportExtensions = export.extensions,
