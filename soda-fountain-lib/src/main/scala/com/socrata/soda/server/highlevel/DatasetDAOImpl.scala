@@ -1,7 +1,7 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator.{DropRollupInstruction, CreateOrUpdateRollupInstruction, SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
-import com.socrata.soda.server.id.{SecondaryId, ResourceName, RollupName}
+import com.socrata.soda.server.id.{ColumnId, SecondaryId, ResourceName, RollupName}
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
 import com.socrata.soql.collection.OrderedMap
@@ -237,6 +237,21 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         NotFound(dataset)
     }
 
+
+  /**
+   * Maps a rollup definition column name to column id that can be used by lower layers
+   * that don't know about column mappings.  We need to ensure the names are valid soql,
+   * so if it isn't a system column we prefix a "_".  The specific case we are worried
+   * about is when it is a 4x4 that starts with a number.
+   */
+  private def rollupColumnNameToIdMapping(cid: ColumnId): ColumnName = {
+    val name = cid.underlying
+    name(0) match {
+      case ':' => new ColumnName(name)
+      case _ => new ColumnName("_" + name)
+    }
+  }
+
   def replaceOrCreateRollup(user: String, dataset: ResourceName, rollup: RollupName, spec: UserProvidedRollupSpec): Result =
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
@@ -247,8 +262,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
               analyzeQuery(datasetRecord, spec.soql.get) match {
                 case Left(result) => result
                 case Right(_) =>
-                  val columnIdMap: Map[ColumnName, String] = datasetRecord.columnsByName.mapValues(_.id.underlying)
-                  val columnNameMap = columnIdMap.map { case (k, v) => (k, ColumnName(v))}
+                  val columnNameMap = datasetRecord.columnsByName.mapValues(col => rollupColumnNameToIdMapping(col.id))
 
                   val parsedQuery = new StandaloneParser().selectStatement(soql)
                   val mappedQuery = new ColumnNameMapper(columnNameMap).mapSelect(parsedQuery)
