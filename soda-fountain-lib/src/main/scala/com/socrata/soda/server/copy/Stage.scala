@@ -6,6 +6,7 @@ sealed trait Stage {
 
 case object Unpublished extends Stage
 case object Published extends Stage
+// TODO: Not really handling snapshotted yet.
 case object Snapshotted extends Stage
 case object Discarded extends Stage
 case object Latest extends Stage
