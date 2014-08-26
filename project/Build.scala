@@ -4,8 +4,9 @@ object Build extends sbt.Build {
   lazy val build = Project(
     "soda-fountain",
     file(".")
-  ).settings(BuildSettings.buildSettings : _*).aggregate(sodaFountainLib, sodaFountainJetty,
-                                                         sodaFountainWar, sodaFountainLibMacros)
+  ).settings(BuildSettings.buildSettings : _*)
+   .settings(net.virtualvoid.sbt.graph.Plugin.graphSettings: _*)
+   .aggregate(sodaFountainLib, sodaFountainJetty, sodaFountainWar, sodaFountainLibMacros)
 
   private def p(name: String, settings: { def settings: Seq[Setting[_]] }, dependencies: ClasspathDep[ProjectReference]*) =
     Project(name, file(name)).settings(settings.settings : _*).configs(IntegrationTest).dependsOn(dependencies: _*)

@@ -20,7 +20,7 @@ object SodaFountainLib {
       "com.socrata"        %% "soql-analyzer"               % "[0.2.0,1.0.0)",
       "com.socrata"        %% "soql-brita"                  % "[1.2.1,2.0.0)",
       "com.socrata"        %% "soql-standalone-parser"      % "[0.2.0,1.0.0)",
-      "com.socrata"        %% "soql-stdlib"                 % "[0.2.0,1.0.0)",
+      "com.socrata"        %% "soql-stdlib"                 % "[0.2.0,1.0.0)" exclude ("javax.media", "jai_core"),
       "com.socrata"        %% "soql-types"                  % "[0.2.0,1.0.0)",
       "com.typesafe"        % "config"                      % "1.0.2",
       "javax.servlet"       % "servlet-api"                 % "2.5" % "provided",
