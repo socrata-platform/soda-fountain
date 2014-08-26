@@ -43,6 +43,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                 log.info("TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here")
                 store.addColumn(datasetRecord.systemId, copyNumber, spec)
                 store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
+                log.info("column created {} {} {}", datasetRecord.systemId.toString, copyNumber.toString, column.name)
                 ColumnDAO.Created(spec, etag)
             }
           case f: Precondition.Failure =>
