@@ -18,11 +18,11 @@ object Stage {
     if (Option(stage).isEmpty) return Some(Latest)
     stage.toLowerCase match {
       case "unpublished" => Some(Unpublished)
-      case "published" => Some(Published)
+      case "published"   => Some(Published)
       case "snapshotted" => Some(Snapshotted)
-      case "discarded" => Some(Discarded)
-      case "latest" => Some(Latest)
-      case _ => None
+      case "discarded"   => Some(Discarded)
+      case "latest"      => Some(Latest)
+      case _             => None
     }
   }
 }
