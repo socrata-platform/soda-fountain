@@ -19,6 +19,9 @@ import com.socrata.soda.server.copy.{Latest, Stage}
 case class SodaFountainStoreError(message: String) extends Exception(message)
 
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
+
+  import PostgresStoreImpl._
+
   val log = org.slf4j.LoggerFactory.getLogger(classOf[PostgresStoreImpl])
 
   def toTimestamp(time: DateTime): Timestamp = new Timestamp(time.getMillis)
@@ -425,34 +428,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         colAdder.executeBatch
       }
 
-      // The string_to_array function below is a workaround for Postgres JDBC4
-      // which does not implement connection.createArrayOf
-      val addCompStrategySql =
-        """INSERT INTO computation_strategies
-              (dataset_system_id,
-               column_id,
-               computation_strategy_type,
-               recompute,
-               source_columns,
-               parameters,
-               copy_id)
-               SELECT ?,
-                      ?,
-                      ?,
-                      ?,
-                      ARRAY(SELECT c.column_id
-                              FROM columns c
-                              Join dataset_copies dc on dc.dataset_system_id = c.dataset_system_id
-                             WHERE c.column_name = ANY (string_to_array(?, ','))
-                               AND dc.dataset_system_id = ?
-                               AND dc.copy_number = ?),
-                      ?,
-                      id
-                 FROM dataset_copies
-                WHERE dataset_system_id = ?
-                  And copy_number = ?
-                  And deleted_at is null
-        """.stripMargin
 
       using (connection.prepareStatement(addCompStrategySql)) { csAdder =>
         for (crec <- columns.filter(col => col.computationStrategy.isDefined)) {
@@ -667,4 +642,43 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       case _ => stage
     }
   }
+}
+
+object PostgresStoreImpl {
+
+  // The string_to_array function below is a workaround for Postgres JDBC4
+  // which does not implement connection.createArrayOf
+  private def compStrategySourceColumnPartialSql =
+    """
+    ARRAY(SELECT c.column_id
+            FROM columns c
+            Join dataset_copies dc on dc.dataset_system_id = c.dataset_system_id
+           WHERE c.column_name = ANY (string_to_array(?, ','))
+             AND dc.dataset_system_id = ?
+             AND dc.copy_number = ?)
+    """.stripMargin
+
+
+  val addCompStrategySql =
+    s"""
+    INSERT INTO computation_strategies
+        (dataset_system_id,
+         column_id,
+         computation_strategy_type,
+         recompute,
+         source_columns,
+         parameters,
+         copy_id)
+         SELECT ?,
+                ?,
+                ?,
+                ?,
+                $compStrategySourceColumnPartialSql,
+                ?,
+                id
+           FROM dataset_copies
+          WHERE dataset_system_id = ?
+            And copy_number = ?
+            And deleted_at is null
+    """.stripMargin
 }
