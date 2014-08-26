@@ -41,8 +41,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         stmt.setString(1, resourceName.caseFolded)
         latestStageAsNone(stage).foreach(s => stmt.setString(2, s.name))
         val rs = stmt.executeQuery()
-        if (rs.next()) Option(rs.getLong(1))
-        else None
+        if (rs.next()) Option(rs.getLong(1)) else None
       }
     }
   }
@@ -58,8 +57,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         stmt.setString(1, datasetId.underlying)
         latestStageAsNone(stage).foreach(s => stmt.setString(2, s.name))
         val rs = stmt.executeQuery()
-        if (rs.next()) Option(rs.getLong(1))
-        else None
+        if (rs.next()) Option(rs.getLong(1)) else None
       }
     }
   }
