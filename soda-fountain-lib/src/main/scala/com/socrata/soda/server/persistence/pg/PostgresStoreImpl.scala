@@ -39,7 +39,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
            And dc.id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
         """.format(latestStageAsNone(stage).map(_ => " And lifecycle_stage = ?").getOrElse("")))) { stmt =>
         stmt.setString(1, resourceName.caseFolded)
-        latestStageAsNone(stage).map(s => stmt.setString(2, s.name))
+        latestStageAsNone(stage).foreach(s => stmt.setString(2, s.name))
         val rs = stmt.executeQuery()
         if (rs.next()) Option(rs.getLong(1))
         else None
@@ -56,7 +56,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
          WHERE id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
         """.format(latestStageAsNone(stage).map(_ => " And lifecycle_stage = ?").getOrElse("")))) { stmt =>
         stmt.setString(1, datasetId.underlying)
-        latestStageAsNone(stage).map(s => stmt.setString(2, s.name))
+        latestStageAsNone(stage).foreach(s => stmt.setString(2, s.name))
         val rs = stmt.executeQuery()
         if (rs.next()) Option(rs.getLong(1))
         else None
@@ -77,7 +77,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
          """.format(stage.map(_ => " And lifecycle_stage = ?").getOrElse(""))
       )){ translator =>
         translator.setString(1, resourceName.caseFolded)
-        stage.map(s => translator.setString(2, s.name))
+        stage.foreach(s => translator.setString(2, s.name))
         val rs = translator.executeQuery()
         if(rs.next()) {
           val datasetId = DatasetId(rs.getString("dataset_system_id"))
