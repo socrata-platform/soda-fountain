@@ -51,8 +51,8 @@
 
     <changeSet id="20140815-copy-version-3" author="chi" >
         <sql>
-            INSERT Into dataset_copies(dataset_system_id, copy_number, schema_hash, latest_version)
-            SELECT dataset_system_id, 1, schema_hash, latest_version FROM datasets
+            INSERT Into dataset_copies(dataset_system_id, copy_number, schema_hash, primary_key_column_id, latest_version)
+            SELECT dataset_system_id, 1, schema_hash, primary_key_column_id, latest_version FROM datasets
         </sql>
 
         <sql>
