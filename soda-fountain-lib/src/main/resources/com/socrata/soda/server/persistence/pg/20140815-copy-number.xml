@@ -89,4 +89,10 @@
         <addUniqueConstraint constraintName="computation_strategies_copy_id_column_id" tableName="computation_strategies" columnNames="copy_id,column_id" />
     </changeSet>
 
+    <changeSet id="20140827-copy-version-5" author="chi" >
+        <!-- assume that every existing useful dataset is published -->
+        <sql>UPDATE dataset_copies SET lifecycle_stage = 'Published' WHERE lifecycle_stage is null</sql>
+        <rollback/>
+    </changeSet>
+
 </databaseChangeLog>
