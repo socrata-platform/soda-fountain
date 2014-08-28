@@ -1,5 +1,8 @@
 package com.socrata.soda.server.copy
 
+import com.rojoma.json.ast.{JString, JValue}
+import com.rojoma.json.codec.JsonCodec
+
 sealed trait Stage {
   def name = this.toString
 }
@@ -24,6 +27,17 @@ object Stage {
       case "discarded"   => Some(Discarded)
       case "latest"      => Some(Latest)
       case _             => None
+    }
+  }
+
+  implicit val stageCodec = new JsonCodec[Stage] {
+    def encode(x: Stage): JValue = JString(x.name)
+
+    def decode(x: JValue): Option[Stage] = {
+      x match {
+        case JString(s) => Stage(s)
+        case _ => None
+      }
     }
   }
 }

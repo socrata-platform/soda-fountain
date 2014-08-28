@@ -9,7 +9,8 @@ import org.scalatest.{FunSuite, BeforeAndAfterAll}
 
 trait SodaFountainDatabaseTest extends FunSuite with BeforeAndAfterAll {
   lazy val config = new SodaFountainConfig(ConfigFactory.load())
-  lazy val store = new PostgresStoreImpl(DataSourceFromConfig(config.database))
+  lazy val dataSource = DataSourceFromConfig(config.database)
+  lazy val store = new PostgresStoreImpl(dataSource)
 
   override def beforeAll = {
     setupDatabase(config.database.database)

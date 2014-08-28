@@ -1,17 +1,15 @@
 package com.socrata.soda.server.persistence
 
-import com.rojoma.json.ast.{JString, JObject}
+import com.rojoma.json.ast.{JObject, JString}
 import com.socrata.soda.server.DatasetsForTesting
-import com.socrata.soda.server.id.{ResourceName, DatasetId, ColumnId}
+import com.socrata.soda.server.copy._
+import com.socrata.soda.server.highlevel.csrec
+import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.wiremodels.{ColumnSpec, ComputationStrategyType}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText}
-import org.scalatest.ShouldMatchers
-import com.socrata.soda.server.copy.{Discarded, Unpublished, Published, Latest}
-import com.socrata.soda.server.highlevel.csrec
 import org.joda.time.DateTime
-
-import com.rojoma.json.ast.JString
+import org.scalatest.ShouldMatchers
 
 class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers with DatasetsForTesting {
 
@@ -20,7 +18,8 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
     val foundRecord = store.translateResourceName(resourceName)
     foundRecord match {
-      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, cols, _, _)) =>
+      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, cols, _, stage, _)) =>
+        stage should equal (Some(Unpublished))
         rn should equal (resourceName)
         did should equal (datasetId)
       case None => fail("didn't save or find id")
@@ -59,7 +58,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
     val f = store.translateResourceName(resourceName)
     f match {
-      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, Seq(MinimalColumnRecord(col1, _, _, _, _), MinimalColumnRecord(col2, _, _, _, _)), _, _)) =>
+      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, Seq(MinimalColumnRecord(col1, _, _, _, _), MinimalColumnRecord(col2, _, _, _, _)), _, _, _)) =>
         col1 should equal (ColumnId("abc123"))
         col2 should equal (ColumnId("def456"))
       case None => fail("didn't find columns")
@@ -81,7 +80,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     val f = store.translateResourceName(resourceName)
     f match {
       case Some(MinimalDatasetRecord(rn, did, loc, sch, pky,
-        Seq(MinimalColumnRecord(columnId, columnName, _, _, _)), _, _)) =>
+        Seq(MinimalColumnRecord(columnId, columnName, _, _, _)), _, _, _)) =>
         columnId should be (ColumnId("one"))
         columnName should be (ColumnName("new_field_name"))
       case None => fail("didn't find columns")
@@ -160,6 +159,38 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     unpublishedCopy should not be (None)
     unpublishedCopy.get.columns.foreach(println)
     unpublishedCopy.get.columns should be (columns)
+  }
+
+  test("Publish n times and every copy except the last one should be snapshot"){
+    val columnSpecs = Seq(
+      ColumnSpec(ColumnId("zero"), ColumnName("zero"), "zero", "desc", SoQLText, None),
+      ColumnSpec(ColumnId("one"), ColumnName("one"), "one", "desc", SoQLText, None),
+      ColumnSpec(ColumnId("two"), ColumnName("two"), "two", "desc",SoQLText, None),
+      ColumnSpec(ColumnId("three"), ColumnName("three"), "three", "desc",SoQLText, None),
+      ColumnSpec(ColumnId("four"), ColumnName("four"), "four", "desc",SoQLText, None),
+      ColumnSpec(ColumnId("five"), ColumnName("five"), "five", "desc",SoQLText, None)
+    )
+    val columns = columnSpecs.map(columnSpecTocolumnRecord)
+    val (resourceName, datasetId) = createMockDataset(columns.take(1))
+    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L)
+
+    val totalCopies = columnSpecs.size
+    val lastCopy = totalCopies
+
+    for (i <- 1 to totalCopies - 1) {
+      val copyNum = i + 1
+      val dataVer = copyNum
+      store.makeCopy(datasetId, copyNum)
+      store.addColumn(datasetId, copyNum, columnSpecs(i))
+      store.updateVersionInfo(datasetId, dataVer, new DateTime(), Some(Published), copyNum)
+    }
+
+    for (copyNum <- 1 to lastCopy) {
+      val ds = store.lookupDataset(resourceName, copyNum).get
+      val stage = ds.stage.get
+      if (copyNum == lastCopy) stage should be (Published)
+      else stage should be (Snapshotted)
+    }
   }
 
   test("drop working copies") {

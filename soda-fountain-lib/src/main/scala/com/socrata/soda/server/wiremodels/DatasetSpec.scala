@@ -1,17 +1,17 @@
 package com.socrata.soda.server.wiremodels
 
 import scala.{collection => sc}
-import com.socrata.soda.server.id.ResourceName
-import com.socrata.soql.environment.ColumnName
-import com.rojoma.json.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.ast.{JObject, JValue}
-import javax.servlet.http.HttpServletRequest
 
-import com.socrata.soda.server.util.AdditionalJsonCodecs
-import AdditionalJsonCodecs._
+
 import InputUtils._
+import com.rojoma.json.ast.{JObject, JValue}
+import com.rojoma.json.codec.JsonCodec
+import com.rojoma.json.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Strategy}
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.errors.DatasetSpecMaltyped
+import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.util.AdditionalJsonCodecs._
+import com.socrata.soql.environment.ColumnName
 
 @JsonKeyStrategy(Strategy.Underscore)
 case class DatasetSpec(resourceName: ResourceName,
@@ -19,6 +19,7 @@ case class DatasetSpec(resourceName: ResourceName,
                        description: String,
                        rowIdentifier: ColumnName,
                        locale:String,
+                       stage: Option[Stage],
                        columns:Map[ColumnName, ColumnSpec])
 object DatasetSpec {
   private implicit val columnMapCodec = new JsonCodec[Map[ColumnName, ColumnSpec]] {
@@ -79,6 +80,7 @@ object UserProvidedDatasetSpec extends UserProvidedSpec[UserProvidedDatasetSpec]
     def description = e[String]("description")
     def rowId = e[ColumnName]("row_identifier")
     def locale = e[Option[String]]("locale")
+    def stage = e[Option[Stage]]("stage")
     def columns: ExtractResult[Option[Seq[UserProvidedColumnSpec]]] =
       e[Seq[JObject]]("columns") flatMap {
         case Some(arr) => ExtractResult.sequence(arr.map(UserProvidedColumnSpec.fromObject)).map(Some(_))
