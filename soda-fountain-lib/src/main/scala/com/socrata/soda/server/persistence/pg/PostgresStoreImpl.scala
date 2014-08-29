@@ -104,58 +104,31 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord] =
-    using(dataSource.getConnection()) { conn =>
-      conn.setAutoCommit(false)
-      using(conn.prepareStatement(
-        """
-        SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, c.schema_hash,
-               c.primary_key_column_id, d.latest_version, c.lifecycle_stage, c.updated_at
-          FROM datasets d
-          Join dataset_copies c on c.dataset_system_id = d.dataset_system_id
-         WHERE d.resource_name_casefolded = ?
-           And c.copy_number = ?
-           And c.deleted_at is null
-        """.stripMargin)) { dsQuery =>
-        dsQuery.setString(1, resourceName.caseFolded)
-        dsQuery.setLong(2, copyNumber)
-        using(dsQuery.executeQuery()) { dsResult =>
-          if(dsResult.next()) {
-            val datasetId = DatasetId(dsResult.getString("dataset_system_id"))
-            Some(DatasetRecord(
-              new ResourceName(dsResult.getString("resource_name")),
-              datasetId,
-              dsResult.getString("name"),
-              dsResult.getString("description"),
-              dsResult.getString("locale"),
-              dsResult.getString("schema_hash"),
-              ColumnId(dsResult.getString("primary_key_column_id")),
-              fetchFullColumns(conn, datasetId, copyNumber),
-              dsResult.getLong("latest_version"),
-              Stage(dsResult.getString("lifecycle_stage")),
-              toDateTime(dsResult.getTimestamp("updated_at"))
-              ))
-          } else {
-            None
-          }
-        }
-      }
-    }
+  def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord] = {
+    val datasets = lookupDataset(resourceName, Some(copyNumber))
+    if (datasets.isEmpty) None
+    else Some(datasets.head)
+  }
 
-  def lookupDataset(resourceName: ResourceName): Seq[DatasetRecord] = {
+  def lookupDataset(resourceName: ResourceName): Seq[DatasetRecord] = lookupDataset(resourceName, None)
+
+  private def lookupDataset(resourceName: ResourceName, copyNumber: Option[Long]): Seq[DatasetRecord] = {
     using(dataSource.getConnection()) { conn =>
       conn.setAutoCommit(false)
+      val copyNumberFilter = if (copyNumber.isDefined) "And c.copy_number = ?" else ""
       using(conn.prepareStatement(
-        """
+        s"""
         SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, c.schema_hash,
                c.copy_number, c.primary_key_column_id, c.latest_version, c.lifecycle_stage, c.updated_at
           FROM datasets d
           Join dataset_copies c on c.dataset_system_id = d.dataset_system_id
          WHERE d.resource_name_casefolded = ?
+               $copyNumberFilter
            And c.deleted_at is null
          ORDER By c.copy_number desc
         """.stripMargin)) { dsQuery =>
         dsQuery.setString(1, resourceName.caseFolded)
+        copyNumber.foreach(dsQuery.setLong(2, _))
         using(dsQuery.executeQuery()) { dsResult =>
           resultSetToDatasetRecords(conn, dsResult, (rs: ResultSet) => {
             val datasetId = DatasetId(rs.getString("dataset_system_id"))
