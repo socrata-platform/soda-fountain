@@ -146,7 +146,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     )
     val columns = columnSpecs.map(columnSpecTocolumnRecord)
     val (resourceName, datasetId) = createMockDataset(columns.take(1))
-    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L)
+    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L, None)
     store.makeCopy(datasetId, 2L)
     store.addColumn(datasetId, 2L, columnSpecs(1))
 
@@ -162,17 +162,10 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
   }
 
   test("Publish n times and every copy except the last one should be snapshot"){
-    val columnSpecs = Seq(
-      ColumnSpec(ColumnId("zero"), ColumnName("zero"), "zero", "desc", SoQLText, None),
-      ColumnSpec(ColumnId("one"), ColumnName("one"), "one", "desc", SoQLText, None),
-      ColumnSpec(ColumnId("two"), ColumnName("two"), "two", "desc",SoQLText, None),
-      ColumnSpec(ColumnId("three"), ColumnName("three"), "three", "desc",SoQLText, None),
-      ColumnSpec(ColumnId("four"), ColumnName("four"), "four", "desc",SoQLText, None),
-      ColumnSpec(ColumnId("five"), ColumnName("five"), "five", "desc",SoQLText, None)
-    )
+    val columnSpecs = sixColumnSpecs
     val columns = columnSpecs.map(columnSpecTocolumnRecord)
     val (resourceName, datasetId) = createMockDataset(columns.take(1))
-    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L)
+    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L, None)
 
     val totalCopies = columnSpecs.size
     val lastCopy = totalCopies
@@ -182,7 +175,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
       val dataVer = copyNum
       store.makeCopy(datasetId, copyNum)
       store.addColumn(datasetId, copyNum, columnSpecs(i))
-      store.updateVersionInfo(datasetId, dataVer, new DateTime(), Some(Published), copyNum)
+      store.updateVersionInfo(datasetId, dataVer, new DateTime(), Some(Published), copyNum, None)
     }
 
     for (copyNum <- 1 to lastCopy) {
@@ -190,6 +183,45 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
       val stage = ds.stage.get
       if (copyNum == lastCopy) stage should be (Published)
       else stage should be (Snapshotted)
+    }
+  }
+
+  test("Snapshot limit is enforced") {
+    val snapshotLimit = 3
+
+    val columnSpecs = sixColumnSpecs
+    val columns = columnSpecs.map(columnSpecTocolumnRecord)
+    val (resourceName, datasetId) = createMockDataset(columns.take(1))
+    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L, None)
+
+    val totalCopies = columnSpecs.size
+
+    for (i <- 1 to totalCopies - 1) {
+      val copyNum = i + 1
+      val dataVer = copyNum
+      store.makeCopy(datasetId, copyNum)
+      store.addColumn(datasetId, copyNum, columnSpecs(i))
+      store.updateVersionInfo(datasetId, dataVer, new DateTime(), Some(Published), copyNum, Some(snapshotLimit))
+    }
+
+    val datasets = store.lookupDataset(resourceName)
+    datasets.size should be (snapshotLimit + 1) // surviving snapshots + 1 for published copy
+
+    datasets.head.stage should be (Some(Published)) // first copy is published
+
+    datasets.drop(1).foreach { // rest of copies are snapshots
+      ds => ds.stage should be (Some(Snapshotted))
+    }
+
+    implicit def dateTimeOrdering: Ordering[DateTime] = Ordering.fromLessThan(_ isBefore _)
+
+    // snapshots have the right info
+    val published = Tuple3(6, 6, new DateTime(Long.MaxValue)) // number of columns, data version, updated at
+    datasets.foldLeft(published) { (state, ds) =>
+      ds.columns.size should be (state._1)
+      ds.truthVersion should be (state._2)
+      ds.lastModified should be < state._3
+      Tuple3(state._1 - 1, state._2 - 1, ds.lastModified) // number of columns, data version and updated at are all decreasing.
     }
   }
 
@@ -202,14 +234,14 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     )
     val columns = columnSpecs.map(columnSpecTocolumnRecord)
     val (resourceName, datasetId) = createMockDataset(columns.take(1))
-    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L)
+    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L, Some(10))
 
     // make working copy
     store.makeCopy(datasetId, 2L)
     store.addColumn(datasetId, 2L, columnSpecs(1))
 
     // drop working copy
-    store.updateVersionInfo(datasetId, 2L, new DateTime(), Some(Discarded), 2L)
+    store.updateVersionInfo(datasetId, 2L, new DateTime(), Some(Discarded), 2L, None)
 
     // make another working copy
     store.makeCopy(datasetId, 3L)
@@ -238,4 +270,13 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
   private def columnSpecTocolumnRecord(spec: ColumnSpec) = {
     ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
   }
+
+  private val sixColumnSpecs = Seq(
+    ColumnSpec(ColumnId("zero"), ColumnName("zero"), "zero", "desc", SoQLText, None),
+    ColumnSpec(ColumnId("one"), ColumnName("one"), "one", "desc", SoQLText, None),
+    ColumnSpec(ColumnId("two"), ColumnName("two"), "two", "desc",SoQLText, None),
+    ColumnSpec(ColumnId("three"), ColumnName("three"), "three", "desc",SoQLText, None),
+    ColumnSpec(ColumnId("four"), ColumnName("four"), "four", "desc",SoQLText, None),
+    ColumnSpec(ColumnId("five"), ColumnName("five"), "five", "desc",SoQLText, None)
+  )
 }

@@ -82,7 +82,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         }
 
         store.addResource(record)
-        store.updateVersionInfo(reportMetaData.datasetId, reportMetaData.version, reportMetaData.lastModified, None, Stage.InitialCopyNumber)
+        store.updateVersionInfo(reportMetaData.datasetId, reportMetaData.version, reportMetaData.lastModified, None, Stage.InitialCopyNumber, None)
         Created(trueSpec)
       case Some(_) =>
         DatasetAlreadyExists(spec.resourceName)
@@ -205,7 +205,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
             case Some(unpublishCopyNumber) =>
               dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user) {
                 case DataCoordinatorClient.Success(_, _, _, newVersion, lastModified) =>
-                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber)
+                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber, None)
                   WorkingCopyDropped
                 case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -225,7 +225,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         case Some(datasetRecord) =>
           dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user) {
             case DataCoordinatorClient.Success(_, _, copyNumber, newVersion, lastModified) =>
-              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber)
+              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, snapshotLimit)
               WorkingCopyPublished
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -281,7 +281,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                   dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(instruction)) {
                     // TODO better support for error handling in various failure cases
                     case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
-                      store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
+                      store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                       RollupCreatedOrUpdated
                   }
               }
@@ -322,7 +322,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(instruction)) {
           // TODO better support for error handling in various failure cases
           case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
-            store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
+            store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
             RollupDropped
           case DataCoordinatorClient.UpsertUserError("delete.rollup.does-not-exist", _) =>
             RollupNotFound(rollup)
