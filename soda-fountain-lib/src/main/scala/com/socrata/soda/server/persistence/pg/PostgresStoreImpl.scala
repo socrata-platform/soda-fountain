@@ -1,20 +1,22 @@
 package com.socrata.soda.server.persistence.pg
 
+import java.sql.{Connection, ResultSet, Timestamp, Types}
+
+import scala.util.Try
+
 import com.rojoma.json.ast.JObject
 import com.rojoma.json.io.JsonReader
 import com.rojoma.simplearm.util._
+import com.socrata.soda.server.copy.{Latest, Published, Stage}
 import com.socrata.soda.server.highlevel.csrec
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
-import com.socrata.soda.server.wiremodels.{ComputationStrategyType, ColumnSpec}
-import com.socrata.soql.environment.{TypeName, ColumnName}
+import com.socrata.soda.server.wiremodels.{ColumnSpec, ComputationStrategyType}
+import com.socrata.soql.environment.{ColumnName, TypeName}
 import com.socrata.soql.types.SoQLType
-import java.sql.{Connection, ResultSet, Timestamp, Types}
 import javax.sql.DataSource
 import org.joda.time.DateTime
-import scala.util.Try
-import com.socrata.soda.server.copy.{Latest, Stage}
 
 case class SodaFountainStoreError(message: String) extends Exception(message)
 
@@ -70,7 +72,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       using(connection.prepareStatement(
         """
         SELECT d.resource_name, d.dataset_system_id, d.locale, dc.schema_hash, dc.primary_key_column_id,
-               d.latest_version, d.last_modified, dc.copy_number
+               d.latest_version, d.last_modified, dc.copy_number, dc.lifecycle_stage
           FROM datasets d
           Join dataset_copies dc On dc.dataset_system_id = d.dataset_system_id
          WHERE d.resource_name_casefolded = ?
@@ -91,6 +93,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             ColumnId(rs.getString("primary_key_column_id")),
             fetchMinimalColumns(connection, datasetId, copyNumber),
             rs.getLong("latest_version"),
+            Stage(rs.getString("lifecycle_stage")),
             toDateTime(rs.getTimestamp("last_modified"))
             ))
         } else {
@@ -106,7 +109,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       using(conn.prepareStatement(
         """
         SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, c.schema_hash,
-               c.primary_key_column_id, d.latest_version, d.last_modified
+               c.primary_key_column_id, d.latest_version, c.lifecycle_stage, d.last_modified
           FROM datasets d
           Join dataset_copies c on c.dataset_system_id = d.dataset_system_id
          WHERE d.resource_name_casefolded = ?
@@ -128,6 +131,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
               ColumnId(dsResult.getString("primary_key_column_id")),
               fetchFullColumns(conn, datasetId, copyNumber),
               dsResult.getLong("latest_version"),
+              Stage(dsResult.getString("lifecycle_stage")),
               toDateTime(dsResult.getTimestamp("last_modified"))
               ))
           } else {
@@ -478,7 +482,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         adder.setString(11, newRecord.primaryKey.underlying)
         adder.execute()
       }
-      addColumns(connection, newRecord.systemId, 1L, newRecord.columns)
+      addColumns(connection, newRecord.systemId, Stage.InitialCopyNumber, newRecord.columns)
       connection.commit()
     }
 
@@ -552,6 +556,14 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       using (conn.prepareStatement(
         """
         UPDATE datasets SET latest_version = ?, last_modified = ? WHERE dataset_system_id = ?;
+
+        UPDATE dataset_copies
+           SET lifecycle_stage = 'Snapshotted'
+         WHERE dataset_system_id = ?
+           And deleted_at is null
+           And lifecycle_stage = 'Published'
+           And ?;
+
         UPDATE dataset_copies
            SET lifecycle_stage = ?,
                deleted_at = case when ? = 'Discarded' then now() else deleted_at end,
@@ -559,17 +571,21 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
          WHERE dataset_system_id = ?
            And copy_number = ?
            And deleted_at is null
-           And ?
+           And ?;
         """)) { stmt =>
         stmt.setLong(1, dataVersion)
         stmt.setTimestamp(2, toTimestamp(lastModified))
         stmt.setString(3, datasetId.underlying)
-        stmt.setString(4, stage.map(_.name).getOrElse(""))
-        stmt.setString(5, stage.map(_.name).getOrElse(""))
-        stmt.setLong(6, dataVersion)
-        stmt.setString(7, datasetId.underlying)
-        stmt.setLong(8, copyNumber)
-        stmt.setBoolean(9, stage.isDefined)
+
+        stmt.setString(4, datasetId.underlying)
+        stmt.setBoolean(5, stage == Some(Published))
+
+        stmt.setString(6, stage.map(_.name).getOrElse(""))
+        stmt.setString(7, stage.map(_.name).getOrElse(""))
+        stmt.setLong(8, dataVersion)
+        stmt.setString(9, datasetId.underlying)
+        stmt.setLong(10, copyNumber)
+        stmt.setBoolean(11, stage.isDefined)
         stmt.executeUpdate()
       }
     }

@@ -7,6 +7,7 @@ import com.socrata.soda.server.util.schema.SchemaHash
 import org.joda.time.DateTime
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportMetaData
 
+
 package object highlevel {
   implicit class clrec(val __underlying: ColumnSpec) extends AnyVal {
     def asRecord: ColumnRecord =
@@ -58,6 +59,7 @@ package object highlevel {
         __underlying.columns(__underlying.rowIdentifier).id,
         columns,
         dsMetaData.version,
+        __underlying.stage,
         dsMetaData.lastModified)
     }
   }

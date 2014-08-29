@@ -37,7 +37,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           // TODO: not-success case
         }
       }
-      Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, trueColumns))
+      Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, None, trueColumns))
     // TODO: Not-success case
   }
 
@@ -150,6 +150,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           datasetRecord.description,
           datasetRecord.columnsById(datasetRecord.primaryKey).fieldName,
           datasetRecord.locale,
+          datasetRecord.stage,
           datasetRecord.columnsByName.mapValues { cr =>
             ColumnSpec(cr.id, cr.fieldName, cr.name, cr.description, cr.typ, cr.computationStrategy.asSpec)
           })

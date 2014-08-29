@@ -43,6 +43,7 @@ trait DatasetRecordLike {
   val schemaHash: String
   val primaryKey: ColumnId
   val truthVersion: Long
+  val stage: Option[Stage]
   val lastModified: DateTime
 
   lazy val columnsByName = columns.groupBy(_.fieldName).mapValues(_.head)
@@ -91,6 +92,7 @@ case class MinimalDatasetRecord(
   primaryKey: ColumnId,
   columns: Seq[MinimalColumnRecord],
   truthVersion: Long,
+  stage: Option[Stage],
   lastModified: DateTime)
     extends DatasetRecordLike {
   type ColumnRecordT = MinimalColumnRecord
@@ -123,6 +125,7 @@ case class DatasetRecord(
   primaryKey: ColumnId,
   columns: Seq[ColumnRecord],
   truthVersion: Long,
+  stage: Option[Stage],
   lastModified: DateTime)
     extends DatasetRecordLike {
   type ColumnRecordT = ColumnRecord

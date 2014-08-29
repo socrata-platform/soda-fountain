@@ -36,6 +36,7 @@ trait DatasetsForTesting {
       new ColumnId("mock column id"),
       columns,
       0,
+      None,
       new DateTime(0))
   }
 
@@ -77,6 +78,7 @@ trait DatasetsForTesting {
       new ColumnId(":id"),
       Seq(idColumn, sourceColumn, computedColumn),
       9,
+      None,
       DateTime.now
     )
 
