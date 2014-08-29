@@ -42,7 +42,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
               case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
                 log.info("TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here")
                 store.addColumn(datasetRecord.systemId, copyNumber, spec)
-                store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
+                store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                 log.info("column created {} {} {}", datasetRecord.systemId.toString, copyNumber.toString, column.name)
                 ColumnDAO.Created(spec, etag)
             }
@@ -94,7 +94,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                 dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator) {
                   case DataCoordinatorClient.Success(_, _, copyNumber, newVersion, lastModified) =>
                     store.setPrimaryKey(datasetRecord.systemId, columnRecord.id, copyNumber)
-                    store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
+                    store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                     ColumnDAO.Updated(columnRecord.asSpec, None)
                   case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -155,7 +155,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
               dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(DropColumnInstruction(columnRef.id))) {
                 case DataCoordinatorClient.Success(_, etag, copyNumber, newVersion, lastModified) =>
                   store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber)
-                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
+                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                   ColumnDAO.Deleted(columnRef.asSpec, etag)
                 case DataCoordinatorClient.SchemaOutOfDate(realSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)

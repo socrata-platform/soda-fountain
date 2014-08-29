@@ -94,7 +94,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
   case class copyService(resourceName: ResourceName) extends SodaResource {
     def snapshotLimit(req: HttpServletRequest) =
-      try { Option(req.getParameter("schema")).map(_.toInt) }
+      try { Option(req.getParameter("snapshot_limit")).map(_.toInt) }
       catch { case e: NumberFormatException => ??? /* TODO: Proper error */ }
 
     // TODO: not GET

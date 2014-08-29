@@ -2,6 +2,7 @@ package com.socrata.soda.server.persistence.pg
 
 import java.sql.{Connection, ResultSet, Timestamp, Types}
 
+import scala.annotation.tailrec
 import scala.util.Try
 
 import com.rojoma.json.ast.JObject
@@ -109,7 +110,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       using(conn.prepareStatement(
         """
         SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, c.schema_hash,
-               c.primary_key_column_id, d.latest_version, c.lifecycle_stage, d.last_modified
+               c.primary_key_column_id, d.latest_version, c.lifecycle_stage, c.updated_at
           FROM datasets d
           Join dataset_copies c on c.dataset_system_id = d.dataset_system_id
          WHERE d.resource_name_casefolded = ?
@@ -132,7 +133,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
               fetchFullColumns(conn, datasetId, copyNumber),
               dsResult.getLong("latest_version"),
               Stage(dsResult.getString("lifecycle_stage")),
-              toDateTime(dsResult.getTimestamp("last_modified"))
+              toDateTime(dsResult.getTimestamp("updated_at"))
               ))
           } else {
             None
@@ -140,6 +141,53 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         }
       }
     }
+
+  def lookupDataset(resourceName: ResourceName): Seq[DatasetRecord] = {
+    using(dataSource.getConnection()) { conn =>
+      conn.setAutoCommit(false)
+      using(conn.prepareStatement(
+        """
+        SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, c.schema_hash,
+               c.copy_number, c.primary_key_column_id, c.latest_version, c.lifecycle_stage, c.updated_at
+          FROM datasets d
+          Join dataset_copies c on c.dataset_system_id = d.dataset_system_id
+         WHERE d.resource_name_casefolded = ?
+           And c.deleted_at is null
+         ORDER By c.copy_number desc
+        """.stripMargin)) { dsQuery =>
+        dsQuery.setString(1, resourceName.caseFolded)
+        using(dsQuery.executeQuery()) { dsResult =>
+          resultSetToDatasetRecords(conn, dsResult, (rs: ResultSet) => {
+            val datasetId = DatasetId(rs.getString("dataset_system_id"))
+            val copyNumber = rs.getLong("copy_number")
+            DatasetRecord(
+              new ResourceName(rs.getString("resource_name")),
+              datasetId,
+              rs.getString("name"),
+              rs.getString("description"),
+              rs.getString("locale"),
+              rs.getString("schema_hash"),
+              ColumnId(rs.getString("primary_key_column_id")),
+              fetchFullColumns(conn, datasetId, copyNumber),
+              rs.getLong("latest_version"),
+              Stage(rs.getString("lifecycle_stage")),
+              toDateTime(rs.getTimestamp("updated_at")))
+            }
+          )
+        }
+      }
+    }
+  }
+
+  @tailrec
+  private def resultSetToDatasetRecords(conn: Connection, rs: ResultSet, decode: ResultSet => DatasetRecord,
+    acc: Seq[DatasetRecord] = Seq.empty[DatasetRecord]): Seq[DatasetRecord] = {
+    if (!rs.next) acc.reverse
+    else {
+      val r = decode(rs)
+      resultSetToDatasetRecords(conn, rs, decode, r +: acc)
+    }
+  }
 
   def updateSchemaHash(conn: Connection, datasetId: DatasetId, copyNumber: Long) {
     val (locale, pkcol) = using(conn.prepareStatement(
@@ -551,41 +599,33 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long) = {
+  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]) = {
     using(dataSource.getConnection) { conn =>
-      using (conn.prepareStatement(
-        """
-        UPDATE datasets SET latest_version = ?, last_modified = ? WHERE dataset_system_id = ?;
-
-        UPDATE dataset_copies
-           SET lifecycle_stage = 'Snapshotted'
-         WHERE dataset_system_id = ?
-           And deleted_at is null
-           And lifecycle_stage = 'Published'
-           And ?;
-
-        UPDATE dataset_copies
-           SET lifecycle_stage = ?,
-               deleted_at = case when ? = 'Discarded' then now() else deleted_at end,
-               latest_version = ?, updated_at = now()
-         WHERE dataset_system_id = ?
-           And copy_number = ?
-           And deleted_at is null
-           And ?;
-        """)) { stmt =>
+      using (conn.prepareStatement(updateVersionInfoSql)) { stmt =>
         stmt.setLong(1, dataVersion)
         stmt.setTimestamp(2, toTimestamp(lastModified))
         stmt.setString(3, datasetId.underlying)
 
-        stmt.setString(4, datasetId.underlying)
-        stmt.setBoolean(5, stage == Some(Published))
+        stmt.setLong(4, dataVersion)
+        stmt.setTimestamp(5, toTimestamp(lastModified))
+        stmt.setString(6, datasetId.underlying)
+        stmt.setLong(7, copyNumber)
 
-        stmt.setString(6, stage.map(_.name).getOrElse(""))
-        stmt.setString(7, stage.map(_.name).getOrElse(""))
-        stmt.setLong(8, dataVersion)
-        stmt.setString(9, datasetId.underlying)
-        stmt.setLong(10, copyNumber)
-        stmt.setBoolean(11, stage.isDefined)
+        stmt.setString(8, datasetId.underlying)
+        stmt.setBoolean(9, stage == Some(Published))
+
+        stmt.setString(10, stage.map(_.name).getOrElse(""))
+        stmt.setString(11, stage.map(_.name).getOrElse(""))
+        stmt.setLong(12, dataVersion)
+        stmt.setString(13, datasetId.underlying)
+        stmt.setLong(14, copyNumber)
+        stmt.setBoolean(15, stage.isDefined)
+
+        stmt.setBoolean(16, snapshotLimit.isDefined)
+        stmt.setString(17, datasetId.underlying)
+        val snapshotLimitValueIsIgnoredIfNotDefined = 10 // actual value does not matter
+        stmt.setInt(18, snapshotLimit.getOrElse(snapshotLimitValueIsIgnoredIfNotDefined))
+
         stmt.executeUpdate()
       }
     }
@@ -697,4 +737,55 @@ object PostgresStoreImpl {
             And copy_number = ?
             And deleted_at is null
     """.stripMargin
+
+  private val updateVersionInfoSqls = Seq(
+    // update dataset basic stuff
+    """
+    UPDATE datasets
+       SET latest_version = ?, last_modified = ?
+     WHERE dataset_system_id = ?
+    """,
+    // update dataset copy basic stuff
+    """
+    UPDATE dataset_copies
+       SET latest_version = ?, updated_at = ?
+     WHERE dataset_system_id = ?
+       And copy_number = ?
+    """,
+    // change previously published to snapshotted
+    """
+    UPDATE dataset_copies
+       SET lifecycle_stage = 'Snapshotted'
+     WHERE dataset_system_id = ?
+       And deleted_at is null
+       And lifecycle_stage = 'Published'
+       And ?
+    """,
+    // take effect only when we discard a copy
+    """
+    UPDATE dataset_copies
+       SET lifecycle_stage = ?,
+           deleted_at = case when ? = 'Discarded' then now() else deleted_at end,
+           latest_version = ?, updated_at = now()
+     WHERE dataset_system_id = ?
+       And copy_number = ?
+       And deleted_at is null
+       And ?
+    """,
+    // discard snapshots that exceed snapshot limit
+    """
+    UPDATE dataset_copies
+           SET lifecycle_stage = 'Discarded',
+               deleted_at = now()
+         WHERE ?
+           And id in
+             ( SELECT id
+                 FROM dataset_copies
+                WHERE dataset_system_id = ?
+                  And lifecycle_stage = 'Snapshotted'
+                ORDER By copy_number desc offset ?
+             )
+    """)
+
+  val updateVersionInfoSql = updateVersionInfoSqls.map(_.stripMargin).mkString(";")
 }

@@ -22,6 +22,11 @@ trait NameAndSchemaStore {
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
     lookupCopyNumber(resourceName, copy).flatMap(lookupDataset(resourceName, _))
   }
+
+  /**
+   * Return all copies most recent first
+   */
+  def lookupDataset(resourceName: ResourceName): Seq[DatasetRecord]
   def resolveSchemaInconsistency(datasetId: DatasetId, newSchema: SchemaSpec)
 
   def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId, copyNumber: Long)
@@ -29,7 +34,7 @@ trait NameAndSchemaStore {
   def addColumn(datasetId: DatasetId, copyNumber: Long, columnSpec: ColumnSpec) : ColumnRecord
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName, copyNumber: Long) : Int
   def dropColumn(datasetId: DatasetId, columnId: ColumnId, copyNumber: Long) : Unit
-  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long): Unit
+  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]): Unit
   def makeCopy(datasetId: DatasetId, copyNumber: Long): Unit
 }
 
