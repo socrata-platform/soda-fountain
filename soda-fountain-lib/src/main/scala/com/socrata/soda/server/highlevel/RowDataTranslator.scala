@@ -158,10 +158,10 @@ object RowDataTranslator {
   case class UpsertAsSoQL(rowData: Map[String, SoQLValue]) extends Computable
   case class DeleteAsCJson(pk: JValue) extends Computable
 
-  case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends Exception
-  case class UnknownColumnEx(col: ColumnName) extends Exception
+  case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends Exception(s"Expected $expected type for column $col, but got value $got")
+  case class UnknownColumnEx(col: ColumnName) extends Exception(s"Unrecognized column $col")
   case object DeleteNoPKEx extends Exception
-  case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends Exception
-  case class ComputedColumnNotWritableEx(column: ColumnName) extends Exception
-  case class ComputationHandlerNotFoundEx(typ: ComputationStrategyType.Value) extends Exception
+  case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends Exception(s"Inappropriate JValue $obj")
+  case class ComputedColumnNotWritableEx(column: ColumnName) extends Exception(s"Column $column is not writable")
+  case class ComputationHandlerNotFoundEx(typ: ComputationStrategyType.Value) extends Exception(s"Computation strategy $typ was not found")
 }
