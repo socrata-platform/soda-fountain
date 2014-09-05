@@ -1,12 +1,12 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator._
+import com.socrata.soda.server.copy.Latest
 import com.socrata.soda.server.highlevel.ColumnDAO.Result
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soql.environment.ColumnName
 import scala.util.control.ControlThrowable
-import com.socrata.soda.server.copy.Latest
 
 // TODO: This shouldn't be referenced here.
 import com.socrata.http.server.util.Precondition
@@ -44,7 +44,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                 store.addColumn(datasetRecord.systemId, copyNumber, spec)
                 store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                 log.info("column created {} {} {}", datasetRecord.systemId.toString, copyNumber.toString, column.name)
-                ColumnDAO.Created(spec, etag)
+                ColumnDAO.Created(spec.asRecord, etag)
             }
           case f: Precondition.Failure =>
             ColumnDAO.PreconditionFailed(f)
@@ -79,7 +79,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
           datasetRecord.columnsByName.get(column) match {
             case Some(columnRecord) =>
               if(datasetRecord.primaryKey == columnRecord.id) {
-                ColumnDAO.Updated(columnRecord.asSpec, None)
+                ColumnDAO.Updated(columnRecord, None)
               } else {
                 val instructions =
                   if(datasetRecord.primaryKey == ColumnId(":id")) {
@@ -95,12 +95,12 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                   case DataCoordinatorClient.Success(_, _, copyNumber, newVersion, lastModified) =>
                     store.setPrimaryKey(datasetRecord.systemId, columnRecord.id, copyNumber)
                     store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
-                    ColumnDAO.Updated(columnRecord.asSpec, None)
+                    ColumnDAO.Updated(columnRecord, None)
                   case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
                     retry()
                   case DataCoordinatorClient.UpsertUserError(code, data) if code == "update.row-identifier.duplicate-values" =>
-                    ColumnDAO.NonUniqueRowId(columnRecord.asSpec)
+                    ColumnDAO.NonUniqueRowId(columnRecord)
                 }
               }
             case None =>
@@ -128,7 +128,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                     store.updateColumnFieldName(datasetRecord.systemId, columnRef.id, spec.fieldName.get, copyNumber) match {
                       case 1 =>
                         val updatedColumnRef = columnRef.copy(fieldName = spec.fieldName.get)
-                        ColumnDAO.Updated(updatedColumnRef.asSpec, None)
+                        ColumnDAO.Updated(updatedColumnRef, None)
                       case n =>
                         throw new Exception("Expect 1 from update single column, got $n")
                     }
@@ -156,12 +156,12 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                 case DataCoordinatorClient.Success(_, etag, copyNumber, newVersion, lastModified) =>
                   store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber)
                   store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
-                  ColumnDAO.Deleted(columnRef.asSpec, etag)
+                  ColumnDAO.Deleted(columnRef, etag)
                 case DataCoordinatorClient.SchemaOutOfDate(realSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)
                   retry()
                 case DataCoordinatorClient.CannotDeleteRowId =>
-                  ColumnDAO.InvalidRowIdOperation(columnRef.asSpec, "DELETE")
+                  ColumnDAO.InvalidRowIdOperation(columnRef, "DELETE")
               }
             case None =>
               ColumnDAO.ColumnNotFound(column)
@@ -177,7 +177,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
       case Some(datasetRecord) =>
         datasetRecord.columnsByName.get(column) match {
           case Some(columnRef) =>
-            ColumnDAO.Found(columnRef.asSpec, None)
+            ColumnDAO.Found(datasetRecord, columnRef, None)
           case None =>
             ColumnDAO.ColumnNotFound(column)
         }

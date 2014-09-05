@@ -5,7 +5,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.errors.{NonUniqueRowId, HttpMethodNotAllowed, ResourceNotModified, EtagPreconditionFailed}
-import com.socrata.soda.server.highlevel.ColumnDAO
+import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedColumnSpec}
@@ -29,11 +29,11 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
     log.info("TODO: Negotiate content type")
     def prepareETag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(etagSuffix))
     result match {
-      case ColumnDAO.Created(spec, etagOpt) =>
-        etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> SodaUtils.JsonContent(spec)
-      case ColumnDAO.Updated(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
-      case ColumnDAO.Found(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
-      case ColumnDAO.Deleted(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
+      case ColumnDAO.Created(column, etagOpt) =>
+        etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> SodaUtils.JsonContent(column.asSpec)
+      case ColumnDAO.Updated(column, etag) => OK ~> SodaUtils.JsonContent(column.asSpec)
+      case ColumnDAO.Found(ds, column, etag) => OK ~> SodaUtils.JsonContent(column.asSpec)
+      case ColumnDAO.Deleted(column, etag) => OK ~> SodaUtils.JsonContent(column.asSpec)
       case ColumnDAO.ColumnNotFound(column) => NotFound /* TODO: content */
       case ColumnDAO.DatasetNotFound(dataset) => NotFound /* TODO: content */
       case ColumnDAO.InvalidColumnName(column) => BadRequest /* TODO: content */

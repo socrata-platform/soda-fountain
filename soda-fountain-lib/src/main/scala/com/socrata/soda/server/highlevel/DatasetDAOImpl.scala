@@ -83,7 +83,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
         store.addResource(record)
         store.updateVersionInfo(reportMetaData.datasetId, reportMetaData.version, reportMetaData.lastModified, None, Stage.InitialCopyNumber, None)
-        Created(trueSpec)
+        Created(trueSpec.asRecord(reportMetaData))
       case Some(_) =>
         DatasetAlreadyExists(spec.resourceName)
     }
@@ -143,20 +143,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result =
     store.lookupDataset(dataset, stage) match {
-      case Some(datasetRecord) =>
-        val spec = DatasetSpec(
-          datasetRecord.resourceName,
-          datasetRecord.name,
-          datasetRecord.description,
-          datasetRecord.columnsById(datasetRecord.primaryKey).fieldName,
-          datasetRecord.locale,
-          datasetRecord.stage,
-          datasetRecord.columnsByName.mapValues { cr =>
-            ColumnSpec(cr.id, cr.fieldName, cr.name, cr.description, cr.typ, cr.computationStrategy.asSpec)
-          })
-        Found(spec)
-      case None =>
-        NotFound(dataset)
+      case Some(datasetRecord) => Found(datasetRecord)
+      case None                => NotFound(dataset)
     }
 
   class Retry extends ControlThrowable

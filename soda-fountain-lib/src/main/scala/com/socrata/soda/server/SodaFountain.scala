@@ -139,11 +139,11 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
     val healthZ = HealthZ(geospace)
     // TODO: this should probably be a different max size value
-    val resource = Resource(rowDAO, store, etagObfuscator, config.maxDatumSize, computedColumns, metricProvider)
+    val resource = Resource(rowDAO, datasetDAO, etagObfuscator, config.maxDatumSize, computedColumns, metricProvider)
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
     val column = DatasetColumn(columnDAO, etagObfuscator, config.maxDatumSize)
     val export = Export(exportDAO, etagObfuscator)
-    val compute = Compute(store, exportDAO, rowDAO, computedColumns, etagObfuscator)
+    val compute = Compute(columnDAO, exportDAO, rowDAO, computedColumns, etagObfuscator)
 
     new SodaRouter(
       versionResource = Version.service,

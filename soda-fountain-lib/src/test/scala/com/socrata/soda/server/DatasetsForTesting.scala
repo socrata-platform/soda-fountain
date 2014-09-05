@@ -15,7 +15,7 @@ import com.rojoma.json.ast.JString
 import scala.Some
 
 trait DatasetsForTesting {
-  implicit class DatasetHelpers(val ds: MinimalDatasetRecord) {
+  implicit class DatasetHelpers(val ds: DatasetRecord) {
     def col(name: String): ColumnRecordLike = ds.columnsByName.get(ColumnName(name)).get
     def colName(name: String): ColumnName = col(name).fieldName
     def colId(name: String): String = col(name).id.underlying
@@ -42,18 +42,24 @@ trait DatasetsForTesting {
 
   object TestDatasetWithComputedColumn {
 
-    val idColumn = MinimalColumnRecord(
+    val idColumn = ColumnRecord(
       ColumnId(":id"),
       ColumnName(":id"),
       SoQLID,
-      isInconsistencyResolutionGenerated =  false
+      "ID",
+      "Description",
+      isInconsistencyResolutionGenerated =  false,
+      None
     )
 
-    val sourceColumn = MinimalColumnRecord(
+    val sourceColumn = ColumnRecord(
       ColumnId("src1-2345"),
       ColumnName("source"),
       SoQLText,
-      isInconsistencyResolutionGenerated =  false
+      "Source",
+      "Description",
+      isInconsistencyResolutionGenerated =  false,
+      None
     )
 
     val computationStrategy = ComputationStrategyRecord(
@@ -62,17 +68,21 @@ trait DatasetsForTesting {
       Some(Seq(sourceColumn.id.underlying)),
       Some(JObject(Map("concat_text" -> JString("fun")))))
 
-    val computedColumn = MinimalColumnRecord(
+    val computedColumn = ColumnRecord(
       ColumnId("comp-1234"),
       ColumnName(":computed"),
       SoQLText,
+      "Computed",
+      "Description",
       isInconsistencyResolutionGenerated =  false,
       Some(computationStrategy)
     )
 
-    val dataset = MinimalDatasetRecord(
+    val dataset = DatasetRecord(
       new ResourceName("test_resource"),
       new DatasetId("abcd-1234"),
+      "Test resource",
+      "Description",
       "en_US",
       "095c0a28ba0a9a0e58f22bf456fc82d27853c1b9",
       new ColumnId(":id"),

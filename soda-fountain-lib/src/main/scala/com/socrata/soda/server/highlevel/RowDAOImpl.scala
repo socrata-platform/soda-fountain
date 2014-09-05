@@ -1,6 +1,5 @@
 package com.socrata.soda.server.highlevel
 
-import java.nio.charset.StandardCharsets
 import com.rojoma.json.ast._
 import com.socrata.http.server.util.{NoPrecondition, Precondition, StrongEntityTag}
 import com.socrata.soda.clients.datacoordinator._
@@ -8,10 +7,11 @@ import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.highlevel.RowDAO._
-import com.socrata.soda.server.id.{ColumnId, ResourceName, RowSpecifier}
+import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
+import java.nio.charset.StandardCharsets
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 
@@ -121,7 +121,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   }
 
   def doUpsertish[T](user: String,
-                     datasetRecord: MinimalDatasetRecord,
+                     datasetRecord: DatasetRecordLike,
                      data: Iterator[RowUpdate],
                      instructions: Iterator[DataCoordinatorInstruction],
                      f: UpsertResult => T): T = {
@@ -142,10 +142,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T =
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T =
     doUpsertish(user, datasetRecord, data, Iterator.empty, f)
 
-  def replace[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T =
+  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T =
     doUpsertish(user, datasetRecord, data, Iterator.single(RowUpdateOptionChange(truncate = true)), f)
 
   def deleteRow[T](user: String, resourceName: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T = {

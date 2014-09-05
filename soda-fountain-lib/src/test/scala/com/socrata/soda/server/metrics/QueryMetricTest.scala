@@ -6,23 +6,23 @@ import com.socrata.http.server.util.Precondition
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 
 import com.socrata.soda.clients.datacoordinator.RowUpdate
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.highlevel.ExportDAO.CSchema
-import com.socrata.soda.server.highlevel.RowDAO
+import com.socrata.soda.server.highlevel.{DatasetDAO, RowDAO}
 import com.socrata.soda.server.highlevel.RowDAO.{UpsertResult, Result}
 import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
 import com.socrata.soda.server.metrics.Metrics._
 import com.socrata.soda.server.metrics.TestDatasets._
-import com.socrata.soda.server.persistence.{NameAndSchemaStore, MinimalDatasetRecord, ColumnRecord}
+import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecord}
 import com.socrata.soda.server.resources.Resource
 import com.socrata.soda.server.util.NoopEtagObfuscator
 
-import com.socrata.soql.types.{SoQLValue, SoQLType}
+import com.socrata.soql.types.SoQLValue
 
 import org.joda.time.DateTime
 import org.scalatest.FunSuite
 import org.scalamock.scalatest.MockFactory
 import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResponse}
-import com.socrata.soda.server.copy.Stage
 
 /**
  * Metric scenarios which are common between multi-row queries and single-row operations
@@ -118,7 +118,7 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
-    val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[NameAndSchemaStore], NoopEtagObfuscator, 1000, null, provider)
+    val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO], NoopEtagObfuscator, 1000, null, provider)
     val mockReq = new MockHttpServletRequest()
     mockReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}/some-row-id.json")
     headers.foreach(header => mockReq.addHeader(header._1, header._2))
@@ -179,7 +179,7 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
-    val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[NameAndSchemaStore], NoopEtagObfuscator, 1000, null, provider)
+    val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO], NoopEtagObfuscator, 1000, null, provider)
     val mockReq = new MockHttpServletRequest()
     mockReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}.json")
     headers.foreach(header => mockReq.addHeader(header._1, header._2))
@@ -245,7 +245,7 @@ private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
              stage: Option[Stage], secondaryInstance: Option[String]): Result = {
     query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance)
   }
-  def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
-  def replace[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
+  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
   def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T = ???
 }

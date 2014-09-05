@@ -1,10 +1,11 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.VersionReport
-import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
-import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, DatasetSpec, UserProvidedDatasetSpec}
-import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.copy.Stage
+import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
+import com.socrata.soda.server.persistence.DatasetRecord
+import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, UserProvidedDatasetSpec}
+import com.socrata.soql.environment.ColumnName
 
 trait DatasetDAO {
   import DatasetDAO.Result
@@ -27,9 +28,9 @@ trait DatasetDAO {
 
 object DatasetDAO {
   sealed abstract class Result
-  case class Created(datasetSpec: DatasetSpec) extends Result
-  case class Updated(datasetSpec: DatasetSpec) extends Result
-  case class Found(datasetSpec: DatasetSpec) extends Result
+  case class Created(datasetSpec: DatasetRecord) extends Result
+  case class Updated(datasetSpec: DatasetRecord) extends Result
+  case class Found(datasetSpec: DatasetRecord) extends Result
   case class DatasetVersion(version: VersionReport) extends Result
   case object Deleted extends Result
   case class NotFound(name: ResourceName) extends Result

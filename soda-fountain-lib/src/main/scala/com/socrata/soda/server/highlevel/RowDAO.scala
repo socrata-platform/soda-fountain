@@ -5,7 +5,7 @@ import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
-import com.socrata.soda.server.persistence.{ColumnRecord, MinimalDatasetRecord}
+import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecord}
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
@@ -31,9 +31,9 @@ trait RowDAO {
              stage: Option[Stage],
              secondaryInstance:Option[String]): Result
 
-  def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T
 
-  def replace[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T
+  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T
 
   def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T
 }

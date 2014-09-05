@@ -1,7 +1,8 @@
 package com.socrata.soda.server.resources
 
 import com.socrata.soda.server.{TestComputedColumns, DatasetsForTesting}
-import com.socrata.soda.server.highlevel.{RowDAO, ExportDAO}
+import com.socrata.soda.server.highlevel.{ColumnDAO, RowDAO, ExportDAO}
+import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.util.NoopEtagObfuscator
 import com.socrata.soql.environment.ColumnName
@@ -24,7 +25,7 @@ class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsF
     val response = getComputeResponse(dataset = Some(ds),
                                       col = ColumnName("mumbo_jumbo"),
                                       exportResult = null)
-    response.getStatus should equal (400)
+    response.getStatus should equal (404)
   }
 
   test("Column exists but not a computed column") {
@@ -42,19 +43,27 @@ class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsF
     response.getStatus should equal(200)
   }
 
-  private def getComputeResponse(dataset: Option[MinimalDatasetRecord] = Some(ds),
+  private def getComputeResponse(dataset: Option[DatasetRecord] = Some(ds),
                                  col: ColumnName = ds.colName(":computed"),
                                  exportResult: ExportDAO.Result): MockHttpServletResponse = {
-    val store = mock[NameAndSchemaStore]
+    val columnDAO = mock[ColumnDAO]
     val exportDAO = mock[ExportDAO]
     val rowDAO = mock[RowDAO]
     val request = new MockHttpServletRequest()
     val response = new MockHttpServletResponse()
-    val resource = new Compute(store, exportDAO, rowDAO, TestComputedColumns, NoopEtagObfuscator)
+    val resource = new Compute(columnDAO, exportDAO, rowDAO, TestComputedColumns, NoopEtagObfuscator)
 
-    store.expects('translateResourceName)(*, *).returning(dataset)
-    if (dataset.isDefined && dataset.get.columns.filter(_.computationStrategy.isDefined).map(_.fieldName).contains(col))
-    {
+    val getColumnResponse = dataset match {
+      case Some(d) => d.columnsByName.get(col) match {
+        case Some(c) => ColumnDAO.Found(d, c, None)
+        case None    => ColumnDAO.ColumnNotFound(col)
+      }
+      case None    => ColumnDAO.DatasetNotFound(new ResourceName("something"))
+    }
+
+    columnDAO.expects('getColumn)(*, *).returning(getColumnResponse)
+    if (getColumnResponse.isInstanceOf[ColumnDAO.Found] &&
+        dataset.get.columnsByName.get(col).get.computationStrategy.isDefined) {
       exportDAO.expects('export)(*, *, *, *, *, *, *, "latest", *).returning(exportResult)
 
       exportResult match {

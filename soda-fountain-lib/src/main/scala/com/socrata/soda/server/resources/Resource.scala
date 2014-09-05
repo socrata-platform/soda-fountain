@@ -17,12 +17,12 @@ import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.{errors => SodaErrors}
 import com.socrata.soda.server.errors.{SchemaInvalidForMimeType, SodaError}
 import com.socrata.soda.server.export.Exporter
-import com.socrata.soda.server.highlevel.{RowDataTranslator, RowDAO}
+import com.socrata.soda.server.highlevel.{DatasetDAO, RowDataTranslator, RowDAO}
 import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.id.RowSpecifier
-import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{DatasetRecordLike, MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
 import java.nio.charset.StandardCharsets
@@ -38,7 +38,7 @@ import scala.language.existentials
  * Resource: services for upserting, deleting, and querying dataset rows.
  */
 case class Resource(rowDAO: RowDAO,
-                    store: NameAndSchemaStore,
+                    datasetDAO: DatasetDAO,
                     etagObfuscator: ETagObfuscator,
                     maxRowSize: Long,
                     cc: ComputedColumnsLike,
@@ -83,21 +83,21 @@ case class Resource(rowDAO: RowDAO,
     }
   }
 
-  type rowDaoFunc = (MinimalDatasetRecord, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
+  type rowDaoFunc = (DatasetRecordLike, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
 
   def upsertishFlow(req: HttpServletRequest,
                     response: HttpServletResponse,
                     resourceName: ResourceName,
                     rows: Iterator[JValue],
                     f: rowDaoFunc) = {
-      store.translateResourceName(resourceName) match {
-        case Some(datasetRecord) =>
-          val transformer = new RowDataTranslator(datasetRecord, false)
-          val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
-          f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response, resourceName))
-        case None =>
-          SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
-      }
+    datasetDAO.getDataset(resourceName, None) match {
+      case DatasetDAO.Found(datasetRecord) =>
+        val transformer = new RowDataTranslator(datasetRecord, false)
+        val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
+        f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response, resourceName))
+      case DatasetDAO.NotFound(dataset) =>
+        SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+    }
   }
 
   implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))

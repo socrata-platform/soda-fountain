@@ -1,9 +1,10 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soda.server.wiremodels.{UserProvidedColumnSpec, ColumnSpec}
+import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.http.server.util.{EntityTag, Precondition}
+import com.socrata.soda.server.persistence.{DatasetRecord, ColumnRecord}
 
 trait ColumnDAO {
   import ColumnDAO.Result
@@ -17,13 +18,13 @@ trait ColumnDAO {
 object ColumnDAO {
   sealed abstract class Result
   case class PreconditionFailed(reason: Precondition.Failure) extends Result
-  case class Created(columnSpec: ColumnSpec, etag: Option[EntityTag]) extends Result
-  case class Updated(columnSpec: ColumnSpec, etag: Option[EntityTag]) extends Result
-  case class Found(columnSpec: ColumnSpec, etag: Option[EntityTag]) extends Result
+  case class Created(columnRec: ColumnRecord, etag: Option[EntityTag]) extends Result
+  case class Updated(columnRec: ColumnRecord, etag: Option[EntityTag]) extends Result
+  case class Found(datasetRec: DatasetRecord, columnRec: ColumnRecord, etag: Option[EntityTag]) extends Result
   case class DatasetNotFound(dataset: ResourceName) extends Result
   case class ColumnNotFound(column: ColumnName) extends Result
-  case class Deleted(spec: ColumnSpec, etag: Option[EntityTag]) extends Result
+  case class Deleted(rec: ColumnRecord, etag: Option[EntityTag]) extends Result
   case class InvalidColumnName(name: ColumnName) extends Result
-  case class InvalidRowIdOperation(columnSpec: ColumnSpec, method: String) extends Result
-  case class NonUniqueRowId(spec: ColumnSpec) extends Result
+  case class InvalidRowIdOperation(columnRec: ColumnRecord, method: String) extends Result
+  case class NonUniqueRowId(rec: ColumnRecord) extends Result
 }
