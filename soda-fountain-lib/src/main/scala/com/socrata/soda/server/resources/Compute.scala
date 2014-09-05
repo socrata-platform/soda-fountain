@@ -58,7 +58,7 @@ case class Compute(store: NameAndSchemaStore,
                                      None,
                                      None,
                                      None,
-                                     "published",
+                                     "latest",
                                      sorted = false) {
                       case ExportDAO.Success(schema, newTag, rows) =>
                         val transformer = new RowDataTranslator(dataset, false)

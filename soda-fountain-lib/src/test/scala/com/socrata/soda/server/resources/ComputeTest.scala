@@ -55,7 +55,7 @@ class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsF
     store.expects('translateResourceName)(*, *).returning(dataset)
     if (dataset.isDefined && dataset.get.columns.filter(_.computationStrategy.isDefined).map(_.fieldName).contains(col))
     {
-      exportDAO.expects('export)(*, *, *, *, *, *, *, *, *).returning(exportResult)
+      exportDAO.expects('export)(*, *, *, *, *, *, *, "latest", *).returning(exportResult)
 
       exportResult match {
         case ExportDAO.Success(schema, tag, rows) =>
