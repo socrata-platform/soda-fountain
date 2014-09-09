@@ -198,7 +198,7 @@ private object TestDatasets {
   }
 
   // Convenience
-  def querySuccess = RowDAO.QuerySuccess(Seq.empty, 1, DateTime.now(), new CSchema(None, None, None, "en-us", None, None, Seq.empty), Array(new Array[SoQLValue](0)).iterator)
+  def querySuccess = RowDAO.QuerySuccess(Seq.empty, 1, DateTime.now(), None, new CSchema(None, None, None, "en-us", None, None, Seq.empty), Array(new Array[SoQLValue](0)).iterator)
   def singleRowQuerySuccess = RowDAO.SingleRowQuerySuccess(Seq.empty, 1, DateTime.now(),  new CSchema(Some(1), None, None, "en-us", None, Some(1), Seq.empty), new Array[SoQLValue](0))
 
   // Shared datasets

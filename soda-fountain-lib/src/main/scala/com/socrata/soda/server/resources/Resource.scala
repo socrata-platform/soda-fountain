@@ -140,7 +140,7 @@ case class Resource(rowDAO: RowDAO,
                   Stage(req.getParameter(qpCopy)),
                   Option(req.getParameter(qpSecondary))
                 ) match {
-                  case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, schema, rows) =>
+                  case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                     metric(QuerySuccessMetric)
                     if (isConditionalGet(req)) {
                       metric(QueryCacheMiss)
@@ -152,6 +152,7 @@ case class Resource(rowDAO: RowDAO,
                         ETags(etags.map(prepareTag)) ~>
                         optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
+                        optionalHeader("X-Socrata-Rollup", rollup) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader(response)
                     exporter.export(response, charset, schema, rows)

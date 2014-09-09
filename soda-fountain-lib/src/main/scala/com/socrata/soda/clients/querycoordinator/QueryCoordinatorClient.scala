@@ -9,7 +9,7 @@ import com.socrata.soda.server.copy.Stage
 
 object QueryCoordinatorClient {
   sealed abstract class Result
-  case class Success(etags: Seq[EntityTag], response: JValue) extends Result
+  case class Success(etags: Seq[EntityTag], rollup: Option[String], response: JValue) extends Result
   case class NotModified(etags: Seq[EntityTag]) extends Result
   case object PreconditionFailed extends Result
   case class UserError(resultCode: Int, response: JValue) extends Result
