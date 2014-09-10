@@ -51,7 +51,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
               val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
               val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
               getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance) match {
-                case QuerySuccess(_, truthVersion, truthLastModified, simpleSchema, rows) =>
+                case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
                   val version = ColumnName(":version")
                   val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
                   val deVersionedSchema = simpleSchema.copy(schema = simpleSchema.schema.take(versionPos) ++ simpleSchema.schema.drop(versionPos + 1))
@@ -91,7 +91,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   private def getRows(ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime],
                       query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String]): Result = {
     qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount, copy, secondaryInstance) {
-      case QueryCoordinatorClient.Success(etags, response) =>
+      case QueryCoordinatorClient.Success(etags, rollup, response) =>
         val cjson = response.asInstanceOf[JArray]
         CJson.decode(cjson.toIterator) match {
           case CJson.Decoded(schema, rows) =>
@@ -106,7 +106,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
               schema.schema.map { f => ColumnInfo(f.c, ColumnName(f.c.underlying), f.c.underlying, f.t) }
             )
             // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
-            QuerySuccess(etags, ds.truthVersion, ds.lastModified, simpleSchema, rows)
+            QuerySuccess(etags, ds.truthVersion, ds.lastModified, rollup, simpleSchema, rows)
         }
       case QueryCoordinatorClient.UserError(code, response) =>
         RowDAO.InvalidRequest(code, response)
