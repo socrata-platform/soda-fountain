@@ -145,3 +145,10 @@ case class ComputedColumnNotWritable(value: ColumnName)
 case class NotAComputedColumn(value: ColumnName)
   extends SodaError(SC_BAD_REQUEST, "soda.column.not-a-computed-column",
     "value" -> JString(value.name))
+
+case object DeleteWithoutPrimaryKey
+  extends SodaError(SC_BAD_REQUEST, "soda.row.delete-without-primary-key")
+
+case class UpsertRowNotAnObject(obj: JValue)
+  extends SodaError(SC_BAD_REQUEST, "soda.row.upsert-row-not-an-object",
+    "value" -> obj)

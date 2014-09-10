@@ -1,10 +1,12 @@
 package com.socrata.soda.server.resources
 
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.highlevel.{ColumnDAO, RowDAO, ExportDAO}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soql.environment.ColumnName
+import javax.servlet.http.HttpServletResponse
 
 case class Compute(columnDAO: ColumnDAO,
                       exportDAO: ExportDAO,
@@ -14,8 +16,10 @@ case class Compute(columnDAO: ColumnDAO,
   val computeUtils = new ComputeUtils(columnDAO, exportDAO, rowDAO, computedColumns)
 
   case class service(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
-    override def post = { req => response =>
-      computeUtils.compute(req, response, resourceName, columnName, user(req))
+    override def post = { req => resp =>
+      def responseWriter = computeUtils.writeComputeResponse(
+        resourceName, columnName, HttpServletResponse.SC_OK, _: HttpServletResponse, _: Iterator[ReportItem])
+      computeUtils.compute(req, resp, resourceName, columnName, user(req))(UpsertUtils.handleUpsertErrors(req, resp)(responseWriter))
     }
   }
 }

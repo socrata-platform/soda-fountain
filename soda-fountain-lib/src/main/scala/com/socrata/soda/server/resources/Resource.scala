@@ -94,7 +94,7 @@ case class Resource(rowDAO: RowDAO,
       case DatasetDAO.Found(datasetRecord) =>
         val transformer = new RowDataTranslator(datasetRecord, false)
         val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
-        f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response, resourceName))
+        f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
       case DatasetDAO.NotFound(dataset) =>
         SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
     }
@@ -296,7 +296,7 @@ case class Resource(rowDAO: RowDAO,
     }
 
     override def delete = { req => response =>
-      rowDAO.deleteRow(user(req), resourceName, rowId)(UpsertUtils.upsertResponse(req, response))
+      rowDAO.deleteRow(user(req), resourceName, rowId)(UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
     }
   }
 }
