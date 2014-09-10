@@ -11,26 +11,26 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
+import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.{errors => SodaErrors}
 import com.socrata.soda.server.errors.{SchemaInvalidForMimeType, SodaError}
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{RowDataTranslator, RowDAO}
-import com.socrata.soda.server.highlevel.RowDAO._
-import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.id.RowSpecifier
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import com.socrata.soda.server.metrics.{NoopMetricProvider, MetricProvider}
 import com.socrata.soda.server.metrics.Metrics.{ QuerySuccess => QuerySuccessMetric } // conflict with RowDAO.QuerySuccess
 import com.socrata.soda.server.metrics.Metrics._
+
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+
 import scala.language.existentials
 
 
@@ -152,7 +152,7 @@ case class Resource(rowDAO: RowDAO,
                         ETags(etags.map(prepareTag)) ~>
                         optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
-                        optionalHeader("X-Socrata-Rollup", rollup) ~>
+                        optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader(response)
                     exporter.export(response, charset, schema, rows)

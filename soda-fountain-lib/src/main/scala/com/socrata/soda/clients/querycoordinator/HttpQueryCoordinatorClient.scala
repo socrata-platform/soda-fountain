@@ -33,7 +33,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     def resultFrom(response: Response): Result = {
       response.resultCode match {
         case SC_OK =>
-          Success(response.headers("ETag").map(EntityTagParser.parse(_)), response.headers("X-Socrata-Rollup").headOption, response.asJValue())
+          Success(response.headers("ETag").map(EntityTagParser.parse(_)), response.headers(HeaderRollup).headOption, response.asJValue())
         case SC_NOT_MODIFIED =>
           NotModified(response.headers("ETag").map(EntityTagParser.parse(_)))
         case SC_PRECONDITION_FAILED =>
