@@ -21,7 +21,8 @@ trait RowDAO {
             query: String,
             rowCount: Option[String],
             stage: Option[Stage],
-            secondaryInstance:Option[String]): Result
+            secondaryInstance:Option[String],
+            noRollup: Boolean): Result
 
   def getRow(dataset: ResourceName,
              schemaCheck: Seq[ColumnRecord] => Boolean,
@@ -29,7 +30,8 @@ trait RowDAO {
              ifModifiedSince: Option[DateTime],
              rowId: RowSpecifier,
              stage: Option[Stage],
-             secondaryInstance:Option[String]): Result
+             secondaryInstance:Option[String],
+             noRollup: Boolean): Result
 
   def upsert[T](user: String, datasetRecord: MinimalDatasetRecord, data: Iterator[RowUpdate])(f: UpsertResult => T): T
 
