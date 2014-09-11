@@ -123,6 +123,7 @@ case class Resource(rowDAO: RowDAO,
         val qpRowCount = "$$row_count" // Query parameter row count
         val qpCopy = "$$copy" // Query parameter for copy.  Optional, "latest", "published", "unpublished"
         val qpSecondary = "$$store"
+        val qpNoRollup = "$$no_rollup"
         val suffix = headerHash(req)
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
         def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
@@ -138,7 +139,8 @@ case class Resource(rowDAO: RowDAO,
                   Option(req.getParameter(qpQuery)).getOrElse("select *"),
                   Option(req.getParameter(qpRowCount)),
                   Stage(req.getParameter(qpCopy)),
-                  Option(req.getParameter(qpSecondary))
+                  Option(req.getParameter(qpSecondary)),
+                  Option(req.getParameter(qpNoRollup)).isDefined
                 ) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                     metric(QuerySuccessMetric)
@@ -222,6 +224,7 @@ case class Resource(rowDAO: RowDAO,
         val suffix = headerHash(req)
         val qpCopy = "$$copy"
         val qpSecondary = "$$store"
+        val qpNoRollup = "$$no_rollup"
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
         def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
         precondition.filter(_.endsWith(suffix)) match {
@@ -237,7 +240,8 @@ case class Resource(rowDAO: RowDAO,
                     req.dateTimeHeader("If-Modified-Since"),
                     rowId,
                     Stage(req.getParameter(qpCopy)),
-                    Option(req.getParameter(qpSecondary))
+                    Option(req.getParameter(qpSecondary)),
+                    Option(req.getParameter(qpNoRollup)).isDefined
                   ) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
