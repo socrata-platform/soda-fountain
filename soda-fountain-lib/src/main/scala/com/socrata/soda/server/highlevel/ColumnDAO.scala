@@ -1,10 +1,10 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soql.environment.ColumnName
-import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
-import com.socrata.soda.server.id.ResourceName
 import com.socrata.http.server.util.{EntityTag, Precondition}
+import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence.{DatasetRecord, ColumnRecord}
+import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
+import com.socrata.soql.environment.ColumnName
 
 trait ColumnDAO {
   import ColumnDAO.Result
