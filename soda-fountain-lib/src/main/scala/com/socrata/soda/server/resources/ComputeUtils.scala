@@ -36,11 +36,12 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
               response: HttpServletResponse,
               resourceName: ResourceName,
               columnName: ColumnName,
-              user: String)(handleResponse: RowDAO.UpsertResult => Unit): Unit = {
+              user: String)
+             (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit): Unit = {
     columnDAO.getColumn(resourceName, columnName) match {
       case ColumnDAO.Found(dataset, column, _)         =>
         column.computationStrategy match {
-          case Some(strategy) => compute(req, response, dataset, column, user)(handleResponse)
+          case Some(strategy) => compute(req, response, dataset, column, user)(successHandler)
           case None           => SodaUtils.errorResponse(req, SodaError.NotAComputedColumn(columnName))(response)
         }
       case ColumnDAO.DatasetNotFound(dataset) =>
@@ -54,7 +55,8 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
               response: HttpServletResponse,
               dataset: DatasetRecordLike,
               column: ColumnRecordLike,
-              user: String)(handleResponse: RowDAO.UpsertResult => Unit): Unit =
+              user: String)
+             (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit): Unit =
     column.computationStrategy match {
       case Some(strategy) =>
         val columns = columnsToExport(dataset, strategy)
@@ -70,10 +72,10 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
           case ExportDAO.Success(schema, newTag, rows) =>
             val transformer = new RowDataTranslator(dataset, false)
             val upsertRows = transformer.transformDcRowsForUpsert(computedColumns, Seq(column), schema, rows)
-            rowDAO.upsert(user, dataset, upsertRows)(handleResponse)
+            rowDAO.upsert(user, dataset, upsertRows)(UpsertUtils.handleUpsertErrors(req, response)(successHandler))
           case ExportDAO.PreconditionFailed => SodaUtils.errorResponse(req, SodaError.EtagPreconditionFailed)(response)
           case ExportDAO.NotModified(etags) => SodaUtils.errorResponse(req, SodaError.ResourceNotModified(Nil, None))(response)
-          case ExportDAO.NotFound => SodaUtils.errorResponse(req, SodaError.DatasetNotFound(dataset.resourceName))(response)
+          case ExportDAO.NotFound(resourceName) => SodaUtils.errorResponse(req, SodaError.DatasetNotFound(resourceName))(response)
           case ExportDAO.SchemaInvalidForMimeType => SodaUtils.errorResponse(req, SodaError.SchemaInvalidForMimeType)(response)
         }
       case None => SodaUtils.errorResponse(req, SodaError.NotAComputedColumn(column.fieldName))(response)

@@ -28,9 +28,9 @@ trait DatasetDAO {
 
 object DatasetDAO {
   sealed abstract class Result
-  case class Created(datasetSpec: DatasetRecord) extends Result
-  case class Updated(datasetSpec: DatasetRecord) extends Result
-  case class Found(datasetSpec: DatasetRecord) extends Result
+  case class Created(dataset: DatasetRecord) extends Result
+  case class Updated(dataset: DatasetRecord) extends Result
+  case class Found(dataset: DatasetRecord) extends Result
   case class DatasetVersion(version: VersionReport) extends Result
   case object Deleted extends Result
   case class NotFound(name: ResourceName) extends Result

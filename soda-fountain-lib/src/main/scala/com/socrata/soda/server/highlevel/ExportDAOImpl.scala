@@ -139,7 +139,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
             f(ExportDAO.SchemaInvalidForMimeType)
           }
         case None =>
-          f(ExportDAO.NotFound)
+          f(ExportDAO.NotFound(dataset))
       }
     }
 }

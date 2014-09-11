@@ -16,10 +16,11 @@ trait ColumnDAO {
 }
 
 object ColumnDAO {
-  sealed abstract class Result
+  sealed trait Result
+  sealed trait CreateUpdateSuccess extends Result
+  case class Created(columnRec: ColumnRecord, etag: Option[EntityTag]) extends CreateUpdateSuccess
+  case class Updated(columnRec: ColumnRecord, etag: Option[EntityTag]) extends CreateUpdateSuccess
   case class PreconditionFailed(reason: Precondition.Failure) extends Result
-  case class Created(columnRec: ColumnRecord, etag: Option[EntityTag]) extends Result
-  case class Updated(columnRec: ColumnRecord, etag: Option[EntityTag]) extends Result
   case class Found(datasetRec: DatasetRecord, columnRec: ColumnRecord, etag: Option[EntityTag]) extends Result
   case class DatasetNotFound(dataset: ResourceName) extends Result
   case class ColumnNotFound(column: ColumnName) extends Result

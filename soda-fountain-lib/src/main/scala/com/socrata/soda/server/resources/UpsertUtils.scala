@@ -12,37 +12,36 @@ object UpsertUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
   def handleUpsertErrors(req: HttpServletRequest, response: HttpServletResponse)
-                        (writer: (HttpServletResponse, Iterator[ReportItem]) => Unit)
+                        (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit)
                         (upsertResult: RowDAO.UpsertResult) = {
     import RowDataTranslator._
 
-    val writeResponse = upsertResponse(req, response)(writer)(_)
+    val handleResponse = upsertResponse(req, response, _: RowDAO.UpsertResult)(successHandler)
 
     try {
-      writeResponse(upsertResult)
+      handleResponse(upsertResult)
     } catch {
       case MaltypedDataEx(columnName, expected, got) =>
-        writeResponse(RowDAO.MaltypedData(columnName, expected, got))
+        handleResponse(RowDAO.MaltypedData(columnName, expected, got))
       case UnknownColumnEx(columnName)               =>
-        writeResponse(RowDAO.UnknownColumn(columnName))
+        handleResponse(RowDAO.UnknownColumn(columnName))
       case DeleteNoPKEx                              =>
-        writeResponse(RowDAO.DeleteWithoutPrimaryKey)
+        handleResponse(RowDAO.DeleteWithoutPrimaryKey)
       case NotAnObjectOrSingleElementArrayEx(obj)    =>
-        writeResponse(RowDAO.RowNotAnObject(obj))
+        handleResponse(RowDAO.RowNotAnObject(obj))
       case ComputedColumnNotWritableEx(columnName)   =>
-        writeResponse(RowDAO.ComputedColumnNotWritable(columnName))
+        handleResponse(RowDAO.ComputedColumnNotWritable(columnName))
       case ComputationHandlerNotFoundEx(typ)         =>
-        writeResponse(RowDAO.ComputationHandlerNotFound(typ))
+        handleResponse(RowDAO.ComputationHandlerNotFound(typ))
     }
   }
 
-  def upsertResponse(request: HttpServletRequest, response: HttpServletResponse)
-                    (writer: (HttpServletResponse, Iterator[ReportItem]) => Unit)
-                    (result: RowDAO.UpsertResult) {
+  private def upsertResponse(request: HttpServletRequest, response: HttpServletResponse, result: RowDAO.UpsertResult)
+                    (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit) {
     log.info("TODO: Negotiate content-type")
     result match {
       case RowDAO.StreamSuccess(report) =>
-        writer(response, report)
+        successHandler(response, report)
       case mismatch : MaltypedData =>
         SodaUtils.errorResponse(request, new SodaErrors.ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
       case RowDAO.RowNotFound(rowSpecifier) =>
