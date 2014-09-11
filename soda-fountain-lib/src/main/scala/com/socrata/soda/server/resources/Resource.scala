@@ -1,36 +1,33 @@
 package com.socrata.soda.server.resources
 
 import com.rojoma.json.ast.JValue
-import com.rojoma.json.io.CompactJsonWriter
-import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.ContentNegotiation
-import com.socrata.soda.server.copy.Stage
 import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
+import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.computation.ComputedColumnsLike
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.{errors => SodaErrors}
-import com.socrata.soda.server.errors.{SchemaInvalidForMimeType, SodaError}
+import com.socrata.soda.server.errors.SodaError
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{DatasetDAO, RowDataTranslator, RowDAO}
-import com.socrata.soda.server.highlevel.RowDAO._
-import com.socrata.soda.server.highlevel.RowDataTranslator._
-import com.socrata.soda.server.id.ResourceName
-import com.socrata.soda.server.id.RowSpecifier
-import com.socrata.soda.server.persistence.{DatasetRecordLike, MinimalDatasetRecord, NameAndSchemaStore}
-import com.socrata.soda.server.util.ETagObfuscator
-import com.socrata.soda.server.wiremodels.InputUtils
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.metrics.{NoopMetricProvider, MetricProvider}
 import com.socrata.soda.server.metrics.Metrics.{ QuerySuccess => QuerySuccessMetric } // conflict with RowDAO.QuerySuccess
 import com.socrata.soda.server.metrics.Metrics._
+import com.socrata.soda.server.persistence.DatasetRecordLike
+import com.socrata.soda.server.util.ETagObfuscator
+import com.socrata.soda.server.wiremodels.InputUtils
+
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+
 import scala.language.existentials
 
 
@@ -123,6 +120,7 @@ case class Resource(rowDAO: RowDAO,
         val qpRowCount = "$$row_count" // Query parameter row count
         val qpCopy = "$$copy" // Query parameter for copy.  Optional, "latest", "published", "unpublished"
         val qpSecondary = "$$store"
+        val qpNoRollup = "$$no_rollup"
         val suffix = headerHash(req)
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
         def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
@@ -138,7 +136,8 @@ case class Resource(rowDAO: RowDAO,
                   Option(req.getParameter(qpQuery)).getOrElse("select *"),
                   Option(req.getParameter(qpRowCount)),
                   Stage(req.getParameter(qpCopy)),
-                  Option(req.getParameter(qpSecondary))
+                  Option(req.getParameter(qpSecondary)),
+                  Option(req.getParameter(qpNoRollup)).isDefined
                 ) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                     metric(QuerySuccessMetric)
@@ -152,7 +151,7 @@ case class Resource(rowDAO: RowDAO,
                         ETags(etags.map(prepareTag)) ~>
                         optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
-                        optionalHeader("X-Socrata-Rollup", rollup) ~>
+                        optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader(response)
                     exporter.export(response, charset, schema, rows)
@@ -222,6 +221,7 @@ case class Resource(rowDAO: RowDAO,
         val suffix = headerHash(req)
         val qpCopy = "$$copy"
         val qpSecondary = "$$store"
+        val qpNoRollup = "$$no_rollup"
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
         def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
         precondition.filter(_.endsWith(suffix)) match {
@@ -237,7 +237,8 @@ case class Resource(rowDAO: RowDAO,
                     req.dateTimeHeader("If-Modified-Since"),
                     rowId,
                     Stage(req.getParameter(qpCopy)),
-                    Option(req.getParameter(qpSecondary))
+                    Option(req.getParameter(qpSecondary)),
+                    Option(req.getParameter(qpNoRollup)).isDefined
                   ) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
@@ -268,7 +269,7 @@ case class Resource(rowDAO: RowDAO,
                       SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
                     case RowDAO.SchemaInvalidForMimeType =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SchemaInvalidForMimeType)
+                      SodaUtils.errorResponse(req, SodaErrors.SchemaInvalidForMimeType)
                   }
               case None =>
                 metric(QueryErrorUser)

@@ -238,12 +238,12 @@ private object TestDatasets {
  */
 private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
   def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String],
-            stage: Option[Stage], secondaryInstance: Option[String]): Result = {
+            stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean): Result = {
     testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
   }
   def getRow(dataset: ResourceName, schemaCheck: (Seq[ColumnRecord]) => Boolean, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
-             stage: Option[Stage], secondaryInstance: Option[String]): Result = {
-    query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance)
+             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean): Result = {
+    query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup)
   }
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
   def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???

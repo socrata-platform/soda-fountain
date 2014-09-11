@@ -13,10 +13,12 @@ object QueryCoordinatorClient {
   case class NotModified(etags: Seq[EntityTag]) extends Result
   case object PreconditionFailed extends Result
   case class UserError(resultCode: Int, response: JValue) extends Result
+
+  val HeaderRollup = "X-SODA2-Rollup"
 }
 
 trait QueryCoordinatorClient {
   import QueryCoordinatorClient._
   def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, columnIdMap: Map[ColumnName, ColumnId],
-    rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String])(f: Result => T): T
+    rowCount: Option[String], copy: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean)(f: Result => T): T
 }
