@@ -102,7 +102,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                 SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
               case ExportDAO.NotModified(etags) =>
                 SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(resp)
-              case ExportDAO.SchemaInvalidForMimeType => SodaUtils.errorResponse(req, SchemaInvalidForMimeType)
+              case ExportDAO.SchemaInvalidForMimeType => SodaUtils.errorResponse(req, SchemaInvalidForMimeType)(resp)
             }
           case None =>
             // TODO better error
