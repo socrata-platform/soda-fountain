@@ -1,6 +1,5 @@
 package com.socrata.soda.server.highlevel
 
-import ExportDAO._
 import com.socrata.http.server.util.{Precondition, EntityTag}
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.ColumnRecordLike
@@ -28,6 +27,6 @@ object ExportDAO {
   case class Success(schema: CSchema, entityTag: Option[EntityTag], rows: Iterator[Array[SoQLValue]]) extends Result
   case object PreconditionFailed extends Result
   case class NotModified(etag: Seq[EntityTag]) extends Result
-  case object NotFound extends Result
+  case class NotFound(resourceName: ResourceName) extends Result
   case object SchemaInvalidForMimeType extends Result
 }

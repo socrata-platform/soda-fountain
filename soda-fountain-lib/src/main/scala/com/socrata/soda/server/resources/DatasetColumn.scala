@@ -4,8 +4,9 @@ import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util.{EntityTag, Precondition}
+import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.errors.{NonUniqueRowId, HttpMethodNotAllowed, ResourceNotModified, EtagPreconditionFailed}
-import com.socrata.soda.server.highlevel.ColumnDAO
+import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedColumnSpec}
@@ -13,10 +14,12 @@ import com.socrata.soda.server.{LogTag, SodaUtils}
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletRequest
 
-case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
+case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, computedColumns: ComputedColumnsLike, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetColumn])
+  val computeUtils = new ComputeUtils(columnDAO, exportDAO, rowDAO, computedColumns)
+  val defaultSuffix = Array[Byte]('+')
 
-  def withColumnSpec(request: HttpServletRequest, logTags: LogTag*)(f: UserProvidedColumnSpec => HttpResponse): HttpResponse = {
+  def withColumnSpec(request: HttpServletRequest, logTags: LogTag*)(f: UserProvidedColumnSpec => Unit): Unit = {
     UserProvidedColumnSpec.fromRequest(request, maxDatumSize) match {
       case Extracted(datasetSpec) =>
         f(datasetSpec)
@@ -25,15 +28,15 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
     }
   }
 
-  def response(req: HttpServletRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte], isGet: Boolean = false): HttpResponse = {
+  def response(req: HttpServletRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte] = defaultSuffix, isGet: Boolean = false): HttpResponse = {
     log.info("TODO: Negotiate content type")
     def prepareETag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(etagSuffix))
     result match {
-      case ColumnDAO.Created(spec, etagOpt) =>
-        etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> SodaUtils.JsonContent(spec)
-      case ColumnDAO.Updated(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
-      case ColumnDAO.Found(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
-      case ColumnDAO.Deleted(spec, etag) => OK ~> SodaUtils.JsonContent(spec)
+      case ColumnDAO.Created(column, etagOpt) =>
+        etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> SodaUtils.JsonContent(column.asSpec)
+      case ColumnDAO.Updated(column, etag) => OK ~> SodaUtils.JsonContent(column.asSpec)
+      case ColumnDAO.Found(ds, column, etag) => OK ~> SodaUtils.JsonContent(column.asSpec)
+      case ColumnDAO.Deleted(column, etag) => OK ~> SodaUtils.JsonContent(column.asSpec)
       case ColumnDAO.ColumnNotFound(column) => NotFound /* TODO: content */
       case ColumnDAO.DatasetNotFound(dataset) => NotFound /* TODO: content */
       case ColumnDAO.InvalidColumnName(column) => BadRequest /* TODO: content */
@@ -53,50 +56,58 @@ case class DatasetColumn(columnDAO: ColumnDAO, etagObfuscator: ETagObfuscator, m
     }
   }
 
-  def checkPrecondition(req: HttpServletRequest, isGet: Boolean = false)(op: Precondition => ColumnDAO.Result): HttpResponse = {
-    val suffix = Array[Byte]('+')
+  def checkPrecondition(req: HttpServletRequest, suffix: Array[Byte] = defaultSuffix, isGet: Boolean = false)
+                       (op: Precondition => Unit): Unit = {
     req.precondition.map(etagObfuscator.deobfuscate).filter(_.endsWith(suffix)) match {
       case Right(preconditionRaw) =>
-        val precondition = preconditionRaw.map(_.dropRight(suffix.length))
-        response(req, op(precondition), suffix, isGet)
+        op(preconditionRaw.map(_.dropRight(suffix.length)))
       case Left(Precondition.FailedBecauseNoMatch) =>
         SodaUtils.errorResponse(req, EtagPreconditionFailed)
     }
   }
 
   case class service(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
-    override def get = { req =>
+    override def get = { req => resp =>
       checkPrecondition(req, isGet = true) { precondition =>
-        columnDAO.getColumn(resourceName, columnName)
+        response(req, columnDAO.getColumn(resourceName, columnName))(resp)
       }
     }
 
-    override def delete = { req =>
+    override def delete = { req => resp =>
       checkPrecondition(req) { precondition =>
-        columnDAO.deleteColumn(user(req), resourceName, columnName)
+        response(req, columnDAO.deleteColumn(user(req), resourceName, columnName))(resp)
       }
     }
 
-    override def put = { req =>
+    override def put = { req => resp =>
       withColumnSpec(req, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          columnDAO.replaceOrCreateColumn(user(req), resourceName, precondition, columnName, spec)
+          columnDAO.replaceOrCreateColumn(user(req), resourceName, precondition, columnName, spec) match {
+            case success: ColumnDAO.CreateUpdateSuccess =>
+              if (spec.computationStrategy.isDefined) {
+                computeUtils.compute(req, resp, resourceName, columnName, user(req)) {
+                  case (res, report) => response(req, success)(resp)
+                }
+              }
+              else response(req, success)(resp)
+            case other => response(req, other)(resp)
+          }
         }
       }
     }
 
-    override def patch = { req =>
+    override def patch = { req => resp =>
       withColumnSpec(req, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          columnDAO.updateColumn(user(req), resourceName, columnName, spec)
+          response(req, columnDAO.updateColumn(user(req), resourceName, columnName, spec))(resp)
         }
       }
     }
   }
 
   case class pkservice(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
-    override def post = { req =>
-      response(req, columnDAO.makePK(user(req), resourceName, columnName), new Array[Byte](0))
+    override def post = { req => resp =>
+      response(req, columnDAO.makePK(user(req), resourceName, columnName), Array[Byte](0))(resp)
     }
   }
 }

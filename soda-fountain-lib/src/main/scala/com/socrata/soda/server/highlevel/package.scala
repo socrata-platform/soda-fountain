@@ -63,4 +63,19 @@ package object highlevel {
         dsMetaData.lastModified)
     }
   }
+
+  implicit class dsspec(val __underlying: DatasetRecord) extends AnyVal {
+    def asSpec: DatasetSpec = {
+      DatasetSpec(
+        __underlying.resourceName,
+        __underlying.name,
+        __underlying.description,
+        __underlying.columnsById(__underlying.primaryKey).fieldName,
+        __underlying.locale,
+        __underlying.stage,
+        __underlying.columnsByName.mapValues { cr =>
+          ColumnSpec(cr.id, cr.fieldName, cr.name, cr.description, cr.typ, cr.computationStrategy.asSpec)
+        })
+    }
+  }
 }

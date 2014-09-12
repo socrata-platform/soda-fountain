@@ -2,63 +2,46 @@ package com.socrata.soda.server.resources
 
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem}
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
 import com.socrata.soda.server.{errors => SodaErrors, SodaUtils}
 import com.socrata.soda.server.highlevel.{RowDataTranslator, RowDAO}
 import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
-import com.socrata.soda.server.id.ResourceName
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 
 object UpsertUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
-  def handleUpsertErrors(req: HttpServletRequest,
-                         response: HttpServletResponse,
-                         resourceName: ResourceName)(upsertResult: RowDAO.UpsertResult) = {
+  def handleUpsertErrors(req: HttpServletRequest, response: HttpServletResponse)
+                        (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit)
+                        (upsertResult: RowDAO.UpsertResult) = {
     import RowDataTranslator._
 
+    val handleResponse = upsertResponse(req, response, _: RowDAO.UpsertResult)(successHandler)
+
     try {
-      upsertResponse(req, response)(upsertResult)
+      handleResponse(upsertResult)
     } catch {
       case MaltypedDataEx(columnName, expected, got) =>
-        upsertResponse(req, response)(RowDAO.MaltypedData(columnName, expected, got))
+        handleResponse(RowDAO.MaltypedData(columnName, expected, got))
       case UnknownColumnEx(columnName)               =>
-        upsertResponse(req, response)(RowDAO.UnknownColumn(columnName))
+        handleResponse(RowDAO.UnknownColumn(columnName))
       case DeleteNoPKEx                              =>
-        upsertResponse(req, response)(RowDAO.DeleteWithoutPrimaryKey)
+        handleResponse(RowDAO.DeleteWithoutPrimaryKey)
       case NotAnObjectOrSingleElementArrayEx(obj)    =>
-        upsertResponse(req, response)(RowDAO.RowNotAnObject(obj))
+        handleResponse(RowDAO.RowNotAnObject(obj))
       case ComputedColumnNotWritableEx(columnName)   =>
-        upsertResponse(req, response)(RowDAO.ComputedColumnNotWritable(columnName))
+        handleResponse(RowDAO.ComputedColumnNotWritable(columnName))
       case ComputationHandlerNotFoundEx(typ)         =>
-        upsertResponse(req, response)(RowDAO.ComputationHandlerNotFound(typ))
+        handleResponse(RowDAO.ComputationHandlerNotFound(typ))
     }
   }
 
-  def upsertResponse(request: HttpServletRequest, response: HttpServletResponse)(result: RowDAO.UpsertResult) {
+  private def upsertResponse(request: HttpServletRequest, response: HttpServletResponse, result: RowDAO.UpsertResult)
+                    (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit) {
     log.info("TODO: Negotiate content-type")
     result match {
       case RowDAO.StreamSuccess(report) =>
-        response.setStatus(HttpServletResponse.SC_OK)
-        response.setContentType(SodaUtils.jsonContentTypeUtf8) // TODO: negotiate charset too
-        using(response.getWriter) { w =>
-          // TODO: send actual response
-          val jw = new CompactJsonWriter(w)
-          w.write('[')
-          var wroteOne = false
-          while(report.hasNext) {
-            report.next() match {
-              case UpsertReportItem(items) =>
-                while(items.hasNext) {
-                  if(wroteOne) w.write(',')
-                  else wroteOne = true
-                  jw.write(items.next())
-                }
-              case OtherReportItem => // nothing; probably shouldn't have occurred!
-            }
-          }
-          w.write("]\n")
-        }
+        successHandler(response, report)
       case mismatch : MaltypedData =>
         SodaUtils.errorResponse(request, new SodaErrors.ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
       case RowDAO.RowNotFound(rowSpecifier) =>
@@ -69,6 +52,33 @@ object UpsertUtils {
         SodaUtils.errorResponse(request, SodaErrors.ComputationHandlerNotFound(typ))(response)
       case RowDAO.ComputedColumnNotWritable(columnName) =>
         SodaUtils.errorResponse(request, SodaErrors.ComputedColumnNotWritable(columnName))(response)
+      case RowDAO.DeleteWithoutPrimaryKey =>
+        SodaUtils.errorResponse(request, SodaErrors.DeleteWithoutPrimaryKey)(response)
+      case RowDAO.RowNotAnObject(obj) =>
+        SodaUtils.errorResponse(request, SodaErrors.UpsertRowNotAnObject(obj))(response)
+    }
+  }
+
+  def writeUpsertResponse(response: HttpServletResponse, report: Iterator[ReportItem]) = {
+    response.setStatus(HttpServletResponse.SC_OK)
+    response.setContentType(SodaUtils.jsonContentTypeUtf8) // TODO: negotiate charset too
+    using(response.getWriter) { w =>
+      // TODO: send actual response
+      val jw = new CompactJsonWriter(w)
+      w.write('[')
+      var wroteOne = false
+      while(report.hasNext) {
+        report.next() match {
+          case UpsertReportItem(items) =>
+            while(items.hasNext) {
+              if(wroteOne) w.write(',')
+              else wroteOne = true
+              jw.write(items.next())
+            }
+          case OtherReportItem => // nothing; probably shouldn't have occurred!
+        }
+      }
+      w.write("]\n")
     }
   }
 }
