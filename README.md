@@ -16,8 +16,10 @@
 
 For fast dev cycles:
 
-1. Add `-Dconfig.file=/etc/soda2.conf` to `SBT_OPTS` and populate it
-2. `sbt "soda-fountain-jetty/run"`
+1. Start SBT shell
+2. `reStart --- -Dconfig.file=/etc/soda2.conf`
+
+This forks a separate JVM, killing any previously forked JVM.  For really fast compile and auto run, do `~reStart`.  Much faster than building an assembly!
 
 To build an assembly and run as a separate process:
 
