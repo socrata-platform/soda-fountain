@@ -1,6 +1,6 @@
 package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast.{JObject, JString, JArray, JNumber}
+import com.rojoma.json.ast._
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import com.socrata.soda.server.highlevel.RowDataTranslator
@@ -122,14 +122,14 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
     }
   }
 
-  implicit def optionCodec[T: JsonCodec] = new JsonCodec[Option[T]] {
-    def encode(x: Option[T]) = x match {
-      case Some(value) => JsonCodec[T].encode(value)
+  implicit def optionIntCodec = new JsonCodec[Option[Int]] {
+    def encode(x: Option[Int]) = x match {
+      case Some(value) => JsonCodec[Int].encode(value)
       case None        => com.rojoma.json.ast.JNull
     }
 
-    def decode(x: com.rojoma.json.ast.JValue) =
-      JsonCodec[T].decode(x) match {
+    def decode(x: JValue) =
+      JsonCodec[Int].decode(x) match {
         case Some(value) => Some(Some(value))
         case None        => Some(None)
       }
