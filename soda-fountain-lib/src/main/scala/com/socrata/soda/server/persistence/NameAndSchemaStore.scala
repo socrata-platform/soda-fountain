@@ -35,7 +35,7 @@ trait NameAndSchemaStore {
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName, copyNumber: Long) : Int
   def dropColumn(datasetId: DatasetId, columnId: ColumnId, copyNumber: Long) : Unit
   def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]): Unit
-  def makeCopy(datasetId: DatasetId, copyNumber: Long): Unit
+  def makeCopy(datasetId: DatasetId, copyNumber: Long, dataVersion: Long): Unit
 }
 
 trait DatasetRecordLike {

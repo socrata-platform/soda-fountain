@@ -173,7 +173,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         case Some(datasetRecord) =>
           dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user) {
             case DataCoordinatorClient.Success(_, _, newCopyNumber, newVersion, lastModified) =>
-              store.makeCopy(datasetRecord.systemId, newCopyNumber)
+              store.makeCopy(datasetRecord.systemId, newCopyNumber, newVersion)
               WorkingCopyCreated
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
