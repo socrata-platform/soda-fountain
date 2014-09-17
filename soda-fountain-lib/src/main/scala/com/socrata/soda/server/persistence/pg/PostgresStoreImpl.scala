@@ -604,14 +604,14 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def makeCopy(datasetId: DatasetId, copyNumber: Long) = {
+  def makeCopy(datasetId: DatasetId, copyNumber: Long, dataVersion: Long) = {
     using(dataSource.getConnection) { conn =>
       using (conn.prepareStatement(
         """
         CREATE TEMP TABLE tmp_last_copy on commit drop as
                SELECT * FROM dataset_copies WHERE dataset_system_id = ? And copy_number < ? And deleted_at is null ORDER By copy_number DESC LIMIT 1;
         INSERT INTO dataset_copies(dataset_system_id, copy_number, schema_hash, latest_version, lifecycle_stage, primary_key_column_id)
-               SELECT dataset_system_id, ?, schema_hash, latest_version, 'Unpublished', primary_key_column_id FROM tmp_last_copy;
+               SELECT dataset_system_id, ?, schema_hash, ?, 'Unpublished', primary_key_column_id FROM tmp_last_copy;
         INSERT INTO columns (
                dataset_system_id,
           |    column_name_casefolded,
@@ -637,8 +637,9 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         stmt.setString(1, datasetId.underlying)
         stmt.setLong(2, copyNumber)
         stmt.setLong(3, copyNumber)
-        stmt.setString(4, datasetId.underlying)
-        stmt.setLong(5, copyNumber)
+        stmt.setLong(4, dataVersion)
+        stmt.setString(5, datasetId.underlying)
+        stmt.setLong(6, copyNumber)
         stmt.executeUpdate()
       }
     }

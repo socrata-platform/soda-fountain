@@ -146,17 +146,21 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     )
     val columns = columnSpecs.map(columnSpecTocolumnRecord)
     val (resourceName, datasetId) = createMockDataset(columns.take(1))
+    val unpublishedDataVersion = 100L
     store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L, None)
-    store.makeCopy(datasetId, 2L)
+    store.makeCopy(datasetId, 2L, unpublishedDataVersion)
     store.addColumn(datasetId, 2L, columnSpecs(1))
 
     val publishedCopy = store.lookupDataset(resourceName, Some(Published))
     publishedCopy should not be (None)
-    publishedCopy.get.columns.foreach(println)
+
+    publishedCopy.get.truthVersion should be (1L)
     publishedCopy.get.columns should be (columns.take(1))
 
     val unpublishedCopy = store.lookupDataset(resourceName, Some(Unpublished))
     unpublishedCopy should not be (None)
+    println("VERSION: " + unpublishedCopy.get.truthVersion)
+    unpublishedCopy.get.truthVersion should be (unpublishedDataVersion)
     unpublishedCopy.get.columns.foreach(println)
     unpublishedCopy.get.columns should be (columns)
   }
@@ -173,7 +177,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     for (i <- 1 to totalCopies - 1) {
       val copyNum = i + 1
       val dataVer = copyNum
-      store.makeCopy(datasetId, copyNum)
+      store.makeCopy(datasetId, copyNum, 1L)
       store.addColumn(datasetId, copyNum, columnSpecs(i))
       store.updateVersionInfo(datasetId, dataVer, new DateTime(), Some(Published), copyNum, None)
     }
@@ -199,7 +203,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     for (i <- 1 to totalCopies - 1) {
       val copyNum = i + 1
       val dataVer = copyNum
-      store.makeCopy(datasetId, copyNum)
+      store.makeCopy(datasetId, copyNum, 1L)
       store.addColumn(datasetId, copyNum, columnSpecs(i))
       store.updateVersionInfo(datasetId, dataVer, new DateTime(), Some(Published), copyNum, Some(snapshotLimit))
     }
@@ -237,14 +241,14 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L, Some(10))
 
     // make working copy
-    store.makeCopy(datasetId, 2L)
+    store.makeCopy(datasetId, 2L, 1L)
     store.addColumn(datasetId, 2L, columnSpecs(1))
 
     // drop working copy
     store.updateVersionInfo(datasetId, 2L, new DateTime(), Some(Discarded), 2L, None)
 
     // make another working copy
-    store.makeCopy(datasetId, 3L)
+    store.makeCopy(datasetId, 3L, 3L)
     store.addColumn(datasetId, 3L, columnSpecs(2))
     store.addColumn(datasetId, 3L, columnSpecs(3))
     store.dropColumn(datasetId, ColumnId("four"), 3L)
