@@ -1,13 +1,13 @@
 package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast.{JObject, JString, JArray, JNumber}
+import com.rojoma.json.ast._
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.{SoQLPoint, SoQLText}
+import com.socrata.soql.types.{SoQLNumber, SoQLPoint}
 import com.socrata.thirdparty.curator.CuratorServiceBase
 import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
@@ -81,8 +81,11 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
       val featureIdsWithIndex = pointsWithIndex.map(_._2).zip(featureIds).toMap
       rowsWithIndex.map {
         case (upsert: UpsertAsSoQL, i) =>
-          val featureId = featureIdsWithIndex.getOrElse(i, "")
-          UpsertAsSoQL(upsert.rowData + (column.id.underlying -> SoQLText(featureId)))
+          featureIdsWithIndex.get(i).flatMap { maybeFeatureId =>
+            maybeFeatureId.map { featureId =>
+              UpsertAsSoQL(upsert.rowData + (column.id.underlying -> SoQLNumber(java.math.BigDecimal.valueOf(featureId))))
+            }
+          }.getOrElse(upsert)
         case (delete: DeleteAsCJson, i) => delete
         case _                     =>
           val message = "Unsupported row update type passed into GeospaceHandler"
@@ -118,8 +121,21 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
     }
   }
 
-  private def geospaceRegionCoder(points: Seq[Point], region: String): Seq[String] = {
-    if (points.size == 0) return Seq[String]()
+  implicit def optionIntCodec = new JsonCodec[Option[Int]] {
+    def encode(x: Option[Int]) = x match {
+      case Some(value) => JsonCodec[Int].encode(value)
+      case None        => com.rojoma.json.ast.JNull
+    }
+
+    def decode(x: JValue) =
+      JsonCodec[Int].decode(x) match {
+        case Some(value) => Some(Some(value))
+        case None        => Some(None)
+      }
+  }
+
+  private def geospaceRegionCoder(points: Seq[Point], region: String): Seq[Option[Int]] = {
+    if (points.size == 0) return Seq[Option[Int]]()
 
     val url = urlPrefix + s"/regions/$region/geocode"
     logger.debug("HTTP POST [{}] with {} points...", url, points.length)
@@ -130,7 +146,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
     logger.debug("Got back status {}, response [{}]", status, response)
     status match {
       case 200 =>
-        JsonCodec[Seq[String]].decode(JsonReader.fromString(response)).
+        JsonCodec[Seq[Option[Int]]].decode(JsonReader.fromString(response)).
           getOrElse(throw ComputationEx("Error parsing JSON response: " + response, None))
       case sc  =>
         val errorMessage = s"Error: HTTP [$url] got response code $sc, body $response"
