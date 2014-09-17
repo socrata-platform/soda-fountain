@@ -11,6 +11,7 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.thirdparty.curator.{CuratorBroker, CuratorServiceIntegration}
 import com.typesafe.config.ConfigFactory
+import java.math.{ BigDecimal => BD }
 import org.mockserver.integration.ClientAndServer
 import org.mockserver.model.Header
 import org.scalatest._
@@ -93,12 +94,18 @@ with CuratorServiceIntegration {
   }
 
   test("HTTP geocoder works with mock HTTP server") {
-    mockGeocodeRoute(".+122.+", """["Wards.1"]""")
-    mockGeocodeRoute(".+121.+", """["Wards.2"]""")
-    mockGeocodeRoute(".+120.+", """["","Wards.5"]""")
-    val expectedIds = Iterator("Wards.1", "Wards.2", "", "Wards.5")
+    mockGeocodeRoute(".+122.+", """[1]""")
+    mockGeocodeRoute(".+121.+", """[2]""")
+    mockGeocodeRoute(".+120.+", """[null,5]""")
+    val expectedIds = Iterator(Some(1), Some(2), None, Some(5))
     val expectedRows = testRows.map {
-      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("ward-1234" -> SoQLText(expectedIds.next)))
+      case UpsertAsSoQL(map) =>
+        val nextExpected = expectedIds.next()
+        if (nextExpected.isDefined) {
+          UpsertAsSoQL(map + ("ward-1234" -> SoQLNumber(new BD(nextExpected.get))))
+        } else {
+          UpsertAsSoQL(map)
+        }
       case d: DeleteAsCJson  => d
     }
     val newRows = handler.compute(testRows.toIterator, columnSpec)
@@ -109,13 +116,13 @@ with CuratorServiceIntegration {
     val testRow = UpsertAsSoQL(
       Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013")))
     val expectedRow = UpsertAsSoQL(
-      Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013"), "ward-1234" -> SoQLText("Wards.1")))
+      Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013"), "ward-1234" -> SoQLNumber(new BD(1))))
 
     // Set up the mock server to fail on the first attempt,
     // succeed on the second attempt, then fail on the third attempt.
     // GeospaceHandler is configured to retry once, so the second attempt should succeed.
     mockGeocodeRoute(".+122.+", "", 500)
-    mockGeocodeRoute(".+122.+", """["Wards.1"]""", 200)
+    mockGeocodeRoute(".+122.+", """[1]""", 200)
     mockGeocodeRoute(".+122.+", "", 500)
 
     val newRows = handler.compute(Iterator(testRow), columnSpec)
@@ -127,13 +134,19 @@ with CuratorServiceIntegration {
                    UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"))),
                    UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015")))) ++ testRows
 
-    mockGeocodeRoute(".+122.+", """["Wards.3","Wards.4"]""")
-    mockGeocodeRoute(".+120.+", """[""]""")
-    mockGeocodeRoute(".+119.+", """["Wards.6"]""")
-    val expectedIds = Iterator("", "", "", "Wards.3", "Wards.4", "", "Wards.6")
+    mockGeocodeRoute(".+122.+", """[3,4]""")
+    mockGeocodeRoute(".+120.+", """[null]""")
+    mockGeocodeRoute(".+119.+", """[6]""")
+    val expectedIds = Iterator(None, None, None, Some(3), Some(4), None, Some(6))
 
     val expectedRows = rows.map {
-      case UpsertAsSoQL(map) => UpsertAsSoQL(map + ("ward-1234" -> SoQLText(expectedIds.next)))
+      case UpsertAsSoQL(map) =>
+        val nextExpected = expectedIds.next()
+        if (nextExpected.isDefined) {
+          UpsertAsSoQL(map + ("ward-1234" -> SoQLNumber(new BD(nextExpected.get))))
+        } else {
+          UpsertAsSoQL(map)
+        }
       case d: DeleteAsCJson  => d
     }
 
@@ -145,12 +158,9 @@ with CuratorServiceIntegration {
     val rows = Seq(UpsertAsSoQL(Map("date" -> SoQLText("12/31/2013"))),
       UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"))),
       UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015"))))
-    val expectedRows = rows.map { upsert =>
-      UpsertAsSoQL(upsert.rowData + ("ward-1234" -> SoQLText("")))
-    }
 
     val newRows = handler.compute(rows.toIterator, columnSpec)
-    newRows.toSeq must equal (expectedRows)
+    newRows.toSeq must equal (rows)
   }
 
   test("handler.compute() returns lazy iterator") {
