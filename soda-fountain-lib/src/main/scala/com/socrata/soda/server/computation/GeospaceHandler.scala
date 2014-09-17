@@ -81,12 +81,11 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
       val featureIdsWithIndex = pointsWithIndex.map(_._2).zip(featureIds).toMap
       rowsWithIndex.map {
         case (upsert: UpsertAsSoQL, i) =>
-          val featureId = featureIdsWithIndex.getOrElse(i, None)
-          if (featureId.isDefined) {
-            UpsertAsSoQL(upsert.rowData + (column.id.underlying -> SoQLNumber(java.math.BigDecimal.valueOf(featureId.get))))
-          } else {
-            upsert
-          }
+          featureIdsWithIndex.get(i).flatMap { maybeFeatureId =>
+            maybeFeatureId.map { featureId =>
+              UpsertAsSoQL(upsert.rowData + (column.id.underlying -> SoQLNumber(java.math.BigDecimal.valueOf(featureId))))
+            }
+          }.getOrElse(upsert)
         case (delete: DeleteAsCJson, i) => delete
         case _                     =>
           val message = "Unsupported row update type passed into GeospaceHandler"
