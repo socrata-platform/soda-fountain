@@ -52,6 +52,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
 
   private val totalPointsCodedCounter = new MetricCounter()
   private val noMatchPointsCounter = new MetricCounter()
+  private val timeCounter = new MetricCounter()
 
   case class Point(x: Double, y: Double)
 
@@ -81,7 +82,9 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
 
       // Convert points to feature IDs, and splice feature IDs back into rows.
       // Deletes are returned untouched.
+      val start = System.currentTimeMillis
       val featureIds = geospaceRegionCoder(pointsWithIndex.map(_._1), region)
+      timeCounter.add(System.currentTimeMillis - start)
       noMatchPointsCounter.add(featureIds.count(_.isEmpty))
       val featureIdsWithIndex = pointsWithIndex.map(_._2).zip(featureIds).toMap
       rowsWithIndex.map {
@@ -102,8 +105,10 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
 
   def close() {
     // TODO : Hook this up to Balboa
-    logger.info(s"${totalPointsCodedCounter.get()} row(s) sent for georegion coding")
-    logger.info(s"${noMatchPointsCounter.get()} row(s) did not match any georegion")
+    logger.info(s"${totalPointsCodedCounter.get()} row(s) georegion coded in ${timeCounter.get()} milliseconds")
+    if (noMatchPointsCounter.get() > 0) {
+      logger.info(s"${noMatchPointsCounter.get()} row(s) did not match any georegion")
+    }
 
     logger.info("Closing GeospaceHandler...")
     service.close()
