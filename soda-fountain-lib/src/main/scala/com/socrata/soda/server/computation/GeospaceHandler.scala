@@ -5,6 +5,7 @@ import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
+import com.socrata.soda.server.metrics.MetricCounter
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLPoint}
@@ -49,6 +50,10 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
 
   private val logger = LoggerFactory.getLogger(getClass)
 
+  private val totalPointsCodedCounter = new MetricCounter()
+  private val noMatchPointsCounter = new MetricCounter()
+  private val timeCounter = new MetricCounter()
+
   case class Point(x: Double, y: Double)
 
   /**
@@ -77,10 +82,14 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
 
       // Convert points to feature IDs, and splice feature IDs back into rows.
       // Deletes are returned untouched.
+      val start = System.currentTimeMillis
       val featureIds = geospaceRegionCoder(pointsWithIndex.map(_._1), region)
+      timeCounter.add(System.currentTimeMillis - start)
+      noMatchPointsCounter.add(featureIds.count(_.isEmpty))
       val featureIdsWithIndex = pointsWithIndex.map(_._2).zip(featureIds).toMap
       rowsWithIndex.map {
         case (upsert: UpsertAsSoQL, i) =>
+          totalPointsCodedCounter.increment()
           featureIdsWithIndex.get(i).flatMap { maybeFeatureId =>
             maybeFeatureId.map { featureId =>
               UpsertAsSoQL(upsert.rowData + (column.id.underlying -> SoQLNumber(java.math.BigDecimal.valueOf(featureId))))
@@ -93,10 +102,17 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
           throw ComputationEx(message, None)
       }.toIterator
     }
+
     computedBatches.flatten
   }
 
   def close() {
+    // TODO : Hook this up to Balboa
+    logger.info(s"${totalPointsCodedCounter.get()} row(s) georegion coded in ${timeCounter.get()} milliseconds")
+    if (noMatchPointsCounter.get() > 0) {
+      logger.info(s"${noMatchPointsCounter.get()} row(s) did not match any georegion")
+    }
+
     logger.info("Closing GeospaceHandler...")
     service.close()
   }
