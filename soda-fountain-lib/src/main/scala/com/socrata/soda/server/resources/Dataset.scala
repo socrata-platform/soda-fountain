@@ -1,6 +1,7 @@
 package com.socrata.soda.server.resources
 
 import com.socrata.http.server.HttpResponse
+import com.socrata.soda.server.highlevel._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.server.errors.{RollupNotFound, RollupColumnNotFound, RollupCreationFailed}
@@ -41,9 +42,9 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     // TODO: Negotiate content type
     log.info(s"sending response, result: ${result}")
     result match {
-      case DatasetDAO.Created(spec) => Created ~> SodaUtils.JsonContent(spec)
-      case DatasetDAO.Updated(spec) => OK ~> SodaUtils.JsonContent(spec)
-      case DatasetDAO.Found(spec) => OK ~> SodaUtils.JsonContent(spec)
+      case DatasetDAO.Created(record) => Created ~> SodaUtils.JsonContent(record.asSpec)
+      case DatasetDAO.Updated(record) => OK ~> SodaUtils.JsonContent(record.asSpec)
+      case DatasetDAO.Found(record) => OK ~> SodaUtils.JsonContent(record.asSpec)
       case DatasetDAO.DatasetVersion(vr) => OK ~> SodaUtils.JsonContent(vr)
       case DatasetDAO.Deleted => NoContent
       case DatasetDAO.NotFound(dataset) => NotFound /* TODO: content */
