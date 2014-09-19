@@ -6,7 +6,7 @@ import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
-import com.socrata.http.server.util.{Precondition, EntityTag}
+import com.socrata.http.server.util.{Precondition, EntityTag, Metrics}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.SodaUtils
@@ -39,8 +39,12 @@ case class Resource(rowDAO: RowDAO,
                     etagObfuscator: ETagObfuscator,
                     maxRowSize: Long,
                     cc: ComputedColumnsLike,
-                    metricProvider: MetricProvider) {
+                    metricProvider: MetricProvider) extends Metrics {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
+
+  // Unlike the global dispatch latency, these are for measuring only successful Query requests
+  val queryLatencyNonRollup = metrics.histogram("query-latency-ms-nonrollup")
+  val queryLatencyRollup = metrics.histogram("query-latency-ms-rollup")
 
   val headerHashAlg = "SHA1"
   val headerHashLength = MessageDigest.getInstance(headerHashAlg).getDigestLength
@@ -115,6 +119,7 @@ case class Resource(rowDAO: RowDAO,
     override def get = { req: HttpServletRequest => response: HttpServletResponse =>
       val domainId = req.header(domainIdHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
+      val start = System.currentTimeMillis
       try {
         val qpQuery = "$query" // Query parameter query
         val qpRowCount = "$$row_count" // Query parameter row count
@@ -144,6 +149,9 @@ case class Resource(rowDAO: RowDAO,
                     if (isConditionalGet(req)) {
                       metric(QueryCacheMiss)
                     }
+                    val latencyMs = System.currentTimeMillis - start
+                    if (rollup.isDefined) queryLatencyRollup += latencyMs
+                    else                  queryLatencyNonRollup += latencyMs
                     val createHeader =
                       OK ~>
                         ContentType(mimeType.toString) ~>
