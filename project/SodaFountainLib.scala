@@ -16,7 +16,7 @@ object SodaFountainLib {
       "com.socrata"        %% "balboa-client"               % "[0.14.0,1.0.0)",
       "com.socrata"        %% "socrata-http-client"         % "[2.0.0,3.0.0)",
       "com.socrata"        %% "socrata-http-server"         % "2.2.0-SNAPSHOT",
-      "com.socrata"        %% "socrata-thirdparty-utils"    % "2.3.1",
+      "com.socrata"        %% "socrata-thirdparty-utils"    % "2.4.1-SNAPSHOT",
       "com.socrata"        %% "soql-analyzer"               % "[0.2.0,1.0.0)",
       "com.socrata"        %% "soql-brita"                  % "[1.2.1,2.0.0)",
       "com.socrata"        %% "soql-standalone-parser"      % "[0.2.0,1.0.0)",
@@ -25,6 +25,7 @@ object SodaFountainLib {
       "com.typesafe"        % "config"                      % "1.0.2",
       "javax.servlet"       % "servlet-api"                 % "2.5" % "provided",
       "log4j"               % "log4j"                       % "1.2.16",
+      "nl.grons"           %% "metrics-scala"               % "3.3.0",
       "org.apache.curator"  % "curator-x-discovery"         % "2.4.2",
       "org.liquibase"       % "liquibase-core"              % "2.0.0",
       "org.liquibase"       % "liquibase-plugin"            % "1.9.5.0",
@@ -35,6 +36,7 @@ object SodaFountainLib {
       "org.scalamock"      %% "scalamock-scalatest-support" % "3.1.RC1" % "test",
       "org.apache.curator"  % "curator-test"                % "2.4.2"   % "test",
       "org.springframework" % "spring-test"                 % "3.2.10.RELEASE" % "test",
+      "com.socrata"        %% "socrata-thirdparty-test-utils" % "2.4.1-SNAPSHOT" % "test",
       "org.mock-server"     % "mockserver-netty"            % "3.0"     % "test"
           exclude("ch.qos.logback", "logback-classic")
     )

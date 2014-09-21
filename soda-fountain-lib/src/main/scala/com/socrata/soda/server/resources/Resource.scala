@@ -6,23 +6,24 @@ import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
-import com.socrata.http.server.util.{Precondition, EntityTag, Metrics}
+import com.socrata.http.server.util.{Precondition, EntityTag}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
-import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.{errors => SodaErrors}
 import com.socrata.soda.server.errors.SodaError
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{DatasetDAO, RowDataTranslator, RowDAO}
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
-import com.socrata.soda.server.metrics.{NoopMetricProvider, MetricProvider}
-import com.socrata.soda.server.metrics.Metrics.{ QuerySuccess => QuerySuccessMetric } // conflict with RowDAO.QuerySuccess
 import com.socrata.soda.server.metrics.Metrics._
+import com.socrata.soda.server.metrics.Metrics.{ QuerySuccess => QuerySuccessMetric } // conflict with RowDAO.QuerySuccess
+import com.socrata.soda.server.metrics.{NoopMetricProvider, MetricProvider}
 import com.socrata.soda.server.persistence.DatasetRecordLike
+import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
+import com.socrata.soda.server.{errors => SodaErrors}
+import com.socrata.thirdparty.metrics.Metrics
 
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
