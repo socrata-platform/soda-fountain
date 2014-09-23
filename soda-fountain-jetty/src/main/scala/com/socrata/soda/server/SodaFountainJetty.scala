@@ -16,9 +16,9 @@ object SodaFountainJetty extends App {
     discovery <- managed(DiscoveryFromConfig.unmanaged(classOf[Void],
                                                        sodaFountain.curator,
                                                        config.discovery))
+    reporter <- MetricsReporter.managed(metricsOptions)
   } {
     discovery.start()
-    val reporter = new MetricsReporter(metricsOptions)
 
     val server = new SocrataServerJetty(
       sodaFountain.handle,
