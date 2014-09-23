@@ -11,7 +11,8 @@ object SodaFountainJetty {
     libraryDependencies ++= Seq(
       "com.socrata" %% "socrata-http-jetty" % "[2.0.0,3.0.0)",
       "com.socrata" %% "socrata-http-curator-broker" % "[2.0.0,3.0.0)",
-      "io.dropwizard.metrics" % "metrics-jetty9"   % "3.1.0"
+      "io.dropwizard.metrics" % "metrics-jetty9"   % "3.1.0",
+      "io.dropwizard.metrics" % "metrics-graphite"   % "3.1.0"
     ),
     dependenciesSnippet :=
       <xml.group>
