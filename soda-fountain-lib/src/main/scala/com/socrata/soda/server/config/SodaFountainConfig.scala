@@ -18,8 +18,9 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val database = getConfig("database", new DataSourceConfig(_, _))
   val log4j = getRawConfig("log4j")
   // This is a Typesafe config because there are variable number of subentries, one per handler
-  val handlers = config.getConfig("com.socrata.soda-fountain.handlers")
+  val handlers = getRawConfig("handlers")
   val metrics =  optionally(getConfig("metrics", new BalboaConfig(_,_)))
+  val codaMetrics = getRawConfig("metrics")
 }
 
 class ServiceAdvertisementConfig(config: Config, root: String) extends ConfigClass(config, root) {

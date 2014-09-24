@@ -6,6 +6,7 @@ import com.socrata.cloudbeessbt.SocrataCloudbeesSbt
 object BuildSettings {
   val buildSettings: Seq[Setting[_]] =
     SocrataCloudbeesSbt.socrataBuildSettings ++
+    spray.revolver.RevolverPlugin.Revolver.settings ++
     Defaults.itSettings ++
       Seq(
         scalaVersion := "2.10.4"
