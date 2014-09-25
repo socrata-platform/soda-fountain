@@ -36,7 +36,7 @@ object SodaFountainLib {
       "org.scalamock"      %% "scalamock-scalatest-support" % "3.1.RC1" % "test",
       "org.apache.curator"  % "curator-test"                % "2.4.2"   % "test",
       "org.springframework" % "spring-test"                 % "3.2.10.RELEASE" % "test",
-      "com.socrata"        %% "socrata-thirdparty-test-utils" % "2.4.1-SNAPSHOT" % "test",
+      "com.socrata"        %% "socrata-thirdparty-test-utils" % "2.5.0" % "test",
       "org.mock-server"     % "mockserver-netty"            % "3.0"     % "test"
           exclude("ch.qos.logback", "logback-classic")
     )
