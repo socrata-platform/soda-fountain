@@ -75,17 +75,16 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
     // We validate the dataset schema upfront and throw a 406 on datasets that don't
     // contain exactly one geo column, so theoretically this should never happen :/
     if (geoColumnIndices.size != 1) throw InvalidGeoJsonSchema
-    
+
     geoColumnIndices(0)
   }
 
   private def getGeometryJson(soqlGeom: SoQLValue): JValue = {
-    if (soqlGeom == null) return JNull
-
     val geomJson = soqlGeom match {
       case SoQLPoint(p)         => SoQLPoint.JsonRep.apply(p)
       case SoQLMultiLine(ml)    => SoQLMultiLine.JsonRep.apply(ml)
       case SoQLMultiPolygon(mp) => SoQLMultiPolygon.JsonRep.apply(mp)
+      case _                    => return JNull
     }
     JsonReader.fromString(geomJson)
   }
