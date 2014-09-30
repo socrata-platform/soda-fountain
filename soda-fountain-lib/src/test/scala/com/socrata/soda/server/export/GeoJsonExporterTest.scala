@@ -90,6 +90,25 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
           expectedProjection)))
   }
 
+  test("Single row - dataset with null geo column") {
+    val columns = Seq(
+      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
+      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
+    )
+
+    val rows = Seq[Array[SoQLValue]](
+      Array(SoQLText("Volunteer Park"), SoQLNull)
+    )
+
+    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, true)
+    geoJson should be (
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JNull,
+          "properties" -> JObject(Map("name" -> JString("Volunteer Park"))),
+          expectedProjection)))
+  }
+
 
   test("Multi row - dataset with single geo column and some rows with empty geo value") {
     val columns = Seq(
