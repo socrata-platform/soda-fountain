@@ -22,12 +22,14 @@ object SodaFountainJetty extends App {
 
     val server = new SocrataServerJetty(
       sodaFountain.handle,
-      port = config.network.port,
-      extraHandlers = List(SocrataHttpSupport.getHandler(metricsOptions)),
-      broker = new CuratorBroker[Void](discovery,
-                                       config.serviceAdvertisement.address,
-                                       config.serviceAdvertisement.service,
-                                       None))
+      SocrataServerJetty.defaultOptions.
+        withPort(config.network.port).
+        withExtraHandlers(List(SocrataHttpSupport.getHandler(metricsOptions))).
+        withBroker(new CuratorBroker[Void](
+          discovery,
+          config.serviceAdvertisement.address,
+          config.serviceAdvertisement.service,
+          None)))
 
     server.run()
   }

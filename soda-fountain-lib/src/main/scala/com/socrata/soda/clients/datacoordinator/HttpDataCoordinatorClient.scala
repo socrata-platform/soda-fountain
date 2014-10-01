@@ -69,7 +69,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       val request = schemaUrl(host, datasetId).get
       for (response <- httpClient.execute(request)) yield {
         if(response.resultCode == 200) {
-          val result = response.asValue[SchemaSpec]()
+          val result = response.value[SchemaSpec]()
           if(!result.isDefined) throw new Exception("Unable to interpret data coordinator's response for " + datasetId + " as a schemaspec?")
           result
         } else if(response.resultCode == 404) {
@@ -93,14 +93,14 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       case HttpServletResponse.SC_NOT_MODIFIED =>
         Some(datacoordinator.NotModified())
       case code if code >= 400 && code <= 499 =>
-        r.asValue[UserErrorReportedByDataCoordinatorError]() match {
+        r.value[UserErrorReportedByDataCoordinatorError]() match {
           case dcErr@Some(_) =>
             dcErr
           case None =>
             throw new Exception("Response was JSON but not decodable as user error reported by data coordinator")
         }
       case _ =>
-        Some(r.asValue[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")))
+        Some(r.value[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")))
     }
 
   def expectStartOfArray(in: Iterator[JsonEvent]) {
@@ -185,7 +185,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     sendScript(rb, script) {
       case Right(r) =>
         f(Success(
-            arrayOfResults(r.asJsonEvents().buffered),
+            arrayOfResults(r.jsonEvents().buffered),
             None,
             getHeader(xhCopyNumber, r).toLong,
             getHeader(xhDataVersion, r).toLong,
@@ -201,7 +201,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
       sendScript(createUrl(host), createScript) {
         case Right(r) =>
-          val events = r.asJsonEvents().buffered
+          val events = r.jsonEvents().buffered
           expectStartOfArray(events)
           if(!events.hasNext || !events.head.isInstanceOf[StringEvent]) throw new Exception("Bad response from data coordinator: expected dataset id")
           val StringEvent(datasetId) = events.next()
@@ -259,7 +259,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         .get
       httpClient.execute(request).flatMap{ response =>
         log.info("TODO: Handle errors from the data-coordinator")
-        val oVer = response.asValue[VersionReport]()
+        val oVer = response.value[VersionReport]()
         oVer match {
           case Some(ver) => ver
           case None => throw new Exception("version not found")
@@ -284,7 +284,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       for(r <- httpClient.execute(request)) yield {
         errorFrom(r) match {
           case None =>
-            f(Export(r.asArray[JValue](), r.headers("ETag").headOption.map(EntityTagParser.parse(_))))
+            f(Export(r.array[JValue](), r.headers("ETag").headOption.map(EntityTagParser.parse(_))))
           case Some(err) =>
             err match {
               case SchemaMismatchForExport(_, newSchema) =>
