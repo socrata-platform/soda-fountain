@@ -630,7 +630,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           |           description,
           |           type_name,
           |           is_inconsistency_resolution_generated,
-          |           (SELECT id FROM dataset_copies WHERE dataset_system_id = ? And copy_number = ? And deleted_at is null)
+          |           (SELECT id FROM dataset_copies WHERE dataset_system_id = ? And copy_number = ?)
           |      FROM columns
           |     WHERE copy_id = (SELECT id FROM tmp_last_copy);
         INSERT INTO computation_strategies (
@@ -647,7 +647,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           |           recompute,
           |           source_columns,
           |           parameters,
-          |           (SELECT id FROM dataset_copies WHERE dataset_system_id = ? And copy_number = ? And deleted_at is null)
+          |           (SELECT id FROM dataset_copies WHERE dataset_system_id = ? And copy_number = ?)
           |      FROM computation_strategies
           |     WHERE copy_id = (SELECT id FROM tmp_last_copy);
         """.stripMargin)) { stmt =>
