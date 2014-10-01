@@ -12,6 +12,7 @@ import javax.activation.{MimeTypeParseException, MimeType}
 import com.socrata.http.common.util.{TooMuchDataWithoutAcknowledgement, AcknowledgeableReader}
 import com.socrata.soda.server.errors.UnparsableContentType
 import com.socrata.soda.server.errors.ContentTypeNotJson
+import com.socrata.http.server.implicits._
 
 object InputUtils {
   def eventIterator(reader: Reader) = new FusedBlockJsonEventIterator(reader).map(InputNormalizer.normalizeEvent)
@@ -29,9 +30,11 @@ object InputUtils {
       return Left(ContentTypeNotJson(contentType))
     }
     val reader =
-      try { req.getReader }
-      catch { case _: UnsupportedEncodingException =>
-        return Left(ContentTypeUnsupportedCharset(contentType))
+      req.updateCharacterEncoding() match {
+        case None =>
+          req.getReader()
+        case Some(err) =>
+          return Left(ContentTypeUnsupportedCharset(contentType))
       }
     Right(new AcknowledgeableReader(reader, approximateMaxDatumBound))
   }
