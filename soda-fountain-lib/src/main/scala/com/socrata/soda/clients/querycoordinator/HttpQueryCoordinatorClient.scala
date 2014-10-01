@@ -34,16 +34,16 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     def resultFrom(response: Response): Result = {
       response.resultCode match {
         case SC_OK =>
-          Success(response.headers("ETag").map(EntityTagParser.parse(_)), response.headers(HeaderRollup).headOption, response.asJValue())
+          Success(response.headers("ETag").map(EntityTagParser.parse(_)), response.headers(HeaderRollup).headOption, response.jValue())
         case SC_NOT_MODIFIED =>
           NotModified(response.headers("ETag").map(EntityTagParser.parse(_)))
         case SC_PRECONDITION_FAILED =>
           PreconditionFailed
         case code if code >= SC_BAD_REQUEST && code < SC_INTERNAL_SERVER_ERROR =>
-          UserError(code, response.asJValue())
+          UserError(code, response.jValue())
         case _ =>
-          val body = if (response.isJson) response.asJValue().toString() else Source.fromInputStream(response.asInputStream())(Codec(response.charset)).mkString("")
-          throw new Exception(s"query: ${query}; response: ${body}")
+          val body = Source.fromInputStream(response.inputStream())(Codec(response.charset)).mkString("")
+          throw new Exception(s"query: $query; response: $body")
       }
     }
 
