@@ -8,7 +8,7 @@ import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, Upser
 import com.socrata.soda.server.metrics.MetricCounter
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.{SoQLNumber, SoQLPoint}
+import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLNull}
 import com.socrata.thirdparty.curator.CuratorServiceBase
 import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
@@ -132,6 +132,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
   private def extractPointFromRow(rowmap: SoQLRow, colName: ColumnName): Option[Point] = {
     rowmap.get(colName.name) match {
       case Some(point: SoQLPoint) => Some(Point(point.value.getX, point.value.getY))
+      case Some(SoQLNull)         => None
       case Some(x)                => throw MaltypedDataEx(colName, SoQLPoint, x.typ)
       case None                   => None
     }

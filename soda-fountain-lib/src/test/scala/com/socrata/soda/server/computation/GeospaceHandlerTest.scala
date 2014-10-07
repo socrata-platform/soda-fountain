@@ -129,9 +129,9 @@ with CuratorServiceIntegration {
     newRows.toSeq must equal (Stream(expectedRow))
   }
 
-  test("Will return empty featureIds if source column missing for some rows") {
+  test("Will return empty featureIds if source column missing or null for some rows") {
     val rows = Seq(UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2013"))),
-                   UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"))),
+                   UpsertAsSoQL(Map("geom-1234" -> SoQLNull, "date-1234" -> SoQLText("12/31/2014"))),
                    UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015")))) ++ testRows
 
     mockGeocodeRoute(".+122.+", """[3,4]""")
