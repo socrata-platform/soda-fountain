@@ -1,5 +1,9 @@
 package com.socrata.soda.server.computation
 
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig
+import com.github.tomakehurst.wiremock.WireMockServer
+import com.github.tomakehurst.wiremock.client.{WireMock => WM}
+import com.github.tomakehurst.wiremock.stubbing.Scenario
 import com.rojoma.json.ast._
 import com.rojoma.json.io.JsonReader
 import com.socrata.soda.server.highlevel.RowDataTranslator
@@ -12,8 +16,6 @@ import com.socrata.soql.types._
 import com.socrata.thirdparty.curator.{CuratorBroker, CuratorServiceIntegration}
 import com.typesafe.config.ConfigFactory
 import java.math.{ BigDecimal => BD }
-import org.mockserver.integration.ClientAndServer
-import org.mockserver.model.Header
 import org.scalatest._
 
 trait GeospaceHandlerData {
@@ -50,12 +52,9 @@ with CuratorServiceIntegration {
 
   import collection.JavaConverters._
   import ComputationHandler._
-  import org.mockserver.model.HttpRequest._
-  import org.mockserver.model.HttpResponse._
-  import org.mockserver.model.StringBody
 
   val port = 51234
-  var server: ClientAndServer = _
+  val mockServer = new WireMockServer(wireMockConfig.port(port))
   lazy val broker = new CuratorBroker(discovery, "localhost", "geospace", None)
   lazy val cookie = broker.register(port)
 
@@ -70,27 +69,40 @@ with CuratorServiceIntegration {
 
   override def beforeAll {
     startServices()
-    server = ClientAndServer.startClientAndServer(port)
+    mockServer.start()
+    WM.configureFor("localhost", port)
     cookie
   }
 
   override def afterAll {
     broker.deregister(cookie)
-    server.stop
+    mockServer.stop()
     stopServices()
   }
 
   override def beforeEach {
-    server.reset
+    WM.reset()
   }
 
   private def mockGeocodeRoute(bodyRegex: String, returnedBody: String, returnedCode: Int = 200) {
-    server.when(request.withMethod("POST").
-                        withPath("/experimental/regions/wards/geocode").
-                        withBody(StringBody.regex(bodyRegex))).
-           respond(response.withStatusCode(returnedCode).
-                            withHeader(new Header("Content-Type", "application/json; charset=utf-8")).
-                            withBody(returnedBody))
+    WM.stubFor(WM.post(WM.urlEqualTo("/experimental/regions/wards/geocode")).
+               withRequestBody(WM.matching(bodyRegex)).
+               willReturn(WM.aResponse()
+                         .withStatus(returnedCode)
+                         .withHeader("Content-Type", "application/vnd.geo+json; charset=utf-8")
+                         .withBody(returnedBody)))
+  }
+
+  private def mockGeocodeScene(bodyRegex: String, returnedBody: String, returnedCode: Int = 200,
+                               sceneStart: String = Scenario.STARTED, sceneEnd: String = "step2") {
+    WM.stubFor(WM.post(WM.urlEqualTo("/experimental/regions/wards/geocode")).
+               inScenario("default").whenScenarioStateIs(sceneStart).
+               withRequestBody(WM.matching(bodyRegex)).
+               willReturn(WM.aResponse()
+                         .withStatus(returnedCode)
+                         .withHeader("Content-Type", "application/vnd.geo+json; charset=utf-8")
+                         .withBody(returnedBody)).
+               willSetStateTo(sceneEnd))
   }
 
   test("HTTP geocoder works with mock HTTP server") {
@@ -134,9 +146,9 @@ with CuratorServiceIntegration {
                    UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"))),
                    UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015")))) ++ testRows
 
-    mockGeocodeRoute(".+122.+", """[3,4]""")
-    mockGeocodeRoute(".+120.+", """[null]""")
-    mockGeocodeRoute(".+119.+", """[6]""")
+    mockGeocodeScene(".+122.+", """[3,4]""", sceneEnd = "nowReturn200")
+    mockGeocodeScene(".+120.+", """[null]""", sceneStart = "nowReturn200", sceneEnd = "now500")
+    mockGeocodeScene(".+119.+", """[6]""",   sceneStart = "now500", sceneEnd = "NEVER")
     val expectedIds = Iterator(None, None, None, Some(3), Some(4), None, Some(6))
 
     val expectedRows = rows.map {
