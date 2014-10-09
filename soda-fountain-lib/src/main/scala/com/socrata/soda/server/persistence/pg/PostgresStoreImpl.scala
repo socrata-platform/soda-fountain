@@ -702,6 +702,7 @@ object PostgresStoreImpl {
     ARRAY(SELECT c.column_id
             FROM columns c
             Join dataset_copies dc on dc.dataset_system_id = c.dataset_system_id
+             AND dc.id = c.copy_id
            WHERE c.column_name = ANY (string_to_array(?, ','))
              AND dc.dataset_system_id = ?
              AND dc.copy_number = ?)
