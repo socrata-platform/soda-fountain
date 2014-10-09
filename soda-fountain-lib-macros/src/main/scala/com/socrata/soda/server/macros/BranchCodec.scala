@@ -6,8 +6,10 @@ import scala.reflect.macros.Context
 import com.rojoma.json.util.SimpleHierarchyCodecBuilder
 
 object BranchCodec {
+  // $COVERAGE-OFF$ Disabling coverage because macros are not supported.
   def apply[T <: AnyRef](codecBuilder: SimpleHierarchyCodecBuilder[T]): SimpleHierarchyCodecBuilder[T] =
     macro impl[T]
+  // $COVERAGE-ON$
 
   def impl[T <: AnyRef : c.WeakTypeTag](c: Context)(codecBuilder: c.Expr[SimpleHierarchyCodecBuilder[T]]): c.Expr[SimpleHierarchyCodecBuilder[T]] = {
     import c.universe._
