@@ -33,6 +33,8 @@ For soda-fountain-lib, log output goes to `sbt-test.log`.  Logging is controlled
 
 For test coverage reports, do `sbt soda-fountain-lib/scoverage:test`.  XML and HTML coverage reports are generated.  Unfortunately due to a bug in scalac, HTML line by line highlighting is broken.
 
+Note that pull requests have automatic Jenkins CI tests run.
+
 ## Migrations
 
 Using sbt:
