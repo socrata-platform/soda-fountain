@@ -23,6 +23,7 @@ import org.joda.time.DateTime
 import org.scalatest.FunSuite
 import org.scalamock.scalatest.MockFactory
 import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResponse}
+import javax.servlet.http.HttpServletResponse
 
 /**
  * Metric scenarios which are common between multi-row queries and single-row operations
@@ -237,13 +238,18 @@ private object TestDatasets {
  * Dummy RowDAO that accepts a collection of TestDatasets and simply returns whatever RowDAO.Result they contain.
  */
 private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
-  def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String],
-            stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean): Result = {
-    testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
+  def query[T](dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String],
+            stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean)
+           (resp: HttpServletResponse)
+           (fn: (HttpServletResponse, Result) => T): T= {
+    val result = testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
+    fn(resp, result)
   }
-  def getRow(dataset: ResourceName, schemaCheck: (Seq[ColumnRecord]) => Boolean, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
-             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean): Result = {
-    query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup)
+  def getRow[T](dataset: ResourceName, schemaCheck: (Seq[ColumnRecord]) => Boolean, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
+             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean)
+            (resp: HttpServletResponse)
+            (fn: (HttpServletResponse, Result) => T): T= {
+    query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup)(resp)(fn)
   }
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
   def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
