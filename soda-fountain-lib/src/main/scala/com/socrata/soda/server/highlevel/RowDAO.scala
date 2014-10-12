@@ -13,25 +13,30 @@ import org.joda.time.DateTime
 
 import RowDAO._
 import com.socrata.soda.server.copy.Stage
+import javax.servlet.http.HttpServletResponse
 
 trait RowDAO {
-  def query(dataset: ResourceName,
+  def query[T](dataset: ResourceName,
             precondition: Precondition,
             ifModifiedSince: Option[DateTime],
             query: String,
             rowCount: Option[String],
             stage: Option[Stage],
             secondaryInstance:Option[String],
-            noRollup: Boolean): Result
+            noRollup: Boolean)
+            (resp: HttpServletResponse)
+            (fn: (HttpServletResponse, Result) => T): T
 
-  def getRow(dataset: ResourceName,
+  def getRow[T](dataset: ResourceName,
              schemaCheck: Seq[ColumnRecord] => Boolean,
              precondition: Precondition,
              ifModifiedSince: Option[DateTime],
              rowId: RowSpecifier,
              stage: Option[Stage],
              secondaryInstance:Option[String],
-             noRollup: Boolean): Result
+             noRollup: Boolean)
+             (resp: HttpServletResponse)
+             (fn: (HttpServletResponse, Result) => T): T
 
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T
 

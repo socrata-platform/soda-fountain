@@ -144,17 +144,17 @@ case class Resource(rowDAO: RowDAO,
                   Stage(req.getParameter(qpCopy)),
                   Option(req.getParameter(qpSecondary)),
                   Option(req.getParameter(qpNoRollup)).isDefined
-                ) match {
-                  case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
-                    metric(QuerySuccessMetric)
-                    if (isConditionalGet(req)) {
-                      metric(QueryCacheMiss)
-                    }
-                    val latencyMs = System.currentTimeMillis - start
-                    if (rollup.isDefined) queryLatencyRollup += latencyMs
-                    else                  queryLatencyNonRollup += latencyMs
-                    val createHeader =
-                      OK ~>
+                )(response) { (resp, result) =>
+                  result match {
+                    case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
+                      metric(QuerySuccessMetric)
+                      if (isConditionalGet(req)) {
+                        metric(QueryCacheMiss)
+                      }
+                      val latencyMs = System.currentTimeMillis - start
+                      if (rollup.isDefined) queryLatencyRollup += latencyMs
+                      else                  queryLatencyNonRollup += latencyMs
+                      val createHeader = OK ~>
                         ContentType(mimeType.toString) ~>
                         Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
                         ETags(etags.map(prepareTag)) ~>
@@ -162,28 +162,29 @@ case class Resource(rowDAO: RowDAO,
                         optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
                         optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
-                    createHeader(response)
-                    exporter.export(response, charset, schema, rows)
-                  case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
-                    metric(QueryCacheHit)
-                    SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
-                  case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
-                    metric(QueryErrorUser)
-                    SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
-                  case RowDAO.DatasetNotFound(resourceName) =>
-                    metric(QueryErrorUser)
-                    SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
-                  case RowDAO.InvalidRequest(code, body) =>
-                    if (code >= 400 && code < 500) metric(QueryErrorUser)
-                    else if (code >= 500 && code < 600) metric(QueryErrorInternal)
+                      createHeader(response)
+                      exporter.export(response, charset, schema, rows)
+                    case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
+                      metric(QueryCacheHit)
+                      SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
+                    case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
+                      metric(QueryErrorUser)
+                      SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
+                    case RowDAO.DatasetNotFound(resourceName) =>
+                      metric(QueryErrorUser)
+                      SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+                    case RowDAO.InvalidRequest(code, body) =>
+                      if (code >= 400 && code < 500) metric(QueryErrorUser)
+                      else if (code >= 500 && code < 600) metric(QueryErrorInternal)
 
-                    SodaError.QueryCoordinatorErrorCodec.decode(body) match {
-                      case Some(qcError) =>
-                        val err = SodaErrors.ErrorReportedByQueryCoordinator(code, qcError)
-                        SodaUtils.errorResponse(req, err)(response)
-                      case _ =>
-                        SodaUtils.errorResponse(req, SodaErrors.InternalError("Cannot parse error from QC"))(response)
-                    }
+                      SodaError.QueryCoordinatorErrorCodec.decode(body) match {
+                        case Some(qcError) =>
+                          val err = SodaErrors.ErrorReportedByQueryCoordinator(code, qcError)
+                          SodaUtils.errorResponse(req, err)(response)
+                        case _ =>
+                          SodaUtils.errorResponse(req, SodaErrors.InternalError("Cannot parse error from QC"))(response)
+                      }
+                  }
                 }
               case None =>
                 metric(QueryErrorUser)
@@ -233,12 +234,12 @@ case class Resource(rowDAO: RowDAO,
         val qpNoRollup = "$$no_rollup"
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
         def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
-        precondition.filter(_.endsWith(suffix)) match {
-          case Right(newPrecondition) =>
-            // not using req.negotiateContent because we can't assume `.' signifies an extension
-            contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
-              case Some((mimeType, charset, language)) =>
-                val exporter = Exporter.exportForMimeType(mimeType)
+          precondition.filter(_.endsWith(suffix)) match {
+            case Right(newPrecondition) =>
+              // not using req.negotiateContent because we can't assume `.' signifies an extension
+              contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
+                case Some((mimeType, charset, language)) =>
+                  val exporter = Exporter.exportForMimeType(mimeType)
                   rowDAO.getRow(
                     resourceName,
                     exporter.validForSchema,
@@ -248,47 +249,48 @@ case class Resource(rowDAO: RowDAO,
                     Stage(req.getParameter(qpCopy)),
                     Option(req.getParameter(qpSecondary)),
                     Option(req.getParameter(qpNoRollup)).isDefined
-                  ) match {
-                    case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
-                      metric(QuerySuccessMetric)
-                      if (isConditionalGet(req)) {
-                        metric(QueryCacheMiss)
-                      }
-                      val createHeader =
-                        OK ~>
-                        ContentType(mimeType.toString) ~>
-                        Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
-                        ETags(etags.map(prepareTag)) ~>
-                        optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
-                        optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
-                        Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
-                      createHeader(response)
-                      exporter.export(response, charset, schema, Iterator.single(row), singleRow = true)
-                    case RowDAO.RowNotFound(row) =>
-                      metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.RowNotFound(row))(response)
-                    case RowDAO.DatasetNotFound(resourceName) =>
-                      metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
-                    case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
-                      metric(QueryCacheHit)
-                      SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
-                    case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
-                      metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
-                    case RowDAO.SchemaInvalidForMimeType =>
-                      metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.SchemaInvalidForMimeType)
+                  )(response) { (resp, result) =>
+                    result match {
+                      case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
+                        metric(QuerySuccessMetric)
+                        if (isConditionalGet(req)) {
+                          metric(QueryCacheMiss)
+                        }
+                        val createHeader = OK ~>
+                          ContentType(mimeType.toString) ~>
+                          Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
+                          ETags(etags.map(prepareTag)) ~>
+                          optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
+                          optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
+                          Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
+                        createHeader(response)
+                        exporter.export(response, charset, schema, Iterator.single(row), singleRow = true)
+                      case RowDAO.RowNotFound(row) =>
+                        metric(QueryErrorUser)
+                        SodaUtils.errorResponse(req, SodaErrors.RowNotFound(row))(response)
+                      case RowDAO.DatasetNotFound(resourceName) =>
+                        metric(QueryErrorUser)
+                        SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+                      case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
+                        metric(QueryCacheHit)
+                        SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
+                      case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
+                        metric(QueryErrorUser)
+                        SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
+                      case RowDAO.SchemaInvalidForMimeType =>
+                        metric(QueryErrorUser)
+                        SodaUtils.errorResponse(req, SodaErrors.SchemaInvalidForMimeType)
+                    }
                   }
-              case None =>
-                metric(QueryErrorUser)
-                // TODO better error
-                NotAcceptable(response)
-            }
-          case Left(Precondition.FailedBecauseNoMatch) =>
-            metric(QueryErrorUser)
-            SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
-        }
+                case None =>
+                  metric(QueryErrorUser)
+                  // TODO better error
+                  NotAcceptable(response)
+              }
+            case Left(Precondition.FailedBecauseNoMatch) =>
+              metric(QueryErrorUser)
+              SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
+          }
       } catch {
         case e: Exception =>
           metric(QueryErrorInternal)

@@ -1,5 +1,7 @@
 package com.socrata.soda.server.highlevel
 
+import java.nio.charset.StandardCharsets
+
 import com.rojoma.json.ast._
 import com.socrata.http.server.util.{NoPrecondition, Precondition, StrongEntityTag}
 import com.socrata.soda.clients.datacoordinator._
@@ -11,7 +13,7 @@ import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
-import java.nio.charset.StandardCharsets
+import javax.servlet.http.HttpServletResponse
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 
@@ -23,24 +25,28 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
 
   val dateTimeParser = ISODateTimeFormat.dateTimeParser
 
-  def query(resourceName: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime],
-            query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean): Result = {
+  def query[T](resourceName: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime],
+            query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean)
+            (resp: HttpServletResponse)
+            (fn: (HttpServletResponse, Result) => T): T = {
     store.lookupDataset(resourceName, copy) match {
       case Some(ds) =>
-        getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup)
+        getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup)(resp)(fn)
       case None =>
-        DatasetNotFound(resourceName)
+        fn(resp, DatasetNotFound(resourceName))
     }
   }
 
-  def getRow(resourceName: ResourceName,
+  def getRow[T](resourceName: ResourceName,
              schemaCheck: Seq[ColumnRecord] => Boolean,
              precondition: Precondition,
              ifModifiedSince: Option[DateTime],
              rowId: RowSpecifier,
              copy: Option[Stage],
              secondaryInstance:Option[String],
-             noRollup: Boolean): Result = {
+             noRollup: Boolean)
+            (resp: HttpServletResponse)
+            (fn: (HttpServletResponse, Result) => T): T = {
     store.lookupDataset(resourceName, copy) match {
       case Some(datasetRecord) =>
         if (schemaCheck(datasetRecord.columns)) {
@@ -51,50 +57,55 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
               val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
               val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
               val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
-              getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance, noRollup) match {
-                case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
-                  val version = ColumnName(":version")
-                  val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
-                  val deVersionedSchema = simpleSchema.copy(schema = simpleSchema.schema.take(versionPos) ++ simpleSchema.schema.drop(versionPos + 1))
-                  val rowsStream = rows.toStream
-                  rowsStream.headOption match {
-                    case Some(rowWithVersion) if rowsStream.lengthCompare(1) == 0 =>
-                      val etag = StrongEntityTag(rowWithVersion(versionPos).toString.getBytes(StandardCharsets.UTF_8))
-                      val row = rowWithVersion.take(versionPos) ++ rowWithVersion.drop(versionPos + 1)
-                      precondition.check(Some(etag), sideEffectFree = true) match {
-                        case Precondition.Passed =>
-                          RowDAO.SingleRowQuerySuccess(Seq(etag), truthVersion, truthLastModified, deVersionedSchema, row)
-                        case f: Precondition.Failure =>
-                          RowDAO.PreconditionFailed(f)
-                      }
-                    case Some(rowWithVersion) =>
-                      TooManyRows
-                    case _ =>
-                      precondition.check(None, sideEffectFree = true) match {
-                        case Precondition.Passed =>
-                          RowDAO.RowNotFound(rowId)
-                        case f: Precondition.Failure =>
-                          RowDAO.PreconditionFailed(f)
-                      }
-                  }
-                case other =>
-                  other
+              getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance, noRollup)(resp) { (resp, result) =>
+                result match {
+                  case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
+                    val version = ColumnName(":version")
+                    val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
+                    val deVersionedSchema = simpleSchema.copy(schema = simpleSchema.schema.take(versionPos) ++ simpleSchema.schema.drop(versionPos + 1))
+                    val rowsStream = rows.toStream
+                    rowsStream.headOption match {
+                      case Some(rowWithVersion) if rowsStream.lengthCompare(1) == 0 =>
+                        val etag = StrongEntityTag(rowWithVersion(versionPos).toString.getBytes(StandardCharsets.UTF_8))
+                        val row = rowWithVersion.take(versionPos) ++ rowWithVersion.drop(versionPos + 1)
+                        precondition.check(Some(etag), sideEffectFree = true) match {
+                          case Precondition.Passed =>
+                            val singleRowResult = RowDAO.SingleRowQuerySuccess(Seq(etag), truthVersion, truthLastModified, deVersionedSchema, row)
+                            fn(resp, singleRowResult)
+                          case f: Precondition.Failure =>
+                            fn(resp, RowDAO.PreconditionFailed(f))
+                        }
+                      case Some(rowWithVersion) =>
+                        fn(resp, TooManyRows)
+                      case _ =>
+                        precondition.check(None, sideEffectFree = true) match {
+                          case Precondition.Passed =>
+                            fn(resp, RowDAO.RowNotFound(rowId))
+                          case f: Precondition.Failure =>
+                            fn(resp, RowDAO.PreconditionFailed(f))
+                        }
+                    }
+                  case other =>
+                    fn(resp, other)
+                }
               }
-            case None => RowNotFound(rowId) // it's not a valid value and therefore trivially not found
+            case None => fn(resp, RowNotFound(rowId)) // it's not a valid value and therefore trivially not found
           }
         }
-        else SchemaInvalidForMimeType
+        else fn(resp, SchemaInvalidForMimeType)
       case None =>
-        DatasetNotFound(resourceName)
+        fn(resp, DatasetNotFound(resourceName))
     }
   }
 
-  private def getRows(ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime],
-                      query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean): Result = {
+  private def getRows[T](ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime],
+                      query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean)
+                      (resp: HttpServletResponse)
+                      (fn: (HttpServletResponse, Result) => T): T = {
     qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount, copy, secondaryInstance, noRollup) {
       case QueryCoordinatorClient.Success(etags, rollup, response) =>
-        val cjson = response.asInstanceOf[JArray]
-        CJson.decode(cjson.toIterator) match {
+        val cjson = response
+        CJson.decode(cjson) match {
           case CJson.Decoded(schema, rows) =>
             schema.pk.map(ds.columnsById(_).fieldName)
             val simpleSchema = ExportDAO.CSchema(
@@ -107,14 +118,15 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
               schema.schema.map { f => ColumnInfo(f.c, ColumnName(f.c.underlying), f.c.underlying, f.t) }
             )
             // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
-            QuerySuccess(etags, ds.truthVersion, ds.lastModified, rollup, simpleSchema, rows)
+            val result = QuerySuccess(etags, ds.truthVersion, ds.lastModified, rollup, simpleSchema, rows)
+            fn(resp, result)
         }
       case QueryCoordinatorClient.UserError(code, response) =>
-        RowDAO.InvalidRequest(code, response)
+        fn(resp, RowDAO.InvalidRequest(code, response))
       case QueryCoordinatorClient.NotModified(etags) =>
-        RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags))
+        fn(resp, RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)))
       case QueryCoordinatorClient.PreconditionFailed =>
-        RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch)
+        fn(resp, RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch))
       case _ =>
         // TODO: other status code from query coordinator
         throw new Exception("TODO")
