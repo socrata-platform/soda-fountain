@@ -65,8 +65,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
           secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)
         log.info("Query Coordinator request parameters: " + params)
         val request = host.addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate)).form(params)
-        val resp = httpClient.executeUnmanaged(request)
-        f(resultFrom(rs.open(resp)))
+        f(resultFrom(rs.open(httpClient.executeUnmanaged(request))))
       case None => throw new Exception("could not connect to query coordinator")
     }
   }
