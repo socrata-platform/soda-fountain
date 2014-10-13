@@ -13,6 +13,7 @@ import org.joda.time.DateTime
 
 import RowDAO._
 import com.socrata.soda.server.copy.Stage
+import com.rojoma.simplearm.v2.ResourceScope
 
 trait RowDAO {
   def query(dataset: ResourceName,
@@ -22,7 +23,8 @@ trait RowDAO {
             rowCount: Option[String],
             stage: Option[Stage],
             secondaryInstance:Option[String],
-            noRollup: Boolean): Result
+            noRollup: Boolean)
+           (rs: ResourceScope): Result
 
   def getRow(dataset: ResourceName,
              schemaCheck: Seq[ColumnRecord] => Boolean,
@@ -31,7 +33,8 @@ trait RowDAO {
              rowId: RowSpecifier,
              stage: Option[Stage],
              secondaryInstance:Option[String],
-             noRollup: Boolean): Result
+             noRollup: Boolean)
+            (rs: ResourceScope): Result
 
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T
 
