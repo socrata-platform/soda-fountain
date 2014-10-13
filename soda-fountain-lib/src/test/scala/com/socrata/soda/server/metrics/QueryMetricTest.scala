@@ -1,27 +1,24 @@
 package com.socrata.soda.server.metrics
 
 import com.rojoma.json.ast.JString
-
-import com.socrata.http.server.util.Precondition
+import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
-
+import com.socrata.http.server.util.Precondition
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.highlevel.ExportDAO.CSchema
 import com.socrata.soda.server.highlevel.{DatasetDAO, RowDAO}
-import com.socrata.soda.server.highlevel.RowDAO.{UpsertResult, Result}
-import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
+import com.socrata.soda.server.highlevel.ExportDAO.CSchema
+import com.socrata.soda.server.highlevel.RowDAO.{Result, UpsertResult}
+import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.metrics.Metrics._
 import com.socrata.soda.server.metrics.TestDatasets._
-import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecord}
+import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecordLike}
 import com.socrata.soda.server.resources.Resource
 import com.socrata.soda.server.util.NoopEtagObfuscator
-
 import com.socrata.soql.types.SoQLValue
-
 import org.joda.time.DateTime
-import org.scalatest.FunSuite
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.FunSuite
 import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResponse}
 
 /**
@@ -238,12 +235,12 @@ private object TestDatasets {
  */
 private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
   def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String],
-            stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean): Result = {
+            stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, rs: ResourceScope): Result = {
     testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
   }
   def getRow(dataset: ResourceName, schemaCheck: (Seq[ColumnRecord]) => Boolean, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
-             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean): Result = {
-    query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup)
+             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, rs: ResourceScope): Result = {
+    query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup, rs)
   }
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
   def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???

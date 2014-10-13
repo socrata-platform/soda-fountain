@@ -12,6 +12,7 @@ object SodaFountainLib {
     libraryDependencies ++= Seq(
       "com.mchange"         % "c3p0"                        % "0.9.2.1",
       "com.rojoma"         %% "simple-arm"                  % "[1.2.0,2.0.0)",
+      "com.rojoma"         %% "simple-arm-v2"               % "2.0.0",
       "com.socrata"        %% "balboa-common"               % "[0.14.0,1.0.0)",
       "com.socrata"        %% "balboa-client"               % "[0.14.0,1.0.0)",
       "com.socrata"        %% "socrata-http-client"         % "2.3.0",
