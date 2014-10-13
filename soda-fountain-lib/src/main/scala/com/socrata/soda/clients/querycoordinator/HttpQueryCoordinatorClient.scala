@@ -33,7 +33,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
 
   def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
     columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String],
-    copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean)(rs: ResourceScope)(f: Result => T): T = {
+    copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean, rs: ResourceScope)(f: Result => T): T = {
     import HttpStatus._
 
     def resultFrom(response: Response): Result = {

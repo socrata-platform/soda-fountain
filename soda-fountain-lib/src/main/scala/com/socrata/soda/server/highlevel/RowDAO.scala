@@ -23,8 +23,8 @@ trait RowDAO {
             rowCount: Option[String],
             stage: Option[Stage],
             secondaryInstance:Option[String],
-            noRollup: Boolean)
-           (rs: ResourceScope): Result
+            noRollup: Boolean,
+            resourceScope: ResourceScope): Result
 
   def getRow(dataset: ResourceName,
              schemaCheck: Seq[ColumnRecord] => Boolean,
@@ -33,8 +33,8 @@ trait RowDAO {
              rowId: RowSpecifier,
              stage: Option[Stage],
              secondaryInstance:Option[String],
-             noRollup: Boolean)
-            (rs: ResourceScope): Result
+             noRollup: Boolean,
+             resourceScope: ResourceScope): Result
 
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T
 

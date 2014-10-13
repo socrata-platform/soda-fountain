@@ -144,8 +144,8 @@ case class Resource(rowDAO: RowDAO,
                     Option(req.getParameter(qpRowCount)),
                     Stage(req.getParameter(qpCopy)),
                     Option(req.getParameter(qpSecondary)),
-                    Option(req.getParameter(qpNoRollup)).isDefined
-                  )(resourceScope) match {
+                    Option(req.getParameter(qpNoRollup)).isDefined,
+                    resourceScope) match {
                     case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                       metric(QuerySuccessMetric)
                       if (isConditionalGet(req)) {
@@ -250,8 +250,8 @@ case class Resource(rowDAO: RowDAO,
                     rowId,
                     Stage(req.getParameter(qpCopy)),
                     Option(req.getParameter(qpSecondary)),
-                    Option(req.getParameter(qpNoRollup)).isDefined
-                  )(resourceScope) match {
+                    Option(req.getParameter(qpNoRollup)).isDefined,
+                    resourceScope) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
                       if (isConditionalGet(req)) {

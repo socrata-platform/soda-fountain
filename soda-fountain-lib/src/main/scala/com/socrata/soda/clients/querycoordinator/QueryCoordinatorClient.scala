@@ -21,5 +21,5 @@ object QueryCoordinatorClient {
 trait QueryCoordinatorClient {
   import QueryCoordinatorClient._
   def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, columnIdMap: Map[ColumnName, ColumnId],
-    rowCount: Option[String], copy: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean)(rs: ResourceScope)(f: Result => T): T
+    rowCount: Option[String], copy: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, rs: ResourceScope)(f: Result => T): T
 }
