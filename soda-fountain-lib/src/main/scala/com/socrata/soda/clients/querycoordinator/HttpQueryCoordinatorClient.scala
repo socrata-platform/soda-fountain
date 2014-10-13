@@ -1,16 +1,21 @@
 package com.socrata.soda.clients.querycoordinator
 
-import com.socrata.http.client.{Response, RequestBuilder, HttpClient}
+import java.io.Closeable
+
+import scala.io.{Codec, Source}
+
+import com.rojoma.json.ast.JValue
+import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
+import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
+import com.socrata.http.server.implicits._
+import com.socrata.http.server.util._
+import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient._
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, DatasetId}
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient._
-import com.rojoma.json.util.JsonUtil
-import com.socrata.http.server.util._
-import com.socrata.http.server.implicits._
 import org.apache.http.HttpStatus
-import scala.io.{Codec, Source}
 import org.joda.time.DateTime
-import com.socrata.soda.server.copy.Stage
 
 trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   def qchost : Option[RequestBuilder]
@@ -28,13 +33,16 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
 
   def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
     columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String],
-    copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean)(f: Result => T): T = {
+    copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean, rs: ResourceScope)(f: Result => T): T = {
     import HttpStatus._
 
     def resultFrom(response: Response): Result = {
       response.resultCode match {
         case SC_OK =>
-          Success(response.headers("ETag").map(EntityTagParser.parse(_)), response.headers(HeaderRollup).headOption, response.jValue())
+          val jsonEventIt = response.jsonEvents()
+          val jvIt = JsonArrayIterator[JValue](jsonEventIt)
+          val umJvIt = rs.openUnmanaged(jvIt, Seq(response))
+          Success(response.headers("ETag").map(EntityTagParser.parse(_)), response.headers(HeaderRollup).headOption, umJvIt)
         case SC_NOT_MODIFIED =>
           NotModified(response.headers("ETag").map(EntityTagParser.parse(_)))
         case SC_PRECONDITION_FAILED =>
@@ -57,10 +65,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
           secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)
         log.info("Query Coordinator request parameters: " + params)
         val request = host.addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate)).form(params)
-        for (response <- httpClient.execute(request)) yield {
-          log.info("TODO: stream the response")
-          f(resultFrom(response))
-        }
+        f(resultFrom(rs.open(httpClient.executeUnmanaged(request))))
       case None => throw new Exception("could not connect to query coordinator")
     }
   }
