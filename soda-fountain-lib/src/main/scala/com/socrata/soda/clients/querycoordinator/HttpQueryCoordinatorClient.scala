@@ -36,7 +36,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean)(rs: ResourceScope)(f: Result => T): T = {
     import HttpStatus._
 
-    def resultFrom(response: Response with Closeable): Result = {
+    def resultFrom(response: Response): Result = {
       response.resultCode match {
         case SC_OK =>
           val jsonEventIt = response.jsonEvents()
