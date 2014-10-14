@@ -1,35 +1,35 @@
 package com.socrata.soda.server.resources
 
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+
+import scala.language.existentials
+
 import com.rojoma.json.ast.JValue
+import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.common.util.ContentNegotiation
 import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
-import com.socrata.http.server.util.{Precondition, EntityTag}
+import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
+import com.socrata.soda.server.{SodaUtils, errors => SodaErrors}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.errors.SodaError
 import com.socrata.soda.server.export.Exporter
-import com.socrata.soda.server.highlevel.{DatasetDAO, RowDataTranslator, RowDAO}
+import com.socrata.soda.server.highlevel.{DatasetDAO, RowDAO, RowDataTranslator}
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
-import com.socrata.soda.server.metrics.Metrics._
-import com.socrata.soda.server.metrics.Metrics.{ QuerySuccess => QuerySuccessMetric } // conflict with RowDAO.QuerySuccess
-import com.socrata.soda.server.metrics.{NoopMetricProvider, MetricProvider}
+import com.socrata.soda.server.metrics.{MetricProvider, NoopMetricProvider}
+import com.socrata.soda.server.metrics.Metrics.{QuerySuccess => QuerySuccessMetric, _}
 import com.socrata.soda.server.persistence.DatasetRecordLike
-import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
-import com.socrata.soda.server.{errors => SodaErrors}
 import com.socrata.thirdparty.metrics.Metrics
-
-import java.nio.charset.StandardCharsets
-import java.security.MessageDigest
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
-
-import scala.language.existentials
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 
 /**
@@ -135,55 +135,57 @@ case class Resource(rowDAO: RowDAO,
             req.negotiateContent match {
               case Some((mimeType, charset, language)) =>
                 val exporter = Exporter.exportForMimeType(mimeType)
-                rowDAO.query(
-                  resourceName.value,
-                  newPrecondition.map(_.dropRight(suffix.length)),
-                  req.dateTimeHeader("If-Modified-Since"),
-                  Option(req.getParameter(qpQuery)).getOrElse("select *"),
-                  Option(req.getParameter(qpRowCount)),
-                  Stage(req.getParameter(qpCopy)),
-                  Option(req.getParameter(qpSecondary)),
-                  Option(req.getParameter(qpNoRollup)).isDefined
-                ) match {
-                  case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
-                    metric(QuerySuccessMetric)
-                    if (isConditionalGet(req)) {
-                      metric(QueryCacheMiss)
-                    }
-                    val latencyMs = System.currentTimeMillis - start
-                    if (rollup.isDefined) queryLatencyRollup += latencyMs
-                    else                  queryLatencyNonRollup += latencyMs
-                    val createHeader =
-                      OK ~>
-                        ContentType(mimeType.toString) ~>
-                        Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
-                        ETags(etags.map(prepareTag)) ~>
-                        optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
-                        optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
-                        optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
-                        Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
-                    createHeader(response)
-                    exporter.export(response, charset, schema, rows)
-                  case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
-                    metric(QueryCacheHit)
-                    SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
-                  case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
-                    metric(QueryErrorUser)
-                    SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
-                  case RowDAO.DatasetNotFound(resourceName) =>
-                    metric(QueryErrorUser)
-                    SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
-                  case RowDAO.InvalidRequest(code, body) =>
-                    if (code >= 400 && code < 500) metric(QueryErrorUser)
-                    else if (code >= 500 && code < 600) metric(QueryErrorInternal)
+                using(new ResourceScope()) { resourceScope =>
+                  rowDAO.query(
+                    resourceName.value,
+                    newPrecondition.map(_.dropRight(suffix.length)),
+                    req.dateTimeHeader("If-Modified-Since"),
+                    Option(req.getParameter(qpQuery)).getOrElse("select *"),
+                    Option(req.getParameter(qpRowCount)),
+                    Stage(req.getParameter(qpCopy)),
+                    Option(req.getParameter(qpSecondary)),
+                    Option(req.getParameter(qpNoRollup)).isDefined,
+                    resourceScope) match {
+                    case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
+                      metric(QuerySuccessMetric)
+                      if (isConditionalGet(req)) {
+                        metric(QueryCacheMiss)
+                      }
+                      val latencyMs = System.currentTimeMillis - start
+                      if (rollup.isDefined) queryLatencyRollup += latencyMs
+                      else                  queryLatencyNonRollup += latencyMs
+                      val createHeader =
+                        OK ~>
+                          ContentType(mimeType.toString) ~>
+                          Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
+                          ETags(etags.map(prepareTag)) ~>
+                          optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
+                          optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
+                          optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
+                          Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
+                      createHeader(response)
+                      exporter.export(response, charset, schema, rows)
+                    case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
+                      metric(QueryCacheHit)
+                      SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
+                    case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
+                      metric(QueryErrorUser)
+                      SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
+                    case RowDAO.DatasetNotFound(resourceName) =>
+                      metric(QueryErrorUser)
+                      SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+                    case RowDAO.InvalidRequest(code, body) =>
+                      if (code >= 400 && code < 500) metric(QueryErrorUser)
+                      else if (code >= 500 && code < 600) metric(QueryErrorInternal)
 
-                    SodaError.QueryCoordinatorErrorCodec.decode(body) match {
-                      case Some(qcError) =>
-                        val err = SodaErrors.ErrorReportedByQueryCoordinator(code, qcError)
-                        SodaUtils.errorResponse(req, err)(response)
-                      case _ =>
-                        SodaUtils.errorResponse(req, SodaErrors.InternalError("Cannot parse error from QC"))(response)
-                    }
+                      SodaError.QueryCoordinatorErrorCodec.decode(body) match {
+                        case Some(qcError) =>
+                          val err = SodaErrors.ErrorReportedByQueryCoordinator(code, qcError)
+                          SodaUtils.errorResponse(req, err)(response)
+                        case _ =>
+                          SodaUtils.errorResponse(req, SodaErrors.InternalError("Cannot parse error from QC"))(response)
+                      }
+                  }
                 }
               case None =>
                 metric(QueryErrorUser)
@@ -239,6 +241,7 @@ case class Resource(rowDAO: RowDAO,
             contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
               case Some((mimeType, charset, language)) =>
                 val exporter = Exporter.exportForMimeType(mimeType)
+                using(new ResourceScope) { resourceScope =>
                   rowDAO.getRow(
                     resourceName,
                     exporter.validForSchema,
@@ -247,8 +250,8 @@ case class Resource(rowDAO: RowDAO,
                     rowId,
                     Stage(req.getParameter(qpCopy)),
                     Option(req.getParameter(qpSecondary)),
-                    Option(req.getParameter(qpNoRollup)).isDefined
-                  ) match {
+                    Option(req.getParameter(qpNoRollup)).isDefined,
+                    resourceScope) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
                       if (isConditionalGet(req)) {
@@ -280,6 +283,7 @@ case class Resource(rowDAO: RowDAO,
                       metric(QueryErrorUser)
                       SodaUtils.errorResponse(req, SodaErrors.SchemaInvalidForMimeType)
                   }
+                }
               case None =>
                 metric(QueryErrorUser)
                 // TODO better error
