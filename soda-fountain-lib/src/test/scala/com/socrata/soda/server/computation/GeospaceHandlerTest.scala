@@ -1,51 +1,59 @@
 package com.socrata.soda.server.computation
 
 import com.rojoma.json.ast._
+import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.io.JsonReader
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.id.ColumnId
-import com.socrata.soda.server.persistence.{MinimalColumnRecord, ComputationStrategyRecord}
+import com.socrata.soda.server.persistence.{ColumnRecordLike, MinimalColumnRecord, ComputationStrategyRecord}
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.thirdparty.curator.{CuratorBroker, CuratorServiceIntegration}
 import com.typesafe.config.ConfigFactory
 import java.math.{ BigDecimal => BD }
+import org.apache.curator.x.discovery._
 import org.mockserver.integration.ClientAndServer
 import org.mockserver.model.Header
 import org.scalatest._
+import org.scalatest.mock.MockitoSugar
+import org.mockito.Mockito.{when, verify}
+import org.mockito.Matchers.{any, anyString}
 
 trait GeospaceHandlerData {
-  val point1 = "{\"type\":\"Point\",\"coordinates\":[47.6303,-122.3148]}"
-  val point2 = "{\"type\":\"Point\",\"coordinates\":[48.6303,-121.3148]}"
-  val point3 = "{\"type\":\"Point\",\"coordinates\":[49.6303,-120.3148]}"
-  val point4 = "{\"type\":\"Point\",\"coordinates\":[50.11,  -119.98]}"
+  val point1 = """{"type":"Point","coordinates":[47.6303,-122.3148]}"""
+  val point2 = """{"type":"Point","coordinates":[48.6303,-121.3148]}"""
+  val point3 = """{"type":"Point","coordinates":[49.6303,-120.3148]}"""
+  val point4 = """{"type":"Point","coordinates":[50.11,  -119.98]}"""
   val multiLine = """{"type":"MultiLineString","coordinates":[[[100,0.123456789012],[101,1]],[[102,2],[103,3]]]}"""
 
   val pointRep = JsonColumnRep.forClientType(SoQLPoint)
   def toSoQLPoint(str: String) = pointRep.fromJValue(JsonReader.fromString(str)).get.asInstanceOf[SoQLPoint]
 
   val testRows = Seq[RowDataTranslator.Computable](
-                   DeleteAsCJson(JString("abcd-1234")),
-                   UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013"))),
-                   UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point2), "date-1234" -> SoQLText("11/30/2013"))),
-                   DeleteAsCJson(JString("efgh-5678")),
-                   UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point3), "date-1234" -> SoQLText("12/4/2013"))),
-                   UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point4), "date-1234" -> SoQLText("1/14/2014"))),
-                   DeleteAsCJson(JString("ijkl-9012"))
-                 )
+    DeleteAsCJson(JString("abcd-1234")),
+    UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013"))),
+    UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point2), "date-1234" -> SoQLText("11/30/2013"))),
+    DeleteAsCJson(JString("efgh-5678")),
+    UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point3), "date-1234" -> SoQLText("12/4/2013"))),
+    UpsertAsSoQL(Map("geom-1234" -> toSoQLPoint(point4), "date-1234" -> SoQLText("1/14/2014"))),
+    DeleteAsCJson(JString("ijkl-9012"))
+  )
+
+  val testRow = UpsertAsSoQL(
+    Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013")))
 
   val computeStrategy = ComputationStrategyRecord(ComputationStrategyType.GeoRegion, false,
-                                                  Some(Seq("geom-1234")),
-                                                  Some(JObject(Map("region" -> JString("wards")))))
+    Some(Seq("geom-1234")),
+    Some(JObject(Map("region" -> JString("wards")))))
   val columnSpec = MinimalColumnRecord(ColumnId("ward-1234"), ColumnName("ward_id"), SoQLText, false,
-                                       Some(computeStrategy))
+    Some(computeStrategy))
 }
 
 class GeospaceHandlerTest extends FunSuite
-with MustMatchers with Assertions with BeforeAndAfterAll with BeforeAndAfterEach with GeospaceHandlerData
-with CuratorServiceIntegration {
+    with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach with GeospaceHandlerData
+    with CuratorServiceIntegration with MockitoSugar {
   override val curatorConfigPrefix = "com.socrata.soda-fountain.curator"
 
   import collection.JavaConverters._
@@ -60,11 +68,11 @@ with CuratorServiceIntegration {
   lazy val cookie = broker.register(port)
 
   val testConfig = ConfigFactory.parseMap(Map(
-                     "service-name" -> "geospace",
-                     "batch-size"   -> 2,
-                     "max-retries"  -> 1,
-                     "retry-wait"   -> "500ms"
-                   ).asJava)
+    "service-name" -> "geospace",
+    "batch-size"   -> 2,
+    "max-retries"  -> 1,
+    "retry-wait"   -> "500ms"
+  ).asJava)
 
   lazy val handler = new GeospaceHandler(testConfig, discovery)
 
@@ -86,11 +94,11 @@ with CuratorServiceIntegration {
 
   private def mockGeocodeRoute(bodyRegex: String, returnedBody: String, returnedCode: Int = 200) {
     server.when(request.withMethod("POST").
-                        withPath("/experimental/regions/wards/geocode").
-                        withBody(StringBody.regex(bodyRegex))).
-           respond(response.withStatusCode(returnedCode).
-                            withHeader(new Header("Content-Type", "application/json; charset=utf-8")).
-                            withBody(returnedBody))
+      withPath("/experimental/regions/wards/geocode").
+      withBody(StringBody.regex(bodyRegex))).
+      respond(response.withStatusCode(returnedCode).
+        withHeader(new Header("Content-Type", "application/json; charset=utf-8")).
+        withBody(returnedBody))
   }
 
   test("HTTP geocoder works with mock HTTP server") {
@@ -113,8 +121,6 @@ with CuratorServiceIntegration {
   }
 
   test("Retry works") {
-    val testRow = UpsertAsSoQL(
-      Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013")))
     val expectedRow = UpsertAsSoQL(
       Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013"), "ward-1234" -> SoQLNumber(new BD(1))))
 
@@ -131,8 +137,8 @@ with CuratorServiceIntegration {
 
   test("Will return empty featureIds if source column missing or null for some rows") {
     val rows = Seq(UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2013"))),
-                   UpsertAsSoQL(Map("geom-1234" -> SoQLNull, "date-1234" -> SoQLText("12/31/2014"))),
-                   UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015")))) ++ testRows
+      UpsertAsSoQL(Map("geom-1234" -> SoQLNull, "date-1234" -> SoQLText("12/31/2014"))),
+      UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015")))) ++ testRows
 
     mockGeocodeRoute(".+122.+", """[3,4]""")
     mockGeocodeRoute(".+120.+", """[null]""")
@@ -163,11 +169,32 @@ with CuratorServiceIntegration {
     newRows.toSeq must equal (rows)
   }
 
+  test("optionIntCodec.encode wraps JsonCodec[Int].encode") {
+    handler.optionIntCodec.encode(Some(1234)) must equal (JsonCodec[Int].encode(1234))
+    handler.optionIntCodec.encode(None) must equal (com.rojoma.json.ast.JNull)
+  }
+
   test("handler.compute() returns lazy iterator") {
     // The way we verify this is a variant of above test.  Unless we call next(), errors in the input
     // will not result in an exception because processing hasn't started yet
     val rows = Seq(Map("date-1234" -> SoQLText("12/31/2013")))    // geom column missing
     handler.compute(rows.map(UpsertAsSoQL(_)).toIterator, columnSpec)
+  }
+
+  test("handler.close() closes provider") {
+    val mockDiscovery = mock[ServiceDiscovery[Any]]
+    val mockBuilder = mock[ServiceProviderBuilder[Any]]
+    val mockProvider = mock[ServiceProvider[Any]]
+
+    when(mockDiscovery.serviceProviderBuilder()).thenReturn(mockBuilder)
+    when(mockBuilder.providerStrategy(any[ProviderStrategy[Any]])).thenReturn(mockBuilder)
+    when(mockBuilder.serviceName(anyString)).thenReturn(mockBuilder)
+    when(mockBuilder.build()).thenReturn(mockProvider)
+
+    val handler = new GeospaceHandler(testConfig, mockDiscovery)
+    handler.close()
+
+    verify(mockProvider).close()
   }
 
   test("Will throw MaltypedDataEx if source column not right SoQLType") {
@@ -176,8 +203,115 @@ with CuratorServiceIntegration {
     // If not MultiLine
     intercept[MaltypedDataEx] {
       val rows = Seq(Map("geom-1234" -> converter(multiLine).get))
-      handler.compute(rows.map(UpsertAsSoQL(_)).toIterator, columnSpec).next
+      handler.compute(rows.map(UpsertAsSoQL).toIterator, columnSpec).next
+    }
+  }
+
+  test("Will throw RuntimeException if unable to get a Geospace instance") {
+    val mockDiscovery = mock[ServiceDiscovery[Any]]
+    val mockBuilder = mock[ServiceProviderBuilder[Any]]
+    val mockProvider = mock[ServiceProvider[Any]]
+
+    when(mockDiscovery.serviceProviderBuilder()).thenReturn(mockBuilder)
+    when(mockBuilder.providerStrategy(any[ProviderStrategy[Any]])).thenReturn(mockBuilder)
+    when(mockBuilder.serviceName(anyString)).thenReturn(mockBuilder)
+    when(mockBuilder.build()).thenReturn(mockProvider)
+
+    val handler = new GeospaceHandler(testConfig, mockDiscovery)
+    the [RuntimeException] thrownBy {
+      handler.urlPrefix
+    } must have message "Unable to get Geospace instance from Curator/ZK"
+  }
+
+  test("Will throw ComputationEx if computing an unsupported row type") {
+    val ex = the [ComputationEx] thrownBy {
+      handler.compute(Iterator(null), columnSpec).
+        foreach(Function.const()) // Force evaluation of the iterator.
     }
 
+    ex.message must equal ("Unsupported row update type passed into GeospaceHandler")
+  }
+
+  test("Will throw IllegalArgumentException when column is not computed") {
+    val columnSpec = mock[ColumnRecordLike]
+    when(columnSpec.computationStrategy).thenReturn(None)
+
+    val ex = the [IllegalArgumentException] thrownBy {
+      handler.compute(Iterator(), columnSpec)
+    }
+
+    ex.getMessage must include ("Not a target computed column")
+  }
+
+  test("Will throw IllegalArgumentException when missing region parameter") {
+    val columnSpec = mock[ColumnRecordLike]
+    when(columnSpec.computationStrategy).thenReturn(Some(
+      ComputationStrategyRecord(
+        null,
+        false,
+        Some(Seq("")),
+        Some(JObject(Map())))))
+
+    val ex = the [IllegalArgumentException] thrownBy {
+      handler.compute(Iterator(), columnSpec)
+    }
+    ex.getMessage must include ("parameters does not contain 'region'")
+  }
+
+  test("Will throw IllegalArgumentException when missing source columns") {
+    val columnSpec = mock[ColumnRecordLike]
+    when(columnSpec.computationStrategy).thenReturn(Some(
+      ComputationStrategyRecord(null, false, Some(Seq()), null)))
+
+    val ex = the [IllegalArgumentException] thrownBy {
+      handler.compute(Iterator(), columnSpec)
+    }
+    ex.getMessage must include ("There must be exactly 1 sourceColumn, and " +
+      "parameters must have a key 'region'")
+  }
+
+  test("Will throw ComputationEx when post does not return 200") {
+    mockGeocodeRoute(".+", "[]", 300)
+
+    val ex = the [ComputationEx] thrownBy {
+      handler.compute(Iterator(testRow), columnSpec).
+        foreach(Function.const()) // Force evaluation of the iterator.
+    }
+
+    val message = ex.getMessage
+
+    ex.underlying must be (None)
+    message must include ("Error: HTTP")
+    message must include ("got response code 300, body []")
+  }
+
+  test("Will throw ComputationEx when post returns invalid data") {
+    mockGeocodeRoute(".+", "null", 200)
+
+    val ex = the [ComputationEx] thrownBy {
+      handler.compute(Iterator(testRow), columnSpec).
+        foreach(Function.const()) // Force evaluation of the iterator.
+    }
+
+    val message = ex.getMessage
+
+    ex.underlying must be (None)
+    message must include ("Error parsing JSON response")
+  }
+
+  test("Will throw when retries fail") {
+    mockGeocodeRoute(".+", "", 500)
+    mockGeocodeRoute(".+", "", 500) // Out of retries here.
+    mockGeocodeRoute(".+", "", 200)
+
+    val ex = the [ComputationEx] thrownBy {
+      handler.compute(Iterator(testRow), columnSpec).
+        foreach(Function.const()) // Force evaluation of the iterator.
+    }
+
+    val message = ex.getMessage
+
+    ex.underlying.isDefined must be (true)
+    message must include ("HTTP Error reading")
   }
 }

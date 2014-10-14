@@ -9,9 +9,8 @@ class MetricCounter(value: AtomicLong) {
     */
   def this() = this(new AtomicLong())
 
-  /** *
-    * Increments the count by 1, then returns the new value
-    * @return Value of the counter after incrementing
+  /**
+    * @return The current value of the counter
     */
   def get(): Long = value.get()
 
