@@ -108,10 +108,12 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
 
   def close() {
     // TODO : Hook this up to Balboa
+    // $COVERAGE-OFF$ This is only logging, we don't need to test it.
     logger.info(s"${totalPointsCodedCounter.get()} row(s) georegion coded in ${timeCounter.get()} milliseconds")
     if (noMatchPointsCounter.get() > 0) {
       logger.info(s"${noMatchPointsCounter.get()} row(s) did not match any georegion")
     }
+    // $COVERAGE-ON$
 
     logger.info("Closing GeospaceHandler...")
     service.close()
@@ -172,6 +174,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
     }
   }
 
+  // Note: "status" cannot be a 4xx or 5xx, because that will throw a HttpException
   @tailrec
   private def postWithRetry(url: String, jsonPoints: Seq[JArray], retriesLeft: Int): (Int, String) = {
     try {
@@ -184,8 +187,7 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
         if (retriesLeft > 0) {
           Thread.sleep(retryWait)
           postWithRetry(url, jsonPoints, retriesLeft - 1)
-        }
-        else {
+        } else {
           logger.error("HTTP Error: ", e)
           throw ComputationEx("HTTP Error reading " + url, Some(e))
         }
