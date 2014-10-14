@@ -35,5 +35,5 @@ object ComputationHandler {
   // TODO: These are repeated from RowDAOImpl.  Let's share these somehow.  Or maybe we just make them private.
   case class UnknownColumnEx(colName: ColumnName) extends Exception
   case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: SoQLType) extends Exception
-  case class ComputationEx(message: String, underlying: Option[Throwable]) extends Exception
+  case class ComputationEx(message: String, underlying: Option[Throwable]) extends Exception(message, underlying.orNull)
 }

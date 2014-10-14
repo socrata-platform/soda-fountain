@@ -34,6 +34,7 @@ object SodaFountainLib {
       "org.scalacheck"     %% "scalacheck"                  % "1.10.0"  % "test,it",
       "org.scalatest"      %% "scalatest"                   % "2.2.0"   % "test,it",
       "org.scalamock"      %% "scalamock-scalatest-support" % "3.1.RC1" % "test",
+      "org.mockito"         % "mockito-all"                 % "1.10.7"  % "test",
       "org.apache.curator"  % "curator-test"                % "2.4.2"   % "test",
       "org.springframework" % "spring-test"                 % "3.2.10.RELEASE" % "test",
       "com.socrata"        %% "socrata-thirdparty-test-utils" % "2.5.0" % "test",
