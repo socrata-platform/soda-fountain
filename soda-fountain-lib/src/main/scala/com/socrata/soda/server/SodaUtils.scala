@@ -61,7 +61,7 @@ object SodaUtils {
   def internalError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {
     val tag = java.util.UUID.randomUUID.toString
     errorLog.error("Internal error: " + tag, th)
-    errorResponse(request, InternalError(tag), logTags:_*)
+    errorResponse(request, InternalError(th, tag), logTags:_*)
   }
 }
 

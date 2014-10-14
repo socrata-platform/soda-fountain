@@ -7,7 +7,8 @@ import com.socrata.http.server.responses._
 import com.socrata.soda.server.errors.{RollupNotFound, RollupColumnNotFound, RollupCreationFailed}
 import com.socrata.soda.server.highlevel.DatasetDAO
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
-import com.socrata.soda.server.wiremodels.{UserProvidedSpec, RequestProblem, Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
+import com.socrata.soda.server.wiremodels.{UserProvidedSpec, Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
+import com.socrata.soda.server.wiremodels.{RequestProblem, IOProblem}
 import com.socrata.soda.server.{SodaUtils, LogTag}
 import javax.servlet.http.HttpServletRequest
 import com.socrata.soda.server.copy.Stage
@@ -26,6 +27,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         f(datasetSpec)
       case RequestProblem(err) =>
         SodaUtils.errorResponse(request, err, logTags : _*)
+      case IOProblem(err) =>
+        SodaUtils.internalError(request, err)
     }
   }
 
@@ -35,6 +38,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         f(datasetSpec)
       case RequestProblem(err) =>
         SodaUtils.errorResponse(request, err, logTags : _*)
+      case IOProblem(err) =>
+        SodaUtils.internalError(request, err)
     }
   }
 
