@@ -22,8 +22,9 @@ trait RowDAO {
             query: String,
             rowCount: Option[String],
             stage: Option[Stage],
-            secondaryInstance:Option[String],
+            secondaryInstance: Option[String],
             noRollup: Boolean,
+            requestId: String,
             resourceScope: ResourceScope): Result
 
   def getRow(dataset: ResourceName,
@@ -34,13 +35,17 @@ trait RowDAO {
              stage: Option[Stage],
              secondaryInstance:Option[String],
              noRollup: Boolean,
+             requestId: String,
              resourceScope: ResourceScope): Result
 
-  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: String)
+               (f: UpsertResult => T): T
 
-  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T
+  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: String)
+                (f: UpsertResult => T): T
 
-  def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T
+  def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier, requestId: String)
+                  (f: UpsertResult => T): T
 }
 
 object RowDAO {

@@ -13,6 +13,7 @@ import com.socrata.http.server.util._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, DatasetId}
+import com.socrata.soda.server.SodaUtils
 import com.socrata.soql.environment.ColumnName
 import org.apache.http.HttpStatus
 import org.joda.time.DateTime
@@ -33,7 +34,8 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
 
   def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
     columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String],
-    copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean, rs: ResourceScope)(f: Result => T): T = {
+    copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean, requestId: String,
+    rs: ResourceScope)(f: Result => T): T = {
     import HttpStatus._
 
     def resultFrom(response: Response): Result = {
@@ -64,7 +66,9 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
           (if (noRollup) List(qpNoRollup -> "y") else Nil) ++
           secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)
         log.info("Query Coordinator request parameters: " + params)
-        val request = host.addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate)).form(params)
+        val request = host.addHeaders(PreconditionRenderer(precondition) ++
+                                      ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate) ++
+                                      Map(SodaUtils.RequestIdHeader -> requestId)).form(params)
         f(resultFrom(rs.open(httpClient.executeUnmanaged(request))))
       case None => throw new Exception("could not connect to query coordinator")
     }

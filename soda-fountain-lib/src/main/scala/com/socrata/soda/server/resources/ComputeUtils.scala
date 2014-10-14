@@ -60,6 +60,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
     column.computationStrategy match {
       case Some(strategy) =>
         val columns = columnsToExport(dataset, strategy)
+        val requestId = req.getHeader(SodaUtils.RequestIdHeader)
         exportDAO.export(dataset.resourceName,
           JsonExporter.validForSchema,
           columns,
@@ -72,7 +73,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
           case ExportDAO.Success(schema, newTag, rows) =>
             val transformer = new RowDataTranslator(dataset, false)
             val upsertRows = transformer.transformDcRowsForUpsert(computedColumns, Seq(column), schema, rows)
-            rowDAO.upsert(user, dataset, upsertRows)(UpsertUtils.handleUpsertErrors(req, response)(successHandler))
+            rowDAO.upsert(user, dataset, upsertRows, requestId)(UpsertUtils.handleUpsertErrors(req, response)(successHandler))
           case ExportDAO.PreconditionFailed => SodaUtils.errorResponse(req, SodaError.EtagPreconditionFailed)(response)
           case ExportDAO.NotModified(etags) => SodaUtils.errorResponse(req, SodaError.ResourceNotModified(Nil, None))(response)
           case ExportDAO.NotFound(resourceName) => SodaUtils.errorResponse(req, SodaError.DatasetNotFound(resourceName))(response)

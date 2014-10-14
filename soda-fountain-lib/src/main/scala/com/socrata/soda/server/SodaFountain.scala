@@ -35,6 +35,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   PropertyConfigurator.configure(Propertizer("log4j", config.log4j))
 
   val logOptions = NewLoggingHandler.defaultOptions.copy(
+                     logRequestHeaders = Set(SodaUtils.RequestIdHeader),
                      logResponseHeaders = Set(QueryCoordinatorClient.HeaderRollup))
 
   val handle =
