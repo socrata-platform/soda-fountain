@@ -13,6 +13,7 @@ import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels._
+import com.socrata.soda.server.SodaUtils
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -98,8 +99,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   private def getRows(ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime],
                       query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
                       requestId: String, resourceScope: ResourceScope): Result = {
+    val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+                           SodaUtils.FourByFourHeader -> ds.resourceName.name)
     qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount,
-             copy, secondaryInstance, noRollup, requestId, resourceScope) {
+             copy, secondaryInstance, noRollup, extraHeaders, resourceScope) {
       case QueryCoordinatorClient.Success(etags, rollup, response) =>
         val cjson = response
         CJson.decode(cjson) match {

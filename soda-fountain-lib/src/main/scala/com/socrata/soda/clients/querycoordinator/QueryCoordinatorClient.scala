@@ -29,6 +29,6 @@ trait QueryCoordinatorClient {
                copy: Option[Stage],
                secondaryInstance: Option[String],
                noRollup: Boolean,
-               requestId: String,
+               extraHeaders: Map[String, String],
                rs: ResourceScope)(f: Result => T): T
 }
