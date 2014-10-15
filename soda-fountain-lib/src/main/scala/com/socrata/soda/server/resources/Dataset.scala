@@ -1,16 +1,17 @@
 package com.socrata.soda.server.resources
 
 import com.socrata.http.server.HttpResponse
-import com.socrata.soda.server.highlevel._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
+import com.socrata.http.server.util.RequestId
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.errors.{RollupNotFound, RollupColumnNotFound, RollupCreationFailed}
+import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
 import com.socrata.soda.server.wiremodels.{UserProvidedSpec, RequestProblem, Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
 import com.socrata.soda.server.{SodaUtils, LogTag}
 import javax.servlet.http.HttpServletRequest
-import com.socrata.soda.server.copy.Stage
 
 /**
  * Dataset: CRUD operations for dataset schema and metadata
@@ -133,13 +134,13 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
     override def delete = { req =>
       response(req, datasetDAO.deleteRollup(user(req), resourceName, rollupName,
-                                            req.getHeader(SodaUtils.RequestIdHeader)))
+                                            RequestId.getFromRequest(req)))
     }
 
     override def put = { req =>
       withRollupSpec(req) { spec =>
         response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, rollupName, spec,
-                                                       req.getHeader(SodaUtils.RequestIdHeader)))
+                                                       RequestId.getFromRequest(req)))
       }
     }
   }

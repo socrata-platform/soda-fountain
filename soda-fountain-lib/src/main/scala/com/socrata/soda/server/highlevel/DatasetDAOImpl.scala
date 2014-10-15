@@ -1,5 +1,6 @@
 package com.socrata.soda.server.highlevel
 
+import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.socrata.soda.clients.datacoordinator.{DropRollupInstruction, CreateOrUpdateRollupInstruction, SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
 import com.socrata.soda.server.id.{ColumnId, SecondaryId, ResourceName, RollupName}
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
@@ -253,7 +254,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                             dataset: ResourceName,
                             rollup: RollupName,
                             spec: UserProvidedRollupSpec,
-                            requestId: String): Result =
+                            requestId: RequestId): Result =
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           spec.soql match {
@@ -271,7 +272,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                   log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
 
                   val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQuery.toString())
-                  val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+                  val extraHeaders = Map(ReqIdHeader -> requestId,
                                          SodaUtils.FourByFourHeader -> dataset.name)
                   dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
                             Iterator.single(instruction), extraHeaders) {
@@ -310,12 +311,12 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   // TODO implement
   def getRollup(user: String, dataset: ResourceName, rollup: RollupName): Result = ???
 
-  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: String): Result = {
+  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         val instruction = DropRollupInstruction(rollup)
 
-        val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+        val extraHeaders = Map(ReqIdHeader -> requestId,
                                SodaUtils.FourByFourHeader -> dataset.name)
         dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
                   Iterator.single(instruction), extraHeaders) {

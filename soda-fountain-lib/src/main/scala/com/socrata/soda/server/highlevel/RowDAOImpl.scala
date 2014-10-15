@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets
 import com.rojoma.json.ast._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.{NoPrecondition, Precondition, StrongEntityTag}
+import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.copy.Stage
@@ -28,7 +29,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
 
   def query(resourceName: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime],
             query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
-            requestId: String, resourceScope: ResourceScope): Result = {
+            requestId: RequestId, resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(ds) =>
         getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup, requestId, resourceScope)
@@ -45,7 +46,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
              copy: Option[Stage],
              secondaryInstance:Option[String],
              noRollup: Boolean,
-             requestId: String,
+             requestId: RequestId,
              resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(datasetRecord) =>
@@ -98,8 +99,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
 
   private def getRows(ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime],
                       query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
-                      requestId: String, resourceScope: ResourceScope): Result = {
-    val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+                      requestId: RequestId, resourceScope: ResourceScope): Result = {
+    val extraHeaders = Map(ReqIdHeader -> requestId,
                            SodaUtils.FourByFourHeader -> ds.resourceName.name)
     qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount,
              copy, secondaryInstance, noRollup, extraHeaders, resourceScope) {
@@ -136,9 +137,9 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                      datasetRecord: DatasetRecordLike,
                      data: Iterator[RowUpdate],
                      instructions: Iterator[DataCoordinatorInstruction],
-                     requestId: String,
+                     requestId: RequestId,
                      f: UpsertResult => T): T = {
-    val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+    val extraHeaders = Map(ReqIdHeader -> requestId,
                            SodaUtils.FourByFourHeader -> datasetRecord.resourceName.name)
     dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ data, extraHeaders) {
       case DataCoordinatorClient.Success(result, _, copyNumber, newVersion, lastModified) =>
@@ -157,16 +158,16 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: String)
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
                (f: UpsertResult => T): T =
     doUpsertish(user, datasetRecord, data, Iterator.empty, requestId, f)
 
-  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: String)
+  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
                 (f: UpsertResult => T): T =
     doUpsertish(user, datasetRecord, data, Iterator.single(RowUpdateOptionChange(truncate = true)),
                 requestId, f)
 
-  def deleteRow[T](user: String, resourceName: ResourceName, rowId: RowSpecifier, requestId: String)
+  def deleteRow[T](user: String, resourceName: ResourceName, rowId: RowSpecifier, requestId: RequestId)
                   (f: UpsertResult => T): T = {
     store.translateResourceName(resourceName) match {
       case Some(datasetRecord) =>

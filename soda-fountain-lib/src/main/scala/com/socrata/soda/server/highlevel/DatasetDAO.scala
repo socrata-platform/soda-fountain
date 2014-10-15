@@ -1,5 +1,6 @@
 package com.socrata.soda.server.highlevel
 
+import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.VersionReport
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
@@ -25,9 +26,9 @@ trait DatasetDAO {
                             dataset: ResourceName,
                             rollup: RollupName,
                             spec: UserProvidedRollupSpec,
-                            requestId: String): Result
+                            requestId: RequestId): Result
   def getRollup(user: String, dataset: ResourceName, rollup: RollupName): Result
-  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: String): Result
+  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
 }
 
 object DatasetDAO {

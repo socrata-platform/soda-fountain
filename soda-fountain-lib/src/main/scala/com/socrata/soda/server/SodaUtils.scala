@@ -20,7 +20,6 @@ object SodaUtils {
   val jsonContentTypeBase = "application/json"
   val jsonContentTypeUtf8 = jsonContentTypeBase + "; charset=utf-8"
 
-  val RequestIdHeader = "X-Socrata-RequestId"
   val FourByFourHeader = "X-Socrata-4x4"
 
   def JsonContent[T : JsonCodec](thing: T, charset: Charset): HttpResponse = {

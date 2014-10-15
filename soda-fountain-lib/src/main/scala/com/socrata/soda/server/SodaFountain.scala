@@ -4,6 +4,7 @@ import com.mchange.v2.c3p0.DataSources
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import com.socrata.http.common.AuxiliaryData
 import com.socrata.http.server.util.handlers.{NewLoggingHandler, ThreadRenamingHandler}
+import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.soda.clients.geospace.CuratedGeospaceClient
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
@@ -35,7 +36,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   PropertyConfigurator.configure(Propertizer("log4j", config.log4j))
 
   val logOptions = NewLoggingHandler.defaultOptions.copy(
-                     logRequestHeaders = Set(SodaUtils.RequestIdHeader),
+                     logRequestHeaders = Set(ReqIdHeader),
                      logResponseHeaders = Set(QueryCoordinatorClient.HeaderRollup))
 
   val handle =

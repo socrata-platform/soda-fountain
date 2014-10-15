@@ -1,5 +1,6 @@
 package com.socrata.soda.server.highlevel
 
+import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.copy.Latest
 import com.socrata.soda.server.highlevel.ColumnDAO.Result
@@ -21,7 +22,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                             precondition: Precondition,
                             column: ColumnName,
                             rawSpec: UserProvidedColumnSpec,
-                            requestId: String): ColumnDAO.Result = {
+                            requestId: RequestId): ColumnDAO.Result = {
     log.info("TODO: This really needs to be a transaction.  It WILL FAIL if a dataset frequently read is being updated, because one of the readers will have generated dummy columns as part of inconsistency resolution")
     val spec = rawSpec.copy(fieldName = rawSpec.fieldName.orElse(Some(column)))
     store.lookupDataset(dataset, Some(Latest)) match {
@@ -43,13 +44,13 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                    precondition: Precondition,
                    column: ColumnName,
                    userProvidedSpec: UserProvidedColumnSpec,
-                   requestId: String): ColumnDAO.Result = {
+                   requestId: RequestId): ColumnDAO.Result = {
     columnSpecUtils.freezeForCreation(datasetRecord.columnsByName.mapValues(_.id), userProvidedSpec) match {
       case ColumnSpecUtils.Success(spec) =>
         if(spec.fieldName != column) ??? // TODO: Inconsistent url/fieldname combo
         precondition.check(None, sideEffectFree = true) match {
           case Precondition.Passed =>
-            val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+            val extraHeaders = Map(ReqIdHeader -> requestId,
                                    SodaUtils.FourByFourHeader -> datasetRecord.resourceName.name)
             val addColumn = AddColumnInstruction(spec.datatype, spec.fieldName.name, Some(spec.id))
             dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
@@ -87,7 +88,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
   }
   def retry() = throw new Retry
 
-  def makePK(user: String, resource: ResourceName, column: ColumnName, requestId: String): Result = {
+  def makePK(user: String, resource: ResourceName, column: ColumnName, requestId: RequestId): Result = {
     retryable(limit = 5) {
       store.lookupDataset(resource, Some(Latest)) match {
         case Some(datasetRecord) =>
@@ -106,7 +107,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                       DropRowIdColumnInstruction(datasetRecord.primaryKey),
                       SetRowIdColumnInstruction(columnRecord.id))
                   }
-                val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+                val extraHeaders = Map(ReqIdHeader -> requestId,
                                        SodaUtils.FourByFourHeader -> resource.name)
                 dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator,
                           extraHeaders) {
@@ -164,13 +165,13 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
   }
 
 
-  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName, requestId: String): Result = {
+  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName, requestId: RequestId): Result = {
     retryable(limit = 3) {
       store.lookupDataset(dataset, Some(Latest)) match {
         case Some(datasetRecord) =>
           datasetRecord.columnsByName.get(column) match {
             case Some(columnRef) =>
-              val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+              val extraHeaders = Map(ReqIdHeader -> requestId,
                                      SodaUtils.FourByFourHeader -> dataset.name)
               dc.update(datasetRecord.systemId,
                         datasetRecord.schemaHash,
