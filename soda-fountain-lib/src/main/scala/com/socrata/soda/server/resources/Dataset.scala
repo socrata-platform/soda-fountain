@@ -132,12 +132,14 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.deleteRollup(user(req), resourceName, rollupName))
+      response(req, datasetDAO.deleteRollup(user(req), resourceName, rollupName,
+                                            req.getHeader(SodaUtils.RequestIdHeader)))
     }
 
     override def put = { req =>
       withRollupSpec(req) { spec =>
-        response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, rollupName, spec))
+        response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, rollupName, spec,
+                                                       req.getHeader(SodaUtils.RequestIdHeader)))
       }
     }
   }

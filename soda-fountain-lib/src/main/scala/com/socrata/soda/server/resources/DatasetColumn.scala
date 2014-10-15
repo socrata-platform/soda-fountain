@@ -75,14 +75,16 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
 
     override def delete = { req => resp =>
       checkPrecondition(req) { precondition =>
-        response(req, columnDAO.deleteColumn(user(req), resourceName, columnName))(resp)
+        response(req, columnDAO.deleteColumn(user(req), resourceName, columnName,
+                                             req.getHeader(SodaUtils.RequestIdHeader)))(resp)
       }
     }
 
     override def put = { req => resp =>
       withColumnSpec(req, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          columnDAO.replaceOrCreateColumn(user(req), resourceName, precondition, columnName, spec) match {
+          columnDAO.replaceOrCreateColumn(user(req), resourceName, precondition, columnName,
+                                          spec, req.getHeader(SodaUtils.RequestIdHeader)) match {
             case success: ColumnDAO.CreateUpdateSuccess =>
               if (spec.computationStrategy.isDefined) {
                 computeUtils.compute(req, resp, resourceName, columnName, user(req)) {
@@ -107,7 +109,10 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
 
   case class pkservice(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def post = { req => resp =>
-      response(req, columnDAO.makePK(user(req), resourceName, columnName), Array[Byte](0))(resp)
+      response(req,
+               columnDAO.makePK(user(req), resourceName, columnName,
+                                req.getHeader(SodaUtils.RequestIdHeader)),
+               Array[Byte](0))(resp)
     }
   }
 }

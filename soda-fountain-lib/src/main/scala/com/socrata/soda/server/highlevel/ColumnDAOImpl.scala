@@ -5,6 +5,7 @@ import com.socrata.soda.server.copy.Latest
 import com.socrata.soda.server.highlevel.ColumnDAO.Result
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
+import com.socrata.soda.server.SodaUtils
 import com.socrata.soql.environment.ColumnName
 import scala.util.control.ControlThrowable
 
@@ -15,7 +16,12 @@ import com.socrata.soda.server.persistence.{DatasetRecord, NameAndSchemaStore}
 class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils) extends ColumnDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnDAOImpl])
 
-  def replaceOrCreateColumn(user: String, dataset: ResourceName, precondition: Precondition, column: ColumnName, rawSpec: UserProvidedColumnSpec): ColumnDAO.Result = {
+  def replaceOrCreateColumn(user: String,
+                            dataset: ResourceName,
+                            precondition: Precondition,
+                            column: ColumnName,
+                            rawSpec: UserProvidedColumnSpec,
+                            requestId: String): ColumnDAO.Result = {
     log.info("TODO: This really needs to be a transaction.  It WILL FAIL if a dataset frequently read is being updated, because one of the readers will have generated dummy columns as part of inconsistency resolution")
     val spec = rawSpec.copy(fieldName = rawSpec.fieldName.orElse(Some(column)))
     store.lookupDataset(dataset, Some(Latest)) match {
@@ -25,20 +31,29 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
             log.info("TODO: updating existing columns")
             ???
           case None =>
-            createColumn(user, datasetRecord, precondition, column, spec)
+            createColumn(user, datasetRecord, precondition, column, spec, requestId)
         }
       case None =>
         ColumnDAO.DatasetNotFound(dataset)
     }
   }
 
-  def createColumn(user: String, datasetRecord: DatasetRecord, precondition: Precondition, column: ColumnName, userProvidedSpec: UserProvidedColumnSpec): ColumnDAO.Result = {
+  def createColumn(user: String,
+                   datasetRecord: DatasetRecord,
+                   precondition: Precondition,
+                   column: ColumnName,
+                   userProvidedSpec: UserProvidedColumnSpec,
+                   requestId: String): ColumnDAO.Result = {
     columnSpecUtils.freezeForCreation(datasetRecord.columnsByName.mapValues(_.id), userProvidedSpec) match {
       case ColumnSpecUtils.Success(spec) =>
         if(spec.fieldName != column) ??? // TODO: Inconsistent url/fieldname combo
         precondition.check(None, sideEffectFree = true) match {
           case Precondition.Passed =>
-            dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(AddColumnInstruction(spec.datatype, spec.fieldName.name, Some(spec.id)))) {
+            val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+                                   SodaUtils.FourByFourHeader -> datasetRecord.resourceName.name)
+            val addColumn = AddColumnInstruction(spec.datatype, spec.fieldName.name, Some(spec.id))
+            dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
+                      Iterator.single(addColumn), extraHeaders) {
               case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
                 log.info("TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here")
                 store.addColumn(datasetRecord.systemId, copyNumber, spec)
@@ -72,7 +87,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
   }
   def retry() = throw new Retry
 
-  def makePK(user: String, resource: ResourceName, column: ColumnName): Result = {
+  def makePK(user: String, resource: ResourceName, column: ColumnName, requestId: String): Result = {
     retryable(limit = 5) {
       store.lookupDataset(resource, Some(Latest)) match {
         case Some(datasetRecord) =>
@@ -91,7 +106,10 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                       DropRowIdColumnInstruction(datasetRecord.primaryKey),
                       SetRowIdColumnInstruction(columnRecord.id))
                   }
-                dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator) {
+                val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+                                       SodaUtils.FourByFourHeader -> resource.name)
+                dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator,
+                          extraHeaders) {
                   case DataCoordinatorClient.Success(_, _, copyNumber, newVersion, lastModified) =>
                     store.setPrimaryKey(datasetRecord.systemId, columnRecord.id, copyNumber)
                     store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
@@ -146,16 +164,27 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
   }
 
 
-  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName): Result = {
+  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName, requestId: String): Result = {
     retryable(limit = 3) {
       store.lookupDataset(dataset, Some(Latest)) match {
         case Some(datasetRecord) =>
           datasetRecord.columnsByName.get(column) match {
             case Some(columnRef) =>
-              dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(DropColumnInstruction(columnRef.id))) {
+              val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+                                     SodaUtils.FourByFourHeader -> dataset.name)
+              dc.update(datasetRecord.systemId,
+                        datasetRecord.schemaHash,
+                        user,
+                        Iterator.single(DropColumnInstruction(columnRef.id)),
+                        extraHeaders) {
                 case DataCoordinatorClient.Success(_, etag, copyNumber, newVersion, lastModified) =>
                   store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber)
-                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+                  store.updateVersionInfo(datasetRecord.systemId,
+                                          newVersion,
+                                          lastModified,
+                                          None,
+                                          copyNumber,
+                                          None)
                   ColumnDAO.Deleted(columnRef, etag)
                 case DataCoordinatorClient.SchemaOutOfDate(realSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)

@@ -4,6 +4,7 @@ import com.socrata.soda.clients.datacoordinator.{DropRollupInstruction, CreateOr
 import com.socrata.soda.server.id.{ColumnId, SecondaryId, ResourceName, RollupName}
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
+import com.socrata.soda.server.SodaUtils
 import com.socrata.soql.collection.OrderedMap
 import com.socrata.soql.exceptions.{NoSuchColumn, SoQLException}
 import com.socrata.soql.mapping.ColumnNameMapper
@@ -248,7 +249,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     }
   }
 
-  def replaceOrCreateRollup(user: String, dataset: ResourceName, rollup: RollupName, spec: UserProvidedRollupSpec): Result =
+  def replaceOrCreateRollup(user: String,
+                            dataset: ResourceName,
+                            rollup: RollupName,
+                            spec: UserProvidedRollupSpec,
+                            requestId: String): Result =
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           spec.soql match {
@@ -266,7 +271,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                   log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
 
                   val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQuery.toString())
-                  dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(instruction)) {
+                  val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+                                         SodaUtils.FourByFourHeader -> dataset.name)
+                  dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
+                            Iterator.single(instruction), extraHeaders) {
                     // TODO better support for error handling in various failure cases
                     case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
                       store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
@@ -302,12 +310,15 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   // TODO implement
   def getRollup(user: String, dataset: ResourceName, rollup: RollupName): Result = ???
 
-  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName): Result = {
+  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: String): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         val instruction = DropRollupInstruction(rollup)
 
-        dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator.single(instruction)) {
+        val extraHeaders = Map(SodaUtils.RequestIdHeader -> requestId,
+                               SodaUtils.FourByFourHeader -> dataset.name)
+        dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
+                  Iterator.single(instruction), extraHeaders) {
           // TODO better support for error handling in various failure cases
           case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
             store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)

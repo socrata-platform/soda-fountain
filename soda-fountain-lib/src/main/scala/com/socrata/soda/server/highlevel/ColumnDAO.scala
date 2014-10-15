@@ -8,10 +8,20 @@ import com.socrata.soql.environment.ColumnName
 
 trait ColumnDAO {
   import ColumnDAO.Result
-  def replaceOrCreateColumn(user: String, dataset: ResourceName, precondition: Precondition, column: ColumnName, spec: UserProvidedColumnSpec): Result
+
+  def replaceOrCreateColumn(user: String,
+                            dataset: ResourceName,
+                            precondition: Precondition,
+                            column: ColumnName,
+                            spec: UserProvidedColumnSpec,
+                            requestId: String): Result
+
   def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result
-  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName): Result
-  def makePK(user: String, dataset: ResourceName, column: ColumnName): Result
+
+  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName, requestId: String): Result
+
+  def makePK(user: String, dataset: ResourceName, column: ColumnName, requestId: String): Result
+
   def getColumn(dataset: ResourceName, column: ColumnName): Result
 }
 

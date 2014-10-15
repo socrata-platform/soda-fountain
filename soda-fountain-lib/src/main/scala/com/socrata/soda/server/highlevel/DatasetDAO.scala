@@ -21,9 +21,13 @@ trait DatasetDAO {
   def publish(user: String, dataset: ResourceName, snapshotLimit: Option[Int]): Result
   def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result
 
-  def replaceOrCreateRollup(user: String, dataset: ResourceName, rollup: RollupName, spec: UserProvidedRollupSpec): Result
+  def replaceOrCreateRollup(user: String,
+                            dataset: ResourceName,
+                            rollup: RollupName,
+                            spec: UserProvidedRollupSpec,
+                            requestId: String): Result
   def getRollup(user: String, dataset: ResourceName, rollup: RollupName): Result
-  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName): Result
+  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: String): Result
 }
 
 object DatasetDAO {

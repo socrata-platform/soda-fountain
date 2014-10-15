@@ -213,29 +213,50 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
-  def update[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Result => T): T = {
+  def update[T](datasetId: DatasetId,
+                schemaHash: String,
+                user: String,
+                instructions: Iterator[DataCoordinatorInstruction],
+                extraHeaders: Map[String, String])
+               (f: Result => T): T = {
     log.info("TODO: update should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val updateScript = new MutationScript(user, UpdateDataset(schemaHash), instructions)
-      sendNonCreateScript(mutateUrl(host, datasetId), updateScript)(f)
+      sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), updateScript)(f)
     }
   }
 
-  def copy[T](datasetId: DatasetId, schemaHash: String, copyData: Boolean, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Result => T): T = {
+  def copy[T](datasetId: DatasetId,
+              schemaHash: String,
+              copyData: Boolean,
+              user: String,
+              instructions: Iterator[DataCoordinatorInstruction])
+             (f: Result => T): T = {
     log.info("TODO: copy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId), createScript)(f)
     }
   }
-  def publish[T](datasetId: DatasetId, schemaHash: String, snapshotLimit:Option[Int], user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Result => T): T = {
+
+  def publish[T](datasetId: DatasetId,
+                 schemaHash: String,
+                 snapshotLimit:Option[Int],
+                 user: String,
+                 instructions: Iterator[DataCoordinatorInstruction])
+                (f: Result => T): T = {
     log.info("TODO: publish should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schemaHash), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId), pubScript)(f)
     }
   }
-  def dropCopy[T](datasetId: DatasetId, schemaHash: String, user: String, instructions: Iterator[DataCoordinatorInstruction])(f: Result => T): T = {
+
+  def dropCopy[T](datasetId: DatasetId,
+                  schemaHash: String,
+                  user: String,
+                  instructions: Iterator[DataCoordinatorInstruction])
+                 (f: Result => T): T = {
     log.info("TODO: dropCopy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val dropScript = new MutationScript(user, DropDataset(schemaHash), instructions)
@@ -268,7 +289,16 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
-  def export[T](datasetId: DatasetId, schemaHash: String, columns: Seq[String], precondition: Precondition, ifModifiedSince: Option[DateTime], limit: Option[Long], offset: Option[Long], copy: String, sorted: Boolean)(f: Result => T): T = {
+  def export[T](datasetId: DatasetId,
+                schemaHash: String,
+                columns: Seq[String],
+                precondition: Precondition,
+                ifModifiedSince: Option[DateTime],
+                limit: Option[Long],
+                offset: Option[Long],
+                copy: String,
+                sorted: Boolean)
+               (f: Result => T): T = {
     withHost(datasetId) { host =>
       val limParam = limit.map { limLong => "limit" -> limLong.toString }
       val offParam = offset.map { offLong => "offset" -> offLong.toString }
