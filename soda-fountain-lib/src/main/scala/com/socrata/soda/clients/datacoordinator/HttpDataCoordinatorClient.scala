@@ -43,9 +43,13 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def withHost[T](datasetId: DatasetId)(f: RequestBuilder => T): T =
     withHost(datasetId.nativeDataCoordinator)(f)
 
-  def propagateToSecondary(datasetId: DatasetId, secondaryId: SecondaryId): Unit =
+  def propagateToSecondary(datasetId: DatasetId,
+                           secondaryId: SecondaryId,
+                           extraHeaders: Map[String, String] = Map.empty): Unit =
     withHost(datasetId) { host =>
-      val r = secondaryUrl(host, secondaryId, datasetId).method(HttpMethods.POST).get // ick
+      val r = secondaryUrl(host, secondaryId, datasetId).
+                method(HttpMethods.POST).
+                addHeaders(extraHeaders).get // ick
       for (response <- httpClient.execute(r)) yield {
         response.resultCode match {
           case 200 => // ok
@@ -196,16 +200,20 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def create(instance: String,
              user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
-             locale: String = "en_US") : (ReportMetaData, Iterable[ReportItem]) = {
+             locale: String = "en_US",
+             extraHeaders: Map[String, String] = Map.empty): (ReportMetaData, Iterable[ReportItem]) = {
     withHost(instance) { host =>
       val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
-      sendScript(createUrl(host), createScript) {
+      sendScript(createUrl(host).addHeaders(extraHeaders), createScript) {
         case Right(r) =>
           val events = r.jsonEvents().buffered
           expectStartOfArray(events)
-          if(!events.hasNext || !events.head.isInstanceOf[StringEvent]) throw new Exception("Bad response from data coordinator: expected dataset id")
+          if (!events.hasNext || !events.head.isInstanceOf[StringEvent])
+            throw new Exception("Bad response from data coordinator: expected dataset id")
           val StringEvent(datasetId) = events.next()
-          (ReportMetaData(DatasetId(datasetId), getHeader(xhDataVersion, r).toLong, dateTimeParser.parseDateTime(getHeader(xhLastModified, r))),
+          (ReportMetaData(DatasetId(datasetId),
+                          getHeader(xhDataVersion, r).toLong,
+                          dateTimeParser.parseDateTime(getHeader(xhLastModified, r))),
            arrayOfResults(events, alreadyInArray = true).toSeq)
         case other =>
           throw new Exception("Unexpected response from data-coordinator: " + other)
@@ -217,7 +225,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 schemaHash: String,
                 user: String,
                 instructions: Iterator[DataCoordinatorInstruction],
-                extraHeaders: Map[String, String])
+                extraHeaders: Map[String, String] = Map.empty)
                (f: Result => T): T = {
     log.info("TODO: update should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
@@ -230,12 +238,13 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
               schemaHash: String,
               copyData: Boolean,
               user: String,
-              instructions: Iterator[DataCoordinatorInstruction])
+              instructions: Iterator[DataCoordinatorInstruction],
+              extraHeaders: Map[String, String] = Map.empty)
              (f: Result => T): T = {
     log.info("TODO: copy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash), instructions)
-      sendNonCreateScript(mutateUrl(host, datasetId), createScript)(f)
+      sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), createScript)(f)
     }
   }
 
@@ -243,40 +252,51 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                  schemaHash: String,
                  snapshotLimit:Option[Int],
                  user: String,
-                 instructions: Iterator[DataCoordinatorInstruction])
+                 instructions: Iterator[DataCoordinatorInstruction],
+                 extraHeaders: Map[String, String] = Map.empty)
                 (f: Result => T): T = {
     log.info("TODO: publish should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schemaHash), instructions)
-      sendNonCreateScript(mutateUrl(host, datasetId), pubScript)(f)
+      sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), pubScript)(f)
     }
   }
 
   def dropCopy[T](datasetId: DatasetId,
                   schemaHash: String,
                   user: String,
-                  instructions: Iterator[DataCoordinatorInstruction])
+                  instructions: Iterator[DataCoordinatorInstruction],
+                  extraHeaders: Map[String, String] = Map.empty)
                  (f: Result => T): T = {
     log.info("TODO: dropCopy should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val dropScript = new MutationScript(user, DropDataset(schemaHash), instructions)
-      sendNonCreateScript(mutateUrl(host, datasetId), dropScript)(f)
+      sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), dropScript)(f)
     }
   }
 
   // Pretty sure this is completely wrong
-  def deleteAllCopies[T](datasetId: DatasetId, schemaHash: String, user: String)(f: Result => T): T = {
+  def deleteAllCopies[T](datasetId: DatasetId,
+                         schemaHash: String,
+                         user: String,
+                         extraHeaders: Map[String, String] = Map.empty)
+                        (f: Result => T): T = {
     log.info("TODO: deleteAllCopies should decode the row op report into something higher-level than JValues")
     withHost(datasetId) { host =>
       val deleteScript = new MutationScript(user, DropDataset(schemaHash), Iterator.empty)
-      sendNonCreateScript(mutateUrl(host, datasetId).method(HttpMethods.DELETE), deleteScript)(f)
+      sendNonCreateScript(mutateUrl(host, datasetId).
+                            method(HttpMethods.DELETE).
+                            addHeaders(extraHeaders), deleteScript)(f)
     }
   }
 
-  def checkVersionInSecondary(datasetId: DatasetId, secondaryId: SecondaryId): VersionReport = {
+  def checkVersionInSecondary(datasetId: DatasetId,
+                              secondaryId: SecondaryId,
+                              extraHeaders: Map[String, String] = Map.empty): VersionReport = {
     withHost(datasetId) { host =>
       val request = secondaryUrl(host, secondaryId, datasetId)
         .addHeader(("Content-type", "application/json"))
+        .addHeaders(extraHeaders)
         .get
       httpClient.execute(request).flatMap{ response =>
         log.info("TODO: Handle errors from the data-coordinator")
@@ -297,7 +317,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 limit: Option[Long],
                 offset: Option[Long],
                 copy: String,
-                sorted: Boolean)
+                sorted: Boolean,
+                extraHeaders: Map[String, String] = Map.empty)
                (f: Result => T): T = {
     withHost(datasetId) { host =>
       val limParam = limit.map { limLong => "limit" -> limLong.toString }
@@ -310,6 +331,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                     .addParameters(limParam ++ offParam ++ columnsParam)
                     .addParameter(sortedParam)
                     .addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate))
+                    .addHeaders(extraHeaders)
                     .get
       for(r <- httpClient.execute(request)) yield {
         errorFrom(r) match {

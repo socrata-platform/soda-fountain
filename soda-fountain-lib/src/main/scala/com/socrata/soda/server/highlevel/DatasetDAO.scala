@@ -10,24 +10,30 @@ import com.socrata.soql.environment.ColumnName
 
 trait DatasetDAO {
   import DatasetDAO.Result
-  def createDataset(user: String, spec: UserProvidedDatasetSpec): Result
-  def replaceOrCreateDataset(user: String, dataset: ResourceName, spec: UserProvidedDatasetSpec): Result
-  def updateDataset(user: String, dataset: ResourceName, spec: UserProvidedDatasetSpec): Result
-  def deleteDataset(user: String, dataset: ResourceName): Result
+  def createDataset(user: String, spec: UserProvidedDatasetSpec, requestId: RequestId): Result
+  def replaceOrCreateDataset(user: String,
+                             dataset: ResourceName,
+                             spec: UserProvidedDatasetSpec,
+                             requestId: RequestId): Result
+  def updateDataset(user: String,
+                    dataset: ResourceName,
+                    spec: UserProvidedDatasetSpec,
+                    requestId: RequestId): Result
+  def deleteDataset(user: String, dataset: ResourceName, requestId: RequestId): Result
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result
-  def getVersion(dataset: ResourceName, secondary: SecondaryId): Result
+  def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
 
-  def makeCopy(user: String, dataset: ResourceName, copyData: Boolean): Result
-  def dropCurrentWorkingCopy(user: String, dataset: ResourceName): Result
-  def publish(user: String, dataset: ResourceName, snapshotLimit: Option[Int]): Result
-  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result
+  def makeCopy(user: String, dataset: ResourceName, copyData: Boolean, requestId: RequestId): Result
+  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, requestId: RequestId): Result
+  def publish(user: String, dataset: ResourceName, snapshotLimit: Option[Int], requestId: RequestId): Result
+  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
 
   def replaceOrCreateRollup(user: String,
                             dataset: ResourceName,
                             rollup: RollupName,
                             spec: UserProvidedRollupSpec,
                             requestId: RequestId): Result
-  def getRollup(user: String, dataset: ResourceName, rollup: RollupName): Result
+  def getRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
   def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
 }
 

@@ -32,47 +32,56 @@ object DataCoordinatorClient {
 trait DataCoordinatorClient {
   import DataCoordinatorClient._
 
-  def propagateToSecondary(datasetId: DatasetId, secondaryId: SecondaryId)
+  def propagateToSecondary(datasetId: DatasetId,
+                           secondaryId: SecondaryId,
+                           extraHeaders: Map[String, String] = Map.empty)
   def getSchema(datasetId: DatasetId): Option[SchemaSpec]
 
   def create(instance: String,
              user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
-             locale: String = "en_US") : (ReportMetaData, Iterable[ReportItem])
+             locale: String = "en_US",
+             extraHeaders: Map[String, String] = Map.empty) : (ReportMetaData, Iterable[ReportItem])
 
   def update[T](datasetId: DatasetId,
                 schemaHash: String,
                 user: String,
                 instructions: Iterator[DataCoordinatorInstruction],
-                extraHeaders: Map[String, String])
+                extraHeaders: Map[String, String] = Map.empty)
                (f: Result => T): T
 
   def copy[T](datasetId: DatasetId,
               schemaHash: String,
               copyData: Boolean,
               user: String,
-              instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
+              instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty,
+              extraHeaders: Map[String, String] = Map.empty)
              (f: Result => T): T
 
   def publish[T](datasetId: DatasetId,
                  schemaHash: String,
                  snapshotLimit:Option[Int],
                  user: String,
-                 instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
+                 instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty,
+                 extraHeaders: Map[String, String] = Map.empty)
                 (f: Result => T): T
 
   def dropCopy[T](datasetId: DatasetId,
                   schemaHash: String,
                   user: String,
-                  instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
+                  instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty,
+                  extraHeaders: Map[String, String] = Map.empty)
                  (f: Result => T): T
 
   def deleteAllCopies[T](datasetId: DatasetId,
                          schemaHash: String,
-                         user: String)
+                         user: String,
+                         extraHeaders: Map[String, String] = Map.empty)
                         (f: Result => T): T
 
-  def checkVersionInSecondary(datasetId: DatasetId, secondaryId: SecondaryId): VersionReport
+  def checkVersionInSecondary(datasetId: DatasetId,
+                              secondaryId: SecondaryId,
+                              extraHeaders: Map[String, String] = Map.empty): VersionReport
 
   def export[T](datasetId: DatasetId,
                 schemaHash: String,
@@ -82,5 +91,6 @@ trait DataCoordinatorClient {
                 limit: Option[Long],
                 offset: Option[Long],
                 copy: String,
-                sorted: Boolean)(f: Result => T): T
+                sorted: Boolean,
+                extraHeaders: Map[String, String])(f: Result => T): T
 }

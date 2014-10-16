@@ -1,6 +1,6 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.http.server.util.{Precondition, EntityTag}
+import com.socrata.http.server.util.{Precondition, EntityTag, RequestId}
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.ColumnRecordLike
 import com.socrata.soql.types.{SoQLValue, SoQLType}
@@ -16,7 +16,8 @@ trait ExportDAO {
                 limit: Option[Long],
                 offset: Option[Long],
                 copy: String,
-                sorted: Boolean)(f: ExportDAO.Result => T): T
+                sorted: Boolean,
+                requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T
 }
 
 object ExportDAO {

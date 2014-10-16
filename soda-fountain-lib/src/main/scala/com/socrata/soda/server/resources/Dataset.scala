@@ -66,7 +66,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   object createService extends SodaResource {
     override def post = { req =>
       withDatasetSpec(req) { spec =>
-        response(req, datasetDAO.createDataset(user(req), spec))
+        response(req, datasetDAO.createDataset(user(req), spec, RequestId.getFromRequest(req)))
       }
     }
   }
@@ -74,7 +74,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   case class service(resourceName: ResourceName) extends SodaResource {
     override def put = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(req, datasetDAO.replaceOrCreateDataset(user(req), resourceName, spec))
+        response(req, datasetDAO.replaceOrCreateDataset(user(req), resourceName, spec,
+                                                        RequestId.getFromRequest(req)))
       }
     }
 
@@ -85,12 +86,13 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
     override def patch = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(req, datasetDAO.updateDataset(user(req), resourceName, spec))
+        response(req, datasetDAO.updateDataset(user(req), resourceName, spec,
+                                               RequestId.getFromRequest(req)))
       }
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.deleteDataset(user(req), resourceName))
+      response(req, datasetDAO.deleteDataset(user(req), resourceName, RequestId.getFromRequest(req)))
     }
   }
 
@@ -102,26 +104,29 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     // TODO: not GET
     override def get = { req =>
       val doCopyData = req.getParameter("copy_data") == "true"
-      response(req, datasetDAO.makeCopy(user(req), resourceName, copyData = doCopyData))
+      response(req, datasetDAO.makeCopy(user(req), resourceName, copyData = doCopyData,
+                                        requestId = RequestId.getFromRequest(req)))
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.dropCurrentWorkingCopy(user(req), resourceName))
+      response(req, datasetDAO.dropCurrentWorkingCopy(user(req), resourceName,
+                                                      RequestId.getFromRequest(req)))
     }
     override def put = { req =>
-      response(req, datasetDAO.publish(user(req), resourceName, snapshotLimit = snapshotLimit(req)))
+      response(req, datasetDAO.publish(user(req), resourceName, snapshotLimit = snapshotLimit(req),
+                                       requestId = RequestId.getFromRequest(req)))
     }
   }
 
   case class versionService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
     override def get = { req =>
-      response(req, datasetDAO.getVersion(resourceName, secondary))
+      response(req, datasetDAO.getVersion(resourceName, secondary, RequestId.getFromRequest(req)))
     }
   }
 
   case class secondaryCopyService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
     override def post = { req =>
-      response(req, datasetDAO.propagateToSecondary(resourceName, secondary))
+      response(req, datasetDAO.propagateToSecondary(resourceName, secondary, RequestId.getFromRequest(req)))
     }
   }
 

@@ -3,8 +3,7 @@ package com.socrata.soda.server.resources
 import com.rojoma.json.ast._
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
-import com.socrata.http.server.util.NoPrecondition
-import com.socrata.http.server.util.RequestId.ReqIdHeader
+import com.socrata.http.server.util.{NoPrecondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.computation.ComputedColumnsLike
@@ -61,7 +60,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
     column.computationStrategy match {
       case Some(strategy) =>
         val columns = columnsToExport(dataset, strategy)
-        val requestId = req.getHeader(ReqIdHeader)
+        val requestId = RequestId.getFromRequest(req)
         exportDAO.export(dataset.resourceName,
           JsonExporter.validForSchema,
           columns,
@@ -70,7 +69,8 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
           None,
           None,
           "latest",
-          sorted = false) {
+          sorted = false,
+          requestId) {
           case ExportDAO.Success(schema, newTag, rows) =>
             val transformer = new RowDataTranslator(dataset, false)
             val upsertRows = transformer.transformDcRowsForUpsert(computedColumns, Seq(column), schema, rows)

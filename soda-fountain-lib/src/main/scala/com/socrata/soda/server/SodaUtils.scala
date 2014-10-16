@@ -8,8 +8,9 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
+import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.socrata.soda.server.errors.{EtagPreconditionFailed, ResourceNotModified, InternalError, SodaError}
-import com.socrata.soda.server.id.AbstractId
+import com.socrata.soda.server.id.{AbstractId, ResourceName}
 import com.socrata.soql.environment.AbstractName
 import java.nio.charset.{StandardCharsets, Charset}
 import javax.servlet.http.HttpServletRequest
@@ -65,6 +66,14 @@ object SodaUtils {
     errorLog.error("Internal error: " + tag, th)
     errorResponse(request, InternalError(tag), logTags:_*)
   }
+
+  /**
+   * Creates a bunch of standard headers to send to DC and QC for request tracing
+   */
+  def traceHeaders(requestId: RequestId, dataset: ResourceName): Map[String, String] =
+    Map(ReqIdHeader -> requestId,
+        FourByFourHeader -> dataset.name)
+
 }
 
 class LogTag(s: String) {
