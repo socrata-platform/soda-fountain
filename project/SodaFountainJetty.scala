@@ -9,8 +9,8 @@ import com.socrata.cloudbeessbt.SocrataCloudbeesSbt.SocrataSbtKeys._
 object SodaFountainJetty {
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings(assembly = true) ++ Seq(
     libraryDependencies ++= Seq(
-      "com.socrata" %% "socrata-http-jetty" % "2.3.0",
-      "com.socrata" %% "socrata-http-curator-broker" % "2.3.0",
+      "com.socrata" %% "socrata-http-jetty" % "2.3.1",
+      "com.socrata" %% "socrata-http-curator-broker" % "2.3.1",
       "io.dropwizard.metrics" % "metrics-jetty9"   % "3.1.0",
       "io.dropwizard.metrics" % "metrics-graphite"   % "3.1.0"
     ),
