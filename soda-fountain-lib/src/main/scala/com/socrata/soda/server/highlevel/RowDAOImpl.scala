@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets
 import com.rojoma.json.ast._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.{NoPrecondition, Precondition, StrongEntityTag}
+import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.copy.Stage
@@ -13,6 +14,7 @@ import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels._
+import com.socrata.soda.server.SodaUtils
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -27,10 +29,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
 
   def query(resourceName: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime],
             query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
-            resourceScope: ResourceScope): Result = {
+            requestId: RequestId, resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(ds) =>
-        getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup, resourceScope)
+        getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup, requestId, resourceScope)
       case None =>
         DatasetNotFound(resourceName)
     }
@@ -44,6 +46,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
              copy: Option[Stage],
              secondaryInstance:Option[String],
              noRollup: Boolean,
+             requestId: RequestId,
              resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(datasetRecord) =>
@@ -55,7 +58,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
               val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
               val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
               val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
-              getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance, noRollup, resourceScope) match {
+              getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance,
+                      noRollup, requestId, resourceScope) match {
                 case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
                   val version = ColumnName(":version")
                   val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
@@ -95,8 +99,11 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
 
   private def getRows(ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime],
                       query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
-                      resourceScope: ResourceScope): Result = {
-    qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount, copy, secondaryInstance, noRollup, resourceScope) {
+                      requestId: RequestId, resourceScope: ResourceScope): Result = {
+    val extraHeaders = Map(ReqIdHeader -> requestId,
+                           SodaUtils.ResourceHeader -> ds.resourceName.name)
+    qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount,
+             copy, secondaryInstance, noRollup, extraHeaders, resourceScope) {
       case QueryCoordinatorClient.Success(etags, rollup, response) =>
         val cjson = response
         CJson.decode(cjson) match {
@@ -130,8 +137,11 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                      datasetRecord: DatasetRecordLike,
                      data: Iterator[RowUpdate],
                      instructions: Iterator[DataCoordinatorInstruction],
+                     requestId: RequestId,
                      f: UpsertResult => T): T = {
-    dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ data) {
+    val extraHeaders = Map(ReqIdHeader -> requestId,
+                           SodaUtils.ResourceHeader -> datasetRecord.resourceName.name)
+    dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ data, extraHeaders) {
       case DataCoordinatorClient.Success(result, _, copyNumber, newVersion, lastModified) =>
         store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
         f(StreamSuccess(result))
@@ -148,20 +158,25 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T =
-    doUpsertish(user, datasetRecord, data, Iterator.empty, f)
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
+               (f: UpsertResult => T): T =
+    doUpsertish(user, datasetRecord, data, Iterator.empty, requestId, f)
 
-  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate])(f: UpsertResult => T): T =
-    doUpsertish(user, datasetRecord, data, Iterator.single(RowUpdateOptionChange(truncate = true)), f)
+  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
+                (f: UpsertResult => T): T =
+    doUpsertish(user, datasetRecord, data, Iterator.single(RowUpdateOptionChange(truncate = true)),
+                requestId, f)
 
-  def deleteRow[T](user: String, resourceName: ResourceName, rowId: RowSpecifier)(f: UpsertResult => T): T = {
+  def deleteRow[T](user: String, resourceName: ResourceName, rowId: RowSpecifier, requestId: RequestId)
+                  (f: UpsertResult => T): T = {
     store.translateResourceName(resourceName) match {
       case Some(datasetRecord) =>
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
         StringColumnRep.forType(pkCol.typ).fromString(rowId.underlying) match {
           case Some(soqlValue) =>
             val jvalToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlValue)
-            doUpsertish(user, datasetRecord, Iterator.single(DeleteRow(jvalToDelete)), Iterator.empty, f)
+            doUpsertish(user, datasetRecord, Iterator.single(DeleteRow(jvalToDelete)), Iterator.empty,
+                        requestId, f)
           case None => f(MaltypedData(pkCol.fieldName, pkCol.typ, JString(rowId.underlying)))
         }
       case None => f(DatasetNotFound(resourceName))

@@ -13,7 +13,7 @@ import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
-import com.socrata.http.server.util.{EntityTag, Precondition}
+import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.{SodaUtils, errors => SodaErrors}
@@ -145,6 +145,7 @@ case class Resource(rowDAO: RowDAO,
                     Stage(req.getParameter(qpCopy)),
                     Option(req.getParameter(qpSecondary)),
                     Option(req.getParameter(qpNoRollup)).isDefined,
+                    RequestId.getFromRequest(req),
                     resourceScope) match {
                     case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                       metric(QuerySuccessMetric)
@@ -204,11 +205,11 @@ case class Resource(rowDAO: RowDAO,
     }
 
     override def post = { req => response =>
-      upsertMany(req, response, rowDAO.upsert(user(req), _, _))
+      upsertMany(req, response, rowDAO.upsert(user(req), _, _, RequestId.getFromRequest(req)))
     }
 
     override def put = { req => response =>
-      upsertMany(req, response, rowDAO.replace(user(req), _, _))
+      upsertMany(req, response, rowDAO.replace(user(req), _, _, RequestId.getFromRequest(req)))
     }
 
     private def upsertMany(req: HttpServletRequest, response: HttpServletResponse, f: rowDaoFunc) {
@@ -251,6 +252,7 @@ case class Resource(rowDAO: RowDAO,
                     Stage(req.getParameter(qpCopy)),
                     Option(req.getParameter(qpSecondary)),
                     Option(req.getParameter(qpNoRollup)).isDefined,
+                    RequestId.getFromRequest(req),
                     resourceScope) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
@@ -303,14 +305,16 @@ case class Resource(rowDAO: RowDAO,
     override def post = { req => response =>
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
         case Right(rowJVal) =>
-          upsertishFlow(req, response, resourceName, Iterator.single(rowJVal), rowDAO.upsert(user(req), _, _))
+          upsertishFlow(req, response, resourceName, Iterator.single(rowJVal),
+                        rowDAO.upsert(user(req), _, _, RequestId.getFromRequest(req)))
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName)(response)
       }
     }
 
     override def delete = { req => response =>
-      rowDAO.deleteRow(user(req), resourceName, rowId)(UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
+      rowDAO.deleteRow(user(req), resourceName, rowId, RequestId.getFromRequest(req))(
+                       UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
     }
   }
 }

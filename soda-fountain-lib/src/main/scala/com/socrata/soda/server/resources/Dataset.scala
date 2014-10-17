@@ -1,16 +1,17 @@
 package com.socrata.soda.server.resources
 
 import com.socrata.http.server.HttpResponse
-import com.socrata.soda.server.highlevel._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
+import com.socrata.http.server.util.RequestId
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.errors.{RollupNotFound, RollupColumnNotFound, RollupCreationFailed}
+import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
 import com.socrata.soda.server.wiremodels.{UserProvidedSpec, RequestProblem, Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
 import com.socrata.soda.server.{SodaUtils, LogTag}
 import javax.servlet.http.HttpServletRequest
-import com.socrata.soda.server.copy.Stage
 
 /**
  * Dataset: CRUD operations for dataset schema and metadata
@@ -65,7 +66,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   object createService extends SodaResource {
     override def post = { req =>
       withDatasetSpec(req) { spec =>
-        response(req, datasetDAO.createDataset(user(req), spec))
+        response(req, datasetDAO.createDataset(user(req), spec, RequestId.getFromRequest(req)))
       }
     }
   }
@@ -73,7 +74,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   case class service(resourceName: ResourceName) extends SodaResource {
     override def put = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(req, datasetDAO.replaceOrCreateDataset(user(req), resourceName, spec))
+        response(req, datasetDAO.replaceOrCreateDataset(user(req), resourceName, spec,
+                                                        RequestId.getFromRequest(req)))
       }
     }
 
@@ -84,12 +86,13 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
     override def patch = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(req, datasetDAO.updateDataset(user(req), resourceName, spec))
+        response(req, datasetDAO.updateDataset(user(req), resourceName, spec,
+                                               RequestId.getFromRequest(req)))
       }
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.deleteDataset(user(req), resourceName))
+      response(req, datasetDAO.deleteDataset(user(req), resourceName, RequestId.getFromRequest(req)))
     }
   }
 
@@ -101,26 +104,29 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     // TODO: not GET
     override def get = { req =>
       val doCopyData = req.getParameter("copy_data") == "true"
-      response(req, datasetDAO.makeCopy(user(req), resourceName, copyData = doCopyData))
+      response(req, datasetDAO.makeCopy(user(req), resourceName, copyData = doCopyData,
+                                        requestId = RequestId.getFromRequest(req)))
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.dropCurrentWorkingCopy(user(req), resourceName))
+      response(req, datasetDAO.dropCurrentWorkingCopy(user(req), resourceName,
+                                                      RequestId.getFromRequest(req)))
     }
     override def put = { req =>
-      response(req, datasetDAO.publish(user(req), resourceName, snapshotLimit = snapshotLimit(req)))
+      response(req, datasetDAO.publish(user(req), resourceName, snapshotLimit = snapshotLimit(req),
+                                       requestId = RequestId.getFromRequest(req)))
     }
   }
 
   case class versionService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
     override def get = { req =>
-      response(req, datasetDAO.getVersion(resourceName, secondary))
+      response(req, datasetDAO.getVersion(resourceName, secondary, RequestId.getFromRequest(req)))
     }
   }
 
   case class secondaryCopyService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
     override def post = { req =>
-      response(req, datasetDAO.propagateToSecondary(resourceName, secondary))
+      response(req, datasetDAO.propagateToSecondary(resourceName, secondary, RequestId.getFromRequest(req)))
     }
   }
 
@@ -132,12 +138,14 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.deleteRollup(user(req), resourceName, rollupName))
+      response(req, datasetDAO.deleteRollup(user(req), resourceName, rollupName,
+                                            RequestId.getFromRequest(req)))
     }
 
     override def put = { req =>
       withRollupSpec(req) { spec =>
-        response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, rollupName, spec))
+        response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, rollupName, spec,
+                                                       RequestId.getFromRequest(req)))
       }
     }
   }
