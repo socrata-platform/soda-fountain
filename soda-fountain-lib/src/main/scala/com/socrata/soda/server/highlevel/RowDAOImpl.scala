@@ -101,7 +101,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                       query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
                       requestId: RequestId, resourceScope: ResourceScope): Result = {
     val extraHeaders = Map(ReqIdHeader -> requestId,
-                           SodaUtils.FourByFourHeader -> ds.resourceName.name)
+                           SodaUtils.ResourceHeader -> ds.resourceName.name)
     qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount,
              copy, secondaryInstance, noRollup, extraHeaders, resourceScope) {
       case QueryCoordinatorClient.Success(etags, rollup, response) =>
@@ -140,7 +140,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                      requestId: RequestId,
                      f: UpsertResult => T): T = {
     val extraHeaders = Map(ReqIdHeader -> requestId,
-                           SodaUtils.FourByFourHeader -> datasetRecord.resourceName.name)
+                           SodaUtils.ResourceHeader -> datasetRecord.resourceName.name)
     dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ data, extraHeaders) {
       case DataCoordinatorClient.Success(result, _, copyNumber, newVersion, lastModified) =>
         store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)

@@ -21,7 +21,7 @@ object SodaUtils {
   val jsonContentTypeBase = "application/json"
   val jsonContentTypeUtf8 = jsonContentTypeBase + "; charset=utf-8"
 
-  val FourByFourHeader = "X-Socrata-4x4"
+  val ResourceHeader = "X-Socrata-Resource"
 
   def JsonContent[T : JsonCodec](thing: T, charset: Charset): HttpResponse = {
     val j = JsonCodec[T].encode(thing)
@@ -72,7 +72,7 @@ object SodaUtils {
    */
   def traceHeaders(requestId: RequestId, dataset: ResourceName): Map[String, String] =
     Map(ReqIdHeader -> requestId,
-        FourByFourHeader -> dataset.name)
+        ResourceHeader -> dataset.name)
 
 }
 

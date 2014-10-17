@@ -51,7 +51,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
         precondition.check(None, sideEffectFree = true) match {
           case Precondition.Passed =>
             val extraHeaders = Map(ReqIdHeader -> requestId,
-                                   SodaUtils.FourByFourHeader -> datasetRecord.resourceName.name)
+                                   SodaUtils.ResourceHeader -> datasetRecord.resourceName.name)
             val addColumn = AddColumnInstruction(spec.datatype, spec.fieldName.name, Some(spec.id))
             dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
                       Iterator.single(addColumn), extraHeaders) {
@@ -108,7 +108,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                       SetRowIdColumnInstruction(columnRecord.id))
                   }
                 val extraHeaders = Map(ReqIdHeader -> requestId,
-                                       SodaUtils.FourByFourHeader -> resource.name)
+                                       SodaUtils.ResourceHeader -> resource.name)
                 dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator,
                           extraHeaders) {
                   case DataCoordinatorClient.Success(_, _, copyNumber, newVersion, lastModified) =>
@@ -172,7 +172,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
           datasetRecord.columnsByName.get(column) match {
             case Some(columnRef) =>
               val extraHeaders = Map(ReqIdHeader -> requestId,
-                                     SodaUtils.FourByFourHeader -> dataset.name)
+                                     SodaUtils.ResourceHeader -> dataset.name)
               dc.update(datasetRecord.systemId,
                         datasetRecord.schemaHash,
                         user,
