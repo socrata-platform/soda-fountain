@@ -77,7 +77,8 @@ class SodaFountainClient(httpClient: HttpClient,
    * @param resourceName Resource name of the dataset to query
    * @param ext MimeType extension indicating the format in which Soda Fountain should return a response
    */
-  def query(resourceName: String, ext: Option[String] = None): Result = get(queryUrl(_, resourceName, ext))
+  def query(resourceName: String, ext: Option[String] = None, params: Iterable[(String, String)] = Iterable.empty): Result =
+    get(queryUrl(_, resourceName, ext, params))
 
   private def createUrl(rb: RequestBuilder) =
     rb.p("dataset").method("POST").addHeader(("Content-Type", "application/json"))
@@ -88,12 +89,12 @@ class SodaFountainClient(httpClient: HttpClient,
   private def upsertUrl(rb: RequestBuilder, resourceName: String) =
     rb.p("resource", resourceName).method("POST").addHeader(("Content-Type", "application/json"))
 
-  private def queryUrl(rb: RequestBuilder, resourceName: String, ext: Option[String]) = {
+  private def queryUrl(rb: RequestBuilder, resourceName: String, ext: Option[String], params: Iterable[(String, String)]) = {
     val resource = ext match {
       case Some(str) => resourceName + s".$str"
       case None      => resourceName
     }
-    rb.p("resource", resource)
+    rb.p("resource", resource).addParameters(params)
   }
 
   private def post(requestBuilder: RequestBuilder => RequestBuilder, payload: JValue): Result =

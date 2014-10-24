@@ -6,7 +6,7 @@ object Build extends sbt.Build {
     file(".")
   ).settings(BuildSettings.buildSettings : _*)
    .settings(net.virtualvoid.sbt.graph.Plugin.graphSettings: _*)
-   .aggregate(sodaFountainLib, sodaFountainJetty, sodaFountainWar, sodaFountainLibMacros)
+   .aggregate(sodaFountainLib, sodaFountainJetty, sodaFountainWar, sodaFountainLibMacros, sodaFountainExternal)
 
   private def p(name: String, settings: { def settings: Seq[Setting[_]] }, dependencies: ClasspathDep[ProjectReference]*) =
     Project(name, file(name)).settings(settings.settings : _*).configs(IntegrationTest).dependsOn(dependencies: _*)
