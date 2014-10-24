@@ -1,6 +1,7 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.http.server.util.{EntityTag, Precondition}
+import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence.{DatasetRecord, ColumnRecord}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
@@ -8,10 +9,20 @@ import com.socrata.soql.environment.ColumnName
 
 trait ColumnDAO {
   import ColumnDAO.Result
-  def replaceOrCreateColumn(user: String, dataset: ResourceName, precondition: Precondition, column: ColumnName, spec: UserProvidedColumnSpec): Result
+
+  def replaceOrCreateColumn(user: String,
+                            dataset: ResourceName,
+                            precondition: Precondition,
+                            column: ColumnName,
+                            spec: UserProvidedColumnSpec,
+                            requestId: RequestId): Result
+
   def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result
-  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName): Result
-  def makePK(user: String, dataset: ResourceName, column: ColumnName): Result
+
+  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName, requestId: RequestId): Result
+
+  def makePK(user: String, dataset: ResourceName, column: ColumnName, requestId: RequestId): Result
+
   def getColumn(dataset: ResourceName, column: ColumnName): Result
 }
 

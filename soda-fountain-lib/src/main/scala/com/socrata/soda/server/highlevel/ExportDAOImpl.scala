@@ -3,13 +3,14 @@ package com.socrata.soda.server.highlevel
 import com.rojoma.json.ast.{JValue, JArray}
 import com.rojoma.json.codec.JsonCodec
 import com.rojoma.json.util.{Strategy, JsonKeyStrategy, AutomaticJsonCodecBuilder}
-import com.socrata.http.server.util.Precondition
+import com.socrata.http.server.util.{Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.{ColumnRecordLike, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnReadRep}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
+import com.socrata.soda.server.SodaUtils.traceHeaders
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -99,7 +100,8 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 limit: Option[Long],
                 offset: Option[Long],
                 copy: String,
-                sorted: Boolean)(f: ExportDAO.Result => T): T =
+                sorted: Boolean,
+                requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T =
     retryable(limit = 5) {
       store.lookupDataset(dataset, Stage(copy)) match {
         case Some(ds) =>
@@ -109,7 +111,8 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
               case _     => SchemaHash.computeHash(ds.locale, ds.primaryKey, onlyColumns.map { col => (col.id, col.typ) })
             }
             val dcColumnIds = onlyColumns.map(_.id.underlying)
-            dc.export(ds.systemId, schemaHash, dcColumnIds, precondition, ifModifiedSince, limit, offset, copy, sorted = sorted) {
+            dc.export(ds.systemId, schemaHash, dcColumnIds, precondition, ifModifiedSince, limit, offset,
+                      copy, sorted = sorted, extraHeaders = traceHeaders(requestId, dataset)) {
               case DataCoordinatorClient.Export(jvalues, etag) =>
                 CJson.decode(jvalues) match {
                   case CJson.Decoded(schema, rows) =>

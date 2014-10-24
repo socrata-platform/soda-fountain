@@ -6,6 +6,13 @@ import com.rojoma.json.util.JsonUtil.writeJson
 import com.socrata.cloudbeessbt.SocrataCloudbeesSbt.SocrataSbtKeys._
 
 object SodaFountainLib {
+  object versions {
+    val balboa          = "0.14.0"
+    val socrataHttp     = "2.3.2"
+    val soqlReference   = "0.3.2"
+    val thirdPartyUtils = "2.5.0"
+  }
+
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings() ++ Seq(
     resolvers += "Open Source Geospatial Foundation Repository" at "http://download.osgeo.org/webdav/geotools",
     resourceGenerators in Compile <+= (resourceManaged in Compile, name in Compile, version in Compile, scalaVersion in Compile) map genVersion,
@@ -13,16 +20,16 @@ object SodaFountainLib {
       "com.mchange"         % "c3p0"                        % "0.9.2.1",
       "com.rojoma"         %% "simple-arm"                  % "[1.2.0,2.0.0)",
       "com.rojoma"         %% "simple-arm-v2"               % "2.0.0",
-      "com.socrata"        %% "balboa-common"               % "[0.14.0,1.0.0)",
-      "com.socrata"        %% "balboa-client"               % "[0.14.0,1.0.0)",
-      "com.socrata"        %% "socrata-http-client"         % "2.3.0",
-      "com.socrata"        %% "socrata-http-server"         % "2.3.0",
-      "com.socrata"        %% "socrata-thirdparty-utils"    % "2.5.0",
-      "com.socrata"        %% "soql-analyzer"               % "[0.2.0,1.0.0)",
+      "com.socrata"        %% "balboa-common"               % versions.balboa,
+      "com.socrata"        %% "balboa-client"               % versions.balboa,
+      "com.socrata"        %% "socrata-http-client"         % versions.socrataHttp,
+      "com.socrata"        %% "socrata-http-server"         % versions.socrataHttp,
+      "com.socrata"        %% "socrata-thirdparty-utils"    % versions.thirdPartyUtils,
+      "com.socrata"        %% "soql-analyzer"               % versions.soqlReference,
       "com.socrata"        %% "soql-brita"                  % "[1.2.1,2.0.0)",
-      "com.socrata"        %% "soql-standalone-parser"      % "[0.2.0,1.0.0)",
-      "com.socrata"        %% "soql-stdlib"                 % "[0.2.0,1.0.0)" exclude ("javax.media", "jai_core"),
-      "com.socrata"        %% "soql-types"                  % "[0.2.0,1.0.0)",
+      "com.socrata"        %% "soql-standalone-parser"      % versions.soqlReference,
+      "com.socrata"        %% "soql-stdlib"                 % versions.soqlReference exclude ("javax.media", "jai_core"),
+      "com.socrata"        %% "soql-types"                  % versions.soqlReference,
       "com.typesafe"        % "config"                      % "1.0.2",
       "javax.servlet"       % "servlet-api"                 % "2.5" % "provided",
       "log4j"               % "log4j"                       % "1.2.16",
@@ -38,7 +45,7 @@ object SodaFountainLib {
       "org.mockito"         % "mockito-all"                 % "1.10.7"  % "test",
       "org.apache.curator"  % "curator-test"                % "2.4.2"   % "test",
       "org.springframework" % "spring-test"                 % "3.2.10.RELEASE" % "test",
-      "com.socrata"        %% "socrata-thirdparty-test-utils" % "2.5.0" % "test",
+      "com.socrata"        %% "socrata-thirdparty-test-utils" % versions.thirdPartyUtils % "test",
       "org.mock-server"     % "mockserver-netty"            % "3.0"     % "test"
           exclude("ch.qos.logback", "logback-classic")
     )

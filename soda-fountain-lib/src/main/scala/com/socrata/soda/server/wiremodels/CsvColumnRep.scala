@@ -78,15 +78,6 @@ object CsvColumnRep {
       else JsonColumnRep.VersionStringRep(value.asInstanceOf[SoQLVersion])
   }
 
-  object LocationRep extends CsvColumnRep {
-    def toString(value: SoQLValue) =
-      if (SoQLNull == value) null
-      else {
-        val loc = value.asInstanceOf[SoQLLocation]
-        s"(${loc.latitude},${loc.longitude})"
-      }
-  }
-
   object ObjectRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
@@ -123,7 +114,6 @@ object CsvColumnRep {
     SoQLMoney -> MoneyRep,
     SoQLDouble -> DoubleRep,
     SoQLBoolean -> BooleanRep,
-    SoQLLocation -> LocationRep,
     SoQLObject -> ObjectRep,
     SoQLArray -> ArrayRep,
     SoQLJson -> JValueRep,
