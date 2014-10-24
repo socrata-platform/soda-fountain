@@ -77,7 +77,15 @@ class SodaFountainClient(httpClient: HttpClient,
    * @param resourceName Resource name of the dataset to query
    * @param ext MimeType extension indicating the format in which Soda Fountain should return a response
    */
-  def query(resourceName: String, ext: Option[String] = None, params: Iterable[(String, String)] = Iterable.empty): Result =
+  def query(resourceName: String, ext: Option[String] = None): Result = query(resourceName, ext, Iterable.empty)
+
+  /**
+   * Sends a request to Soda Fountain to query or retrieve rows from a dataset
+   * @param resourceName Resource name of the dataset to query
+   * @param ext MimeType extension indicating the format in which Soda Fountain should return a response
+   * @param params Query request parameters
+   */
+  def query(resourceName: String, ext: Option[String], params: Iterable[(String, String)]): Result =
     get(queryUrl(_, resourceName, ext, params))
 
   private def createUrl(rb: RequestBuilder) =
