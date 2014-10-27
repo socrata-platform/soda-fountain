@@ -21,22 +21,15 @@ case object SchemaInvalidForMimeType
 case class GeneralNotFoundError(path: String)
   extends SodaError(SC_NOT_FOUND, "not-found", "path" -> JString(path))
 
-case class InternalError(th: Throwable, tag: String)
+case class InternalError(tag: String)
+  extends SodaError(SC_INTERNAL_SERVER_ERROR, "internal-error", "tag" -> JString(tag))
+
+case class InternalException(th: Throwable, tag: String)
   extends SodaError(SC_INTERNAL_SERVER_ERROR, "internal-error",
     "tag" -> JString(tag),
-    "errorMessage" -> JString(InternalError.getException(th).getMessage),
-    "errorClass"   -> JString(InternalError.getException(th).getClass.getCanonicalName),
-    "stackTrace"   -> JArray(InternalError.getException(th).getStackTrace
-                                                           .map(x => JString(x.toString)).toSeq))
-
-object InternalError {
-  def getException(th: Throwable): Throwable =
-    Option(th).getOrElse(new RuntimeException("Missing Exception") {
-        override val getStackTrace = Array.empty[java.lang.StackTraceElement]
-      })
-
-  def apply(tag: String): InternalError = apply(null, tag)
-}
+    "errorMessage" -> JString(th.getMessage),
+    "errorClass"   -> JString(th.getClass.getCanonicalName),
+    "stackTrace"   -> JArray(th.getStackTrace.map(x => JString(x.toString))))
 
 case class HttpMethodNotAllowed(method: String, allowed: TraversableOnce[String])
   extends SodaError(SC_METHOD_NOT_ALLOWED, "method-not-allowed",
