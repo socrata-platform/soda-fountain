@@ -9,10 +9,12 @@ import com.socrata.cloudbeessbt.SocrataCloudbeesSbt.SocrataSbtKeys._
 object SodaFountainJetty {
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings(assembly = true) ++ Seq(
     libraryDependencies ++= Seq(
-      "com.socrata" %% "socrata-http-jetty" % "2.3.2",
-      "com.socrata" %% "socrata-http-curator-broker" % "2.3.2",
+      "com.socrata" %% "socrata-http-jetty" % "2.3.3",
+      "com.socrata" %% "socrata-http-curator-broker" % "2.3.3",
       "io.dropwizard.metrics" % "metrics-jetty9"   % "3.1.0",
-      "io.dropwizard.metrics" % "metrics-graphite"   % "3.1.0"
+      // "io.dropwizard.metrics" % "metrics-graphite"   % "3.1.0"
+      // See CORE-3635: use lower version of graphite to work around Graphite reconnect issues
+      "com.codahale.metrics" % "metrics-graphite" % "3.0.2" exclude("com.codahale.metrics", "metrics-core")
     ),
     dependenciesSnippet :=
       <xml.group>

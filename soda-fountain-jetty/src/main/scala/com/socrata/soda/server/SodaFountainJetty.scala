@@ -13,13 +13,9 @@ object SodaFountainJetty extends App {
   val metricsOptions = MetricsOptions(config.codaMetrics)
   for {
     sodaFountain <- managed(new SodaFountain(config))
-    discovery <- managed(DiscoveryFromConfig.unmanaged(classOf[Void],
-                                                       sodaFountain.curator,
-                                                       config.discovery))
+    discovery <- DiscoveryFromConfig(classOf[Void], sodaFountain.curator, config.discovery)
     reporter <- MetricsReporter.managed(metricsOptions)
   } {
-    discovery.start()
-
     val server = new SocrataServerJetty(
       sodaFountain.handle,
       SocrataServerJetty.defaultOptions.
@@ -27,8 +23,8 @@ object SodaFountainJetty extends App {
         withExtraHandlers(List(SocrataHttpSupport.getHandler(metricsOptions))).
         withBroker(new CuratorBroker[Void](
           discovery,
-          config.serviceAdvertisement.address,
-          config.serviceAdvertisement.service,
+          config.discovery.address,
+          config.discovery.name,
           None)))
 
     server.run()

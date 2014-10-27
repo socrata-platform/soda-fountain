@@ -8,9 +8,9 @@ import com.socrata.cloudbeessbt.SocrataCloudbeesSbt.SocrataSbtKeys._
 object SodaFountainLib {
   object versions {
     val balboa          = "0.14.0"
-    val socrataHttp     = "2.3.2"
+    val socrataHttp     = "2.3.3"
     val soqlReference   = "0.3.2"
-    val thirdPartyUtils = "2.5.0"
+    val thirdPartyUtils = "2.5.3"
   }
 
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings() ++ Seq(
