@@ -115,7 +115,7 @@ class SodaFountainClient(httpClient: HttpClient,
     try {
       serverProvider.withRetries(retryCount, request, retryWhen) {
         case Some(response) =>
-          for {reader <- managed(response.asReader())} yield {
+          for { reader <- managed(response.reader()) } yield {
             try {
               // TODO : Distinguish between empty response and invalid-JSON response
               // TODO : May need to support non-JSON body (eg. CSV) in the future
