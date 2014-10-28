@@ -9,8 +9,7 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val etagObfuscationKey = optionally(getString("etag-obfuscation-key"))
 
   val curator = getConfig("curator", new CuratorConfig(_, _))
-  val discovery = getConfig("curator", new DiscoveryConfig(_, _))
-  val serviceAdvertisement = getConfig("service-advertisement", new ServiceAdvertisementConfig(_, _))
+  val discovery = getConfig("service-advertisement", new DiscoveryConfig(_, _))
   val network = getConfig("network", new NetworkConfig(_, _))
   val dataCoordinatorClient = getConfig("data-coordinator-client", new DataCoordinatorClientConfig(_, _))
   val queryCoordinatorClient = getConfig("query-coordinator-client", new QueryCoordinatorClientConfig(_, _))
@@ -21,11 +20,6 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val handlers = getRawConfig("handlers")
   val metrics =  optionally(getConfig("metrics", new BalboaConfig(_,_)))
   val codaMetrics = getRawConfig("metrics")
-}
-
-class ServiceAdvertisementConfig(config: Config, root: String) extends ConfigClass(config, root) {
-  val address = getString("address")
-  val service = getString("service")
 }
 
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {

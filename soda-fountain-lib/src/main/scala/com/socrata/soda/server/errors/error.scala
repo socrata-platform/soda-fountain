@@ -22,8 +22,14 @@ case class GeneralNotFoundError(path: String)
   extends SodaError(SC_NOT_FOUND, "not-found", "path" -> JString(path))
 
 case class InternalError(tag: String)
+  extends SodaError(SC_INTERNAL_SERVER_ERROR, "internal-error", "tag" -> JString(tag))
+
+case class InternalException(th: Throwable, tag: String)
   extends SodaError(SC_INTERNAL_SERVER_ERROR, "internal-error",
-    "tag" -> JString(tag))
+    "tag" -> JString(tag),
+    "errorMessage" -> JString(th.getMessage),
+    "errorClass"   -> JString(th.getClass.getCanonicalName),
+    "stackTrace"   -> JArray(th.getStackTrace.map(x => JString(x.toString))))
 
 case class HttpMethodNotAllowed(method: String, allowed: TraversableOnce[String])
   extends SodaError(SC_METHOD_NOT_ALLOWED, "method-not-allowed",

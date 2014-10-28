@@ -9,7 +9,8 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
-import com.socrata.soda.server.errors.{EtagPreconditionFailed, ResourceNotModified, InternalError, SodaError}
+import com.socrata.soda.server.errors.{EtagPreconditionFailed, ResourceNotModified, InternalError,
+                                       InternalException, SodaError}
 import com.socrata.soda.server.id.{AbstractId, ResourceName}
 import com.socrata.soql.environment.AbstractName
 import java.nio.charset.{StandardCharsets, Charset}
@@ -63,8 +64,8 @@ object SodaUtils {
 
   def internalError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {
     val tag = java.util.UUID.randomUUID.toString
-    errorLog.error("Internal error: " + tag, th)
-    errorResponse(request, InternalError(tag), logTags:_*)
+    errorLog.error("Internal exception: " + tag, th)
+    errorResponse(request, InternalException(th, tag), logTags:_*)
   }
 
   /**

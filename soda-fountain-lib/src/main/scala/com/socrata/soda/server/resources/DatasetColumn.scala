@@ -10,7 +10,7 @@ import com.socrata.soda.server.errors.{NonUniqueRowId, HttpMethodNotAllowed, Res
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
-import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedColumnSpec}
+import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, IOProblem, UserProvidedColumnSpec}
 import com.socrata.soda.server.{LogTag, SodaUtils}
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletRequest
@@ -26,6 +26,8 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
         f(datasetSpec)
       case RequestProblem(err) =>
         SodaUtils.errorResponse(request, err, logTags : _*)
+      case IOProblem(err) =>
+        SodaUtils.internalError(request, err)
     }
   }
 
