@@ -8,7 +8,7 @@ import com.socrata.cloudbeessbt.SocrataCloudbeesSbt.SocrataSbtKeys._
 object SodaFountainLib {
   object versions {
     val balboa          = "0.14.0"
-    val socrataHttp     = "2.3.3"
+    val socrataHttp     = "2.3.4"
     val soqlReference   = "0.3.2"
     val thirdPartyUtils = "2.5.4"
   }
