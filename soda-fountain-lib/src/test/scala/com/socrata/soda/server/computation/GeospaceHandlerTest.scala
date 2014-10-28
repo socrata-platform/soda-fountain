@@ -54,7 +54,7 @@ trait GeospaceHandlerData {
 class GeospaceHandlerTest extends FunSuite
     with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach with GeospaceHandlerData
     with CuratorServiceIntegration with MockitoSugar {
-  override val curatorConfigPrefix = "com.socrata.soda-fountain.curator"
+  override def configPrefix = "com.socrata.soda-fountain"
 
   import collection.JavaConverters._
   import ComputationHandler._
