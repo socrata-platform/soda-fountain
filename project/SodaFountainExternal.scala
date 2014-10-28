@@ -11,7 +11,7 @@ object SodaFountainExternal {
       libraryDependencies ++= Seq(
         "com.rojoma"               %% "rojoma-json"                   % "2.4.3",
         "com.rojoma"               %% "simple-arm"                    % "1.2.0",
-        "com.socrata"              %% "socrata-http-client"           % "2.0.0",
+        "com.socrata"              %% "socrata-http-client"           % "2.3.4",
         "com.socrata"              %% "socrata-thirdparty-utils"      % "2.5.2",
         "com.typesafe"              % "config"                        % "1.0.2",
         "org.apache.curator"        % "curator-x-discovery"           % "2.4.2"
