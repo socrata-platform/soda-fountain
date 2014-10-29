@@ -12,6 +12,8 @@ import com.socrata.thirdparty.curator.ServerProvider._
 import org.scalatest.{FunSuite, Matchers, BeforeAndAfterAll}
 
 class SodaFountainClientTest extends FunSuite with Matchers with BeforeAndAfterAll with CuratorServiceIntegration {
+  override lazy val fallback = "client-test-config"
+
   val mockServerPort = 1234
   val mockServer = new WireMockServer(wireMockConfig.port(mockServerPort))
 
