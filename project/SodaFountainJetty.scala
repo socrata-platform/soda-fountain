@@ -10,10 +10,10 @@ import com.socrata.cloudbeessbt.SocrataCloudbeesSbt.SocrataSbtKeys._
 object SodaFountainJetty {
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings(assembly = true) ++ Seq(
     libraryDependencies ++= Seq(
-      codahaleMetricsGraphite exclude("com.codahale.metrics", "metrics-core"),
-      dropWizardMetricsJetty,
-      //dropWizardMetricsGraphite
       // See CORE-3635: use lower version of graphite to work around Graphite reconnect issues
+      codahaleMetricsGraphite exclude("com.codahale.metrics", "metrics-core"),
+      //dropWizardMetricsGraphite
+      dropWizardMetricsJetty,
       socrataHttpCuratorBroker,
       socrataHttpJetty
     ),
