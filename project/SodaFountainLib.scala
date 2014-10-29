@@ -2,9 +2,9 @@
 import sbt._
 import Keys._
 
-import com.rojoma.simplearm.util._
 import com.rojoma.json.util.JsonUtil.writeJson
-import com.socrata.cloudbeessbt.SocrataCloudbeesSbt.SocrataSbtKeys._
+import com.rojoma.simplearm.util._
+
 import Dependencies._
 import Dependencies.Test
 
@@ -37,12 +37,12 @@ object SodaFountainLib {
       typesafeConfig,
       Test.apacheCurator,
       Test.mockito,
+      Test.mockServer exclude("ch.qos.logback", "logback-classic"),
       Test.scalaCheck,
       Test.scalaMock,
       Test.scalaTest,
       Test.socrataThirdPartyUtils,
-      Test.springTest,
-      Test.mockServer exclude("ch.qos.logback", "logback-classic")
+      Test.springTest
     )
   )
   def genVersion(resourceManaged: File, name: String, version: String, scalaVersion: String): Seq[File] = {
