@@ -13,9 +13,9 @@ object SodaFountainExternal {
         socrataHttpClient,
         socrataThirdPartyUtils,
         typesafeConfig,
-        "com.github.tomakehurst"    % "wiremock"                      % "1.46"    % "test",
         Test.apacheCurator,
+        Test.scalaTest,
         Test.socrataThirdPartyUtils,
-        "org.scalatest"            %% "scalatest"                     % "2.2.0"   % "test"
+        Test.wiremock
       ))
 }
