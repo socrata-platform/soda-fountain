@@ -1,7 +1,7 @@
 package com.socrata.soda.external
 
 import com.rojoma.json.ast._
-import com.rojoma.json.io.CompactJsonWriter
+import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.{WireMock => WM, MappingBuilder, UrlMatchingStrategy}
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
@@ -102,6 +102,26 @@ class SodaFountainClientTest extends FunSuite with Matchers with BeforeAndAfterA
     val Response(code, Some(body)) = sodaFountain.query("foo", Some("geojson"))
     code should be (200)
     body should be (JArray(Seq(JObject(Map("foo" -> JString("bar"))))))
+  }
+
+  test("Schema") {
+    val schema = """{"resource_name":"hello_world",
+                   | "name":"Hello World!",
+                   | "description":"",
+                   | "row_identifier":":id",
+                   | "locale":"en_US",
+                   | "stage":"Published",
+                   | "columns":{"name":{"id":"x8p7-e3wx","field_name":"name","name":"name","description":"","datatype":"text"},
+                   |            ":version":{"id":":version","field_name":":version","name":":version","description":"","datatype":"row_version"},
+                   |            ":created_at":{"id":":created_at","field_name":":created_at","name":":created_at","description":"","datatype":"fixed_timestamp"},
+                   |            "description":{"id":"ydep-8avr","field_name":"description","name":"description","description":"","datatype":"text"},
+                   |            ":updated_at":{"id":":updated_at","field_name":":updated_at","name":":updated_at","description":"","datatype":"fixed_timestamp"},
+                   |            ":id":{"id":":id","field_name":":id","name":":id","description":"","datatype":"row_identifier"}}}""".stripMargin
+    mockSodaRoute(WM.get, "/dataset/foo", 200, schema)
+
+    val Response(code, Some(body)) = sodaFountain.schema("foo")
+    code should be (200)
+    body should be (JsonReader.fromString(schema))
   }
 
   test("Handle error (>400) HTTP response") {

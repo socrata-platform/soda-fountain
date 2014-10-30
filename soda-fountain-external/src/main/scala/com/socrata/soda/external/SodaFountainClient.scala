@@ -80,6 +80,12 @@ class SodaFountainClient(httpClient: HttpClient,
   def query(resourceName: String, ext: Option[String] = None): Result = query(resourceName, ext, Iterable.empty)
 
   /**
+   * Sends a request to Soda Fountain to retrieve the schema of a dataset
+   * @param resourceName Resource name of the dataset whose schema to retrieve
+   */
+  def schema(resourceName: String): Result = get(schemaUrl(_, resourceName))
+
+  /**
    * Sends a request to Soda Fountain to query or retrieve rows from a dataset
    * @param resourceName Resource name of the dataset to query
    * @param ext MimeType extension indicating the format in which Soda Fountain should return a response
@@ -103,6 +109,10 @@ class SodaFountainClient(httpClient: HttpClient,
       case None      => resourceName
     }
     rb.p("resource", resource).addParameters(params)
+  }
+
+  private def schemaUrl(rb: RequestBuilder, resourceName: String) = {
+    rb.p("dataset", resourceName)
   }
 
   private def post(requestBuilder: RequestBuilder => RequestBuilder, payload: JValue): Result =
