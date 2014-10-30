@@ -9,11 +9,10 @@ import com.socrata.http.client.exceptions.ConnectFailed
 import com.socrata.soda.external.SodaFountainClient._
 import com.socrata.thirdparty.curator.{CuratorBroker, CuratorServiceIntegration}
 import com.socrata.thirdparty.curator.ServerProvider._
+import com.typesafe.config.ConfigFactory
 import org.scalatest.{FunSuite, Matchers, BeforeAndAfterAll}
 
 class SodaFountainClientTest extends FunSuite with Matchers with BeforeAndAfterAll with CuratorServiceIntegration {
-  override lazy val fallback = "client-test-config"
-
   val mockServerPort = 1234
   val mockServer = new WireMockServer(wireMockConfig.port(mockServerPort))
 
@@ -28,6 +27,8 @@ class SodaFountainClientTest extends FunSuite with Matchers with BeforeAndAfterA
                                                  1,
                                                  RetryOnAllExceptionsDuringInitialRequest,
                                                  throw MyCustomNoServersException)
+
+  override def getFallback = ConfigFactory.load("client-test-config")
 
   override def beforeAll() {
     startServices()            // Start in-process ZK, Curator, service discovery
