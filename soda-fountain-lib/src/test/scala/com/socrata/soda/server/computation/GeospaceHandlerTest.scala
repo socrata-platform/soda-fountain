@@ -94,7 +94,7 @@ class GeospaceHandlerTest extends FunSuite
 
   private def mockGeocodeRoute(bodyRegex: String, returnedBody: String, returnedCode: Int = 200) {
     server.when(request.withMethod("POST").
-      withPath("/experimental/regions/wards/geocode").
+      withPath("/v1/regions/wards/geocode").
       withBody(StringBody.regex(bodyRegex))).
       respond(response.withStatusCode(returnedCode).
         withHeader(new Header("Content-Type", "application/json; charset=utf-8")).
