@@ -21,7 +21,7 @@ import org.scalatest.mock.MockitoSugar
 import org.mockito.Mockito.{when, verify}
 import org.mockito.Matchers.{any, anyString}
 
-trait GeospaceHandlerData {
+trait GeoregionMatchOnPointHandlerData {
   val point1 = """{"type":"Point","coordinates":[47.6303,-122.3148]}"""
   val point2 = """{"type":"Point","coordinates":[48.6303,-121.3148]}"""
   val point3 = """{"type":"Point","coordinates":[49.6303,-120.3148]}"""
@@ -51,8 +51,8 @@ trait GeospaceHandlerData {
     Some(computeStrategy))
 }
 
-class GeospaceHandlerTest extends FunSuite
-    with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach with GeospaceHandlerData
+class GeoregionMatchOnPointHandlerTest extends FunSuite
+    with MustMatchers with BeforeAndAfterAll with BeforeAndAfterEach with GeoregionMatchOnPointHandlerData
     with CuratorServiceIntegration with MockitoSugar {
   override def configPrefix = "com.socrata.soda-fountain"
 
@@ -76,7 +76,7 @@ class GeospaceHandlerTest extends FunSuite
     "read-timeout"    -> "5s"
   ).asJava)
 
-  lazy val handler = new GeospaceHandler(testConfig, discovery)
+  lazy val handler = new GeoregionMatchOnPointHandler(testConfig, discovery)
 
   override def beforeAll() {
     startServices()
@@ -128,7 +128,7 @@ class GeospaceHandlerTest extends FunSuite
 
     // Set up the mock server to fail on the first attempt,
     // succeed on the second attempt, then fail on the third attempt.
-    // GeospaceHandler is configured to retry once, so the second attempt should succeed.
+    // GeoregionMatchHandler is configured to retry once, so the second attempt should succeed.
     mockGeocodeRoute(".+122.+", "", 500)
     mockGeocodeRoute(".+122.+", """[1]""", 200)
     mockGeocodeRoute(".+122.+", "", 500)
@@ -193,7 +193,7 @@ class GeospaceHandlerTest extends FunSuite
     when(mockBuilder.serviceName(anyString)).thenReturn(mockBuilder)
     when(mockBuilder.build()).thenReturn(mockProvider)
 
-    val handler = new GeospaceHandler(testConfig, mockDiscovery)
+    val handler = new GeoregionMatchOnPointHandler(testConfig, mockDiscovery)
     handler.close()
 
     verify(mockProvider).close()
@@ -219,7 +219,7 @@ class GeospaceHandlerTest extends FunSuite
     when(mockBuilder.serviceName(anyString)).thenReturn(mockBuilder)
     when(mockBuilder.build()).thenReturn(mockProvider)
 
-    val handler = new GeospaceHandler(testConfig, mockDiscovery)
+    val handler = new GeoregionMatchOnPointHandler(testConfig, mockDiscovery)
     the [RuntimeException] thrownBy {
       handler.urlPrefix
     } must have message "Unable to get Geospace instance from Curator/ZK"
@@ -231,45 +231,49 @@ class GeospaceHandlerTest extends FunSuite
         foreach(Function.const()) // Force evaluation of the iterator.
     }
 
-    ex.message must equal ("Unsupported row update type passed into GeospaceHandler")
+    ex.message must equal ("Unsupported row update type passed into GeoregionMatchOnPointHandler")
   }
 
   test("Will throw IllegalArgumentException when column is not computed") {
-    val columnSpec = mock[ColumnRecordLike]
-    when(columnSpec.computationStrategy).thenReturn(None)
+    val badSpec = mock[ColumnRecordLike]
+    when(badSpec.computationStrategy).thenReturn(None)
 
     val ex = the [IllegalArgumentException] thrownBy {
-      handler.compute(Iterator(), columnSpec)
+      handler.compute(testRows.iterator, badSpec)
     }
 
-    ex.getMessage must include ("Not a target computed column")
+    ex.getMessage must include ("No computation strategy found")
   }
 
   test("Will throw IllegalArgumentException when missing region parameter") {
-    val columnSpec = mock[ColumnRecordLike]
-    when(columnSpec.computationStrategy).thenReturn(Some(
+    val badSpec = mock[ColumnRecordLike]
+    when(badSpec.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
-        null,
+        ComputationStrategyType.GeoRegionMatchOnPoint,
         false,
         Some(Seq("")),
         Some(JObject(Map())))))
 
     val ex = the [IllegalArgumentException] thrownBy {
-      handler.compute(Iterator(), columnSpec)
+      handler.compute(testRows.iterator, badSpec).next()
     }
     ex.getMessage must include ("parameters does not contain 'region'")
   }
 
   test("Will throw IllegalArgumentException when missing source columns") {
-    val columnSpec = mock[ColumnRecordLike]
-    when(columnSpec.computationStrategy).thenReturn(Some(
-      ComputationStrategyRecord(null, false, Some(Seq()), null)))
+    val badSpec = mock[ColumnRecordLike]
+    when(badSpec.computationStrategy).thenReturn(Some(
+      ComputationStrategyRecord(
+        ComputationStrategyType.GeoRegionMatchOnPoint,
+        false,
+        Some(Seq()),
+        null)))
 
     val ex = the [IllegalArgumentException] thrownBy {
-      handler.compute(Iterator(), columnSpec)
+      handler.compute(testRows.iterator, badSpec)
     }
-    ex.getMessage must include ("There must be exactly 1 sourceColumn, and " +
-      "parameters must have a key 'region'")
+    ex.getMessage must include ("Source column was not defined " +
+      "in computation strategy")
   }
 
   test("Will throw ComputationEx when post does not return 200") {
