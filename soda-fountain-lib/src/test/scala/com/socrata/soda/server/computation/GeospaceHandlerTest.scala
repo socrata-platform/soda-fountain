@@ -72,8 +72,8 @@ class GeospaceHandlerTest extends FunSuite
     "batch-size"      -> 2,
     "max-retries"     -> 1,
     "retry-wait"      -> "500ms",
-    "connect-timeout" -> "5000ms",
-    "read-timeout"    -> "5000ms"
+    "connect-timeout" -> "5s",
+    "read-timeout"    -> "5s"
   ).asJava)
 
   lazy val handler = new GeospaceHandler(testConfig, discovery)
