@@ -14,7 +14,7 @@ import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
 import org.slf4j.LoggerFactory
 import scala.annotation.tailrec
-import scalaj.http.Http
+import scalaj.http.{HttpOptions, Http}
 
 /**
  * A [[ComputationHandler]] for mapping points (or lat/long pairs) to geo features (point-in-polygon)
@@ -36,10 +36,12 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
   import ComputationHandler._
 
   // Get config values
-  val serviceName  = config.getString("service-name")
-  val batchSize    = config.getInt("batch-size")
-  val maxRetries   = config.getInt("max-retries")
-  val retryWait    = config.getMilliseconds("retry-wait").longValue
+  val serviceName    = config.getString("service-name")
+  val batchSize      = config.getInt("batch-size")
+  val maxRetries     = config.getInt("max-retries")
+  val retryWait      = config.getMilliseconds("retry-wait").longValue
+  val connectTimeout = config.getMilliseconds("connect-timeout").intValue
+  val readTimeout    = config.getMilliseconds("read-timeout").intValue
 
   class GeospaceService[T](discovery: ServiceDiscovery[T]) extends CuratorServiceBase(discovery, serviceName)
   val service = new GeospaceService(discovery)
@@ -180,6 +182,8 @@ class GeospaceHandler[T](config: Config, discovery: ServiceDiscovery[T]) extends
     try {
       val (status, _, response) = Http.postData(url, CompactJsonWriter.toString(JArray(jsonPoints))).
         header("content-type", "application/json").
+        option(HttpOptions.connTimeout(connectTimeout)).
+        option(HttpOptions.readTimeout(readTimeout)).
         asHeadersAndParse(Http.readString)
       (status, response)
     } catch {
