@@ -7,7 +7,8 @@ import scala.util.Try
 object ComputationStrategyType extends Enumeration {
   implicit val JsonCodec = ComputationStrategyTypeCodec
 
-  val GeoRegion = Value("georegion")
+  val GeoRegionMatchOnPoint = Value("georegion_match_on_point")
+  val GeoRegionMatchOnString = Value("georegion_match_on_string")
   val Test      = Value("test")
 }
 

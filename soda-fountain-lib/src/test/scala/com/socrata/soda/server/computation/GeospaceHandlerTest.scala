@@ -44,7 +44,7 @@ trait GeospaceHandlerData {
   val testRow = UpsertAsSoQL(
     Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013")))
 
-  val computeStrategy = ComputationStrategyRecord(ComputationStrategyType.GeoRegion, false,
+  val computeStrategy = ComputationStrategyRecord(ComputationStrategyType.GeoRegionMatchOnPoint, false,
     Some(Seq("geom-1234")),
     Some(JObject(Map("region" -> JString("wards")))))
   val columnSpec = MinimalColumnRecord(ColumnId("ward-1234"), ColumnName("ward_id"), SoQLText, false,
