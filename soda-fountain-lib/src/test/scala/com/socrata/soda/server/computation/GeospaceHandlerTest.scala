@@ -78,19 +78,19 @@ class GeospaceHandlerTest extends FunSuite
 
   lazy val handler = new GeospaceHandler(testConfig, discovery)
 
-  override def beforeAll {
+  override def beforeAll() {
     startServices()
     server = ClientAndServer.startClientAndServer(port)
     cookie
   }
 
-  override def afterAll {
+  override def afterAll() {
     broker.deregister(cookie)
     server.stop
     stopServices()
   }
 
-  override def beforeEach {
+  override def beforeEach() {
     server.reset
   }
 
