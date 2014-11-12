@@ -68,10 +68,12 @@ class GeospaceHandlerTest extends FunSuite
   lazy val cookie = broker.register(port)
 
   val testConfig = ConfigFactory.parseMap(Map(
-    "service-name" -> "geospace",
-    "batch-size"   -> 2,
-    "max-retries"  -> 1,
-    "retry-wait"   -> "500ms"
+    "service-name"    -> "geospace",
+    "batch-size"      -> 2,
+    "max-retries"     -> 1,
+    "retry-wait"      -> "500ms",
+    "connect-timeout" -> "5000ms",
+    "read-timeout"    -> "5000ms"
   ).asJava)
 
   lazy val handler = new GeospaceHandler(testConfig, discovery)
