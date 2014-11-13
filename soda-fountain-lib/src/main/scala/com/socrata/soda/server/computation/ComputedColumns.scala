@@ -16,8 +16,11 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
    * Instantiates a computation handler handle a given computation strategy type.
    */
   val handlers = Map[ComputationStrategyType.Value, () => ComputationHandler](
-    ComputationStrategyType.GeoRegionMatchOnPoint -> (() => new GeoregionMatchOnPointHandler(handlersConfig.getConfig("geospace"),
-                                                                           discovery)),
-    ComputationStrategyType.Test      -> (() => new TestComputationHandler)
+    ComputationStrategyType.GeoRegionMatchOnPoint  -> (() => geoRegionMatchOnPointHandler),
+    ComputationStrategyType.GeoRegionMatchOnString -> (() => geoRegionMatchOnStringHandler),
+    ComputationStrategyType.Test                   -> (() => new TestComputationHandler)
   )
+
+  def geoRegionMatchOnPointHandler  = new GeoregionMatchOnPointHandler(handlersConfig.getConfig("geospace"), discovery)
+  def geoRegionMatchOnStringHandler = new GeoregionMatchOnStringHandler(handlersConfig.getConfig("geospace"), discovery)
 }

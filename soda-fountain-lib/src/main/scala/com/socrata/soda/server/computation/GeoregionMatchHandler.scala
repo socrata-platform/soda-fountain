@@ -50,10 +50,10 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
 
   /**
    * Constructs the Geospace region coding endpoint
-   * @param column Computed column definition
+   * @param computedColumn Computed column definition
    * @return       Geospace endpoint to be used for region coding
    */
-  protected def genEndpoint(column: ColumnRecordLike): String
+  protected def genEndpoint(computedColumn: ColumnRecordLike): String
 
   /**
    * Extracts the source column value given the key-value map of fields in the row
