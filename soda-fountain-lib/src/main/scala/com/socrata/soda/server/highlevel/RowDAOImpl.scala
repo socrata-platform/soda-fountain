@@ -4,17 +4,18 @@ import java.nio.charset.StandardCharsets
 
 import com.rojoma.json.ast._
 import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.http.server.implicits._
 import com.socrata.http.server.util.{NoPrecondition, Precondition, StrongEntityTag}
-import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
+import com.socrata.http.server.util.RequestId.{ReqIdHeader, RequestId}
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
+import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels._
-import com.socrata.soda.server.SodaUtils
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -100,8 +101,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   private def getRows(ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime],
                       query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
                       requestId: RequestId, resourceScope: ResourceScope): Result = {
-    val extraHeaders = Map(ReqIdHeader -> requestId,
-                           SodaUtils.ResourceHeader -> ds.resourceName.name)
+    val extraHeaders = Map(ReqIdHeader              -> requestId,
+                           SodaUtils.ResourceHeader -> ds.resourceName.name,
+                           "X-SODA2-DataVersion"    -> ds.truthVersion.toString,
+                           "X-SODA2-LastModified"   -> ds.lastModified.toHttpDate)
     qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount,
              copy, secondaryInstance, noRollup, extraHeaders, resourceScope) {
       case QueryCoordinatorClient.Success(etags, rollup, response) =>
@@ -120,6 +123,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             )
             // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
             QuerySuccess(etags, ds.truthVersion, ds.lastModified, rollup, simpleSchema, rows)
+          case err: CJson.Result =>
+            throw new RuntimeException(err.getClass.getName)
         }
       case QueryCoordinatorClient.UserError(code, response) =>
         RowDAO.InvalidRequest(code, response)
