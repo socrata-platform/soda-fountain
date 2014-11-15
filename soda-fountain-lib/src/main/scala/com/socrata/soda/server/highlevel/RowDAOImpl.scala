@@ -101,10 +101,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   private def getRows(ds: DatasetRecord, precondition: Precondition, ifModifiedSince: Option[DateTime],
                       query: String, rowCount: Option[String], copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
                       requestId: RequestId, resourceScope: ResourceScope): Result = {
-    val extraHeaders = Map(ReqIdHeader -> requestId,
+    val extraHeaders = Map(ReqIdHeader              -> requestId,
                            SodaUtils.ResourceHeader -> ds.resourceName.name,
-                           "X-SODA2-DataVersion" -> ds.truthVersion.toString,
-                           "X-SODA2-LastModified" -> ds.lastModified.toHttpDate)
+                           "X-SODA2-DataVersion"    -> ds.truthVersion.toString,
+                           "X-SODA2-LastModified"   -> ds.lastModified.toHttpDate)
     qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount,
              copy, secondaryInstance, noRollup, extraHeaders, resourceScope) {
       case QueryCoordinatorClient.Success(etags, rollup, response) =>
@@ -124,7 +124,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
             QuerySuccess(etags, ds.truthVersion, ds.lastModified, rollup, simpleSchema, rows)
           case err: CJson.Result =>
-            throw new Exception(err.getClass.getName)
+            throw new RuntimeException(err.getClass.getName)
         }
       case QueryCoordinatorClient.UserError(code, response) =>
         RowDAO.InvalidRequest(code, response)
