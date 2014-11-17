@@ -33,7 +33,7 @@ object SodaFountainLib {
       soqlBrita,
       soqlStandaloneParser,
       soqlStdLib exclude ("javax.media", "jai_core"),
-      soqlTypes,
+      soqlTypes exclude ("javax.media", "jai_core"),
       typesafeConfig,
       Test.apacheCurator,
       Test.mockito,
