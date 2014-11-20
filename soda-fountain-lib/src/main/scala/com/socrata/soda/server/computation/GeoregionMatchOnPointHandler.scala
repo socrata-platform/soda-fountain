@@ -5,15 +5,10 @@ import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRecordLike}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNull, SoQLPoint}
+import com.socrata.thirdparty.geojson.JtsCodecs.CoordinateCodec
 import com.typesafe.config.Config
+import com.vividsolutions.jts.geom.Coordinate
 import org.apache.curator.x.discovery.ServiceDiscovery
-
-/**
- * Represents a [x,y] location to be georegion coded
- * @param x Longitude
- * @param y Latitude
- */
-case class Point(x: Double, y: Double)
 
 /**
  * A [[ComputationHandler]] that uses Geospace to match a row to a georegion,
@@ -24,7 +19,7 @@ case class Point(x: Double, y: Double)
  * @tparam T        ServiceDiscovery payload type
  */
 class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscovery[T])
-  extends GeoregionMatchHandler[T, Point](config, discovery) {
+  extends GeoregionMatchHandler[T, Coordinate](config, discovery) {
 
   /**
    * Constructs the Geospace region coding endpoint. Format is:
@@ -53,9 +48,9 @@ class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscover
    * @param colName Name of the point column
    * @return        Value of the source column as a Point(x,y)
    */
-  protected def extractSourceColumnValueFromRow(rowmap: SoQLRow, colName: ColumnName): Option[Point] =
+  protected def extractSourceColumnValueFromRow(rowmap: SoQLRow, colName: ColumnName): Option[Coordinate] =
     rowmap.get(colName.name) match {
-      case Some(point: SoQLPoint) => Some(Point(point.value.getX, point.value.getY))
+      case Some(point: SoQLPoint) => Some(new Coordinate(point.value.getX, point.value.getY))
       case Some(SoQLNull)         => None
       case Some(x)                => throw MaltypedDataEx(colName, SoQLPoint, x.typ)
       case None                   => None
@@ -67,5 +62,5 @@ class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscover
    * @param point Point object
    * @return      Point value in the format expected by Geospace
    */
-  protected def toJValue(point: Point): JValue = JArray(Seq(JNumber(point.x), JNumber(point.y)))
+  protected def toJValue(point: Coordinate): JValue = CoordinateCodec.encode(point)
 }

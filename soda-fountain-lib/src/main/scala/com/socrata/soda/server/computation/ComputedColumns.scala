@@ -21,6 +21,6 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
     ComputationStrategyType.Test                   -> (() => new TestComputationHandler)
   )
 
-  def geoRegionMatchOnPointHandler  = new GeoregionMatchOnPointHandler(handlersConfig.getConfig("geospace"), discovery)
-  def geoRegionMatchOnStringHandler = new GeoregionMatchOnStringHandler(handlersConfig.getConfig("geospace"), discovery)
+  private def geoRegionMatchOnPointHandler  = new GeoregionMatchOnPointHandler(handlersConfig.getConfig("geospace"), discovery)
+  private def geoRegionMatchOnStringHandler = new GeoregionMatchOnStringHandler(handlersConfig.getConfig("geospace"), discovery)
 }

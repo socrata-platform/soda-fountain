@@ -235,19 +235,19 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
   }
 
   test("Will throw IllegalArgumentException when column is not computed") {
-    val badSpec = mock[ColumnRecordLike]
-    when(badSpec.computationStrategy).thenReturn(None)
+    val badColumnSpec = mock[ColumnRecordLike]
+    when(badColumnSpec.computationStrategy).thenReturn(None)
 
     val ex = the [IllegalArgumentException] thrownBy {
-      handler.compute(testRows.iterator, badSpec)
+      handler.compute(testRows.iterator, badColumnSpec)
     }
 
     ex.getMessage must include ("No computation strategy found")
   }
 
   test("Will throw IllegalArgumentException when missing region parameter") {
-    val badSpec = mock[ColumnRecordLike]
-    when(badSpec.computationStrategy).thenReturn(Some(
+    val badColumnSpec = mock[ColumnRecordLike]
+    when(badColumnSpec.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnPoint,
         false,
@@ -255,14 +255,14 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
         Some(JObject(Map())))))
 
     val ex = the [IllegalArgumentException] thrownBy {
-      handler.compute(testRows.iterator, badSpec).next()
+      handler.compute(testRows.iterator, badColumnSpec).next()
     }
     ex.getMessage must include ("parameters does not contain 'region'")
   }
 
   test("Will throw IllegalArgumentException when missing source columns") {
-    val badSpec = mock[ColumnRecordLike]
-    when(badSpec.computationStrategy).thenReturn(Some(
+    val badColumnSpec = mock[ColumnRecordLike]
+    when(badColumnSpec.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnPoint,
         false,
@@ -270,7 +270,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
         null)))
 
     val ex = the [IllegalArgumentException] thrownBy {
-      handler.compute(testRows.iterator, badSpec)
+      handler.compute(testRows.iterator, badColumnSpec)
     }
     ex.getMessage must include ("Source column was not defined " +
       "in computation strategy")
