@@ -10,6 +10,9 @@ object ComputationStrategyType extends Enumeration {
   val GeoRegionMatchOnPoint = Value("georegion_match_on_point")
   val GeoRegionMatchOnString = Value("georegion_match_on_string")
   val Test      = Value("test")
+
+  // For backwards compatibility. Superceded by georegion_match_on_point
+  val GeoRegion = Value("georegion")
 }
 
 object ComputationStrategyTypeCodec extends JsonCodec[ComputationStrategyType.Value] {
