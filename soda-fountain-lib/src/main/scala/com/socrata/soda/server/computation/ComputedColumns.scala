@@ -18,7 +18,10 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
   val handlers = Map[ComputationStrategyType.Value, () => ComputationHandler](
     ComputationStrategyType.GeoRegionMatchOnPoint  -> (() => geoRegionMatchOnPointHandler),
     ComputationStrategyType.GeoRegionMatchOnString -> (() => geoRegionMatchOnStringHandler),
-    ComputationStrategyType.Test                   -> (() => new TestComputationHandler)
+    ComputationStrategyType.Test                   -> (() => new TestComputationHandler),
+
+    // For backwards compatibility only. Replaced by GeoRegionMatchOnPoint
+    ComputationStrategyType.GeoRegion              -> (() => geoRegionMatchOnPointHandler)
   )
 
   private def geoRegionMatchOnPointHandler  = new GeoregionMatchOnPointHandler(handlersConfig.getConfig("geospace"), discovery)
