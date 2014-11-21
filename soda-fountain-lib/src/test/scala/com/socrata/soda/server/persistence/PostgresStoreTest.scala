@@ -105,7 +105,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         "Ward where the crime took place",
         false,
         Some(ComputationStrategyRecord(
-          ComputationStrategyType.GeoRegion,
+          ComputationStrategyType.GeoRegionMatchOnPoint,
           true,
           Some(Seq("location")),
           Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))
