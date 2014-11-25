@@ -4,7 +4,7 @@ import com.rojoma.json.ast._
 import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRecordLike}
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.{SoQLNumber, SoQLText}
+import com.socrata.soql.types.{SoQLNull, SoQLNumber, SoQLText}
 import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
 
@@ -56,8 +56,8 @@ class GeoregionMatchOnStringHandler[T](config: Config, discovery: ServiceDiscove
       case Some(SoQLText(str))   => Some(str)
       case Some(SoQLNumber(num)) => Some(num.toString) // Zip codes etc. might be a number.
                                                        // Or is this going to bite us later?
+      case Some(SoQLNull) | None => None
       case Some(x)               => throw MaltypedDataEx(colName, SoQLText, x.typ)
-      case None                  => None
     }
 
   /**
