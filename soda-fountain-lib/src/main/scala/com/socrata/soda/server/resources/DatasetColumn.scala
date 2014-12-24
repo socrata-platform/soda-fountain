@@ -1,5 +1,6 @@
 package com.socrata.soda.server.resources
 
+import com.rojoma.json.ast.JString
 import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -47,6 +48,8 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
         SodaUtils.errorResponse(req, HttpMethodNotAllowed(method, Seq("GET", "PATCH")))
       case ColumnDAO.NonUniqueRowId(column) =>
         SodaUtils.errorResponse(req, NonUniqueRowId(column.name))
+      case ColumnDAO.InvalidDatasetState(data) => BadRequest ~> SodaUtils.JsonContent(data - "dataset")
+      case ColumnDAO.UserError(code, data) => BadRequest ~> SodaUtils.JsonContent(data + ("code" -> JString(code)))
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
         if(isGet) {
           log.info("TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified")
