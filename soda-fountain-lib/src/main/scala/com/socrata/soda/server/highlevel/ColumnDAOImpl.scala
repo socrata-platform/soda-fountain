@@ -1,5 +1,6 @@
 package com.socrata.soda.server.highlevel
 
+import com.rojoma.json.ast.JValue
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.copy.Latest
@@ -118,8 +119,12 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                   case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
                     retry()
-                  case DataCoordinatorClient.UpsertUserError(code, data) if code == "update.row-identifier.duplicate-values" =>
-                    ColumnDAO.NonUniqueRowId(columnRecord)
+                  case DataCoordinatorClient.UpsertUserError(code, data) =>
+                    code match {
+                      case "update.row-identifier.duplicate-values" => ColumnDAO.NonUniqueRowId(columnRecord)
+                      case "update.dataset.invalid-state" => ColumnDAO.InvalidDatasetState(data)
+                      case otherCode => ColumnDAO.UserError(otherCode, data)
+                    }
                 }
               }
             case None =>

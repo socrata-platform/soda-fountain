@@ -1,5 +1,6 @@
 package com.socrata.soda.server.highlevel
 
+import com.rojoma.json.ast.JValue
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.server.id.ResourceName
@@ -39,4 +40,6 @@ object ColumnDAO {
   case class InvalidColumnName(name: ColumnName) extends Result
   case class InvalidRowIdOperation(columnRec: ColumnRecord, method: String) extends Result
   case class NonUniqueRowId(rec: ColumnRecord) extends Result
+  case class InvalidDatasetState(data: Map[String, JValue]) extends Result
+  case class UserError(code: String, data: Map[String, JValue]) extends Result
 }
