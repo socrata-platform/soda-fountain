@@ -2,10 +2,16 @@
 # Run soda fountain migrations.
 # See README file for options - but command can be migrate / undo / redo
 BASEDIR=$(dirname $0)/..
-if [ -e "$BASEDIR/../docs/onramp/services/soda2.conf" ]; then
-    CONFIG=${SODA_CONFIG:-$BASEDIR/../docs/onramp/services/soda2.conf}
+if [ -z "$SODA_CONFIG" ]; then
+    if [ -e "$BASEDIR/../docs/onramp/services/soda2.conf" ]; then
+        echo "Using soda2.conf from docs directory"
+        CONFIG="$BASEDIR/../docs/onramp/services/soda2.conf"
+    else
+        echo "Failed to access sample soda2.conf in $BASEDIR/../docs/onramp/services/. Have you cloned the docs repo?"; exit; 
+    fi
 else
-    echo "Failed to access sample soda2.conf in $BASEDIR/../docs/onramp/services/. Have you cloned the docs repo?"; exit; 
+    echo "Using soda2.conf specified in $SODA_CONFIG environment variable"
+    CONFIG=$SODA_CONFIG
 fi
 JARFILE=$BASEDIR/soda-fountain-jetty/target/scala-2.10/soda-fountain-jetty-assembly-*.jar
 if [ ! -e $JARFILE ]; then
