@@ -9,6 +9,7 @@ import com.socrata.soda.server.wiremodels.{ColumnSpec, ComputationStrategyType}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText}
 import org.joda.time.DateTime
+import org.joda.time.chrono.ISOChronology
 import org.scalatest.ShouldMatchers
 
 class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers with DatasetsForTesting {
@@ -219,7 +220,14 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     implicit def dateTimeOrdering: Ordering[DateTime] = Ordering.fromLessThan(_ isBefore _)
 
     // snapshots have the right info
-    val published = Tuple3(6, 6, new DateTime(Long.MaxValue)) // number of columns, data version, updated at
+    val chron = ISOChronology.getInstance()
+    val maxDateTime = new DateTime(
+      chron.year().getMaximumValue,
+      chron.monthOfYear().getMaximumValue,
+      chron.dayOfMonth().getMaximumValue,
+      chron.hourOfDay().getMaximumValue,
+      chron.minuteOfHour().getMaximumValue)
+    val published = Tuple3(6, 6, maxDateTime) // number of columns, data version, updated at
     datasets.foldLeft(published) { (state, ds) =>
       ds.columns.size should be (state._1)
       ds.truthVersion should be (state._2)
