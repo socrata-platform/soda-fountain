@@ -37,8 +37,7 @@ object Dependencies {
 
   val apacheCuratorDiscovery   = "org.apache.curator" % "curator-x-discovery"   % versions.apacheCurator
 
-  val balboaClient             = "com.socrata"     %% "balboa-client"               % versions.balboa
-  val balboaCommon             = "com.socrata"     %% "balboa-common"               % versions.balboa
+  val balboaClient             = "com.socrata"     %% "balboa-client"               % versions.balboa exclude("org.slf4j", "slf4j-simple")
 
   val c3po                     = "com.mchange"      % "c3p0"                        % versions.c3po
 
@@ -71,7 +70,7 @@ object Dependencies {
   val scalajHttp               = "org.scalaj"      %% "scalaj-http"                 % versions.scalaj
 
   val socrataHttpClient        = "com.socrata"     %% "socrata-http-client"         % versions.socrataHttp
-  val socrataHttpCuratorBroker = "com.socrata"     %% "socrata-http-curator-broker" % versions.socrataHttp
+  val socrataHttpCuratorBroker = "com.socrata"     %% "socrata-http-curator-broker" % versions.socrataHttp exclude("org.slf4j", "slf4j-simple")
   val socrataHttpJetty         = "com.socrata"     %% "socrata-http-jetty"          % versions.socrataHttp
   val socrataHttpServer        = "com.socrata"     %% "socrata-http-server"         % versions.socrataHttp
 
