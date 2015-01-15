@@ -1,6 +1,6 @@
 package com.socrata.soda.server.resources
 
-import com.rojoma.json.ast.{JBoolean, JObject}
+import com.rojoma.json.v3.ast.{JBoolean, JObject}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.clients.geospace.GeospaceClient
@@ -14,7 +14,7 @@ case class HealthZ(geospace: GeospaceClient) {
       val geospaceOk = geospace.versionCheck
       val status = if (geospaceOk) OK else InternalServerError
 
-      (status ~> SodaUtils.JsonContent(JObject(Map("geospace_ok" -> JBoolean(geospaceOk)))))(response)
+      (status ~> Json(JObject(Map("geospace_ok" -> JBoolean(geospaceOk)))))(response)
     }
   }
 }

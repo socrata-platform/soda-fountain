@@ -1,7 +1,8 @@
 package com.socrata.soda.server.resources
 
-import com.rojoma.json.io.JsonReader
+import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.simplearm.util._
+import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.server.SodaUtils
@@ -22,9 +23,9 @@ object Version {
 
     def response = {
       log.info("TODO: Negotiate content-type")
-      OK ~> SodaUtils.JsonContent(responseJ)
+      OK ~> Json(responseJ)
     }
 
-    override val get = (_: HttpServletRequest) => response
+    override val get = (_: HttpRequest) => response
   }
 }

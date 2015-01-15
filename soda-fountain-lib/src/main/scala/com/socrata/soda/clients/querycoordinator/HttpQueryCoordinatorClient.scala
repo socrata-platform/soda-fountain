@@ -1,11 +1,9 @@
 package com.socrata.soda.clients.querycoordinator
 
-import java.io.Closeable
-
 import scala.io.{Codec, Source}
 
-import com.rojoma.json.ast.JValue
-import com.rojoma.json.util.{JsonArrayIterator, JsonUtil}
+import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
@@ -14,7 +12,6 @@ import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, DatasetId}
 import com.socrata.soql.environment.ColumnName
-import org.apache.http.HttpStatus
 import org.joda.time.DateTime
 
 trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
@@ -35,7 +32,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String],
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean, extraHeaders: Map[String, String],
     rs: ResourceScope)(f: Result => T): T = {
-    import HttpStatus._
+    import org.apache.http.HttpStatus._
 
     def resultFrom(response: Response): Result = {
       response.resultCode match {

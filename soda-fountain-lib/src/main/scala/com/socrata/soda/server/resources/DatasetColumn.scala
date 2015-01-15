@@ -1,18 +1,17 @@
 package com.socrata.soda.server.resources
 
-import com.rojoma.json.ast.JString
-import com.socrata.http.server.HttpResponse
+import com.rojoma.json.v3.ast.{JString => JStringV3}
+import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
-import com.socrata.http.server.util.{EntityTag, Precondition}
-import com.socrata.http.server.util.RequestId
+import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
+import com.socrata.soda.server._
 import com.socrata.soda.server.computation.ComputedColumnsLike
-import com.socrata.soda.server.errors.{NonUniqueRowId, HttpMethodNotAllowed, ResourceNotModified, EtagPreconditionFailed}
+import com.socrata.soda.server.errors.{EtagPreconditionFailed, HttpMethodNotAllowed, NonUniqueRowId, ResourceNotModified}
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
-import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, IOProblem, UserProvidedColumnSpec}
-import com.socrata.soda.server.{LogTag, SodaUtils}
+import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletRequest
 
@@ -21,7 +20,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
   val computeUtils = new ComputeUtils(columnDAO, exportDAO, rowDAO, computedColumns)
   val defaultSuffix = Array[Byte]('+')
 
-  def withColumnSpec(request: HttpServletRequest, logTags: LogTag*)(f: UserProvidedColumnSpec => Unit): Unit = {
+  def withColumnSpec(request: HttpRequest, logTags: LogTag*)(f: UserProvidedColumnSpec => Unit): Unit = {
     UserProvidedColumnSpec.fromRequest(request, maxDatumSize) match {
       case Extracted(datasetSpec) =>
         f(datasetSpec)
@@ -37,10 +36,10 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     def prepareETag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(etagSuffix))
     result match {
       case ColumnDAO.Created(column, etagOpt) =>
-        etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> SodaUtils.JsonContent(column.asSpec)
-      case ColumnDAO.Updated(column, etag) => OK ~> SodaUtils.JsonContent(column.asSpec)
-      case ColumnDAO.Found(ds, column, etag) => OK ~> SodaUtils.JsonContent(column.asSpec)
-      case ColumnDAO.Deleted(column, etag) => OK ~> SodaUtils.JsonContent(column.asSpec)
+        etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> Json(column.asSpec)
+      case ColumnDAO.Updated(column, etag) => OK ~> Json(column.asSpec)
+      case ColumnDAO.Found(ds, column, etag) => OK ~> Json(column.asSpec)
+      case ColumnDAO.Deleted(column, etag) => OK ~> Json(column.asSpec)
       case ColumnDAO.ColumnNotFound(column) => NotFound /* TODO: content */
       case ColumnDAO.DatasetNotFound(dataset) => NotFound /* TODO: content */
       case ColumnDAO.InvalidColumnName(column) => BadRequest /* TODO: content */
@@ -48,8 +47,8 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
         SodaUtils.errorResponse(req, HttpMethodNotAllowed(method, Seq("GET", "PATCH")))
       case ColumnDAO.NonUniqueRowId(column) =>
         SodaUtils.errorResponse(req, NonUniqueRowId(column.name))
-      case ColumnDAO.InvalidDatasetState(data) => BadRequest ~> SodaUtils.JsonContent(data - "dataset")
-      case ColumnDAO.UserError(code, data) => BadRequest ~> SodaUtils.JsonContent(data + ("code" -> JString(code)))
+      case ColumnDAO.InvalidDatasetState(data) => BadRequest ~> Json(data - "dataset")
+      case ColumnDAO.UserError(code, data) => BadRequest ~> Json(data + ("code" -> JStringV3(code)))
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
         if(isGet) {
           log.info("TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified")
@@ -62,7 +61,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     }
   }
 
-  def checkPrecondition(req: HttpServletRequest, suffix: Array[Byte] = defaultSuffix, isGet: Boolean = false)
+  def checkPrecondition(req: HttpRequest, suffix: Array[Byte] = defaultSuffix, isGet: Boolean = false)
                        (op: Precondition => Unit): Unit = {
     req.precondition.map(etagObfuscator.deobfuscate).filter(_.endsWith(suffix)) match {
       case Right(preconditionRaw) =>

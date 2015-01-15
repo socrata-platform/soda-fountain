@@ -1,10 +1,15 @@
 package com.socrata.soda.server.metrics
 
-import com.rojoma.json.ast.JString
+import javax.servlet.http.HttpServletRequest
+
+import com.rojoma.json.v3.ast.JString
 import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.http.server.HttpRequest
+import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.Precondition
 import com.socrata.soda.clients.datacoordinator.RowUpdate
+import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.highlevel.{DatasetDAO, RowDAO}
 import com.socrata.soda.server.highlevel.ExportDAO.CSchema
@@ -116,11 +121,12 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
     val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO], NoopEtagObfuscator, 1000, null, provider)
-    val mockReq = new MockHttpServletRequest()
-    mockReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}/some-row-id.json")
-    headers.foreach(header => mockReq.addHeader(header._1, header._2))
-
-    mockResource.rowService(dataset.resource, new RowSpecifier("some-row-id")).get(mockReq)(new MockHttpServletResponse())
+    val mockServReq = new MockHttpServletRequest()
+    mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}/some-row-id.json")
+    headers.foreach(header => mockServReq.addHeader(header._1, header._2))
+    val augReq = new AugmentedHttpServletRequest(mockServReq)
+    val httpReq = httpRequest(augReq)
+    mockResource.rowService(dataset.resource, new RowSpecifier("some-row-id")).get(httpReq)(new MockHttpServletResponse())
   }
 }
 
@@ -176,12 +182,14 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
+    val mockServReq = new MockHttpServletRequest()
+    val augReq = new AugmentedHttpServletRequest(mockServReq)
+    mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}.json")
+    headers.foreach(header => mockServReq.addHeader(header._1, header._2))
+    val httpReq = httpRequest(augReq)
     val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO], NoopEtagObfuscator, 1000, null, provider)
-    val mockReq = new MockHttpServletRequest()
-    mockReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}.json")
-    headers.foreach(header => mockReq.addHeader(header._1, header._2))
 
-    mockResource.service(OptionallyTypedPathComponent(dataset.resource, None)).get(mockReq)(new MockHttpServletResponse())
+    mockResource.service(OptionallyTypedPathComponent(dataset.resource, None)).get(httpReq)(new MockHttpServletResponse())
   }
 }
 

@@ -1,28 +1,32 @@
 package com.socrata.soda.server.util.schema
 
+import com.rojoma.json.v3.ast.{JObject, JString, JValue}
+import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
+import com.rojoma.json.v3.codec.DecodeError.InvalidValue
+import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
+import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.soda.server.id.ColumnId
-import com.socrata.soql.types.SoQLType
-import com.rojoma.json.util.AutomaticJsonCodecBuilder
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.ast.{JValue, JString, JObject}
 import com.socrata.soql.environment.TypeName
+import com.socrata.soql.types.SoQLType
 
 case class SchemaSpec(hash: String, locale: String, pk: ColumnId, schema: Map[ColumnId, SoQLType])
 object SchemaSpec {
-  private implicit val anotherMapCodec = new JsonCodec[Map[ColumnId, SoQLType]] {
+  private implicit val anotherMapCodec = new JsonEncode[Map[ColumnId, SoQLType]] with JsonDecode[Map[ColumnId, SoQLType]] {
     def encode(x: Map[ColumnId, SoQLType]) = JObject(x.map(pair => (pair._1.underlying, JString(pair._2.name.name))))
-    def decode(x: JValue): Option[Map[ColumnId, SoQLType]] = x match {
+    def decode(x: JValue): DecodeResult[Map[ColumnId, SoQLType]] = x match {
       case JObject(m) =>
         val result = Map.newBuilder[ColumnId, SoQLType]
         m foreach {
           case (col, JString(typname)) =>
-            result += new ColumnId(col) -> SoQLType.typesByName.get(TypeName(typname)).getOrElse { return None }
+            result += new ColumnId(col) -> SoQLType.typesByName.get(TypeName(typname)).getOrElse {
+              return Left(InvalidValue(x))
+            }
           case _ =>
-            return None
+            return Left(InvalidValue(x))
         }
-        Some(result.result())
+        Right(result.result())
       case _ =>
-        None
+        Left(InvalidValue(x))
     }
   }
 

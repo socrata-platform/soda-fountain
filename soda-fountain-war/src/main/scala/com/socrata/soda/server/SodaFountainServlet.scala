@@ -1,8 +1,11 @@
 package com.socrata.soda.server
 
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest, HttpServlet}
-import com.typesafe.config.ConfigFactory
+import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.http.server.HttpRequest
+import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.soda.server.config.SodaFountainConfig
+import com.typesafe.config.ConfigFactory
+import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
 class SodaFountainServlet extends HttpServlet {
   var fountain: SodaFountain = null
@@ -19,6 +22,9 @@ class SodaFountainServlet extends HttpServlet {
 
   // just cut out all the doGet etc nonsense and handle the request ourselves.
   override def service(req: HttpServletRequest, resp: HttpServletResponse) {
-    fountain.handle(req)(resp)
+
+    val httpReq = httpRequest(req)
+
+    fountain.handle(httpReq)(resp)
   }
 }

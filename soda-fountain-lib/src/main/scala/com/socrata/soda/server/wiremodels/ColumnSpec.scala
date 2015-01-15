@@ -1,13 +1,13 @@
 package com.socrata.soda.server.wiremodels
 
-import scala.{collection => sc}
-import com.rojoma.json.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
-import com.socrata.soda.server.id.ColumnId
-import com.socrata.soql.environment.{TypeName, ColumnName}
-import com.socrata.soql.types.SoQLType
-import com.rojoma.json.ast.{JValue, JObject}
 
+import scala.{collection => sc}
+import com.rojoma.json.v3.ast.{JValue, JObject}
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
+import com.socrata.soql.environment.{TypeName, ColumnName}
+import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
+import com.socrata.soql.types.SoQLType
 import InputUtils._
 import com.socrata.soda.server.errors.{ColumnSpecMaltyped, ColumnSpecUnknownType}
 

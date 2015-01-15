@@ -1,7 +1,8 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.ast.{JValue, JString}
-import com.rojoma.json.codec.JsonCodec
+import com.rojoma.json.v3.ast.{JValue, JString}
+import com.rojoma.json.v3.codec.DecodeError.{InvalidType, InvalidValue}
+import com.rojoma.json.v3.codec._
 import scala.util.Try
 
 object ComputationStrategyType extends Enumeration {
@@ -15,10 +16,11 @@ object ComputationStrategyType extends Enumeration {
   val GeoRegion = Value("georegion")
 }
 
-object ComputationStrategyTypeCodec extends JsonCodec[ComputationStrategyType.Value] {
+object ComputationStrategyTypeCodec extends JsonEncode[ComputationStrategyType.Value] with JsonDecode[ComputationStrategyType.Value] {
   def encode(v: ComputationStrategyType.Value) = JString(v.toString)
   def decode(x: JValue) = x match {
-    case JString(s) => Try(ComputationStrategyType.withName(s)).toOption
-    case _ => None
+    case JString(s) =>
+      Try(ComputationStrategyType.withName(s)).toOption.map(Right(_)).getOrElse(Left(InvalidValue(x)))
+    case u => Left(InvalidType(JString, u.jsonType))
   }
 }

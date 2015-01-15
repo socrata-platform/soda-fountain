@@ -1,6 +1,7 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.ast._
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.conversions._
 import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.id.ColumnId
@@ -102,7 +103,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
             if (cr.computationStrategy.isDefined) {
               throw ComputedColumnNotWritableEx(cr.fieldName)
             }
-            rRep.fromJValue(uVal) match {
+            rRep.fromJValue(uVal.toV2) match {
               case Some(v) => (cr.id.underlying -> v) :: Nil
               case None => throw MaltypedDataEx(cr.fieldName, rRep.representedType, uVal)
             }
@@ -127,7 +128,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
       }
     case JArray(Seq(rowIdJval)) =>
       val pkCol = dataset.columnsById(dataset.primaryKey)
-      JsonColumnRep.forClientType(pkCol.typ).fromJValue(rowIdJval) match {
+      JsonColumnRep.forClientType(pkCol.typ).fromJValue(rowIdJval.toV2) match {
         case Some(soqlVal) => makeDeleteResponse(soqlVal)
         case None => throw MaltypedDataEx(pkCol.fieldName, pkCol.typ, rowIdJval)
       }
@@ -137,14 +138,14 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
 
   private def makeDeleteResponse(pk: SoQLValue): DeleteAsCJson = {
     val pkColumn = dataset.columnsById(dataset.primaryKey)
-    val idToDelete = JsonColumnRep.forDataCoordinatorType(pkColumn.typ).toJValue(pk)
+    val idToDelete = JsonColumnRep.forDataCoordinatorType(pkColumn.typ).toJValue(pk).toV3
     DeleteAsCJson(idToDelete)
   }
 
   private def soqlToDataCoordinatorJson(row: Map[String, SoQLValue]): Map[String, JValue] = {
     val rowWithDCJValues = row.map { case (uKey, uVal) =>
       columnIdCache.get(uKey) match {
-        case ColumnInfo(cr, rRep, wRep) => cr.id.underlying -> wRep.toJValue(uVal)
+        case ColumnInfo(cr, rRep, wRep) => cr.id.underlying -> wRep.toJValue(uVal).toV3
         case NoColumn(colName)          => throw UnknownColumnEx(colName)
       }
     }

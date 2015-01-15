@@ -3,11 +3,11 @@ package com.socrata.soda.server
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.SimpleRouteContext._
 import com.socrata.http.server.routing.{OptionallyTypedPathComponent, Extractor}
-import com.socrata.http.server.{HttpService, HttpResponse}
+import com.socrata.http.server.{HttpRequest, HttpService, HttpResponse}
+import com.socrata.soda.server._
 import com.socrata.soda.server.errors.GeneralNotFoundError
 import com.socrata.soda.server.id.{RollupName, RowSpecifier, SecondaryId, ResourceName}
 import com.socrata.soql.environment.ColumnName
-import javax.servlet.http.HttpServletRequest
 
 class SodaRouter(versionResource: HttpService,
                  healthZResource: HttpService,
@@ -71,7 +71,7 @@ class SodaRouter(versionResource: HttpService,
     Route("/compute/{ResourceName}/{ColumnName}", computeResource)
   )
 
-  def route(req: HttpServletRequest): HttpResponse =
+  def route(req: HttpRequest): HttpResponse =
     router(req.requestPath.map(InputNormalizer.normalize)) match {
       case Some(s) =>
         s(req)

@@ -1,7 +1,7 @@
 package com.socrata.soda.server.persistence
 
-import com.rojoma.json.ast.JObject
-import com.rojoma.json.util.AutomaticJsonCodecBuilder
+import com.rojoma.json.v3.ast.JObject
+import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec

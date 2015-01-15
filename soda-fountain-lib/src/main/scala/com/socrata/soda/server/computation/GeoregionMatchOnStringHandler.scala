@@ -1,6 +1,6 @@
 package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast._
+import com.rojoma.json.v3.ast._
 import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRecordLike}
 import com.socrata.soql.environment.ColumnName

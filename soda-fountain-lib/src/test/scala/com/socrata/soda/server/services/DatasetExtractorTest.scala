@@ -1,13 +1,13 @@
 package com.socrata.soda.server.services
 
 import org.scalatest.{Matchers, FunSuite}
-import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
-import com.rojoma.json.util.JsonUtil
-import com.rojoma.json.ast.{JString, JObject}
+import com.rojoma.json.v3.io.{JsonReader, CompactJsonWriter}
+import com.rojoma.json.v3.util.JsonUtil
+import com.rojoma.json.v3.ast.{JString, JObject}
 import com.socrata.soda.server.wiremodels._
 
 class DatasetExtractorTest extends FunSuite with Matchers {
-  def extract(input: String) = UserProvidedDatasetSpec.fromObject(JsonUtil.parseJson[JObject](input).get)
+  def extract(input: String) = UserProvidedDatasetSpec.fromObject(JsonUtil.parseJson[JObject](input).right.get)
 
   //TODO: enable these tests with a mock http request
   /*

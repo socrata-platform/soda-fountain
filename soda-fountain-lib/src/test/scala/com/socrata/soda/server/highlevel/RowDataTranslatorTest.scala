@@ -1,6 +1,6 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.ast._
+import com.rojoma.json.v3.ast._
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.{TestComputedColumns, DatasetsForTesting}
 import com.socrata.soda.server.highlevel.RowDataTranslator._

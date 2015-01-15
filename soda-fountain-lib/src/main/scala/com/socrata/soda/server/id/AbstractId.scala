@@ -1,7 +1,10 @@
 package com.socrata.soda.server.id
 
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.ast.{JString, JValue}
+import com.rojoma.json.v3.ast.{JString, JValue}
+import com.rojoma.json.v3.codec._
+import com.rojoma.json.v3.codec.DecodeError.InvalidType
+import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
+import com.rojoma.json.v3.codec.JsonEncode
 
 trait AbstractId {
   def underlying: String
@@ -10,26 +13,28 @@ trait AbstractId {
 case class DatasetId(underlying: String) extends AbstractId {
   def nativeDataCoordinator = underlying.substring(0, underlying.lastIndexOf('.'))
 }
+
 object DatasetId {
-  implicit val jCodec = new JsonCodec[DatasetId] {
+  implicit val jCodec = new JsonEncode[DatasetId] with JsonDecode[DatasetId] {
     def encode(x: DatasetId): JValue = JString(x.underlying)
-    def decode(x: JValue): Option[DatasetId] = x match {
-      case JString(n) => Some(DatasetId(n))
-      case _ => None
+    def decode(x: JValue): DecodeResult[DatasetId] = x match {
+      case JString(n) => Right(DatasetId(n))
+      case u => Left(InvalidType(JString, u.jsonType))
     }
   }
 }
 
 case class ColumnId(underlying: String) extends AbstractId
 object ColumnId {
-  implicit val jCodec = new JsonCodec[ColumnId] {
+  implicit val jCodec = new JsonEncode[ColumnId] with JsonDecode[ColumnId] {
     def encode(x: ColumnId): JValue = JString(x.underlying)
 
-    def decode(x: JValue): Option[ColumnId] = x match {
-      case JString(n) => Some(ColumnId(n))
-      case _ => None
+    def decode(x: JValue): DecodeResult[ColumnId] = x match {
+      case JString(n) => Right(ColumnId(n))
+      case u => Left(InvalidType(JString, u.jsonType))
     }
   }
+
   implicit val ordering = new Ordering[ColumnId] {
     def compare(x: ColumnId, y: ColumnId): Int = x.underlying.compareTo(y.underlying)
   }

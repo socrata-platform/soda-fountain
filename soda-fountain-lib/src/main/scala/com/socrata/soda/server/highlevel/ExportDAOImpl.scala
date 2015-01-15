@@ -1,8 +1,9 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.ast.{JValue, JArray}
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.util.{Strategy, JsonKeyStrategy, AutomaticJsonCodecBuilder}
+import com.rojoma.json.v3.ast.{JValue, JArray}
+import com.rojoma.json.v3.codec._
+import com.rojoma.json.v3.conversions._
+import com.rojoma.json.v3.util.{Strategy, JsonKeyStrategy, AutomaticJsonCodecBuilder}
 import com.socrata.http.server.util.{Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
@@ -30,8 +31,8 @@ object CJson {
   def decode(data: Iterator[JValue]): Result = {
     if(!data.hasNext) return NoSchemaPresent
     val schemaish = data.next()
-    JsonCodec.fromJValue[Schema](schemaish) match {
-      case Some(schema) =>
+    JsonDecode.fromJValue[Schema](schemaish) match {
+      case Right(schema) =>
         class Processor extends AbstractFunction1[JValue, Array[SoQLValue]] {
           val reps = schema.schema.map { f => JsonColumnRep.forDataCoordinatorType(f.t) : JsonColumnReadRep }
           val width = reps.length
@@ -41,7 +42,7 @@ object CJson {
               val result = new Array[SoQLValue](width)
               var i = 0
               while(i != width) {
-                reps(i).fromJValue(elems(i)) match {
+                reps(i).fromJValue(elems(i).toV2) match {
                   case Some(v) => result(i) = v
                   case None => throw new UndecodableValue(elems(i), schema.schema(i).t)
                 }
@@ -53,7 +54,7 @@ object CJson {
           }
         }
         Decoded(schema, data.map(new Processor))
-      case None =>
+      case Left(_) =>
         CannotDecodeSchema(schemaish)
     }
   }

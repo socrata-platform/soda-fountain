@@ -1,6 +1,6 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.ast._
+import com.rojoma.json.v3.ast._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, ResourceName, RollupName}
 import com.socrata.soql.environment.{ColumnName, TypeName}

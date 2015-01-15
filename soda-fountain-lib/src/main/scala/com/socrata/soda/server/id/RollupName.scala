@@ -1,7 +1,9 @@
 package com.socrata.soda.server.id
 
-import com.rojoma.json.ast.{JString, JValue}
-import com.rojoma.json.codec.JsonCodec
+import com.rojoma.json.v3.ast.{JString, JValue}
+import com.rojoma.json.v3.codec._
+import com.rojoma.json.v3.codec.DecodeError.InvalidValue
+import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
 import com.socrata.soql.environment.AbstractName
 
 class RollupName(s: String) extends AbstractName(s) {
@@ -9,12 +11,12 @@ class RollupName(s: String) extends AbstractName(s) {
 }
 
 object RollupName {
-  implicit object RollupNameCodec extends JsonCodec[RollupName] {
+  implicit object RollupNameCodec extends JsonEncode[RollupName] with JsonDecode[RollupName] {
     def encode(x: RollupName): JValue = JString(x.name)
 
-    def decode(x: JValue): Option[RollupName] = x match {
-      case JString(s) => Some(new RollupName(s))
-      case _ => None
+    def decode(x: JValue): DecodeResult[RollupName] = x match {
+      case JString(s) => Right(new RollupName(s))
+      case u => Left(InvalidValue(x))
     }
   }
 }

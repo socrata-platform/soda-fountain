@@ -1,25 +1,27 @@
 package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast._
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.io.JsonReader
+import java.math.{BigDecimal => BD}
+
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.codec._
+import com.rojoma.json.v3.conversions._
+import com.rojoma.json.v3.io.JsonReader
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.id.ColumnId
-import com.socrata.soda.server.persistence.{ColumnRecordLike, MinimalColumnRecord, ComputationStrategyRecord}
+import com.socrata.soda.server.persistence.{ColumnRecordLike, ComputationStrategyRecord, MinimalColumnRecord}
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.thirdparty.curator.{CuratorBroker, CuratorServiceIntegration}
 import com.typesafe.config.ConfigFactory
-import java.math.{ BigDecimal => BD }
 import org.apache.curator.x.discovery._
+import org.mockito.Matchers.{any, anyString}
+import org.mockito.Mockito.{verify, when}
 import org.mockserver.integration.ClientAndServer
 import org.mockserver.model.Header
 import org.scalatest._
 import org.scalatest.mock.MockitoSugar
-import org.mockito.Mockito.{when, verify}
-import org.mockito.Matchers.{any, anyString}
 
 trait GeoregionMatchOnPointHandlerData {
   val point1 = """{"type":"Point","coordinates":[47.6303,-122.3148]}"""
@@ -29,7 +31,7 @@ trait GeoregionMatchOnPointHandlerData {
   val multiLine = """{"type":"MultiLineString","coordinates":[[[100,0.123456789012],[101,1]],[[102,2],[103,3]]]}"""
 
   val pointRep = JsonColumnRep.forClientType(SoQLPoint)
-  def toSoQLPoint(str: String) = pointRep.fromJValue(JsonReader.fromString(str)).get.asInstanceOf[SoQLPoint]
+  def toSoQLPoint(str: String) = pointRep.fromJValue(JsonReader.fromString(str).toV2).get.asInstanceOf[SoQLPoint]
 
   val testRows = Seq[RowDataTranslator.Computable](
     DeleteAsCJson(JString("abcd-1234")),
@@ -56,11 +58,11 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     with CuratorServiceIntegration with MockitoSugar {
   override def configPrefix = "com.socrata.soda-fountain"
 
-  import collection.JavaConverters._
-  import ComputationHandler._
+  import com.socrata.soda.server.computation.ComputationHandler._
   import org.mockserver.model.HttpRequest._
   import org.mockserver.model.HttpResponse._
   import org.mockserver.model.StringBody
+  import scala.collection.JavaConverters._
 
   val port = 51234
   var server: ClientAndServer = _
@@ -172,8 +174,8 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
   }
 
   test("optionIntCodec.encode wraps JsonCodec[Int].encode") {
-    handler.optionIntCodec.encode(Some(1234)) must equal (JsonCodec[Int].encode(1234))
-    handler.optionIntCodec.encode(None) must equal (com.rojoma.json.ast.JNull)
+    handler.optionIntCodec.encode(Some(1234)) must equal (JsonEncode[Int].encode(1234))
+    handler.optionIntCodec.encode(None) must equal (JNull)
   }
 
   test("handler.compute() returns lazy iterator") {
@@ -200,7 +202,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
   }
 
   test("Will throw MaltypedDataEx if source column not right SoQLType") {
-    def converter(s: String) = JsonColumnRep.forClientType(SoQLMultiLine).fromJValue(JsonReader.fromString(s))
+    def converter(s: String) = JsonColumnRep.forClientType(SoQLMultiLine).fromJValue(JsonReader.fromString(s).toV2)
 
     // If not MultiLine
     intercept[MaltypedDataEx] {

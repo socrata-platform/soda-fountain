@@ -1,8 +1,9 @@
 package com.socrata.soda.server.export
 
 import com.rojoma.simplearm.util._
-import com.rojoma.json.ast._
-import com.rojoma.json.io.JsonReader
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.io.JsonReader
+import com.rojoma.json.v3.conversions._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.export.GeoJsonProcessor.InvalidGeoJsonSchema
@@ -40,32 +41,36 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
     )
 
     val geoJson = getGeoJson(columns, "hym8-ivsj", rows, false)
-    geoJson should be (JObject(Map(
-      "type"     -> JString("FeatureCollection"),
-      "features" -> JArray(Array(
-        JObject(Map(
-          "type"     -> JString("Feature"),
-          "geometry" -> JObject(Map(
-            "type" -> JString("Point"),
-            "coordinates" -> JArray(Array(JNumber(-122.314822),
-                                          JNumber(47.630269))))),
+
+    val expectedGeoJson =
+      JObject(Map(
+        "type"     -> JString("FeatureCollection"),
+        "features" -> JArray(Array(
+          JObject(Map(
+            "type"     -> JString("Feature"),
+            "geometry" -> JObject(Map(
+              "type" -> JString("Point"),
+              "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.314822"),
+                JNumber.unsafeFromString("47.630269"))))),
             "properties" -> JObject(Map("name" -> JString("Volunteer Park"))))),
-        JObject(Map(
-          "type"     -> JString("Feature"),
-          "geometry" -> JObject(Map(
-            "type" -> JString("Point"),
-            "coordinates" -> JArray(Array(JNumber(-122.319071),
-                                          JNumber(47.617296))))),
+          JObject(Map(
+            "type"     -> JString("Feature"),
+            "geometry" -> JObject(Map(
+              "type" -> JString("Point"),
+              "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.319071"),
+                JNumber.unsafeFromString("47.617296"))))),
             "properties" -> JObject(Map("name" -> JString("Cal Anderson Park"))))),
-        JObject(Map(
-          "type"     -> JString("Feature"),
-          "geometry" -> JObject(Map(
-            "type" -> JString("Point"),
-            "coordinates" -> JArray(Array(JNumber(-122.252513),
-                                          JNumber(47.555530))))),
-          "properties" -> JObject(Map("name" -> JString("Seward Park")))))
-      )),
-      expectedProjection)))
+          JObject(Map(
+            "type"     -> JString("Feature"),
+            "geometry" -> JObject(Map(
+              "type" -> JString("Point"),
+              "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.252513"),
+                JNumber.unsafeFromString("47.55553"))))), // in v3, we don't keep trailing 0s.  Was 47.555530
+            "properties" -> JObject(Map("name" -> JString("Seward Park")))))
+        )),
+        expectedProjection))
+
+    geoJson should be (expectedGeoJson)
   }
 
   test("Single row - dataset with single geo column") {
@@ -84,8 +89,8 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
           "type"     -> JString("Feature"),
           "geometry" -> JObject(Map(
             "type" -> JString("Point"),
-            "coordinates" -> JArray(Array(JNumber(-122.314822),
-              JNumber(47.630269))))),
+            "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.314822"),
+              JNumber.unsafeFromString("47.630269"))))),
           "properties" -> JObject(Map("name" -> JString("Volunteer Park"))),
           expectedProjection)))
   }
@@ -131,15 +136,15 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
           "type"     -> JString("Feature"),
           "geometry" -> JObject(Map(
             "type" -> JString("Point"),
-            "coordinates" -> JArray(Array(JNumber(-122.314822),
-              JNumber(47.630269))))),
+            "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.314822"),
+              JNumber.unsafeFromString("47.630269"))))),
           "properties" -> JObject(Map("name" -> JString("Volunteer Park"))))),
         JObject(Map(
           "type"     -> JString("Feature"),
           "geometry" -> JObject(Map(
             "type" -> JString("Point"),
-            "coordinates" -> JArray(Array(JNumber(-122.319071),
-              JNumber(47.617296))))),
+            "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.319071"),
+              JNumber.unsafeFromString("47.617296"))))),
           "properties" -> JObject(Map("name" -> JString("Cal Anderson Park"))))),
         JObject(Map(
           "type"     -> JString("Feature"),
@@ -149,8 +154,8 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
           "type"     -> JString("Feature"),
           "geometry" -> JObject(Map(
             "type" -> JString("Point"),
-            "coordinates" -> JArray(Array(JNumber(-122.252513),
-              JNumber(47.555530))))),
+            "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.252513"),
+              JNumber.unsafeFromString("47.55553"))))),
           "properties" -> JObject(Map("name" -> JString("Seward Park")))))
       )),
       expectedProjection)))
@@ -225,7 +230,7 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
 
   private def getDCRows(rows: Seq[Array[SoQLValue]]) = {
     val jValues = rows.map(_.map { cell =>
-      JsonColumnRep.forDataCoordinatorType(cell.typ).toJValue(cell)
+      JsonColumnRep.forDataCoordinatorType(cell.typ).toJValue(cell).toV3
     })
     jValues.map(JArray(_))
   }

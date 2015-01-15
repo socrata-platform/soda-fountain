@@ -1,14 +1,13 @@
 package com.socrata.soda.server.resources
 
 import com.socrata.http.server.routing.SimpleResource
-import com.socrata.http.server.{HttpResponse, HttpService}
+import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
+import com.socrata.soda.server._
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.errors.HttpMethodNotAllowed
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import org.apache.commons.codec.binary.Base64
-import org.joda.time.format.DateTimeFormat
 
 class SodaResource extends SimpleResource {
 
@@ -19,7 +18,7 @@ class SodaResource extends SimpleResource {
       HttpMethodNotAllowed(req.getMethod, allowed))
   }
 
-  def user(req: HttpServletRequest): String = {
+  def user(req: HttpRequest): String = {
     val fromHeader = for {
       authenticate <- req.header("Authenticate")
       if authenticate.startsWith("Basic ")

@@ -1,7 +1,7 @@
 package com.socrata.soda.clients.datacoordinator
 
-import com.rojoma.json.util._
-import com.rojoma.json.ast._
+import com.rojoma.json.v3.util._
+import com.rojoma.json.v3.ast._
 import com.socrata.soda.server.id.{SecondaryId, DatasetId}
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.http.server.util.{Precondition, EntityTag}

@@ -1,5 +1,7 @@
 package com.socrata.soda.server.resources
 
+import com.socrata.http.server.HttpRequest
+import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.soda.server.{TestComputedColumns, DatasetsForTesting}
 import com.socrata.soda.server.highlevel.{ColumnDAO, RowDAO, ExportDAO}
 import com.socrata.soda.server.id.ResourceName
@@ -34,7 +36,7 @@ class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsF
                                       exportResult = null)
     response.getStatus should equal (400)
   }
-  
+
   ignore("Success") {
     // TODO - fix this to work with function parameter in export
     val response = getComputeResponse(dataset = Some(ds),
@@ -52,6 +54,10 @@ class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsF
     val request = new MockHttpServletRequest()
     val response = new MockHttpServletResponse()
     val resource = new Compute(columnDAO, exportDAO, rowDAO, TestComputedColumns, NoopEtagObfuscator)
+
+    val httpReq = mock[HttpRequest]
+    val augReq = new AugmentedHttpServletRequest(request)
+    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
 
     val getColumnResponse = dataset match {
       case Some(d) => d.columnsByName.get(col) match {
@@ -73,7 +79,7 @@ class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsF
       }
     }
 
-    resource.service(dataset.getOrElse(ds).resourceName, col).post(request)(response)
+    resource.service(dataset.getOrElse(ds).resourceName, col).post(httpReq)(response)
     response
   }
 }

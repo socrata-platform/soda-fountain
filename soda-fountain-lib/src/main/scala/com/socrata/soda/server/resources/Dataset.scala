@@ -1,9 +1,10 @@
 package com.socrata.soda.server.resources
 
-import com.socrata.http.server.HttpResponse
+import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util.RequestId
+import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.errors.{RollupNotFound, RollupColumnNotFound, RollupCreationFailed}
 import com.socrata.soda.server.highlevel._
@@ -22,7 +23,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   val schemaHashHeaderName = "x-socrata-version-hash"
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Dataset])
 
-  def withDatasetSpec(request: HttpServletRequest, logTags: LogTag*)(f: UserProvidedDatasetSpec => HttpResponse): HttpResponse = {
+  def withDatasetSpec(request: HttpRequest, logTags: LogTag*)(f: UserProvidedDatasetSpec => HttpResponse): HttpResponse = {
     UserProvidedDatasetSpec.fromRequest(request, maxDatumSize) match {
       case Extracted(datasetSpec) =>
         f(datasetSpec)
@@ -33,7 +34,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
   }
 
-  def withRollupSpec(request: HttpServletRequest, logTags: LogTag*)(f: UserProvidedRollupSpec => HttpResponse): HttpResponse = {
+  def withRollupSpec(request: HttpRequest, logTags: LogTag*)(f: UserProvidedRollupSpec => HttpResponse): HttpResponse = {
     UserProvidedRollupSpec.fromRequest(request, maxDatumSize) match {
       case Extracted(datasetSpec) =>
         f(datasetSpec)
@@ -44,14 +45,14 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
   }
 
-  def response(req: HttpServletRequest, result: DatasetDAO.Result): HttpResponse = {
+  def response(req: HttpRequest, result: DatasetDAO.Result): HttpResponse = {
     // TODO: Negotiate content type
     log.info(s"sending response, result: ${result}")
     result match {
-      case DatasetDAO.Created(record) => Created ~> SodaUtils.JsonContent(record.asSpec)
-      case DatasetDAO.Updated(record) => OK ~> SodaUtils.JsonContent(record.asSpec)
-      case DatasetDAO.Found(record) => OK ~> SodaUtils.JsonContent(record.asSpec)
-      case DatasetDAO.DatasetVersion(vr) => OK ~> SodaUtils.JsonContent(vr)
+      case DatasetDAO.Created(record) => Created ~> Json(record.asSpec)
+      case DatasetDAO.Updated(record) => OK ~> Json(record.asSpec)
+      case DatasetDAO.Found(record) => OK ~> Json(record.asSpec)
+      case DatasetDAO.DatasetVersion(vr) => OK ~> Json(vr)
       case DatasetDAO.Deleted => NoContent
       case DatasetDAO.NotFound(dataset) => NotFound /* TODO: content */
       case DatasetDAO.InvalidDatasetName(name) => BadRequest /* TODO: content */

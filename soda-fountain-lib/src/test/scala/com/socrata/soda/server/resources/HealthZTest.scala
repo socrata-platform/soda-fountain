@@ -1,5 +1,6 @@
 package com.socrata.soda.server.resources
 
+import com.socrata.http.server.HttpRequest
 import com.socrata.soda.clients.geospace.GeospaceClient
 import org.scalamock.scalatest.proxy.MockFactory
 import org.scalatest.{Matchers, FunSuite}
@@ -21,8 +22,8 @@ class HealthZTest extends FunSuite with Matchers with MockFactory {
 
     val healthZ = HealthZ(geospace)
     val response = new MockHttpServletResponse()
-
-    healthZ.service.get(new MockHttpServletRequest())(response)
+    val request = mock[HttpRequest]
+    healthZ.service.get(request)(response)
     response.getStatus should equal (expectedResponseCode)
   }
 }

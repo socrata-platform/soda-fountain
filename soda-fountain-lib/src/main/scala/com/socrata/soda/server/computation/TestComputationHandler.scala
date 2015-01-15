@@ -1,6 +1,6 @@
 package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast.{JString, JObject}
+import com.rojoma.json.v3.ast.{JString, JObject}
 import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}

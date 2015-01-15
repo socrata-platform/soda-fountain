@@ -1,6 +1,7 @@
 package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast._
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.conversions._
 import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRecordLike}
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.ColumnName
@@ -126,7 +127,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
   test("extractSourceColumnValueFromRow - source column is an unexpected type") {
     a [MaltypedDataEx] should be thrownBy {
       handler.invokePrivate(extractSourceColumn(
-        Map("name" -> SoQLJson(JNumber(5))), ColumnName("name")))
+        Map("name" -> SoQLJson(JNumber(5).toV2)), ColumnName("name")))
     }
   }
 }

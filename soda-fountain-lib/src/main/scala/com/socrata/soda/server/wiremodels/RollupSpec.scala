@@ -1,7 +1,7 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.ast.{JObject, JValue}
-import com.rojoma.json.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
+import com.rojoma.json.v3.ast.{JObject, JValue}
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
 import com.socrata.soda.server.errors.RollupSpecMaltyped
 
 import com.socrata.soda.server.id.RollupName
