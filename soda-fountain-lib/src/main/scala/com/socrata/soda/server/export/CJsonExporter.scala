@@ -1,8 +1,9 @@
 package com.socrata.soda.server.export
 
-import com.rojoma.json.ast.{JString, JNumber}
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.io.CompactJsonWriter
+import com.rojoma.json.v3.ast.{JString, JNumber}
+import com.rojoma.json.v3.codec._
+import com.rojoma.json.v3.conversions._
+import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.highlevel.ExportDAO
@@ -49,7 +50,7 @@ object CJsonExporter extends Exporter {
         if(didOne) w.write(',')
         else didOne = true
         val ci = schema.schema(schemaOrdering(i))
-        w.write(s"""{"c":${JString(ci.fieldName.name)},"t":${JsonCodec.toJValue(ci.typ)}}""")
+        w.write(s"""{"c":${JString(ci.fieldName.name)},"t":${JsonEncode.toJValue(ci.typ)}}""")
       }
       w.write("]\n }\n")
 
@@ -59,11 +60,11 @@ object CJsonExporter extends Exporter {
       for(row <- rows) {
         w.write(",[")
         if(row.length > 0) {
-          jw.write(reps(schemaOrdering(0)).toJValue(row(schemaOrdering(0))))
+          jw.write(reps(schemaOrdering(0)).toJValue(row(schemaOrdering(0))).toV3)
           var i = 1
           while(i < row.length) {
             w.write(',')
-            jw.write(reps(schemaOrdering(i)).toJValue(row(schemaOrdering(i))))
+            jw.write(reps(schemaOrdering(i)).toJValue(row(schemaOrdering(i))).toV3)
             i += 1
           }
         }

@@ -1,24 +1,22 @@
 package com.socrata.soda.clients.datacoordinator
 
-import com.socrata.http.client.{Response, RequestBuilder, HttpClient}
-import com.socrata.soda.server.id.{DatasetId, SecondaryId}
-import com.socrata.http.server.routing.HttpMethods
+import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.io._
+import com.rojoma.json.v3.util.JsonArrayIterator
+import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
-import com.rojoma.json.ast.JValue
-import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
-import javax.servlet.http.HttpServletResponse
+import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
 import com.socrata.soda.clients.datacoordinator
-import com.rojoma.json.io._
-import com.rojoma.json.util.JsonArrayIterator
-import com.rojoma.json.io.StartOfArrayEvent
-import com.rojoma.json.io.EndOfArrayEvent
-import org.joda.time.format.ISODateTimeFormat
-import com.socrata.soda.server.highlevel.ColumnDAO.InvalidRowIdOperation
+import com.socrata.soda.server.id.{DatasetId, SecondaryId}
+import com.socrata.soda.server.util.schema.SchemaSpec
+import javax.servlet.http.HttpServletResponse
 import org.joda.time.DateTime
+import org.joda.time.format.ISODateTimeFormat
+
 
 abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
-  import DataCoordinatorClient._
+  import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DataCoordinatorClient])
 
@@ -50,7 +48,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       val r = secondaryUrl(host, secondaryId, datasetId).
                 method(HttpMethods.POST).
                 addHeaders(extraHeaders).get // ick
-      for (response <- httpClient.execute(r)) yield {
+      httpClient.execute(r).run { response =>
         response.resultCode match {
           case 200 => // ok
           case _ => throw new Exception(s"could not propagate to secondary ${secondaryId}")
@@ -71,11 +69,13 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def getSchema(datasetId: DatasetId): Option[SchemaSpec] =
     withHost(datasetId) { host =>
       val request = schemaUrl(host, datasetId).get
-      for (response <- httpClient.execute(request)) yield {
+      httpClient.execute(request).run { response =>
         if(response.resultCode == 200) {
           val result = response.value[SchemaSpec]()
-          if(!result.isDefined) throw new Exception("Unable to interpret data coordinator's response for " + datasetId + " as a schemaspec?")
-          result
+          result match {
+            case Right(jv) => Some(jv)
+            case Left(_) =>  throw new Exception("Unable to interpret data coordinator's response for " + datasetId + " as a schemaspec?")
+          }
         } else if(response.resultCode == 404) {
           None
         } else {
@@ -98,13 +98,13 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         Some(datacoordinator.NotModified())
       case code if code >= 400 && code <= 499 =>
         r.value[UserErrorReportedByDataCoordinatorError]() match {
-          case dcErr@Some(_) =>
-            dcErr
-          case None =>
+          case Right(dcErr) =>
+            Some(dcErr)
+          case Left(_) =>
             throw new Exception("Response was JSON but not decodable as user error reported by data coordinator")
         }
       case _ =>
-        Some(r.value[PossiblyUnknownDataCoordinatorError]().getOrElse(throw new Exception("Response was JSON but not decodable as an error")))
+        Some(r.value[PossiblyUnknownDataCoordinatorError]().right.toOption.getOrElse(throw new Exception("Response was JSON but not decodable as an error")))
     }
 
   def expectStartOfArray(in: Iterator[JsonEvent]) {
@@ -159,7 +159,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
 
   protected def sendScript[T](rb: RequestBuilder, script: MutationScript)(f: Either[Result, Response] => T): T = {
     val request = rb.json(script.it)
-    for (r <- httpClient.execute(request)) yield {
+    httpClient.execute(request).run { r =>
       errorFrom(r) match {
         case None =>
           if (headerExists(xhDataVersion, r) && headerExists(xhLastModified, r))
@@ -298,12 +298,12 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         .addHeader(("Content-type", "application/json"))
         .addHeaders(extraHeaders)
         .get
-      httpClient.execute(request).flatMap{ response =>
+      httpClient.execute(request).run { response =>
         log.info("TODO: Handle errors from the data-coordinator")
         val oVer = response.value[VersionReport]()
         oVer match {
-          case Some(ver) => ver
-          case None => throw new Exception("version not found")
+          case Right(ver) => ver
+          case Left(_) => throw new Exception("version not found")
         }
       }
     }
@@ -333,7 +333,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                     .addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate))
                     .addHeaders(extraHeaders)
                     .get
-      for(r <- httpClient.execute(request)) yield {
+      httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None =>
             f(Export(r.array[JValue](), r.headers("ETag").headOption.map(EntityTagParser.parse(_))))

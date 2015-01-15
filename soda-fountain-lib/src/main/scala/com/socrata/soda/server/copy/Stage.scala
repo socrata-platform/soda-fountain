@@ -1,7 +1,9 @@
 package com.socrata.soda.server.copy
 
-import com.rojoma.json.ast.{JString, JValue}
-import com.rojoma.json.codec.JsonCodec
+import com.rojoma.json.v3.ast.{JString, JValue}
+import com.rojoma.json.v3.codec.DecodeError.{InvalidValue, InvalidType}
+import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
+import com.rojoma.json.v3.codec._
 
 sealed trait Stage {
   def name = this.toString
@@ -30,13 +32,16 @@ object Stage {
     }
   }
 
-  implicit val stageCodec = new JsonCodec[Stage] {
+  implicit val stageCodec = new JsonEncode[Stage] with JsonDecode[Stage] {
     def encode(x: Stage): JValue = JString(x.name)
 
-    def decode(x: JValue): Option[Stage] = {
+    def decode(x: JValue): DecodeResult[Stage] = {
       x match {
-        case JString(s) => Stage(s)
-        case _ => None
+        case JString(s) => Stage(s) match {
+          case Some(stage) => Right(stage)
+          case None => Left(InvalidValue(x))
+        }
+        case u => Left(InvalidType(JString, u.jsonType))
       }
     }
   }

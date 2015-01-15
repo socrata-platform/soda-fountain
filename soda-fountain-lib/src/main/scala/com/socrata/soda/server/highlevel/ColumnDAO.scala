@@ -1,6 +1,6 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.ast.JValue
+import com.rojoma.json.v3.ast.JValue
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.server.id.ResourceName

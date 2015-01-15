@@ -1,7 +1,7 @@
 package com.socrata.soda.external
 
-import com.rojoma.json.ast._
-import com.rojoma.json.io.{JsonReader, CompactJsonWriter}
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.io.{JsonReader, CompactJsonWriter}
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.{WireMock => WM, MappingBuilder, UrlMatchingStrategy}
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._

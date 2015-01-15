@@ -1,16 +1,13 @@
 package com.socrata.soda.server
 
-import com.rojoma.json.ast.JValue
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.io.CompactJsonWriter
+import com.rojoma.json.v3.codec._
+import com.rojoma.json.v3.io.CompactJsonWriter
 import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
-import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
-import com.socrata.soda.server.errors.{EtagPreconditionFailed, ResourceNotModified, InternalError,
-                                       InternalException, SodaError}
+import com.socrata.soda.server.errors.{InternalException, SodaError}
 import com.socrata.soda.server.id.{AbstractId, ResourceName}
 import com.socrata.soql.environment.AbstractName
 import java.nio.charset.{StandardCharsets, Charset}
@@ -24,9 +21,9 @@ object SodaUtils {
 
   val ResourceHeader = "X-Socrata-Resource"
 
-  def JsonContent[T : JsonCodec](thing: T, charset: Charset): HttpResponse = {
-    val j = JsonCodec[T].encode(thing)
-    ContentType(jsonContentTypeBase + "; charset=" + charset.name) ~> Write { out =>
+  def JsonContent[T : JsonEncode : JsonDecode](thing: T, charset: Charset): HttpResponse = {
+    val j = JsonEncode[T].encode(thing)
+    Write(jsonContentTypeBase + "; charset=" + charset.name) { out =>
       val jw = new CompactJsonWriter(out)
       jw.write(j)
       out.write('\n')
@@ -34,11 +31,11 @@ object SodaUtils {
   }
 
   @deprecated(message = "Need to negotiate a charset", since = "forever")
-  def JsonContent[T : JsonCodec](thing: T): HttpResponse =
+  def JsonContent[T : JsonEncode : JsonDecode](thing: T): HttpResponse =
     JsonContent(thing, StandardCharsets.UTF_8)
 
   def errorResponse(req: HttpServletRequest, error: SodaError, logTags: LogTag*): HttpResponse = {
-    import com.rojoma.json.ast._
+    import com.rojoma.json.v3.ast._
 
     errorLog.info(s"${logTags.mkString(" ")} responding with error ${error.errorCode}")
     val header = error.vary.foldLeft(error.etags.foldLeft(Status(error.httpResponseCode)) { (h, et) =>
@@ -55,7 +52,7 @@ object SodaUtils {
           "errorCode" -> JString(error.errorCode),
           "data" -> JObject(error.data)
         ))
-        JsonContent(content)
+        Json(content)
       } else
         Function.const()_
 

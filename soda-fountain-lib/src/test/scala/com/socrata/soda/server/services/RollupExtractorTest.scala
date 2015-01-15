@@ -1,13 +1,13 @@
 package com.socrata.soda.server.services
 
-import com.rojoma.json.ast.JObject
-import com.rojoma.json.util.JsonUtil
+import com.rojoma.json.v3.ast.JObject
+import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.soda.server.id.RollupName
 import com.socrata.soda.server.wiremodels.{Extracted, UserProvidedRollupSpec}
 import org.scalatest.{FunSuite, Matchers}
 
 class RollupExtractorTest extends FunSuite with Matchers {
-  def extract(input: String) = UserProvidedRollupSpec.fromObject(JsonUtil.parseJson[JObject](input).get)
+  def extract(input: String) = UserProvidedRollupSpec.fromObject(JsonUtil.parseJson[JObject](input).right.get)
 
   test("All fields populated") {
     val spec = extract( """{

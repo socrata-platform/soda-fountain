@@ -1,18 +1,13 @@
 package com.socrata.soda.server
 
+import com.rojoma.json.v3.ast.{JObject, JString}
+import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence._
-import org.joda.time.DateTime
+import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
-import scala.Some
-import com.socrata.soda.server.wiremodels.ComputationStrategyType
-import com.rojoma.json.ast.{JString, JObject}
-import com.rojoma.json.ast.JString
-import scala.Some
-import com.socrata.soda.server.highlevel.ExportDAO
-import com.rojoma.json.ast.JString
-import scala.Some
+import org.joda.time.DateTime
 
 trait DatasetsForTesting {
   implicit class DatasetHelpers(val ds: DatasetRecord) {

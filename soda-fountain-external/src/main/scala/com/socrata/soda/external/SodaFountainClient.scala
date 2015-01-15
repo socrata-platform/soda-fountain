@@ -1,7 +1,7 @@
 package com.socrata.soda.external
 
-import com.rojoma.json.ast.{JNull, JValue}
-import com.rojoma.json.io.{JsonReader, JValueEventIterator}
+import com.rojoma.json.v3.ast.{JNull, JValue}
+import com.rojoma.json.v3.io.{JsonReader, JValueEventIterator}
 import com.rojoma.simplearm.util._
 import com.socrata.http.client._
 import com.socrata.http.common.AuxiliaryData

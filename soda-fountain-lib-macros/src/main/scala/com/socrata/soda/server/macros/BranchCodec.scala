@@ -3,7 +3,7 @@ package com.socrata.soda.server.macros
 import scala.language.experimental.macros
 import scala.reflect.macros.Context
 
-import com.rojoma.json.util.SimpleHierarchyCodecBuilder
+import com.rojoma.json.v3.util.SimpleHierarchyCodecBuilder
 
 object BranchCodec {
   // $COVERAGE-OFF$ Disabling coverage because macros are not supported.
@@ -39,7 +39,7 @@ object BranchCodec {
     val classes = weakTypeOf[T].typeSymbol.asClass.knownDirectSubclasses
     if(classes.isEmpty) c.abort(c.enclosingPosition, "No known subclasses of " + weakTypeOf[T] + "; did you forget \"sealed\"?")
     val codecBuilderBuilt = classes.foldLeft(codecBuilder.tree) { (expr, cls) =>
-      q"$expr.branch[$cls](${tag(cls)})(_root_.com.rojoma.json.util.AutomaticJsonCodecBuilder[$cls], _root_.scala.Predef.implicitly)"
+      q"$expr.branch[$cls](${tag(cls)})(_root_.com.rojoma.json.v3.util.AutomaticJsonEncodeBuilder[$cls], _root_.com.rojoma.json.v3.util.AutomaticJsonDecodeBuilder[$cls], _root_.scala.Predef.implicitly)"
     }
 
     c.Expr[SimpleHierarchyCodecBuilder[T]](codecBuilderBuilt)

@@ -1,8 +1,8 @@
 package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast._
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.io.{CompactJsonWriter, JsonReader}
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.codec._
+import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soda.server.metrics.MetricCounter
@@ -132,16 +132,16 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
     service.close()
   }
 
-  implicit def optionIntCodec = new JsonCodec[Option[Int]] {
+  implicit def optionIntCodec = new JsonEncode[Option[Int]] with JsonDecode[Option[Int]] {
     def encode(x: Option[Int]) = x match {
-      case Some(value) => JsonCodec[Int].encode(value)
-      case None        => com.rojoma.json.ast.JNull
+      case Some(value) => JsonEncode[Int].encode(value)
+      case None        => com.rojoma.json.v3.ast.JNull
     }
 
     def decode(x: JValue) =
-      JsonCodec[Int].decode(x) match {
-        case Some(value) => Some(Some(value))
-        case None        => Some(None)
+      JsonDecode[Int].decode(x) match {
+        case Right(value) => Right(Some(value))
+        case Left(_)        => Right(None)
       }
   }
 
@@ -165,7 +165,7 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
     logger.debug("Got back status {}, response [{}]", status, response)
     status match {
       case 200 =>
-        JsonCodec[Seq[Option[Int]]].decode(JsonReader.fromString(response)).
+        JsonDecode[Seq[Option[Int]]].decode(JsonReader.fromString(response)).right.
           getOrElse(throw ComputationEx("Error parsing JSON response: " + response, None))
       case sc  =>
         val errorMessage = s"Error: HTTP [$url] got response code $sc, body $response"

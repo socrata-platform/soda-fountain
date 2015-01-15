@@ -1,11 +1,11 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.ast.JObject
+import com.rojoma.json.v3.ast.JObject
+import com.socrata.http.server.HttpRequest
 import com.socrata.soda.server.wiremodels.InputUtils._
-import javax.servlet.http.HttpServletRequest
 
 trait UserProvidedSpec[T] {
-  def fromRequest(request: HttpServletRequest, approxLimit: Long): ExtractResult[T] =
+  def fromRequest(request: HttpRequest, approxLimit: Long): ExtractResult[T] =
     catchingInputProblems {
       jsonSingleObjectStream(request, approxLimit) match {
         case Right(jobj) => fromObject(jobj)

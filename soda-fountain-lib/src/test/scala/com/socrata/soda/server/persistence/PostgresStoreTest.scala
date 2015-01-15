@@ -1,6 +1,6 @@
 package com.socrata.soda.server.persistence
 
-import com.rojoma.json.ast.{JObject, JString}
+import com.rojoma.json.v3.ast.{JObject, JString}
 import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.copy._
 import com.socrata.soda.server.highlevel.csrec

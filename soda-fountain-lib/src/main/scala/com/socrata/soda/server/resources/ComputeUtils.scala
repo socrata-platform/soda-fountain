@@ -3,17 +3,17 @@ package com.socrata.soda.server.resources
 import com.rojoma.json.ast._
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
+import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.util.{NoPrecondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
-import com.socrata.soda.server.SodaUtils
+import com.socrata.soda.server.{errors => SodaError, _}
 import com.socrata.soda.server.computation.ComputedColumnsLike
-import com.socrata.soda.server.{errors => SodaError}
 import com.socrata.soda.server.export.JsonExporter
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
-import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
+import javax.servlet.http.HttpServletResponse
 
 class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, computedColumns: ComputedColumnsLike) {
 
@@ -32,7 +32,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
     }
   }
 
-  def compute(req: HttpServletRequest,
+  def compute(req: HttpRequest,
               response: HttpServletResponse,
               resourceName: ResourceName,
               columnName: ColumnName,
@@ -51,7 +51,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
     }
   }
 
-  def compute(req: HttpServletRequest,
+  def compute(req: HttpRequest,
               response: HttpServletResponse,
               dataset: DatasetRecordLike,
               column: ColumnRecordLike,

@@ -5,8 +5,8 @@ import java.sql.{Connection, ResultSet, Timestamp, Types}
 import scala.annotation.tailrec
 import scala.util.Try
 
-import com.rojoma.json.ast.JObject
-import com.rojoma.json.io.JsonReader
+import com.rojoma.json.v3.ast.JObject
+import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.simplearm.util._
 import com.socrata.soda.server.copy.{Latest, Published, Stage}
 import com.socrata.soda.server.highlevel.csrec

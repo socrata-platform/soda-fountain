@@ -1,7 +1,7 @@
 package com.socrata.soda.server.errors
 
-import com.rojoma.json.ast.{JObject, JValue}
-import com.rojoma.json.util.AutomaticJsonCodecBuilder
+import com.rojoma.json.v3.ast.{JObject, JValue}
+import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.http.server.util.EntityTag
 import javax.servlet.http.HttpServletResponse
 import scala.{collection => sc}

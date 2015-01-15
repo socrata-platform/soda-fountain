@@ -1,6 +1,7 @@
 package com.socrata.soda.server.computation
 
-import com.rojoma.json.ast._
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.conversions._
 import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRecordLike}
 import com.socrata.soql.environment.ColumnName
@@ -62,5 +63,5 @@ class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscover
    * @param point Point object
    * @return      Point value in the format expected by Geospace
    */
-  protected def toJValue(point: Coordinate): JValue = CoordinateCodec.encode(point)
+  protected def toJValue(point: Coordinate): JValue = CoordinateCodec.encode(point).toV3
 }

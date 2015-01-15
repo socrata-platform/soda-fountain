@@ -2,14 +2,15 @@ package com.socrata.soda.server.wiremodels
 
 import scala.{collection => sc}
 
-
-import InputUtils._
-import com.rojoma.json.ast.{JObject, JValue}
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Strategy}
+import com.rojoma.json.v3.ast.{JObject, JValue}
+import com.rojoma.json.v3.codec._
+import com.rojoma.json.v3.codec.DecodeError.{InvalidField, InvalidType}
+import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Strategy}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.errors.DatasetSpecMaltyped
 import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.wiremodels.InputUtils._
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soql.environment.ColumnName
 
@@ -22,22 +23,22 @@ case class DatasetSpec(resourceName: ResourceName,
                        stage: Option[Stage],
                        columns:Map[ColumnName, ColumnSpec])
 object DatasetSpec {
-  private implicit val columnMapCodec = new JsonCodec[Map[ColumnName, ColumnSpec]] {
+  private implicit val columnMapCodec = new JsonEncode[Map[ColumnName, ColumnSpec]] with JsonDecode[Map[ColumnName, ColumnSpec]]{
     def encode(x: Map[ColumnName, ColumnSpec]): JValue =
-      JObject(x.map { case (k,v) => k.name -> JsonCodec.toJValue(v) })
+      JObject(x.map { case (k,v) => k.name -> JsonEncode.toJValue(v) })
 
-    def decode(x: JValue): Option[Map[ColumnName, ColumnSpec]] = x match {
+    def decode(x: JValue): DecodeResult[Map[ColumnName, ColumnSpec]] = x match {
       case JObject(fields) =>
         val r = Map.newBuilder[ColumnName, ColumnSpec]
         fields foreach { case (k, v) =>
-          JsonCodec.fromJValue[ColumnSpec](v) match {
-            case Some(col) => r += new ColumnName(k) -> col
-            case None => return None
+          JsonDecode.fromJValue[ColumnSpec](v) match {
+            case Right(col) => r += new ColumnName(k) -> col
+            case Left(_) => return Left(InvalidField(k.toString))
           }
         }
-        Some(r.result())
-      case _ =>
-        None
+        Right(r.result())
+      case u =>
+        Left(InvalidType(JObject, u.jsonType))
     }
   }
 

@@ -1,7 +1,7 @@
 package com.socrata.soda.clients.datacoordinator
 
-import com.rojoma.json.ast._
-import com.rojoma.json.util.JsonUtil
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.soda.server.id.RollupName
 
 sealed abstract class RollupMutation extends DataCoordinatorInstruction {

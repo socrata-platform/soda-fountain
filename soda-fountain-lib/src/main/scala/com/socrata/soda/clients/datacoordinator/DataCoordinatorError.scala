@@ -1,10 +1,10 @@
 package com.socrata.soda.clients.datacoordinator
 
-import com.rojoma.json.util.{NoTag, AutomaticJsonCodecBuilder, TagAndValue, SimpleHierarchyCodecBuilder}
+import com.rojoma.json.v3.util.{NoTag, AutomaticJsonCodecBuilder, TagAndValue, SimpleHierarchyCodecBuilder}
 import com.socrata.soda.server.macros.{Tag, BranchCodec}
 import com.socrata.soda.server.id.DatasetId
 import com.socrata.soda.server.util.schema.SchemaSpec
-import com.rojoma.json.ast.JValue
+import com.rojoma.json.v3.ast.JValue
 
 sealed abstract class PossiblyUnknownDataCoordinatorError
 case class UnknownDataCoordinatorError(errorCode: String, data: Map[String, JValue]) extends PossiblyUnknownDataCoordinatorError

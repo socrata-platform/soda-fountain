@@ -1,8 +1,8 @@
 package com.socrata.soda.server.errors
 
 import javax.servlet.http.HttpServletResponse._
-import com.rojoma.json.ast._
-import com.rojoma.json.codec.JsonCodec
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.codec._
 import javax.activation.MimeType
 import com.socrata.soql.environment.{ColumnName, TypeName}
 import com.socrata.http.server.util.EntityTag
@@ -34,7 +34,7 @@ case class InternalException(th: Throwable, tag: String)
 case class HttpMethodNotAllowed(method: String, allowed: TraversableOnce[String])
   extends SodaError(SC_METHOD_NOT_ALLOWED, "method-not-allowed",
     "method" -> JString(method),
-    "allowed" -> JsonCodec.toJValue(allowed.toSeq))
+    "allowed" -> JsonEncode.toJValue(allowed.toSeq))
 
 case object NoContentType extends SodaError("req.content-type.missing")
 

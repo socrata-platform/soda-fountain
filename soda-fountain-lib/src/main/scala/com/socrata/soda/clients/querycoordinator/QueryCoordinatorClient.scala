@@ -1,6 +1,6 @@
 package com.socrata.soda.clients.querycoordinator
 
-import com.rojoma.json.ast.JValue
+import com.rojoma.json.v3.ast.JValue
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.copy.Stage

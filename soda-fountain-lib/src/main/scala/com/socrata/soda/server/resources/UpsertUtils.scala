@@ -1,6 +1,6 @@
 package com.socrata.soda.server.resources
 
-import com.rojoma.json.io.CompactJsonWriter
+import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
 import com.socrata.soda.server.{errors => SodaErrors, SodaUtils}

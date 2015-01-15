@@ -2,7 +2,8 @@ package com.socrata.soda.server.highlevel
 
 import java.nio.charset.StandardCharsets
 
-import com.rojoma.json.ast._
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.conversions._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.util.{NoPrecondition, Precondition, StrongEntityTag}
@@ -179,7 +180,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
         StringColumnRep.forType(pkCol.typ).fromString(rowId.underlying) match {
           case Some(soqlValue) =>
-            val jvalToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlValue)
+            val jvalToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlValue).toV3
             doUpsertish(user, datasetRecord, Iterator.single(DeleteRow(jvalToDelete)), Iterator.empty,
                         requestId, f)
           case None => f(MaltypedData(pkCol.fieldName, pkCol.typ, JString(rowId.underlying)))

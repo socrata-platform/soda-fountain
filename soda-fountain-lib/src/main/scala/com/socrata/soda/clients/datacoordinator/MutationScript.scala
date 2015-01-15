@@ -1,9 +1,10 @@
 package com.socrata.soda.clients.datacoordinator
 
 import java.io._
-import com.rojoma.json.ast._
-import com.rojoma.json.util.JsonUtil
-import com.rojoma.json.io._
+
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.io._
+import com.rojoma.json.v3.util.JsonUtil
 
 class MutationScript(
         user: String,
@@ -53,10 +54,10 @@ class MutationScript(
     }
 
     val streamableInstructions : Iterator[JsonEvent] =
-      Iterator.single(StartOfArrayEvent()) ++
-      com.rojoma.json.io.JValueEventIterator(JObject(topLevelCommand)) ++
+      Iterator.single(StartOfArrayEvent()(Position.Invalid)) ++
+      JValueEventIterator(JObject(topLevelCommand)) ++
       dcInstructions.flatMap{ lbuf => lbuf.flatMap{ jval => JValueEventIterator(jval)}} ++
-      Iterator.single(EndOfArrayEvent())
+      Iterator.single(EndOfArrayEvent()(Position.Invalid))
 
     streamableInstructions
   }

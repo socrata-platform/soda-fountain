@@ -3,20 +3,21 @@ package com.socrata.soda.server.resources
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
+import scala.collection.JavaConverters._
 import scala.language.existentials
 
-import com.rojoma.json.ast.JValue
+import com.rojoma.json.v3.ast.JValue
 import com.rojoma.simplearm.util._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.common.util.ContentNegotiation
-import com.socrata.http.server.HttpResponse
+import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
-import com.socrata.soda.server.{SodaUtils, errors => SodaErrors}
+import com.socrata.soda.server.{errors => SodaErrors, _}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.errors.SodaError
@@ -30,7 +31,6 @@ import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
 import com.socrata.thirdparty.metrics.Metrics
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
-
 
 /**
  * Resource: services for upserting, deleting, and querying dataset rows.
@@ -58,7 +58,7 @@ case class Resource(rowDAO: RowDAO,
     for(field <- ContentNegotiation.headers) {
       hash.update(field.getBytes(StandardCharsets.UTF_8))
       hash.update(254.toByte)
-      for(elem <- req.headers(field)) {
+      for(elem <- req.getHeaders(field).asScala.asInstanceOf[Iterator[String]]) {
         hash.update(elem.getBytes(StandardCharsets.UTF_8))
         hash.update(254.toByte)
       }
@@ -71,7 +71,7 @@ case class Resource(rowDAO: RowDAO,
     log.info("TODO: Negotiate content-type")
     result match {
       case RowDAO.Success(code, value) =>
-        Status(code) ~> SodaUtils.JsonContent(value)
+        Status(code) ~> Json(value)
     }
   }
 
@@ -79,7 +79,7 @@ case class Resource(rowDAO: RowDAO,
     log.info("TODO: Negotiate content-type")
     result match {
       case RowDAO.Success(code, value) =>
-        Status(code) ~> SodaUtils.JsonContent(value)
+        Status(code) ~> Json(value)
       case RowDAO.RowNotFound(value) =>
         SodaUtils.errorResponse(req, SodaErrors.RowNotFound(value))
     }
@@ -106,7 +106,7 @@ case class Resource(rowDAO: RowDAO,
 
   def extensions(s: String) = Exporter.exporterExtensions.contains(Exporter.canonicalizeExtension(s))
 
-  def isConditionalGet(req: HttpServletRequest): Boolean = {
+  def isConditionalGet(req: HttpRequest): Boolean = {
     req.header("If-None-Match").isDefined || req.dateTimeHeader("If-Modified-Since").isDefined
   }
 
@@ -117,7 +117,7 @@ case class Resource(rowDAO: RowDAO,
   }
 
   case class service(resourceName: OptionallyTypedPathComponent[ResourceName]) extends SodaResource {
-    override def get = { req: HttpServletRequest => response: HttpServletResponse =>
+    override def get = { req: HttpRequest => response: HttpServletResponse =>
       val domainId = req.header(domainIdHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       val start = System.currentTimeMillis
@@ -180,10 +180,10 @@ case class Resource(rowDAO: RowDAO,
                       else if (code >= 500 && code < 600) metric(QueryErrorInternal)
 
                       SodaError.QueryCoordinatorErrorCodec.decode(body) match {
-                        case Some(qcError) =>
+                        case Right(qcError) =>
                           val err = SodaErrors.ErrorReportedByQueryCoordinator(code, qcError)
                           SodaUtils.errorResponse(req, err)(response)
-                        case _ =>
+                        case Left(_) =>
                           SodaUtils.errorResponse(req, SodaErrors.InternalError("Cannot parse error from QC"))(response)
                       }
                   }
@@ -212,7 +212,7 @@ case class Resource(rowDAO: RowDAO,
       upsertMany(req, response, rowDAO.replace(user(req), _, _, RequestId.getFromRequest(req)))
     }
 
-    private def upsertMany(req: HttpServletRequest, response: HttpServletResponse, f: rowDaoFunc) {
+    private def upsertMany(req: HttpRequest, response: HttpServletResponse, f: rowDaoFunc) {
       InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
           upsertishFlow(req, response, resourceName.value, boundedIt, f)
@@ -226,7 +226,7 @@ case class Resource(rowDAO: RowDAO,
 
     implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
 
-    override def get = { req: HttpServletRequest => response: HttpServletResponse =>
+    override def get = { req: HttpRequest => response: HttpServletResponse =>
       val domainId = req.header(domainIdHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       try {

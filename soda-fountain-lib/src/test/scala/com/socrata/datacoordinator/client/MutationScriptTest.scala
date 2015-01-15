@@ -1,6 +1,6 @@
 package com.socrata.datacoordinator.client
 import java.io._
-import com.rojoma.json.ast.JString
+import com.rojoma.json.v3.ast.JString
 import com.socrata.soql.types.SoQLType
 import com.socrata.soql.environment.TypeName
 import com.socrata.soda.server.id.{RollupName, ColumnId}
