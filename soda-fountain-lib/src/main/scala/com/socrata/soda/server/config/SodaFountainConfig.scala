@@ -26,11 +26,13 @@ class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigCl
   val serviceName = getString("service-name")
   val instance = getString("instance")
   val connectTimeout = getDuration("connect-timeout")
+  val receiveTimeout = getDuration("receive-timeout")
 }
 
 class QueryCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val serviceName = getString("service-name")
   val connectTimeout = getDuration("connect-timeout")
+  val receiveTimeout = getDuration("receive-timeout")
 }
 
 class GeospaceClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
