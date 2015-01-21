@@ -121,9 +121,20 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       withLivenessChecker(livenessChecker).
       withUserAgent("soda fountain")))
 
-  val dc: DataCoordinatorClient = i(new CuratedHttpDataCoordinatorClient(httpClient, discovery, config.dataCoordinatorClient.serviceName, config.dataCoordinatorClient.instance, config.dataCoordinatorClient.connectTimeout))
+  val dc: DataCoordinatorClient = i(new CuratedHttpDataCoordinatorClient(
+    httpClient,
+    discovery,
+    config.dataCoordinatorClient.serviceName,
+    config.dataCoordinatorClient.instance,
+    config.dataCoordinatorClient.connectTimeout,
+    config.dataCoordinatorClient.receiveTimeout))
 
-  val qc: QueryCoordinatorClient = si(new CuratedHttpQueryCoordinatorClient(httpClient, discovery, config.queryCoordinatorClient.serviceName, config.queryCoordinatorClient.connectTimeout))
+  val qc: QueryCoordinatorClient = si(new CuratedHttpQueryCoordinatorClient(
+    httpClient,
+    discovery,
+    config.queryCoordinatorClient.serviceName,
+    config.queryCoordinatorClient.connectTimeout,
+    config.queryCoordinatorClient.receiveTimeout))
 
   val geospace = si(new CuratedGeospaceClient(discovery, config.geospaceClient.serviceName))
 

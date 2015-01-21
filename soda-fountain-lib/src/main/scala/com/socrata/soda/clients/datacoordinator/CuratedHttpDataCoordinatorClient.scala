@@ -11,11 +11,20 @@ class CuratedHttpDataCoordinatorClient(httpClient: HttpClient,
                                        discovery: ServiceDiscovery[AuxiliaryData],
                                        serviceName: String,
                                        targetInstance: String,
-                                       connectTimeout: FiniteDuration)
+                                       connectTimeout: FiniteDuration,
+                                       receiveTimeout: FiniteDuration)
   extends HttpDataCoordinatorClient(httpClient) with Closeable
 {
   private[this] val connectTimeoutMS = connectTimeout.toMillis.toInt
-  if(connectTimeoutMS != connectTimeout.toMillis) throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")
+  if (connectTimeoutMS != connectTimeout.toMillis) {
+    throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")
+  }
+
+  private[this] val receiveTimeoutMS = receiveTimeout.toMillis.toInt
+  if (receiveTimeoutMS != receiveTimeout.toMillis) {
+    throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")
+  }
+
 
   val provider = new ProviderCache(discovery, new providerStrategies.RoundRobinStrategy, serviceName)
 
@@ -26,6 +35,7 @@ class CuratedHttpDataCoordinatorClient(httpClient: HttpClient,
   def hostO(instance: String): Option[RequestBuilder] = Option(provider(instance).getInstance()).map { serv =>
     RequestBuilder(new java.net.URI(serv.buildUriSpec())).
       livenessCheckInfo(Option(serv.getPayload).flatMap(_.livenessCheckInfo)).
-      connectTimeoutMS(connectTimeoutMS)
+      connectTimeoutMS(connectTimeoutMS).
+      receiveTimeoutMS(receiveTimeoutMS)
   }
 }
