@@ -138,11 +138,8 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
       case None        => com.rojoma.json.v3.ast.JNull
     }
 
-    def decode(x: JValue) =
-      JsonDecode[Int].decode(x) match {
-        case Right(value) => Right(Some(value))
-        case Left(_)        => Right(None)
-      }
+    def decode(x: JValue): JsonDecode.DecodeResult[Option[Int]] =
+      Right(JsonDecode[Int].decode(x).right.toOption)
   }
 
   private def extractSourceColumnFromStrategy(column: ColumnRecordLike): String = {
