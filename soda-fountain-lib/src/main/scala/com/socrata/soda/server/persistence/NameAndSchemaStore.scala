@@ -2,14 +2,16 @@ package com.socrata.soda.server.persistence
 
 import com.rojoma.json.v3.ast.JObject
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec
-import com.socrata.soda.server.wiremodels.{ComputationStrategyType, ColumnSpec}
+import com.socrata.soda.server.wiremodels.{ColumnSpec, ComputationStrategyType}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLType
+import com.socrata.thirdparty.json.AdditionalJsonCodecs._
+
 import org.joda.time.DateTime
-import com.socrata.soda.server.copy.Stage
 
 // TODO: this needs to expose a notion of transactions
 trait NameAndSchemaStore {

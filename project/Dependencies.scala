@@ -22,7 +22,7 @@ object Dependencies {
     val socrataHttp       = "3.0.2"
     val soqlBrita         = "1.3.0"
     val soqlReference     = "0.3.2"
-    val thirdPartyUtils   = "2.6.3"
+    val thirdPartyUtils   = "3.0.0"
     val typesafeConfig    = "1.0.2"
 
     // Test
