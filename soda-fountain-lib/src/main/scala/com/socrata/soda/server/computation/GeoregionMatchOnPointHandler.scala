@@ -7,6 +7,7 @@ import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRec
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNull, SoQLPoint}
 import com.socrata.thirdparty.geojson.JtsCodecs.CoordinateCodec
+import com.socrata.thirdparty.json.AdditionalJsonCodecs._
 import com.typesafe.config.Config
 import com.vividsolutions.jts.geom.Coordinate
 import org.apache.curator.x.discovery.ServiceDiscovery
@@ -63,5 +64,5 @@ class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscover
    * @param point Point object
    * @return      Point value in the format expected by Geospace
    */
-  protected def toJValue(point: Coordinate): JValue = CoordinateCodec.encode(point).toV3
+  protected def toJValue(point: Coordinate): JValue = CoordinateCodec.encode(point)
 }

@@ -37,19 +37,4 @@ object AdditionalJsonCodecs {
       case u => Left(InvalidType(JString, u.jsonType))
     }
   }
-
-  implicit object DateTimeCodec extends JsonEncode[DateTime] with JsonDecode[DateTime] {
-    val formatter = ISODateTimeFormat.dateTime
-    val parser = ISODateTimeFormat.dateTimeParser
-    def encode(x: DateTime): JValue = JString(formatter.print(x))
-    def decode(x: JValue): DecodeResult[DateTime] = x match {
-      case JString(s) =>
-        try {
-          Right(parser.parseDateTime(x.toString))
-        } catch {
-          case _: IllegalArgumentException => Left(InvalidValue(x))
-        }
-      case u => Left(InvalidType(JString, u.jsonType))
-    }
-  }
 }
