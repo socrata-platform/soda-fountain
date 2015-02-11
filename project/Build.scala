@@ -5,7 +5,6 @@ object Build extends sbt.Build {
     "soda-fountain",
     file(".")
   ).settings(BuildSettings.buildSettings : _*)
-   .settings(net.virtualvoid.sbt.graph.Plugin.graphSettings: _*)
    .aggregate(sodaFountainLib, sodaFountainJetty, sodaFountainWar, sodaFountainLibMacros, sodaFountainExternal)
 
   private def p(name: String, settings: { def settings: Seq[Setting[_]] }, dependencies: ClasspathDep[ProjectReference]*) =
