@@ -3,15 +3,13 @@ resolvers ++= Seq(
     "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
 )
 
-addSbtPlugin("com.socrata" % "socrata-cloudbees-sbt" % "1.3.4")
+addSbtPlugin("com.socrata" % "socrata-cloudbees-sbt" % "1.3.1")
 
 addSbtPlugin("com.earldouglas" % "xsbt-web-plugin" % "0.4.2")
 
 addSbtPlugin("io.spray" % "sbt-revolver" % "0.7.2")
 
 addSbtPlugin("com.typesafe.sbt" % "sbt-license-report" % "1.0.0")
-
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.1")
 
 addSbtPlugin("com.codacy" % "sbt-codacy-coverage" % "1.0.0")
 
