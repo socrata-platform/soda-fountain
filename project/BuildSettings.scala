@@ -10,8 +10,7 @@ object BuildSettings {
     spray.revolver.RevolverPlugin.Revolver.settings ++
     Defaults.itSettings ++
       Seq(
-        scalaVersion := "2.10.4",
-        ScoverageSbtPlugin.ScoverageKeys.coverageHighlighting := false
+        scalaVersion := "2.10.4"
       )
 
   def projectSettings(assembly: Boolean = false): Seq[Setting[_]] =
