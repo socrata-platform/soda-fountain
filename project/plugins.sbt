@@ -1,6 +1,6 @@
 resolvers ++= Seq(
     "socrata maven" at "https://repository-socrata-oss.forge.cloudbees.com/release",
-    "Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/"
+    "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/"
 )
 
 addSbtPlugin("com.socrata" % "socrata-cloudbees-sbt" % "1.3.1")
