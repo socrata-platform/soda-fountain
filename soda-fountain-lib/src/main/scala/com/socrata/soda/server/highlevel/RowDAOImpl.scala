@@ -12,6 +12,7 @@ import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.copy.Stage
+import com.socrata.soda.server.errors.GeneralNotFoundError
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
@@ -161,6 +162,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         f(SchemaOutOfSync)
       case DataCoordinatorClient.UpsertUserError(code, data) =>
         f(DataCoordinatorUserErrorCode(code, data))
+      // TODO other cases have not been implemented
+      case _@x =>
+        log.warn("case is NOT implemented")
+        ???
     }
   }
 

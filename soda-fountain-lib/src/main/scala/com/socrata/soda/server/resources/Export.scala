@@ -1,5 +1,6 @@
 package com.socrata.soda.server.resources
 import com.socrata.http.common.util.ContentNegotiation
+
 import com.socrata.soda.server._
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.implicits._
@@ -7,7 +8,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag, RequestId}
 import com.socrata.soda.server.SodaUtils
-import com.socrata.soda.server.errors.{SchemaInvalidForMimeType, BadParameter, ResourceNotModified, EtagPreconditionFailed}
+import com.socrata.soda.server.errors._
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.id.ResourceName
@@ -25,12 +26,15 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
   val headerHashLength = MessageDigest.getInstance(headerHashAlg).getDigestLength
   def headerHash(req: HttpRequest) = {
     val hash = MessageDigest.getInstance(headerHashAlg)
-    hash.update(req.queryStr.toString.getBytes(StandardCharsets.UTF_8))
+    import com.socrata.http.server.HttpRequest.HttpRequestApi
+    val reqApi = new HttpRequestApi(req)
+
+    hash.update(reqApi.queryStr.toString.getBytes(StandardCharsets.UTF_8))
     hash.update(255.toByte)
     for(field <- ContentNegotiation.headers) {
       hash.update(field.getBytes(StandardCharsets.UTF_8))
       hash.update(254.toByte)
-      for(elem <- req.headers(field)) {
+      for(elem <- reqApi.headers(field)) {
         hash.update(elem.getBytes(StandardCharsets.UTF_8))
         hash.update(254.toByte)
       }
@@ -113,6 +117,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
               case ExportDAO.NotModified(etags) =>
                 SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(resp)
               case ExportDAO.SchemaInvalidForMimeType => SodaUtils.errorResponse(req, SchemaInvalidForMimeType)(resp)
+              case ExportDAO.NotFound(x) => SodaUtils.errorResponse(req, GeneralNotFoundError(x.toString()))(resp)
             }
           case None =>
             // TODO better error

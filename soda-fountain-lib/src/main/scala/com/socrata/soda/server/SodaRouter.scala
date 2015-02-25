@@ -71,11 +71,15 @@ class SodaRouter(versionResource: HttpService,
     Route("/compute/{ResourceName}/{ColumnName}", computeResource)
   )
 
-  def route(req: HttpRequest): HttpResponse =
-    router(req.requestPath.map(InputNormalizer.normalize)) match {
+  def route(req: HttpRequest): HttpResponse = {
+    import com.socrata.http.server.HttpRequest.HttpRequestApi
+    val reqApi = new HttpRequestApi(req)
+
+    router(reqApi.requestPath.map(InputNormalizer.normalize)) match {
       case Some(s) =>
         s(req)
       case None =>
         SodaUtils.errorResponse(req, GeneralNotFoundError(req.getRequestURI))
     }
+  }
 }

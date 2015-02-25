@@ -13,71 +13,71 @@ object Decoder {
   implicit val StringDecoder = new Decoder[String] {
     def apply(v: JValue) = v match {
       case JString(s) => Right(s)
-      case _ => Left("string", v)
+      case _ => Left(("string", v))
     }
   }
 
   implicit val BooleanDecoder = new Decoder[Boolean] {
     def apply(v: JValue) = v match {
       case JBoolean(b) => Right(b)
-      case _ => Left("boolean", v)
+      case _ => Left(("boolean", v))
     }
   }
 
   implicit val ResourceNameDecoder = new Decoder[ResourceName] {
     def apply(v: JValue) = v match {
       case JString(s) => Right(new ResourceName(s))
-      case _ => Left("string", v)
+      case _ => Left(("string", v))
     }
   }
 
   implicit val ColumnNameDecoder = new Decoder[ColumnName] {
     def apply(v: JValue) = v match {
       case JString(s) => Right(new ColumnName(s))
-      case _ => Left("string", v)
+      case _ => Left(("string", v))
     }
   }
 
   implicit val ColumnIdDecoder = new Decoder[ColumnId] {
     def apply(v: JValue) = v match {
       case JString(s) => Right(ColumnId(s))
-      case _ => Left("string", v)
+      case _ => Left(("string", v))
     }
   }
 
   implicit val JArrayDecoder = new Decoder[JArray] {
     def apply(v: JValue) = v match {
       case arr: JArray => Right(arr)
-      case _ => Left("array", v)
+      case _ => Left(("array", v))
     }
   }
 
   implicit val JObjectDecoder = new Decoder[JObject] {
     def apply(v: JValue) = v match {
       case obj: JObject => Right(obj)
-      case _ => Left("object", v)
+      case _ => Left(("object", v))
     }
   }
 
   implicit val TypeNameDecoder = new Decoder[TypeName] {
     def apply(v: JValue) = v match {
       case JString(s) => Right(TypeName(s))
-      case _ => Left("string", v)
+      case _ => Left(("string", v))
     }
   }
 
   implicit val RollupNameDecoder = new Decoder[RollupName] {
     def apply(v: JValue) = v match {
       case JString(s) => Right(new RollupName(s))
-      case _ => Left("string", v)
+      case _ => Left(("string", v))
     }
   }
 
   implicit val StageDecoder = new Decoder[Stage] {
     def apply(v: JValue) = v match {
       case JString(s) =>
-        Stage(s).map(Right(_)).getOrElse(Left("stage", v))
-      case _ => Left("stage", v)
+        Stage(s).map(Right(_)).getOrElse(Left(("stage", v)))
+      case _ => Left(("stage", v))
     }
   }
 
@@ -95,12 +95,12 @@ object Decoder {
         for(elem <- arr) {
           d(elem) match {
             case Right(x) => res += x
-            case Left((expected, _)) => return Left(expected + " array", v)
+            case Left((expected, _)) => return Left((expected + " array", v))
           }
         }
         Right(res.result())
       case other =>
-        Left("array", other)
+        Left(("array", other))
     }
   }
 }

@@ -2,10 +2,7 @@ import sbt._
 import Keys._
 import Dependencies._
 
-import sbtassembly.Plugin.AssemblyKeys._
-import sbtassembly.Plugin.MergeStrategy
-import sbtassembly.AssemblyUtils._
-import com.socrata.cloudbeessbt.SocrataCloudbeesSbt.SocrataSbtKeys._
+import com.socrata.sbtplugins.CoreSettingsPlugin.SocrataSbtKeys.dependenciesSnippet
 
 object SodaFountainJetty {
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings(assembly = true) ++ Seq(
@@ -23,14 +20,6 @@ object SodaFountainJetty {
         <exclude org="commons-logging" module="commons-logging-api"/>
       </xml.group>
     ,
-    mainClass := Some("com.socrata.soda.server.SodaFountainJetty"),
-    mergeStrategy in assembly <<= (mergeStrategy in assembly) { old =>
-      {
-        case "about.html" => MergeStrategy.rename
-        case s if s.startsWith("scala/reflect/api/") =>
-          MergeStrategy.first // I hope this works...
-        case x => old(x)
-      }
-    }
+    mainClass := Some("com.socrata.soda.server.SodaFountainJetty")
   )
 }
