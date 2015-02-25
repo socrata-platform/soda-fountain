@@ -1,12 +1,10 @@
 import sbt._
 import Keys._
 
-import com.socrata.cloudbeessbt.SocrataCloudbeesSbt
 import scoverage.ScoverageSbtPlugin
 
 object BuildSettings {
   val buildSettings: Seq[Setting[_]] =
-    SocrataCloudbeesSbt.socrataBuildSettings ++
     spray.revolver.RevolverPlugin.Revolver.settings ++
     Defaults.itSettings ++
       Seq(
@@ -14,6 +12,5 @@ object BuildSettings {
       )
 
   def projectSettings(assembly: Boolean = false): Seq[Setting[_]] =
-    buildSettings ++
-      SocrataCloudbeesSbt.socrataProjectSettings(assembly)
+    buildSettings
 }
