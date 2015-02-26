@@ -30,7 +30,6 @@ object Dependencies {
     val mockServer        = "3.0"
     val scalaCheck        = "1.10.0"
     val scalaMock         = "3.1.RC1"
-    val scalaTest         = "2.2.0"
     val springTest        = "3.2.10.RELEASE"
     val wiremock          = "1.46"
   }
@@ -91,7 +90,6 @@ object Dependencies {
     val mockServer             = "org.mock-server"        % "mockserver-netty"      % versions.mockServer      % "test"
     val scalaCheck             = "org.scalacheck"        %% "scalacheck"            % versions.scalaCheck      % "test,it"
     val scalaMock              = "org.scalamock"         %% "scalamock-scalatest-support" % versions.scalaMock % "test"
-    val scalaTest              = "org.scalatest"         %% "scalatest"             % versions.scalaTest       % "test,it"
     val socrataThirdPartyUtils = "com.socrata"           %% "socrata-thirdparty-test-utils" % versions.thirdPartyUtils % "test"
     val springTest             = "org.springframework"    % "spring-test"           % versions.springTest      % "test"
     val wiremock               = "com.github.tomakehurst" % "wiremock"              % versions.wiremock        % "test"

@@ -57,25 +57,18 @@ object RowDAO {
   case class QuerySuccess(etags: Seq[EntityTag], truthVersion: Long, truthLastModified: DateTime, rollup: Option[String], schema: ExportDAO.CSchema, body: Iterator[Array[SoQLValue]]) extends Result
   case class SingleRowQuerySuccess(etags: Seq[EntityTag], truthVersion: Long, truthLastModified: DateTime, schema: ExportDAO.CSchema, body: Array[SoQLValue]) extends Result
   case class PreconditionFailed(failure: Precondition.Failure) extends Result
-
   case object SchemaInvalidForMimeType extends Result
   case object TooManyRows extends Result
-
   sealed trait UpsertResult
-
   case class RowNotFound(specifier: RowSpecifier) extends Result with UpsertResult
   case class StreamSuccess(report: Iterator[ReportItem]) extends UpsertResult
   case class DatasetNotFound(dataset: ResourceName) extends Result with UpsertResult
   case class UnknownColumn(column: ColumnName) extends UpsertResult
-
   case object DeleteWithoutPrimaryKey extends UpsertResult
-
   case class InvalidRequest(status: Int, body: JValue) extends Result
   case class MaltypedData(column: ColumnName, expected: SoQLType, got: JValue) extends Result with UpsertResult
   case class RowNotAnObject(value: JValue) extends UpsertResult
-
   case object SchemaOutOfSync extends UpsertResult
-
   case class ComputationHandlerNotFound(typ: ComputationStrategyType.Value) extends UpsertResult
   case class ComputedColumnNotWritable(columnName: ColumnName) extends UpsertResult
 }
