@@ -180,6 +180,11 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
               log.error("Unknown data coordinator error " + code)
               log.error("Aux info: " + data)
               throw new Exception("Unknown data coordinator error " + code)
+            // TODO other cases have not been implemented
+            case _@x =>
+              log.warn("case is NOT implemented")
+              ???
+
           }
       }
     }
@@ -345,6 +350,10 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 f(NotModified(r.headers("etag").map(EntityTagParser.parse(_ : String))))
               case datacoordinator.PreconditionFailed() =>
                 f(DataCoordinatorClient.PreconditionFailed)
+              // TODO other cases have not been implemented
+              case _@x =>
+                log.warn("case is NOT implemented")
+                ???
             }
         }
       }

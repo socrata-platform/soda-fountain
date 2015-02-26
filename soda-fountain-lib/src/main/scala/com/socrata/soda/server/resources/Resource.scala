@@ -72,6 +72,10 @@ case class Resource(rowDAO: RowDAO,
     result match {
       case RowDAO.Success(code, value) =>
         Status(code) ~> Json(value)
+        // TODO other cases have not been implemented
+      case _@x =>
+        log.warn("case is NOT implemented")
+        ???
     }
   }
 
@@ -82,6 +86,10 @@ case class Resource(rowDAO: RowDAO,
         Status(code) ~> Json(value)
       case RowDAO.RowNotFound(value) =>
         SodaUtils.errorResponse(req, SodaErrors.RowNotFound(value))
+      // TODO other cases have not been implemented
+      case _@x =>
+        log.warn("case is NOT implemented")
+        ???
     }
   }
 
@@ -99,6 +107,10 @@ case class Resource(rowDAO: RowDAO,
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
       case DatasetDAO.NotFound(dataset) =>
         SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+      // TODO other cases have not been implemented
+      case _@x =>
+        log.warn("case is NOT implemented")
+        ???
     }
   }
 

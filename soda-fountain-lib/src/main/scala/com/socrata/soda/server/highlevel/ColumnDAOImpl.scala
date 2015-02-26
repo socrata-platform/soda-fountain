@@ -62,10 +62,19 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                 store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                 log.info("column created {} {} {}", datasetRecord.systemId.toString, copyNumber.toString, column.name)
                 ColumnDAO.Created(spec.asRecord, etag)
+              // TODO other cases have not been implemented
+              case _@x =>
+                log.warn("case is NOT implemented")
+                ???
             }
           case f: Precondition.Failure =>
             ColumnDAO.PreconditionFailed(f)
         }
+      // TODO other cases have not been implemented
+      case _@x =>
+        log.warn("case is NOT implemented")
+        ???
+
     }
   }
 
@@ -124,7 +133,12 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                       case "update.row-identifier.duplicate-values" => ColumnDAO.NonUniqueRowId(columnRecord)
                       case "update.dataset.invalid-state" => ColumnDAO.InvalidDatasetState(data)
                       case otherCode => ColumnDAO.UserError(otherCode, data)
+
                     }
+                  // TODO other cases have not been implemented
+                  case _@x =>
+                    log.warn("case is NOT implemented")
+                    ???
                 }
               }
             case None =>
@@ -197,6 +211,10 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                   retry()
                 case DataCoordinatorClient.CannotDeleteRowId =>
                   ColumnDAO.InvalidRowIdOperation(columnRef, "DELETE")
+                // TODO other cases have not been implemented
+                case _@x =>
+                  log.warn("case is NOT implemented")
+                  ???
               }
             case None =>
               ColumnDAO.ColumnNotFound(column)

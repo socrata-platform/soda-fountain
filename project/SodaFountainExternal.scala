@@ -14,7 +14,6 @@ object SodaFountainExternal {
         socrataThirdPartyUtils,
         typesafeConfig,
         Test.apacheCurator,
-        Test.scalaTest,
         Test.socrataThirdPartyUtils,
         Test.wiremock
       ))

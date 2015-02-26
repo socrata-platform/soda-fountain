@@ -230,7 +230,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
   test("Will throw ComputationEx if computing an unsupported row type") {
     val ex = the [ComputationEx] thrownBy {
       handler.compute(Iterator(null), columnSpec).
-        foreach(Function.const()) // Force evaluation of the iterator.
+        foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
     ex.message must equal ("Unsupported row update type passed into GeoregionMatchOnPointHandler")
@@ -283,7 +283,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
 
     val ex = the [ComputationEx] thrownBy {
       handler.compute(Iterator(testRow), columnSpec).
-        foreach(Function.const()) // Force evaluation of the iterator.
+        foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
     val message = ex.getMessage
@@ -298,7 +298,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
 
     val ex = the [ComputationEx] thrownBy {
       handler.compute(Iterator(testRow), columnSpec).
-        foreach(Function.const()) // Force evaluation of the iterator.
+        foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
     val message = ex.getMessage
@@ -314,7 +314,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
 
     val ex = the [ComputationEx] thrownBy {
       handler.compute(Iterator(testRow), columnSpec).
-        foreach(Function.const()) // Force evaluation of the iterator.
+        foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
     val message = ex.getMessage
