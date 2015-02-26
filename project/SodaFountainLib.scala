@@ -41,7 +41,7 @@ object SodaFountainLib {
       Test.scalaMock,
       Test.socrataThirdPartyUtils,
       Test.springTest
-    )
+    ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
   )
   def genVersion(resourceManaged: File, name: String, version: String, scalaVersion: String): Seq[File] = {
     val file = resourceManaged / "soda-fountain-version.json"
