@@ -1,13 +1,15 @@
+import com.socrata.sbtplugins.StylePlugin.StyleKeys._
+import sbt.Keys._
 import sbt._
-import Keys._
-
-import scoverage.ScoverageSbtPlugin
 
 object BuildSettings {
-  val buildSettings: Seq[Setting[_]] =
+  def buildSettings: Seq[Setting[_]] =
     spray.revolver.RevolverPlugin.Revolver.settings ++
     Defaults.itSettings ++
       Seq(
+        // TODO: enable style checks
+        styleCheck in Test := {},
+        styleCheck in Compile := {},
         scalaVersion := "2.10.4"
       )
 
