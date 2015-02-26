@@ -56,6 +56,10 @@ object UpsertUtils {
         SodaUtils.errorResponse(request, SodaErrors.DeleteWithoutPrimaryKey)(response)
       case RowDAO.RowNotAnObject(obj) =>
         SodaUtils.errorResponse(request, SodaErrors.UpsertRowNotAnObject(obj))(response)
+      case RowDAO.DatasetNotFound(dataset) =>
+        SodaUtils.errorResponse(request, SodaErrors.DatasetNotFound(dataset))(response)
+      case RowDAO.SchemaOutOfSync =>
+        SodaUtils.errorResponse(request, SodaErrors.SchemaInvalidForMimeType)(response)
     }
   }
 

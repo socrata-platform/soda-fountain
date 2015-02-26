@@ -54,7 +54,8 @@ object SodaUtils {
         ))
         Json(content)
       } else
-        Function.const()_
+      // when passing unit, must pass using (()) as compiler will not infer () you meaning to pass Unit.
+        Function.const(())_
 
     header ~> potentialContent
   }

@@ -21,6 +21,7 @@ import com.socrata.soda.server.util.schema.SchemaHash
 import com.socrata.soda.server.copy.Stage
 
 object CJson {
+
   case class Field(c: ColumnId, t: SoQLType)
   private implicit val fieldCodec = AutomaticJsonCodecBuilder[Field]
 
@@ -70,6 +71,8 @@ object CJson {
 }
 
 class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extends ExportDAO {
+
+  val log = org.slf4j.LoggerFactory.getLogger(classOf[ExportDAOImpl])
 
   class Retry extends ControlThrowable
 
@@ -129,6 +132,10 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                       }
                     )
                     f(ExportDAO.Success(simpleSchema, etag, rows))
+                  // TODO other cases have not been implemented
+                  case _@x =>
+                    log.warn("case is NOT implemented")
+                    ???
                 }
               case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                 store.resolveSchemaInconsistency(ds.systemId, newSchema)
@@ -137,6 +144,10 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 f(ExportDAO.NotModified(etags))
               case DataCoordinatorClient.PreconditionFailed =>
                 f(ExportDAO.PreconditionFailed)
+              // TODO other cases have not been implemented
+              case _@x =>
+                log.warn("case is NOT implemented")
+                ???
             }
           }
           else {

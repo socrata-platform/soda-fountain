@@ -37,6 +37,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         columnSpecUtils.freezeForCreation(acc.mapValues(_.id), userColumnSpec) match {
           case ColumnSpecUtils.Success(cSpec) => acc + (cSpec.fieldName -> cSpec)
           // TODO: not-success case
+          // TODO other cases have not been implemented
+          case _@x =>
+            log.warn("case is NOT implemented")
+            ???
         }
       }
       Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, None, trueColumns))
@@ -138,6 +142,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
+            // TODO other cases have not been implemented
+            case _@x =>
+              log.warn("case is NOT implemented")
+              ???
           }
         case None =>
           NotFound(dataset)
@@ -194,6 +202,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
+            // TODO other cases have not been implemented
+            case _@x =>
+              log.warn("case is NOT implemented")
+              ???
           }
         case None =>
           NotFound(dataset)
@@ -215,6 +227,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                 case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
                   retry()
+                // TODO other cases have not been implemented
+                case _@x =>
+                  log.warn("case is NOT implemented")
+                  ???
               }
             case None =>
               NotFound(dataset)
@@ -236,6 +252,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
+            // TODO other cases have not been implemented
+            case _@x =>
+              log.warn("case is NOT implemented")
+              ???
           }
         case None =>
           NotFound(dataset)
@@ -295,6 +315,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                     case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
                       store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                       RollupCreatedOrUpdated
+                    // TODO other cases have not been implemented
+                    case _@x =>
+                      log.warn("case is NOT implemented")
+                      ???
                   }
               }
             case None =>
@@ -339,6 +363,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
             RollupDropped
           case DataCoordinatorClient.UpsertUserError("delete.rollup.does-not-exist", _) =>
             RollupNotFound(rollup)
+          // TODO other cases have not been implemented
+          case _@x =>
+            log.warn("case is NOT implemented")
+            ???
         }
       case None =>
         NotFound(dataset)

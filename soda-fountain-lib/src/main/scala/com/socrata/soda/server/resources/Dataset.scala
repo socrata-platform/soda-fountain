@@ -6,7 +6,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.util.RequestId
 import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.errors.{RollupNotFound, RollupColumnNotFound, RollupCreationFailed}
+import com.socrata.soda.server.errors.{GeneralNotFoundError, RollupNotFound, RollupColumnNotFound, RollupCreationFailed}
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
@@ -66,6 +66,10 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
       case DatasetDAO.RollupDropped => NoContent
       case DatasetDAO.RollupError(reason) =>  SodaUtils.errorResponse(req, RollupCreationFailed(reason))
       case DatasetDAO.RollupColumnNotFound(column) => SodaUtils.errorResponse(req, RollupColumnNotFound(column))
+      // TODO other cases have not been implemented
+      case _@x =>
+        log.warn("case is NOT implemented")
+        ???
     }
   }
 

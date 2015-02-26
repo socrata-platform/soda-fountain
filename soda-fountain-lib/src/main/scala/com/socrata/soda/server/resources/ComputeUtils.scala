@@ -6,6 +6,7 @@ import com.rojoma.simplearm.util._
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.util.{NoPrecondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
+import com.socrata.soda.server.errors.GeneralNotFoundError
 import com.socrata.soda.server.{errors => SodaError, _}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.export.JsonExporter
@@ -16,6 +17,8 @@ import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletResponse
 
 class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, computedColumns: ComputedColumnsLike) {
+
+  val log = org.slf4j.LoggerFactory.getLogger(classOf[ComputeUtils])
 
   private def columnsToExport(dataset: DatasetRecordLike, computationStrategy: ComputationStrategyRecord): Seq[ColumnRecordLike] = {
     def sourceColumns    = getSourceColumns(dataset, computationStrategy)
@@ -48,6 +51,9 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
         SodaUtils.errorResponse(req, SodaError.DatasetNotFound(resourceName))(response)
       case ColumnDAO.ColumnNotFound(column)   =>
         SodaUtils.errorResponse(req, SodaError.ColumnNotFound(resourceName, columnName))(response)
+      case _@x =>
+        log.warn("case is NOT implemented")
+        SodaUtils.errorResponse(req, GeneralNotFoundError("unexpected match case"))
     }
   }
 
