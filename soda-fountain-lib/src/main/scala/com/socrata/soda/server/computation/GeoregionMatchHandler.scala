@@ -1,5 +1,7 @@
 package com.socrata.soda.server.computation
 
+import java.util.concurrent.TimeUnit
+
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
@@ -31,9 +33,9 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
   val serviceName    = config.getString("service-name")
   val batchSize      = config.getInt("batch-size")
   val maxRetries     = config.getInt("max-retries")
-  val retryWait      = config.getMilliseconds("retry-wait").longValue
-  val connectTimeout = config.getMilliseconds("connect-timeout").intValue
-  val readTimeout    = config.getMilliseconds("read-timeout").intValue
+  val retryWait      = config.getDuration("retry-wait", TimeUnit.MILLISECONDS)
+  val connectTimeout = config.getDuration("connect-timeout", TimeUnit.MILLISECONDS).toInt
+  val readTimeout    = config.getDuration("read-timeout", TimeUnit.MILLISECONDS).toInt
 
   class GeospaceService[T](discovery: ServiceDiscovery[T]) extends CuratorServiceBase(discovery, serviceName)
   val service = new GeospaceService(discovery)
