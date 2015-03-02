@@ -1,0 +1,10 @@
+#!/bin/sh
+set -ev
+
+/bin/env_parse ${SERVER_CONFIG}.j2
+
+exec su socrata -c '/usr/bin/java \
+    -Xmx${JAVA_XMX} \
+    -Xms${JAVA_XMX} \
+    -Dconfig.file=${SERVER_CONFIG} \
+    -jar $SERVER_ARTIFACT'

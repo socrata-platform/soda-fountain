@@ -1,9 +1,10 @@
 *~
-/target/
-/project/target/
-/project/project/target/
+/*.conf
+/docker/soda-fountain-jetty-assembly.jar
 /.idea/
 /.idea_modules/
-/*.conf
-/*.log
 keystore.jks
+/*.log
+/project/project/target/
+/project/target/
+/target/

@@ -1,0 +1,22 @@
+com.socrata.soda-fountain  {
+  curator.ensemble = {{ ZOOKEEPER_ENSEMBLE }}
+  service-advertisement.address = "{{ ARK_HOST }}"
+  network.port = 6010
+
+  database {
+    host = "{{ SODA_FOUNTAIN_DB_HOST }}"
+    port = "{{ SODA_FOUNTAIN_DB_PORT }}"
+    database = "{{ SODA_FOUNTAIN_DB_NAME }}"
+    username = "{{ SODA_FOUNTAIN_DB_USER }}"
+    password = "{{ SODA_FOUNTAIN_DB_PASSWORD }}"
+  }
+
+  metrics {
+    activemq-connection-uri = "{{ BALBOA_ACTIVEMQ_URI }}"
+    enable-graphite = {{ ENABLE_GRAPHITE }}
+    graphite-host = "{{ GRAPHITE_HOST }}"
+    graphite-port = "{{ GRAPHITE_PORT }}"
+    jms-queue = "{{ BALBOA_JMS_QUEUE }}"
+    log-metrics = {{ LOG_METRICS }}
+  }
+}
