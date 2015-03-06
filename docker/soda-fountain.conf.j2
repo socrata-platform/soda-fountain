@@ -8,7 +8,7 @@ com.socrata.soda-fountain  {
     port = "{{ SODA_FOUNTAIN_DB_PORT }}"
     database = "{{ SODA_FOUNTAIN_DB_NAME }}"
     username = "{{ SODA_FOUNTAIN_DB_USER }}"
-    password = "{{ SODA_FOUNTAIN_DB_PASSWORD }}"
+    {{ SODA_FOUNTAIN_DB_PASSWORD_LINE }}
   }
 
   metrics {
