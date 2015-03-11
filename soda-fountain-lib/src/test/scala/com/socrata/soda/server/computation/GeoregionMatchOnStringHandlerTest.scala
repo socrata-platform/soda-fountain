@@ -127,7 +127,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
   test("extractSourceColumnValueFromRow - source column is an unexpected type") {
     a [MaltypedDataEx] should be thrownBy {
       handler.invokePrivate(extractSourceColumn(
-        Map("name" -> SoQLJson(JNumber(5).toV2)), ColumnName("name")))
+        Map("name" -> SoQLJson(JNumber(5))), ColumnName("name")))
     }
   }
 }

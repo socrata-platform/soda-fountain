@@ -1,8 +1,8 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.ast._
-import com.rojoma.json.codec.JsonCodec
-import com.rojoma.json.io.{CompactJsonWriter, JsonReader}
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
+import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
 import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point}
@@ -24,14 +24,14 @@ trait JsonColumnWriteRep extends JsonColumnCommonRep {
 
 trait JsonColumnRep extends JsonColumnReadRep with JsonColumnWriteRep
 
-class CodecBasedJsonColumnRep[TrueCV : JsonCodec](val representedType: SoQLType, unwrapper: SoQLValue => TrueCV, wrapper: TrueCV => SoQLValue) extends JsonColumnRep {
+class CodecBasedJsonColumnRep[TrueCV : JsonEncode : JsonDecode](val representedType: SoQLType, unwrapper: SoQLValue => TrueCV, wrapper: TrueCV => SoQLValue) extends JsonColumnRep {
   def fromJValue(input: JValue) =
     if(JNull == input) Some(SoQLNull)
-    else JsonCodec[TrueCV].decode(input).map(wrapper)
+    else JsonDecode[TrueCV].decode(input).right.toOption.map(wrapper)
 
   def toJValue(input: SoQLValue) =
     if(SoQLNull == input) JNull
-    else JsonCodec[TrueCV].encode(unwrapper(input))
+    else JsonEncode[TrueCV].encode(unwrapper(input))
 }
 
 object JsonColumnRep {
@@ -114,7 +114,7 @@ object JsonColumnRep {
   object ClientNumberRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JString(s) => try { Some(SoQLNumber(new java.math.BigDecimal(s))) } catch { case e: NumberFormatException => None }
-      case JNumber(n) => Some(SoQLNumber(n.underlying))
+      case n: JNumber => Some(SoQLNumber(n.toJBigDecimal))
       case JNull => Some(SoQLNull)
       case _ => None
     }
@@ -129,7 +129,7 @@ object JsonColumnRep {
   object ClientMoneyRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JString(s) => try { Some(SoQLMoney(new java.math.BigDecimal(s))) } catch { case e: NumberFormatException => None }
-      case JNumber(n) => Some(SoQLMoney(n.underlying))
+      case n: JNumber => Some(SoQLMoney(n.toJBigDecimal))
       case JNull => Some(SoQLNull)
       case _ => None
     }
@@ -146,7 +146,7 @@ object JsonColumnRep {
   // We'll use this for both client and server doubles.  The servers will just never generate quoted ones.
   object DoubleRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
-      case JNumber(n) => Some(SoQLDouble(n.toDouble))
+      case n: JNumber => Some(SoQLDouble(n.toDouble))
       case JString(s) => try { Some(SoQLDouble(s.toDouble)) } catch { case e: NumberFormatException => None }
       case JNull => Some(SoQLNull)
       case _ => None

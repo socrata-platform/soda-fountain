@@ -185,7 +185,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
         StringColumnRep.forType(pkCol.typ).fromString(rowId.underlying) match {
           case Some(soqlValue) =>
-            val jvalToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlValue).toV3
+            val jvalToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlValue)
             doUpsertish(user, datasetRecord, Iterator.single(DeleteRow(jvalToDelete)), Iterator.empty,
                         requestId, f)
           case None => f(MaltypedData(pkCol.fieldName, pkCol.typ, JString(rowId.underlying)))
