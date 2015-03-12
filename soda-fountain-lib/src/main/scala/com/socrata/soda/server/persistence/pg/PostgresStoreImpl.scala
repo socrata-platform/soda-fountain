@@ -456,8 +456,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     def sourceColumns = rs.getArray("source_columns") match {
       case arr: java.sql.Array =>
         val columnIds = arr.getArray.asInstanceOf[Array[String]].toSeq // yuk
-        Some(columnIds)
-        //Some(columnIds.map(columnId => fetchMinimalColumn(conn, datasetId, ColumnId(columnId), copyNumber)))
+        Some(columnIds.map(columnId => fetchMinimalColumn(conn, datasetId, ColumnId(columnId), copyNumber)))
       case _                   =>
         None
     }

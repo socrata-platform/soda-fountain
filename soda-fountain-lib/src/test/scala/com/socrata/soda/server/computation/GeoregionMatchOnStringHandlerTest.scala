@@ -2,7 +2,9 @@ package com.socrata.soda.server.computation
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.conversions._
-import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRecordLike}
+import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
+import com.socrata.soda.server.id.ColumnId
+import com.socrata.soda.server.persistence.{MinimalColumnRecord, ComputationStrategyRecord, ColumnRecordLike}
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
@@ -13,7 +15,6 @@ import org.mockito.Matchers._
 import org.scalatest.{Matchers, PrivateMethodTester, FunSuiteLike}
 import org.scalatest.mock.MockitoSugar
 import scala.collection.JavaConverters._
-import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 
 trait FakeDiscovery extends MockitoSugar {
   val discovery = mock[ServiceDiscovery[Any]]
@@ -42,13 +43,15 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
   val extractSourceColumn = PrivateMethod[Option[String]]('extractSourceColumnValueFromRow)
   val toJValue            = PrivateMethod[JValue]('toJValue)
 
+  def sourceColumn = MinimalColumnRecord(ColumnId("abcd-2345"), ColumnName("my_source_column"), SoQLNull, false, None)
+
   test("genEndpoint - valid column definition") {
     val columnDef = mock[ColumnRecordLike]
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnString,
         true,
-        Some(Seq("my_source_column")),
+        Some(Seq(sourceColumn)),
         Some(JObject(Map("region" -> JString("sfo_zipcodes"), "column" -> JString("zip")))))))
 
     val endpoint = handler.invokePrivate(genEndpoint(columnDef))
@@ -61,7 +64,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnString,
         true,
-        Some(Seq("my_source_column")),
+        Some(Seq(sourceColumn)),
         None)))
 
     val ex = the [IllegalArgumentException] thrownBy {
@@ -76,7 +79,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnString,
         true,
-        Some(Seq("my_source_column")),
+        Some(Seq(sourceColumn)),
         Some(JObject(Map("column" -> JString("zip")))))))
 
     val ex = the [IllegalArgumentException] thrownBy {
@@ -91,7 +94,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnString,
         true,
-        Some(Seq("my_source_column")),
+        Some(Seq(sourceColumn)),
         Some(JObject(Map("region" -> JString("sfo_zipcodes")))))))
 
     val ex = the [IllegalArgumentException] thrownBy {
@@ -127,7 +130,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
   test("extractSourceColumnValueFromRow - source column is an unexpected type") {
     a [MaltypedDataEx] should be thrownBy {
       handler.invokePrivate(extractSourceColumn(
-        Map("name" -> SoQLJson(JNumber(5).toV2)), ColumnName("name")))
+        Map("name" -> SoQLJson(JNumber(5))), ColumnName("name")))
     }
   }
 }

@@ -32,6 +32,7 @@ trait GeoregionMatchOnPointHandlerData {
 
   val pointRep = JsonColumnRep.forClientType(SoQLPoint)
   def toSoQLPoint(str: String) = pointRep.fromJValue(JsonReader.fromString(str).toV2).get.asInstanceOf[SoQLPoint]
+  def sourceColumn(id: String) = MinimalColumnRecord(ColumnId(id), ColumnName("test"), SoQLNull, false, None)
 
   val testRows = Seq[RowDataTranslator.Computable](
     DeleteAsCJson(JString("abcd-1234")),
@@ -47,7 +48,7 @@ trait GeoregionMatchOnPointHandlerData {
     Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013")))
 
   val computeStrategy = ComputationStrategyRecord(ComputationStrategyType.GeoRegionMatchOnPoint, false,
-    Some(Seq("geom-1234")),
+    Some(Seq(sourceColumn("geom-1234"))),
     Some(JObject(Map("region" -> JString("wards")))))
   val columnSpec = MinimalColumnRecord(ColumnId("ward-1234"), ColumnName("ward_id"), SoQLText, false,
     Some(computeStrategy))
@@ -253,7 +254,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnPoint,
         false,
-        Some(Seq("")),
+        Some(Seq(sourceColumn(""))),
         Some(JObject(Map())))))
 
     val ex = the [IllegalArgumentException] thrownBy {

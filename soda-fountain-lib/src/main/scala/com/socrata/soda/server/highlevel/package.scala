@@ -1,12 +1,10 @@
 package com.socrata.soda.server
 
-import com.socrata.soda.server.wiremodels.{ComputationStrategySpec, ColumnSpec, DatasetSpec}
-import com.socrata.soda.server.persistence.{ColumnRecordLike, ColumnRecord, ComputationStrategyRecord, DatasetRecord}
-import com.socrata.soda.server.id.{ColumnId, DatasetId}
-import com.socrata.soda.server.util.schema.SchemaHash
-import org.joda.time.DateTime
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportMetaData
-
+import com.socrata.soda.server.persistence._
+import com.socrata.soda.server.util.schema.SchemaHash
+import com.socrata.soda.server.wiremodels.{SourceColumnSpec, ComputationStrategySpec, ColumnSpec, DatasetSpec}
+import com.socrata.soql.types.SoQLNull
 
 package object highlevel {
   implicit class clrec(val __underlying: ColumnSpec) extends AnyVal {
@@ -36,13 +34,20 @@ package object highlevel {
 
   implicit class csrec(val __underlying: Option[ComputationStrategySpec]) extends AnyVal {
     def asRecord: Option[ComputationStrategyRecord] = __underlying.map { css =>
-      ComputationStrategyRecord(css.strategyType, css.recompute, css.sourceColumns, css.parameters)
+      val sourceColumns = css.sourceColumns.map(_.map { col =>
+        // Value of last 3 params is never used
+        MinimalColumnRecord(col.id, col.fieldName, SoQLNull, false, None)
+      })
+      ComputationStrategyRecord(css.strategyType, css.recompute, sourceColumns, css.parameters)
     }
   }
 
   implicit class csspec(val __underlying: Option[ComputationStrategyRecord]) extends AnyVal {
     def asSpec: Option[ComputationStrategySpec] = __underlying.map { csr =>
-      ComputationStrategySpec(csr.strategyType, csr.recompute, csr.sourceColumns, csr.parameters)
+      val sourceColumns = csr.sourceColumns.map(_.map { col =>
+        SourceColumnSpec(col.id, col.fieldName)
+      })
+      ComputationStrategySpec(csr.strategyType, csr.recompute, sourceColumns, csr.parameters)
     }
   }
 
