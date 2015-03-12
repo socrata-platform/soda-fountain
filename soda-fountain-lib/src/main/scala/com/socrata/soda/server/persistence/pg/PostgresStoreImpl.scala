@@ -310,23 +310,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def fetchMinimalColumns(conn: Connection, datasetId: DatasetId, copyNumber: Long): Seq[MinimalColumnRecord] = {
-    val sql =
-      """SELECT c.column_name,
-        |       c.column_id,
-        |       c.type_name,
-        |       c.is_inconsistency_resolution_generated,
-        |       cs.computation_strategy_type,
-        |       cs.recompute,
-        |       cs.source_columns,
-        |       cs.parameters
-        | FROM columns c
-        | JOIN dataset_copies dc on dc.id = c.copy_id
-        | LEFT JOIN computation_strategies cs
-        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id AND c.copy_id = cs.copy_id
-        | WHERE dc.dataset_system_id = ?
-        |   AND dc.copy_number = ?
-            And dc.deleted_at is null
-      """.stripMargin
+    val sql = fetchMinimalColumnsSql(includeColumnFilter = false)
 
     using(conn.prepareStatement(sql)) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
@@ -342,24 +326,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def fetchMinimalColumn(conn: Connection, datasetId: DatasetId, columnId: ColumnId, copyNumber: Long): MinimalColumnRecord = {
-    val sql =
-      """SELECT c.column_name,
-        |       c.column_id,
-        |       c.type_name,
-        |       c.is_inconsistency_resolution_generated,
-        |       cs.computation_strategy_type,
-        |       cs.recompute,
-        |       cs.source_columns,
-        |       cs.parameters
-        | FROM columns c
-        | JOIN dataset_copies dc on dc.id = c.copy_id
-        | LEFT JOIN computation_strategies cs
-        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id AND c.copy_id = cs.copy_id
-        | WHERE c.column_id = ?
-        |   AND dc.dataset_system_id = ?
-        |   AND dc.copy_number = ?
-            And dc.deleted_at is null
-      """.stripMargin
+    val sql = fetchMinimalColumnsSql(includeColumnFilter = true)
 
     using(conn.prepareStatement(sql)) { colQuery =>
       colQuery.setString(1, columnId.underlying)
@@ -434,9 +401,9 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
     def parseParameters(raw: String) =
       try {
-        JsonReader.fromString(raw).cast[JObject] match {
-          case Some(params) => params
-          case None         => throw new SodaFountainStoreError("Computation strategy source columns could not be parsed")
+        JsonReader.fromString(raw) match {
+          case params: JObject => params
+          case other           => throw new SodaFountainStoreError("Computation strategy source columns could not be parsed")
         }
       } catch {
         case e: JsonReaderException =>
@@ -746,6 +713,26 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 }
 
 object PostgresStoreImpl {
+
+  def fetchMinimalColumnsSql(includeColumnFilter: Boolean) = {
+    val columnFilter = if (includeColumnFilter) "c.column_id = ? AND" else ""
+    s"""SELECT c.column_name,
+       |       c.column_id,
+       |       c.type_name,
+       |       c.is_inconsistency_resolution_generated,
+       |       cs.computation_strategy_type,
+       |       cs.recompute,
+       |       cs.source_columns,
+       |       cs.parameters
+       | FROM columns c
+       | JOIN dataset_copies dc on dc.id = c.copy_id
+       | LEFT JOIN computation_strategies cs
+       | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id AND c.copy_id = cs.copy_id
+       | WHERE $columnFilter
+       |       dc.dataset_system_id = ? AND
+       |       dc.copy_number = ? AND
+       |       dc.deleted_at is null""".stripMargin
+  }
 
   // The string_to_array function below is a workaround for Postgres JDBC4
   // which does not implement connection.createArrayOf
