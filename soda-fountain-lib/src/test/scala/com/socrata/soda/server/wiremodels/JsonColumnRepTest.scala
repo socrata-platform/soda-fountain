@@ -2,9 +2,8 @@ package com.socrata.soda.server.wiremodels
 
 import org.scalatest.{Assertions, FunSuite, MustMatchers}
 import com.socrata.soql.types._
-import com.rojoma.json.ast._
-import com.rojoma.json.ast.JString
-import com.rojoma.json.io.JsonReader
+import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.io.JsonReader
 
 class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
   test("Client reps know about all types") {
@@ -118,7 +117,9 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
 
   test("JSON type checker handles GeoJSON of different types") {
     val input = """{"type":"MultiLineString","coordinates":[[[100,0.123456789012],[101,1]],[[102,2],[103,3]]]}"""
-    JsonColumnRep.forClientType(SoQLPoint).fromJValue(JsonReader.fromString(input)) must equal (None)
+    a [ClassCastException] should be thrownBy {
+      JsonColumnRep.forClientType(SoQLPoint).fromJValue(JsonReader.fromString(input))
+    }
   }
 
   test("JSON type checker with MultiLine"){

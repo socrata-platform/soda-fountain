@@ -60,11 +60,11 @@ object CJsonExporter extends Exporter {
       for(row <- rows) {
         w.write(",[")
         if(row.length > 0) {
-          jw.write(reps(schemaOrdering(0)).toJValue(row(schemaOrdering(0))).toV3)
+          jw.write(reps(schemaOrdering(0)).toJValue(row(schemaOrdering(0))))
           var i = 1
           while(i < row.length) {
             w.write(',')
-            jw.write(reps(schemaOrdering(i)).toJValue(row(schemaOrdering(i))).toV3)
+            jw.write(reps(schemaOrdering(i)).toJValue(row(schemaOrdering(i))))
             i += 1
           }
         }

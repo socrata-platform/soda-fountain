@@ -31,7 +31,7 @@ trait GeoregionMatchOnPointHandlerData {
   val multiLine = """{"type":"MultiLineString","coordinates":[[[100,0.123456789012],[101,1]],[[102,2],[103,3]]]}"""
 
   val pointRep = JsonColumnRep.forClientType(SoQLPoint)
-  def toSoQLPoint(str: String) = pointRep.fromJValue(JsonReader.fromString(str).toV2).get.asInstanceOf[SoQLPoint]
+  def toSoQLPoint(str: String) = pointRep.fromJValue(JsonReader.fromString(str)).get.asInstanceOf[SoQLPoint]
   def sourceColumn(id: String) = MinimalColumnRecord(ColumnId(id), ColumnName("test"), SoQLNull, false, None)
 
   val testRows = Seq[RowDataTranslator.Computable](
@@ -203,7 +203,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
   }
 
   test("Will throw MaltypedDataEx if source column not right SoQLType") {
-    def converter(s: String) = JsonColumnRep.forClientType(SoQLMultiLine).fromJValue(JsonReader.fromString(s).toV2)
+    def converter(s: String) = JsonColumnRep.forClientType(SoQLMultiLine).fromJValue(JsonReader.fromString(s))
 
     // If not MultiLine
     intercept[MaltypedDataEx] {

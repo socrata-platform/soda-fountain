@@ -43,7 +43,7 @@ object CJson {
               val result = new Array[SoQLValue](width)
               var i = 0
               while(i != width) {
-                reps(i).fromJValue(elems(i).toV2) match {
+                reps(i).fromJValue(elems(i)) match {
                   case Some(v) => result(i) = v
                   case None => throw new UndecodableValue(elems(i), schema.schema(i).t)
                 }
