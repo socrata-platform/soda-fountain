@@ -24,7 +24,7 @@ object Dependencies {
     val soqlReference     = "0.5.0"
     val thirdPartyUtils   = "3.0.0"
     val typesafeConfig    = "1.0.2"
- 
+
     // Test
     val mockito           = "1.10.7"
     val mockServer        = "3.0"
