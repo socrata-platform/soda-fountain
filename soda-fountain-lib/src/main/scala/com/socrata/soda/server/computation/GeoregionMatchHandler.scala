@@ -80,8 +80,10 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
    * @return         The original set of rows with the feature ID of the matching georegion appended to each row
    */
   def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: ColumnRecordLike): Iterator[RowDataTranslator.Computable] = {
+    require(column.computationStrategy.isDefined, "No computation strategy found")
+
     // Only a single column is allowed as a source for now
-    val sourceColumnId = extractSourceColumnFromStrategy(column)
+    val sourceColumnId = extractSourceColumnId(column)
 
     val batches = sourceIt.grouped(batchSize)
     val computedBatches = batches.map { batch =>
@@ -144,14 +146,15 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
       Right(JsonDecode[Int].decode(x).right.toOption)
   }
 
-  private def extractSourceColumnFromStrategy(column: ColumnRecordLike): String = {
-    require(column.computationStrategy.isDefined, "No computation strategy found")
-    column.computationStrategy match {
-      case Some(ComputationStrategyRecord(_, _, Some(Seq(sourceCol)), _)) =>
-        sourceCol
-      case _ =>
-        throw new IllegalArgumentException("Source column was not defined in computation strategy")
-    }
+  private def extractSourceColumnId(column: ColumnRecordLike): String = {
+    val sourceCol = for {
+      strategy   <- column.computationStrategy
+      sourceCols <- strategy.sourceColumns
+      first      <- sourceCols.headOption
+    } yield first
+
+    sourceCol.map(_.id.underlying).getOrElse(
+      throw new IllegalArgumentException("Source column was not defined in computation strategy"))
   }
 
   private def geospaceRegionCoder(endpoint: String, items: Seq[V]): Seq[Option[Int]] = {

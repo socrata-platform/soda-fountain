@@ -1,6 +1,6 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.wiremodels.{ComputationStrategySpec, UserProvidedComputationStrategySpec, ColumnSpec, UserProvidedColumnSpec}
+import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.brita.IdentifierFilter
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.id.ColumnId
@@ -63,17 +63,26 @@ class ColumnSpecUtils(rng: Random) {
       case Some(UserProvidedComputationStrategySpec(Some(typ), Some(recompute), sourceColumns, parameters)) =>
         // The logic below assumes that the computed column is defined after the source column in the schema.
         // TODO : Validation should be independent of column ordering in the schema definition.
-        if (sourceColumns.isDefined &&
-            sourceColumns.get.exists { sc => !existingColumns.map(_._1.name).toSeq.contains(sc) }) {
-          UnknownComputationStrategySourceColumn
-        }
-        else {
-          ComputationStrategySuccess(Some(ComputationStrategySpec(typ, recompute, sourceColumns, parameters)))
+        val sourceColumnSpecs = sourceColumns.map(_.map(sourceColumnSpec(_, existingColumns)))
+        sourceColumnSpecs match {
+          case Some(specs: Seq[Option[SourceColumnSpec]]) =>
+            if (specs.exists(_.isEmpty)) UnknownComputationStrategySourceColumn
+            else {
+              ComputationStrategySuccess(Some(ComputationStrategySpec(typ, recompute, Some(specs.flatten), parameters)))
+            }
+          case None =>
+            ComputationStrategySuccess(Some(ComputationStrategySpec(typ, recompute, None, parameters)))
         }
       case Some(UserProvidedComputationStrategySpec(None, _, _, _)) => ComputationStrategyNoStrategyType
       case Some(UserProvidedComputationStrategySpec(_, None, _, _)) => ComputationStrategyNoRecompute
       case None => ComputationStrategySuccess(None)
     }
+
+  def sourceColumnSpec(sourceName: String, existingColumns: Map[ColumnName, ColumnId]): Option[SourceColumnSpec] =
+    for {
+      name <- existingColumns.keySet.find(_ == sourceName)
+      id   <- existingColumns.get(name)
+    } yield SourceColumnSpec(id, name)
 
   def selectId(existingIds: Iterable[ColumnId]): ColumnId = {
     var id = randomId()

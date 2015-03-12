@@ -71,12 +71,8 @@ trait ColumnRecordLike {
 case class ComputationStrategyRecord(
    strategyType: ComputationStrategyType.Value,
    recompute: Boolean,
-   sourceColumns: Option[Seq[String]],
+   sourceColumns: Option[Seq[MinimalColumnRecord]],
    parameters: Option[JObject])
-
-object ComputationStrategyRecord {
-  implicit val jCodec = AutomaticJsonCodecBuilder[ComputationStrategyRecord]
-}
 
 // A minimal dataset record is a dataset record minus the name and description columns,
 // which are unnecessary for most operations.
@@ -88,9 +84,6 @@ case class MinimalColumnRecord(
   computationStrategy: Option[ComputationStrategyRecord] = None)
     extends ColumnRecordLike
 
-object MinimalColumnRecord {
-  implicit val jCodec = AutomaticJsonCodecBuilder[MinimalColumnRecord]
-}
 case class MinimalDatasetRecord(
   resourceName: ResourceName,
   systemId: DatasetId,
@@ -104,9 +97,6 @@ case class MinimalDatasetRecord(
     extends DatasetRecordLike {
   type ColumnRecordT = MinimalColumnRecord
 }
-object MinimalDatasetRecord {
-  implicit val jCodec = AutomaticJsonCodecBuilder[MinimalDatasetRecord]
-}
 
 case class ColumnRecord(
   id: ColumnId,
@@ -117,10 +107,6 @@ case class ColumnRecord(
   isInconsistencyResolutionGenerated: Boolean,
   computationStrategy: Option[ComputationStrategyRecord])
     extends ColumnRecordLike
-
-object ColumnRecord {
-  implicit val jCodec = AutomaticJsonCodecBuilder[ColumnRecord]
-}
 
 case class DatasetRecord(
   resourceName: ResourceName,
@@ -136,8 +122,4 @@ case class DatasetRecord(
   lastModified: DateTime)
     extends DatasetRecordLike {
   type ColumnRecordT = ColumnRecord
-}
-
-object DatasetRecord {
-  implicit val jCodec = AutomaticJsonCodecBuilder[DatasetRecord]
 }

@@ -59,7 +59,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
     val f = store.translateResourceName(resourceName)
     f match {
-      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, Seq(MinimalColumnRecord(col1, _, _, _, _), MinimalColumnRecord(col2, _, _, _, _)), _, _, _)) =>
+      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, Seq(MinimalColumnRecord(col1, _, _, _, None), MinimalColumnRecord(col2, _, _, _, None)), _, _, _)) =>
         col1 should equal (ColumnId("abc123"))
         col2 should equal (ColumnId("def456"))
       case None => fail("didn't find columns")
@@ -108,13 +108,13 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         Some(ComputationStrategyRecord(
           ComputationStrategyType.GeoRegionMatchOnPoint,
           true,
-          Some(Seq("location")),
+          Some(Seq(MinimalColumnRecord(ColumnId("abcd-1234"), ColumnName("location"), SoQLPoint, false, None))),
           Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))
         ))
       )
     )
 
-    val (resourceName, datasetId) = createMockDataset(columns)
+    val (resourceName, _) = createMockDataset(columns)
     val lookupResult = store.lookupDataset(resourceName, Some(Latest))
     lookupResult should not be (None)
     lookupResult.get.columns.size should be (2)
@@ -135,7 +135,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         isInconsistencyResolutionGenerated should equal (columns(1).isInconsistencyResolutionGenerated)
         strategy should equal (columns(1).computationStrategy.get.strategyType)
         recompute should equal (columns(1).computationStrategy.get.recompute)
-        sourceColumns should equal (Seq(columns(0).id.underlying))
+        sourceColumns should equal (columns(1).computationStrategy.get.sourceColumns.get)
         params should equal (columns(1).computationStrategy.get.parameters.get)
     }
   }

@@ -60,7 +60,7 @@ trait DatasetsForTesting {
     val computationStrategy = ComputationStrategyRecord(
       ComputationStrategyType.Test,
       true,
-      Some(Seq(sourceColumn.id.underlying)),
+      Some(Seq(MinimalColumnRecord(sourceColumn.id, sourceColumn.fieldName, SoQLNull, false, None))),
       Some(JObject(Map("concat_text" -> JString("fun")))))
 
     val computedColumn = ColumnRecord(

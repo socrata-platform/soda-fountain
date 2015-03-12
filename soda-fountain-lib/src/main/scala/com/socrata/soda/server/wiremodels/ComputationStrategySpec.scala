@@ -1,12 +1,30 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.v3.ast.{JObject, JValue}
+import com.rojoma.json.v3.ast.{JString, JObject, JValue}
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
+import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.errors.{ComputationStrategySpecUnknownType, ComputationStrategySpecMaltyped}
+import com.socrata.soda.server.id.ColumnId
+import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.wiremodels.InputUtils.ExtractContext
 import scala.{collection => sc}
 import scala.util.Try
+import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
+import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
 
+@JsonKeyStrategy(Strategy.Underscore)
+case class SourceColumnSpec(id: ColumnId,
+                            fieldName: ColumnName)
+
+object SourceColumnSpec {
+  implicit object jsonCodec extends JsonEncode[SourceColumnSpec] with JsonDecode[SourceColumnSpec] {
+    def encode(x: SourceColumnSpec): JValue = JString(x.fieldName.name)
+
+    // have to extend JsonDecode for the auto-codecs below to work, but it's never actually used
+    def decode(x: JValue): DecodeResult[SourceColumnSpec] =
+     throw new NotImplementedError("decode not implemented")
+  }
+}
 
 /**
  * Defines how the value for a computed column is derived
@@ -19,7 +37,7 @@ import scala.util.Try
 case class ComputationStrategySpec(
   strategyType: ComputationStrategyType.Value,
   recompute: Boolean,
-  sourceColumns: Option[Seq[String]],
+  sourceColumns: Option[Seq[SourceColumnSpec]],
   parameters: Option[JObject])
 
 object ComputationStrategySpec {

@@ -33,7 +33,7 @@ class TestComputationHandler extends ComputationHandler {
       case ComputationStrategyRecord(_, _, Some(Seq(sourceCol)), Some(JObject(map))) =>
         require(map.contains("concat_text"), "parameters does not contain 'concat_text'")
         val JString(concatText) = map("concat_text")
-        (sourceCol, concatText)
+        (sourceCol.id.underlying, concatText)
       case x =>  throw new IllegalArgumentException("There must be exactly 1 sourceColumn, and " +
         "parameters must have a key 'concat_text'")
     }

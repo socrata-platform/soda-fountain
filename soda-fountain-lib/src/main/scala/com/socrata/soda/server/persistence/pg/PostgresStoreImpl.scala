@@ -3,10 +3,10 @@ package com.socrata.soda.server.persistence.pg
 import java.sql.{Connection, ResultSet, Timestamp, Types}
 
 import scala.annotation.tailrec
-import scala.util.Try
+import scala.util.{Failure, Try}
 
 import com.rojoma.json.v3.ast.JObject
-import com.rojoma.json.v3.io.JsonReader
+import com.rojoma.json.v3.io.{JsonReaderException, JsonReader}
 import com.rojoma.simplearm.util._
 import com.socrata.soda.server.copy.{Latest, Published, Stage}
 import com.socrata.soda.server.highlevel.csrec
@@ -310,23 +310,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def fetchMinimalColumns(conn: Connection, datasetId: DatasetId, copyNumber: Long): Seq[MinimalColumnRecord] = {
-    val sql =
-      """SELECT c.column_name,
-        |       c.column_id,
-        |       c.type_name,
-        |       c.is_inconsistency_resolution_generated,
-        |       cs.computation_strategy_type,
-        |       cs.recompute,
-        |       cs.source_columns,
-        |       cs.parameters
-        | FROM columns c
-        | JOIN dataset_copies dc on dc.id = c.copy_id
-        | LEFT JOIN computation_strategies cs
-        | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id AND c.copy_id = cs.copy_id
-        | WHERE dc.dataset_system_id = ?
-        |   AND dc.copy_number = ?
-            And dc.deleted_at is null
-      """.stripMargin
+    val sql = fetchMinimalColumnsSql(includeColumnFilter = false)
 
     using(conn.prepareStatement(sql)) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
@@ -334,18 +318,35 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       using(colQuery.executeQuery()) { rs =>
         val result = Vector.newBuilder[MinimalColumnRecord]
         while(rs.next()) {
-          result += MinimalColumnRecord(
-            ColumnId(rs.getString("column_id")),
-            new ColumnName(rs.getString("column_name")),
-            SoQLType.typesByName(TypeName(rs.getString("type_name"))),
-            rs.getBoolean("is_inconsistency_resolution_generated"),
-            extractComputationStrategy(rs)
-          )
+          result += parseMinimalColumn(conn, datasetId, rs, copyNumber)
         }
         result.result()
       }
     }
   }
+
+  def fetchMinimalColumn(conn: Connection, datasetId: DatasetId, columnId: ColumnId, copyNumber: Long): MinimalColumnRecord = {
+    val sql = fetchMinimalColumnsSql(includeColumnFilter = true)
+
+    using(conn.prepareStatement(sql)) { colQuery =>
+      colQuery.setString(1, columnId.underlying)
+      colQuery.setString(2, datasetId.underlying)
+      colQuery.setLong(3, copyNumber)
+      using (colQuery.executeQuery()) { rs =>
+        rs.next()
+        parseMinimalColumn(conn, datasetId, rs, copyNumber)
+      }
+    }
+  }
+
+  def parseMinimalColumn(conn: Connection, datasetId: DatasetId, rs: ResultSet, copyNumber: Long): MinimalColumnRecord =
+    MinimalColumnRecord(
+      ColumnId(rs.getString("column_id")),
+      new ColumnName(rs.getString("column_name")),
+      SoQLType.typesByName(TypeName(rs.getString("type_name"))),
+      rs.getBoolean("is_inconsistency_resolution_generated")//,
+      //fetchComputationStrategy(conn, datasetId, rs, copyNumber)
+    )
 
   def fetchFullColumns(conn: Connection, datasetId: DatasetId, copyNumber: Long): Seq[ColumnRecord] = {
     val sql =
@@ -381,7 +382,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             rs.getString("name"),
             rs.getString("description"),
             rs.getBoolean("is_inconsistency_resolution_generated"),
-            extractComputationStrategy(rs)
+            fetchComputationStrategy(conn, datasetId, rs, copyNumber)
           )
         }
         result.result()
@@ -389,32 +390,50 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def extractComputationStrategy(rs: ResultSet): Option[ComputationStrategyRecord] = {
-    val strategyType = rs.getString("computation_strategy_type") match {
-      case s: String => Try(ComputationStrategyType.withName(s)).toOption match {
-        case Some(csType) => csType
-        // I don't really like just throwing an exception here, but that seems
-        // to be how Soda Fountain deals with unexpected situations currently.
-        // It seems better than failing silently.
-        case None         => throw new SodaFountainStoreError(s"Invalid computation strategy type found in database: '$s'")
+  def fetchComputationStrategy(conn: Connection, datasetId: DatasetId, rs: ResultSet, copyNumber: Long): Option[ComputationStrategyRecord] = {
+    def parseStrategyType(raw: String) =
+      try {
+        ComputationStrategyType.withName(raw)
+      } catch {
+        case e: NoSuchElementException =>
+          throw new SodaFountainStoreError(s"Invalid computation strategy type found in database: '$raw'")
       }
-      // Assume that this is not a computed column if no type is specified
-      case null      => return None
+
+    def parseParameters(raw: String) =
+      try {
+        JsonReader.fromString(raw) match {
+          case params: JObject => params
+          case other           => throw new SodaFountainStoreError("Computation strategy source columns could not be parsed")
+        }
+      } catch {
+        case e: JsonReaderException =>
+          throw new SodaFountainStoreError("Computation strategy source columns could not be parsed")
+      }
+
+    def strategyType = for {
+      raw <- Option(rs.getString("computation_strategy_type"))
+      typ <- Option(parseStrategyType(raw))
+    } yield typ
+
+    def parameters = for {
+      raw    <- Option(rs.getString("parameters"))
+      params <- Option(parseParameters(raw))
+    } yield params
+
+    def sourceColumns = rs.getArray("source_columns") match {
+      case arr: java.sql.Array =>
+        val columnIds = arr.getArray.asInstanceOf[Array[String]].toSeq // yuk
+        Some(columnIds.map(columnId => fetchMinimalColumn(conn, datasetId, ColumnId(columnId), copyNumber)))
+      case _                   =>
+        None
     }
 
-    val recompute = rs.getBoolean("recompute") // getBoolean will return false if the value is missing in the table
-
-    val sourceColumns = rs.getArray("source_columns") match {
-      case arr: java.sql.Array => Some(arr.getArray.asInstanceOf[Array[String]].toSeq)
-      case _                   => None
-    }
-
-    val parameters = Option(rs.getString("parameters")).map(JsonReader.fromString(_))
-    parameters.filterNot(_.isInstanceOf[JObject]).foreach { x =>
-      throw new SodaFountainStoreError("Computation strategy source columns could not be parsed")
-    }
-
-    Some(ComputationStrategyRecord(strategyType, recompute, sourceColumns, parameters.map(_.asInstanceOf[JObject])))
+    for {
+      typ       <- strategyType
+      params    <- Option(parameters)
+      recompute <- Option(rs.getBoolean("recompute"))
+      source    <- Option(sourceColumns)
+    } yield ComputationStrategyRecord(typ, recompute, source, params)
   }
 
   def addColumns(connection: Connection, datasetId: DatasetId, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
@@ -694,6 +713,26 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 }
 
 object PostgresStoreImpl {
+
+  def fetchMinimalColumnsSql(includeColumnFilter: Boolean) = {
+    val columnFilter = if (includeColumnFilter) "c.column_id = ? AND" else ""
+    s"""SELECT c.column_name,
+       |       c.column_id,
+       |       c.type_name,
+       |       c.is_inconsistency_resolution_generated,
+       |       cs.computation_strategy_type,
+       |       cs.recompute,
+       |       cs.source_columns,
+       |       cs.parameters
+       | FROM columns c
+       | JOIN dataset_copies dc on dc.id = c.copy_id
+       | LEFT JOIN computation_strategies cs
+       | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id AND c.copy_id = cs.copy_id
+       | WHERE $columnFilter
+       |       dc.dataset_system_id = ? AND
+       |       dc.copy_number = ? AND
+       |       dc.deleted_at is null""".stripMargin
+  }
 
   // The string_to_array function below is a workaround for Postgres JDBC4
   // which does not implement connection.createArrayOf

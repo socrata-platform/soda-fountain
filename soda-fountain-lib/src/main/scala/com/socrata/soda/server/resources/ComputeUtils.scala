@@ -28,9 +28,9 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
 
   private def getSourceColumns(dataset: DatasetRecordLike, computationStrategy: ComputationStrategyRecord): Seq[ColumnRecordLike] = {
     computationStrategy.sourceColumns match {
-      case Some(columnIds: Seq[String]) =>
+      case Some(columns: Seq[MinimalColumnRecord]) =>
         val trans = new RowDataTranslator(dataset, false)
-        trans.getInfoForColumnList(columnIds)
+        trans.getInfoForColumnList(columns.map(_.id.underlying))
       case None => Seq()
     }
   }
