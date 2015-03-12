@@ -230,7 +230,7 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
 
   private def getDCRows(rows: Seq[Array[SoQLValue]]) = {
     val jValues = rows.map(_.map { cell =>
-      JsonColumnRep.forDataCoordinatorType(cell.typ).toJValue(cell).toV3
+      JsonColumnRep.forDataCoordinatorType(cell.typ).toJValue(cell)
     })
     jValues.map(JArray(_))
   }

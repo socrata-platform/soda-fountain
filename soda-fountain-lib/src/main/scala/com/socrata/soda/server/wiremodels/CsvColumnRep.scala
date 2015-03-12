@@ -1,6 +1,6 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.io.CompactJsonWriter
+import com.rojoma.json.v3.io.CompactJsonWriter
 import com.socrata.soql.types._
 import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point}
 

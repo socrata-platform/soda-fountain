@@ -1,7 +1,7 @@
 package com.socrata.soda.server.export
 
-import com.rojoma.json.ast.{JValue, JNull, JObject, JString}
-import com.rojoma.json.io.{CompactJsonWriter, JsonReader}
+import com.rojoma.json.v3.ast.{JValue, JNull, JObject, JString}
+import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.highlevel.ExportDAO
