@@ -80,7 +80,7 @@ class ColumnSpecUtils(rng: Random) {
 
   def sourceColumnSpec(sourceName: String, existingColumns: Map[ColumnName, ColumnId]): Option[SourceColumnSpec] =
     for {
-      name <- existingColumns.keySet.find(_ == sourceName)
+      name <- existingColumns.keySet.find(_.name == sourceName)
       id   <- existingColumns.get(name)
     } yield SourceColumnSpec(id, name)
 

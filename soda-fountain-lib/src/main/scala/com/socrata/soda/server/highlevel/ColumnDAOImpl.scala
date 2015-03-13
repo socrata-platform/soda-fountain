@@ -63,16 +63,16 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                 log.info("column created {} {} {}", datasetRecord.systemId.toString, copyNumber.toString, column.name)
                 ColumnDAO.Created(spec.asRecord, etag)
               // TODO other cases have not been implemented
-              case _@x =>
-                log.warn("case is NOT implemented")
+              case err@x =>
+                log.warn(s"case is NOT implemented ${err.getClass.getName}")
                 ???
             }
           case f: Precondition.Failure =>
             ColumnDAO.PreconditionFailed(f)
         }
       // TODO other cases have not been implemented
-      case _@x =>
-        log.warn("case is NOT implemented")
+      case err@x =>
+        log.warn(s"case is NOT implemented ${err.getClass.getName}")
         ???
 
     }
