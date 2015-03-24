@@ -20,6 +20,7 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val handlers = getRawConfig("handlers")
   val metrics =  optionally(getConfig("metrics", new BalboaConfig(_,_)))
   val codaMetrics = getRawConfig("metrics")
+  val threadpool = getRawConfig("threadpool")
 }
 
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
