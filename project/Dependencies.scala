@@ -19,7 +19,7 @@ object Dependencies {
     val rojomaSimpleArm   = "1.2.0"
     val rojomaSimpleArmV2 = "2.1.0"
     val scalaj            = "0.3.15"
-    val socrataHttp       = "3.2.1-SNAPSHOT"
+    val socrataHttp       = "3.3.0"
     val soqlBrita         = "1.3.0"
     val soqlReference     = "0.5.0"
     val thirdPartyUtils   = "3.0.0"
