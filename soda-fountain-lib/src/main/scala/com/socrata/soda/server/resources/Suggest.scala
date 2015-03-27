@@ -57,10 +57,10 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO, config: Suggest
       val ds = datasetId(resourceName)
       val cn = copyNum(resourceName)
       val col = datacoordinatorColumnId(resourceName, columnName)
-      // TODO: protect param 'text' from arbitrary url insertion
+      val encText = java.net.URLEncoder.encode(text, "urf-8") // protect param 'text' from arbitrary url insertion
 
       val spandexRequest: SimpleHttpRequest = RequestBuilder(spandexAddress)
-        .addPath(s"/suggest/$ds/$cn/$col/$text")
+        .addPath(s"/suggest/$ds/$cn/$col/$encText")
         .get
 
       for {
