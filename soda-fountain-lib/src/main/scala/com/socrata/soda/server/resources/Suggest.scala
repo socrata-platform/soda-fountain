@@ -25,15 +25,16 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO, config: Suggest
   def datasetId(resourceName: ResourceName): String = {
     datasetDao.getDataset(resourceName, None) match {
       case DatasetDAO.Found(d) => d.systemId.underlying
-      case _ =>
-        val msg = s"dataset not found $resourceName"
+      case DatasetDAO.NotFound(d) => ""// TODO: handle dataset not found
+      case x: DatasetDAO.Result =>
+        val msg = s"dataset not found $resourceName ${x.getClass.getName}"
         log.error(msg)
         throw new Exception(msg)
     }
   }
 
   def copyNum(resourceName: ResourceName): Long = {
-    datasetDao.getCurrentCopyNum(resourceName).getOrElse({
+    datasetDao.getCurrentCopyNum(resourceName).getOrElse({ // TODO: handle copy not found
       val msg = s"dataset copy not found $resourceName"
       log.error(msg)
       throw new Exception(msg)
@@ -43,8 +44,9 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO, config: Suggest
   def datacoordinatorColumnId(resourceName: ResourceName, columnName: ColumnName): String = {
     columnDao.getColumn(resourceName, columnName) match {
       case ColumnDAO.Found(_, c, _) => c.id.underlying
-      case _ =>
-        val msg = s"column not found $columnName"
+      case ColumnDAO.ColumnNotFound(c) => "" // TODO: handle column not found
+      case x: ColumnDAO.Result =>
+        val msg = s"column not found $columnName ${x.getClass.getName}"
         log.error(msg)
         throw new Exception(msg)
     }
@@ -55,6 +57,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO, config: Suggest
       val ds = datasetId(resourceName)
       val cn = copyNum(resourceName)
       val col = datacoordinatorColumnId(resourceName, columnName)
+      // TODO: protect param 'text' from arbitrary url insertion
 
       val spandexRequest: SimpleHttpRequest = RequestBuilder(spandexAddress)
         .addPath(s"/suggest/$ds/$cn/$col/$text")
