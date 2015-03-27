@@ -48,7 +48,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
         cn <- copyNum(resourceName)
         col <- datacoordinatorColumnId(resourceName, columnName)
       } yield {
-        val encText = java.net.URLEncoder.encode(text, "urf-8") // protect param 'text' from arbitrary url insertion
+        val encText = java.net.URLEncoder.encode(text, "utf-8") // protect param 'text' from arbitrary url insertion
         val spandexRequest: SimpleHttpRequest = RequestBuilder(spandexAddress)
             .addPath(s"/suggest/$ds/$cn/$col/$encText")
             .get
