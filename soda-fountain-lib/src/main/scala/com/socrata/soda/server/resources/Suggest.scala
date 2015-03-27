@@ -16,10 +16,10 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
   lazy val spandexAddress = s"${config.host}:${config.port}"
 
-  def datasetId(resourceName: ResourceName): String = {
+  def datasetId(resourceName: ResourceName): Option[String] = {
     datasetDao.getDataset(resourceName, None) match {
-      case DatasetDAO.Found(d) => d.systemId.underlying
-      case DatasetDAO.NotFound(d) => ""// TODO: handle dataset not found
+      case DatasetDAO.Found(d) => Some(d.systemId.underlying)
+      case DatasetDAO.NotFound(d) => None
       case x: DatasetDAO.Result =>
         val msg = s"dataset not found $resourceName ${x.getClass.getName}"
         log.error(msg)
@@ -27,18 +27,13 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     }
   }
 
-  def copyNum(resourceName: ResourceName): Long = {
-    datasetDao.getCurrentCopyNum(resourceName).getOrElse({ // TODO: handle copy not found
-      val msg = s"dataset copy not found $resourceName"
-      log.error(msg)
-      throw new Exception(msg)
-    })
-  }
+  def copyNum(resourceName: ResourceName): Option[Long] =
+    datasetDao.getCurrentCopyNum(resourceName)
 
-  def datacoordinatorColumnId(resourceName: ResourceName, columnName: ColumnName): String = {
+  def datacoordinatorColumnId(resourceName: ResourceName, columnName: ColumnName): Option[String] = {
     columnDao.getColumn(resourceName, columnName) match {
-      case ColumnDAO.Found(_, c, _) => c.id.underlying
-      case ColumnDAO.ColumnNotFound(c) => "" // TODO: handle column not found
+      case ColumnDAO.Found(_, c, _) => Some(c.id.underlying)
+      case ColumnDAO.ColumnNotFound(c) => None
       case x: ColumnDAO.Result =>
         val msg = s"column not found $columnName ${x.getClass.getName}"
         log.error(msg)
@@ -48,24 +43,26 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
   case class service(resourceName: ResourceName, columnName: ColumnName, text: String) extends SodaResource {
     override def get = { req => resp =>
-      val ds = datasetId(resourceName)
-      val cn = copyNum(resourceName)
-      val col = datacoordinatorColumnId(resourceName, columnName)
-      val encText = java.net.URLEncoder.encode(text, "urf-8") // protect param 'text' from arbitrary url insertion
+      for {
+        ds <- datasetId(resourceName)
+        cn <- copyNum(resourceName)
+        col <- datacoordinatorColumnId(resourceName, columnName)
+      } yield {
+        val encText = java.net.URLEncoder.encode(text, "urf-8") // protect param 'text' from arbitrary url insertion
+        val spandexRequest: SimpleHttpRequest = RequestBuilder(spandexAddress)
+            .addPath(s"/suggest/$ds/$cn/$col/$encText")
+            .get
 
-      val spandexRequest: SimpleHttpRequest = RequestBuilder(spandexAddress)
-        .addPath(s"/suggest/$ds/$cn/$col/$encText")
-        .get
+        httpClient.execute(spandexRequest).run { spandexResponse =>
+          val body = try {
+            spandexResponse.jValue()
+          } catch {
+            case e: ContentTypeException => log.warn(s"Non JSON response: $e")
+              JNull
+          }
 
-      httpClient.execute(spandexRequest).run { spandexResponse =>
-        val body = try {
-          spandexResponse.jValue()
-        } catch {
-          case e: ContentTypeException => log.warn(s"Non JSON response: $e")
-            JNull
+          (Status(spandexResponse.resultCode) ~> Json(body))(resp)
         }
-
-        (Status(spandexResponse.resultCode) ~> Json(body))(resp)
       }
     }
   }
