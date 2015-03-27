@@ -19,6 +19,7 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   // This is a Typesafe config because there are variable number of subentries, one per handler
   val handlers = getRawConfig("handlers")
   val metrics =  optionally(getConfig("metrics", new BalboaConfig(_,_)))
+  val suggest = getConfig("suggest", new SuggestConfig(_,_))
   val codaMetrics = getRawConfig("metrics")
   val threadpool = getRawConfig("threadpool")
 }
@@ -68,4 +69,9 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
 class BalboaConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val activeMQConnectionUri = getString("activemq-connection-uri")
   val jmsQueue = getString("jms-queue")
+}
+
+class SuggestConfig(config: Config, root: String) extends ConfigClass(config, root) {
+  val host = getString("host")
+  val port = getInt("port")
 }
