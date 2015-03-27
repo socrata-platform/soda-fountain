@@ -4,6 +4,7 @@ import org.scalatest.{Assertions, FunSuite, MustMatchers}
 import com.socrata.soql.types._
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
+import com.vividsolutions.jts.geom._
 
 class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
   test("Client reps know about all types") {
@@ -117,9 +118,7 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
 
   test("JSON type checker handles GeoJSON of different types") {
     val input = """{"type":"MultiLineString","coordinates":[[[100,0.123456789012],[101,1]],[[102,2],[103,3]]]}"""
-    a [ClassCastException] should be thrownBy {
-      JsonColumnRep.forClientType(SoQLPoint).fromJValue(JsonReader.fromString(input))
-    }
+    JsonColumnRep.forClientType(SoQLPoint).fromJValue(JsonReader.fromString(input)) must equal (None)
   }
 
   test("JSON type checker with MultiLine"){
@@ -132,5 +131,12 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
     val input = """{"type":"MultiPolygon","coordinates":[[[[40,40],[20,45.123456789012],[45,30],[40,40]]],[[[20,35],[10,30],[10,10],[30,5],[45,20],[20,35]],[[30,20],[20,15],[20,25],[30,20]]]]}"""
     val SoQLMultiPolygon.JsonRep(asGeom) = input
     JsonColumnRep.forClientType(SoQLMultiPolygon).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLMultiPolygon(asGeom)))
+  }
+
+  val factory = new GeometryFactory
+  test("can export geometry types") {
+    val pt = SoQLPoint(factory.createPoint(new Coordinate(1.0, 2.0)))
+    val outJvalue = JsonColumnRep.forClientType(SoQLPoint).toJValue(pt)
+    JsonColumnRep.forClientType(SoQLPoint).fromJValue(outJvalue) must equal (Some(pt))
   }
 }
