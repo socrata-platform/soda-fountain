@@ -1,10 +1,8 @@
 package com.socrata.soda.server.resources
 
-import java.util.concurrent.Executors
-
 import com.rojoma.json.v3.ast.JNull
 import com.socrata.http.client.exceptions.ContentTypeException
-import com.socrata.http.client.{HttpClientHttpClient, NoopLivenessChecker, RequestBuilder, SimpleHttpRequest}
+import com.socrata.http.client.{RequestBuilder, SimpleHttpRequest, HttpClientHttpClient}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.server.config.SuggestConfig
@@ -12,13 +10,9 @@ import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soql.environment.ColumnName
 
-case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO, config: SuggestConfig) {
+case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
+                   httpClient: HttpClientHttpClient, config: SuggestConfig) {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
-
-  lazy val httpClient = new HttpClientHttpClient(Executors.newCachedThreadPool(),
-    HttpClientHttpClient.defaultOptions.
-      withLivenessChecker(NoopLivenessChecker).
-      withUserAgent("soda-fountain-lib"))
 
   lazy val spandexAddress = s"${config.host}:${config.port}"
 
