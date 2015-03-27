@@ -2,7 +2,7 @@ package com.socrata.soda.server.resources
 
 import com.rojoma.json.v3.ast.JNull
 import com.socrata.http.client.exceptions.ContentTypeException
-import com.socrata.http.client.{RequestBuilder, SimpleHttpRequest, HttpClientHttpClient}
+import com.socrata.http.client._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.server.config.SuggestConfig
@@ -57,19 +57,16 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
         .addPath(s"/suggest/$ds/$cn/$col/$encText")
         .get
 
-      for {
-        spandexResponse <- httpClient.execute(spandexRequest)
-      } yield {
+      httpClient.execute(spandexRequest).run { spandexResponse =>
         val body = try {
           spandexResponse.jValue()
         } catch {
           case e: ContentTypeException => log.warn(s"Non JSON response: $e")
             JNull
         }
+
         (Status(spandexResponse.resultCode) ~> Json(body))(resp)
       }
-
-      // (OK ~> Json(JObject(Map("spandex ok" -> JBoolean(true)))))(resp)
     }
   }
 
