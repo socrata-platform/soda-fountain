@@ -164,6 +164,9 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         NotFound(dataset)
     }
 
+  def getCurrentCopyNum(dataset: ResourceName): Option[Long] =
+    store.lookupCopyNumber(dataset, None)
+
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result =
     store.lookupDataset(dataset, stage) match {
       case Some(datasetRecord) => Found(datasetRecord)

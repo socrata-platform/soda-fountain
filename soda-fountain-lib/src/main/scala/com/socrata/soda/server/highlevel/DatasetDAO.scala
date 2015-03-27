@@ -22,6 +22,7 @@ trait DatasetDAO {
   def deleteDataset(user: String, dataset: ResourceName, requestId: RequestId): Result
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
+  def getCurrentCopyNum(dataset: ResourceName): Option[Long]
 
   def makeCopy(user: String, dataset: ResourceName, copyData: Boolean, requestId: RequestId): Result
   def dropCurrentWorkingCopy(user: String, dataset: ResourceName, requestId: RequestId): Result
