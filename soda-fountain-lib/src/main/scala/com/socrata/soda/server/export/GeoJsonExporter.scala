@@ -9,6 +9,7 @@ import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.persistence.ColumnRecordLike
 import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.types._
+import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
 import java.io.BufferedWriter
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
@@ -79,15 +80,13 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
     geoColumnIndices(0)
   }
 
-  private def getGeometryJson(soqlGeom: SoQLValue): JValue = {
-    val geomJson = soqlGeom match {
-      case SoQLPoint(p)         => SoQLPoint.JsonRep.apply(p)
-      case SoQLMultiLine(ml)    => SoQLMultiLine.JsonRep.apply(ml)
-      case SoQLMultiPolygon(mp) => SoQLMultiPolygon.JsonRep.apply(mp)
-      case _                    => return JNull
+  private def getGeometryJson(soqlGeom: SoQLValue): JValue =
+    soqlGeom match {
+      case SoQLPoint(p)         => geoCodec.encode(p)
+      case SoQLMultiLine(ml)    => geoCodec.encode(ml)
+      case SoQLMultiPolygon(mp) => geoCodec.encode(mp)
+      case _                    => JNull
     }
-    JsonReader.fromString(geomJson)
-  }
 
   private def writeGeoJsonRow(row: Array[SoQLValue]) {
     val properties = row.zipWithIndex.filterNot(_._2 == geoColumnIndex).map { case (value, index) =>
