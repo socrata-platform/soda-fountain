@@ -11,7 +11,7 @@ import com.socrata.soda.server.id.ResourceName
 import com.socrata.soql.environment.ColumnName
 
 case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
-                   httpClient: HttpClientHttpClient, config: SuggestConfig) {
+                   httpClient: HttpClient, config: SuggestConfig) {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
   lazy val spandexAddress = s"${config.host}:${config.port}"
