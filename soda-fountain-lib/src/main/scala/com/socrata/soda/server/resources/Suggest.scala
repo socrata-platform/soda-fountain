@@ -1,7 +1,6 @@
 package com.socrata.soda.server.resources
 
 import java.net.URI
-import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
 
 import com.rojoma.json.v3.ast.JNull
@@ -47,9 +46,6 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
   case class service(resourceName: ResourceName, columnName: ColumnName, text: String) extends SodaResource {
 
-    // ES mimetype is marked text/html although it is json.
-    def ignoreMimeType(mimeType: Option[MimeType]) = true
-
     override def get = { req => resp =>
       log.info(s"GET /suggest $resourceName :: $columnName :: $text")
 
@@ -73,7 +69,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
         httpClient.execute(spandexRequest).run { spandexResponse =>
           val body = try {
-            spandexResponse.jValue(ignoreMimeType)
+            spandexResponse.jValue()
           } catch {
             case e: ContentTypeException => log.warn(s"Non JSON response: $e")
               JNull
