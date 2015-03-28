@@ -1,8 +1,10 @@
 package com.socrata.soda.server.resources
 
+import java.net.URI
+
 import com.rojoma.json.v3.ast.JNull
-import com.socrata.http.client.exceptions.ContentTypeException
 import com.socrata.http.client._
+import com.socrata.http.client.exceptions.ContentTypeException
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.server.config.SuggestConfig
@@ -43,15 +45,18 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
   case class service(resourceName: ResourceName, columnName: ColumnName, text: String) extends SodaResource {
     override def get = { req => resp =>
+      log.info(s"GET /suggest $resourceName :: $columnName :: $text")
       for {
         ds <- datasetId(resourceName)
         cn <- copyNum(resourceName)
         col <- datacoordinatorColumnId(resourceName, columnName)
       } yield {
         val encText = java.net.URLEncoder.encode(text, "utf-8") // protect param 'text' from arbitrary url insertion
-        val spandexRequest: SimpleHttpRequest = RequestBuilder(spandexAddress)
-            .addPath(s"/suggest/$ds/$cn/$col/$encText")
-            .get
+
+        val uri = new URI(s"http://$spandexAddress/suggest/$ds/$cn/$col/$encText")
+        log.info(s"TRANSLATED $ds|$cn|$col :: $encText")
+        log.info(s"SPANDEX GET $uri")
+        val spandexRequest: SimpleHttpRequest = RequestBuilder(uri).get
 
         httpClient.execute(spandexRequest).run { spandexResponse =>
           val body = try {
