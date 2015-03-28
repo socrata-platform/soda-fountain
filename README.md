@@ -33,11 +33,6 @@ For soda-fountain-lib, log output goes to `sbt-test.log`.  Logging is controlled
 
 For test coverage reports, do `sbt coverage test`.  XML and HTML coverage reports are generated.  Unfortunately due to a bug in scalac, HTML line by line highlighting is broken.
 
-The HTML reports do not have line coverage highlighting, due to a bug in ScalaC.
-However, you can get the highlighting through Codacy.com!  To do this, run
-additional commands `coverageAggregate` and `codacyCoverage`.  Also see [this
-link](http://blog.codacy.com/2015/01/12/introducing-code-coverage) for details.
-
 ## Migrations
 
 Using sbt:

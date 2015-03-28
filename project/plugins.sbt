@@ -3,7 +3,7 @@ resolvers ++= Seq(
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/"
 )
 
-addSbtPlugin("com.socrata" % "socrata-sbt-plugins" %"1.4.1")
+addSbtPlugin("com.socrata" % "socrata-sbt-plugins" %"1.4.3")
 
 addSbtPlugin("com.earldouglas" % "xsbt-web-plugin" % "0.4.2")
 

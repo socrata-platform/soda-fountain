@@ -7,6 +7,8 @@ object BuildSettings {
     spray.revolver.RevolverPlugin.Revolver.settings ++
     Defaults.itSettings ++
       Seq(
+        // TODO: enable coverage minimum
+        scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageFailOnMinimum := false,
         // TODO: enable style checks
         styleCheck in Test := {},
         styleCheck in Compile := {},
