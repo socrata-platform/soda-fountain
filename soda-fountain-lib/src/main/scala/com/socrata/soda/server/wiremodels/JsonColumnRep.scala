@@ -5,6 +5,7 @@ import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
 import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
+import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
 import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point}
 import java.io.IOException
 import scala.util.Try
@@ -201,17 +202,15 @@ object JsonColumnRep {
       input match {
         case JNull => Some(SoQLNull)
         case _ => {
-          // TODO : Make this more efficient by being able to convert directly between GeoTools object and JValue
-          val geometry = try { fromJson(CompactJsonWriter.toString(input)) } catch { case e: IOException => None }
-          Try(geometry.map { geom => value(geom) }).getOrElse(None)
+          val geometry = try { Some(geoCodec.decode(input).right.get) } catch { case e: IOException => None }
+          Try(geometry.map { geom => value(geom.asInstanceOf[T]) }).getOrElse(None)
         }
       }
     }
 
     def toJValue(input: SoQLValue) =
-      if(SoQLNull == input) JNull
-      // TODO : Make this more efficient by being able to convert directly between GeoTools object and JValue
-      else JsonReader.fromString(toJson(input))
+      if (SoQLNull == input) { JNull }
+      else                   { geoCodec.encode(geometry(input)) }
   }
 
   class GeometryLikeRep[T <: Geometry](repType: SoQLType, geometry: SoQLValue => T, value: T => SoQLValue) extends JsonColumnRep {
