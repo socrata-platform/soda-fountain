@@ -24,3 +24,5 @@ See the Dockerfile for defaults.
 * `SODA_FOUNTAIN_DB_NAME` - Soda Fountain DB database name
 * `SODA_FOUNTAIN_DB_PORT` - Soda Fountain DB port number
 * `SODA_FOUNTAIN_DB_USER` - Soda Fountain DB user name
+* `SPANDEX_HOST` - Spandex (Suggest) host
+* `SPANDEX_PORT` - Spandex (Suggest) port
