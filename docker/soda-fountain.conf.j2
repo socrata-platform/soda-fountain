@@ -11,6 +11,11 @@ com.socrata.soda-fountain  {
     {{ SODA_FOUNTAIN_DB_PASSWORD_LINE }}
   }
 
+  suggest {
+    host = "{{ SPANDEX_HOST }}"
+    port = "{{ SPANDEX_PORT }}"
+  }
+
   metrics {
     activemq-connection-uri = "{{ BALBOA_ACTIVEMQ_URI }}"
     enable-graphite = {{ ENABLE_GRAPHITE }}
