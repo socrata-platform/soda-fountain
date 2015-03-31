@@ -63,9 +63,10 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
         val encText = java.net.URLEncoder.encode(text, "utf-8") // protect param 'text' from arbitrary url insertion
 
         val uri = new URI(s"http://$spandexAddress/suggest/$ds/$cn/$col/$encText")
-        log.info(s"TRANSLATED $ds|$cn|$col :: $encText")
-        log.info(s"SPANDEX GET $uri")
-        val spandexRequest: SimpleHttpRequest = RequestBuilder(uri).get
+        log.info(s"SPANDEX GET $uri ${req.queryParameters}")
+        val spandexRequest: SimpleHttpRequest = RequestBuilder(uri)
+          .addParameters(req.queryParameters)
+          .get
 
         httpClient.execute(spandexRequest).run { spandexResponse =>
           val body = try {
