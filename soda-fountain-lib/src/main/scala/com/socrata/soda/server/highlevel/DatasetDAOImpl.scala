@@ -165,7 +165,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     }
 
   def getCurrentCopyNum(dataset: ResourceName): Option[Long] =
-    store.lookupCopyNumber(dataset, None) // stage=None implies latest copy
+    store.lookupCopyNumber(dataset, Some(Published))
 
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result =
     store.lookupDataset(dataset, stage) match {
