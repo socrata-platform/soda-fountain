@@ -1,7 +1,7 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
-import com.socrata.soda.server.copy.Published
+import com.socrata.soda.server.copy.{Published, Unpublished}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence.NameAndSchemaStore
 import org.scalamock.proxy.ProxyMockFactory
@@ -18,7 +18,25 @@ class DatasetDAOSpec extends FunSuiteLike with Matchers with MockFactory with Pr
     val dc = mock[DataCoordinatorClient]
     val ns = mock[NameAndSchemaStore]
     ns.expects('lookupCopyNumber)(dataset, None).returning(Some(1)).anyNumberOfTimes()
-    ns.expects('lookupCopyNumber)(dataset, Some(Published)).returning(expectedCopyNum).anyNumberOfTimes()
+    ns.expects('lookupCopyNumber)(dataset, Some(Published)).returning(expectedCopyNum)
+    val col = new ColumnSpecUtils(Random)
+    val instance = () => "test"
+
+    val dao: DatasetDAO = new DatasetDAOImpl(dc, ns, col, instance)
+
+    val copynum = dao.getCurrentCopyNum(dataset)
+
+    copynum should be(expectedCopyNum)
+  }
+
+  test("current copy is latest unpublished") {
+    val dataset = new ResourceName("dataset")
+    val expectedCopyNum = Some(42)
+
+    val dc = mock[DataCoordinatorClient]
+    val ns = mock[NameAndSchemaStore]
+    ns.expects('lookupCopyNumber)(dataset, Some(Published)).returning(None)
+    ns.expects('lookupCopyNumber)(dataset, Some(Unpublished)).returning(expectedCopyNum)
     val col = new ColumnSpecUtils(Random)
     val instance = () => "test"
 
