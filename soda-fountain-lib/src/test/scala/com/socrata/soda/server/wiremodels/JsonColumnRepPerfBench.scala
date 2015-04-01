@@ -2,6 +2,7 @@ package com.socrata.soda.server.wiremodels
 
 import com.socrata.soql.types._
 import com.vividsolutions.jts.geom._
+import com.vividsolutions.jts.io.{WKTWriter, WKBWriter}
 
 /**
  * Performance test for JsonColumnRep, specifically for the geometry types input and output.
@@ -37,4 +38,24 @@ object JsonColumnRepPerfBench extends App {
 
   time("JsonColumnRep SoQLPoint fromJValue",
        jValues.map(JsonColumnRep.forClientType(SoQLPoint).fromJValue))
+
+  // WKT or WKB
+  time("JsonColumnRep SoQLPoint CJSON/DC toJValue",
+       sourceSoql.map(JsonColumnRep.forDataCoordinatorType(SoQLPoint).toJValue))
+
+  val dcjValues = sourceSoql.map(JsonColumnRep.forDataCoordinatorType(SoQLPoint).toJValue)
+
+  time("JsonColumnRep SoQLPoint CJSON/DC fromJValue",
+       dcjValues.map(JsonColumnRep.forDataCoordinatorType(SoQLPoint).fromJValue))
+
+  val wktWriter = new WKTWriter
+  val wkbWriter = new WKBWriter
+  // See http://java-performance.info/base64-encoding-and-decoding-performance/
+  import javax.xml.bind.DatatypeConverter.printBase64Binary
+
+  time("Point to WKT", sourcePoints.map(wktWriter.write))
+  time("Point to WKB", sourcePoints.map(wkbWriter.write))
+  time("Point to base64(WKB)", sourcePoints.map(pt => printBase64Binary(wkbWriter.write(pt))))
+
+
 }
