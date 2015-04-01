@@ -139,4 +139,18 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
     val outJvalue = JsonColumnRep.forClientType(SoQLPoint).toJValue(pt)
     JsonColumnRep.forClientType(SoQLPoint).fromJValue(outJvalue) must equal (Some(pt))
   }
+
+  test("can read from CJSON WKT and WKB64") {
+    val wkb64 = "AAAAAAHAPgpa8K4hcEBITaQDgJ5U"
+    val wkt = "POINT (-30.04045 48.606567)"
+    val soqlPointFromWkb = JsonColumnRep.forDataCoordinatorType(SoQLPoint)
+                             .fromJValue(JString(wkb64)).get.asInstanceOf[SoQLPoint]
+    soqlPointFromWkb.value.getX must be { -30.04045 +- 0.000001 }
+    soqlPointFromWkb.value.getY must be { 48.606567 +- 0.000001 }
+
+    val soqlPointFromWkt = JsonColumnRep.forDataCoordinatorType(SoQLPoint)
+                             .fromJValue(JString(wkt)).get.asInstanceOf[SoQLPoint]
+    soqlPointFromWkt.value.getX must be { -30.04045 +- 0.000001 }
+    soqlPointFromWkt.value.getY must be { 48.606567 +- 0.000001 }
+  }
 }
