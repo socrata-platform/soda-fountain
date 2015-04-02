@@ -217,17 +217,19 @@ object JsonColumnRep {
     val representedType = repType
 
     def fromWkt(str: String) = repType.asInstanceOf[SoQLGeometryLike[T]].WktRep.unapply(str)
-    def toWkt(v: SoQLValue) = v.typ.asInstanceOf[SoQLGeometryLike[T]].WktRep(geometry(v))
+    def fromWkb64(str: String) = repType.asInstanceOf[SoQLGeometryLike[T]].Wkb64Rep.unapply(str)
+    def toWkb64(v: SoQLValue) = v.typ.asInstanceOf[SoQLGeometryLike[T]].Wkb64Rep(geometry(v))
 
     def fromJValue(input: JValue) = input match {
-      case JString(s) => fromWkt(s).map(geometry => value(geometry))
+      // Fall back to WKT in case we deal with an old PG-soql-server still outputting WKT
+      case JString(s) => fromWkb64(s).orElse(fromWkt(s)).map(geometry => value(geometry))
       case JNull => Some(SoQLNull)
       case _ => None
     }
 
     def toJValue(input: SoQLValue) = {
       if (SoQLNull == input) JNull
-      else JString(toWkt(input))
+      else JString(toWkb64(input))
     }
   }
 
