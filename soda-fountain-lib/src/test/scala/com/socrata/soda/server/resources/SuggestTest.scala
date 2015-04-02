@@ -101,7 +101,7 @@ class SuggestTest extends FunSuite with Matchers with MockFactory {
     }
   }
 
-  // TODO: fix this test by correctly mocking http response execute
+  // TODO: fix these tests by correctly mocking http response execute
   ignore("get suggestions - found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
@@ -122,6 +122,31 @@ class SuggestTest extends FunSuite with Matchers with MockFactory {
 
     val response = new MockHttpServletResponse()
     suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
+
+    response.getStatus should be(expectedStatusCode)
+    response.getContentAsString should contain(expectedSuggestion)
+  }
+
+  ignore("get samples") {
+    val d = mock[DatasetDAO]
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
+    d.expects('getCurrentCopyNum)(resourceName).returning(Some(expectedCopyNum))
+
+    val c = mock[ColumnDAO]
+    c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
+
+    val request = new MockHttpServletRequest()
+    val augReq = new AugmentedHttpServletRequest(request)
+    val httpReq = mock[HttpRequest]
+    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
+
+    val h = mock[HttpClient]
+    h.expects('execute)(augReq).anyNumberOfTimes.returning(42)
+
+    val suggest = mockSuggest(datasetDao = d, columnDao = c, httpClient = h)
+
+    val response = new MockHttpServletResponse()
+    suggest.sampleService(resourceName, columnName).get(httpReq)(response)
 
     response.getStatus should be(expectedStatusCode)
     response.getContentAsString should contain(expectedSuggestion)
