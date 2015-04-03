@@ -45,8 +45,9 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     }
   }
 
-  def go(resourceName: ResourceName, columnName: ColumnName,
-         f: (String, Long, String, String) => URI): HttpService = { req => resp =>
+  def go(req: HttpRequest, resp: HttpServletResponse,
+         resourceName: ResourceName, columnName: ColumnName, text: String,
+         f: (String, Long, String, String) => URI): Unit = {
     // f(dataset name, copy num, column name, text)
     def notFound(resp: HttpServletResponse, name: String) = {
       NotFound(resp)
@@ -59,7 +60,9 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
       cn <- copyNum(resourceName).orElse(notFound(resp, "copy"))
       col <- datacoordinatorColumnId(resourceName, columnName).orElse(notFound(resp, "column"))
     } yield {
-      val spandexRequest: SimpleHttpRequest = RequestBuilder(f(ds, cn, col, ""))
+      val uri = f(ds, cn, col, text)
+      log.info(s"GO SPANDEX: $uri")
+      val spandexRequest: SimpleHttpRequest = RequestBuilder(uri)
         .addParameters(req.queryParameters)
         .get
 
@@ -79,7 +82,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   case class sampleService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def get = { req => resp =>
       log.info(s"GET /suggest $resourceName :: $columnName [sample]")
-      go(resourceName, columnName, (dataset, copynum, column, _) =>
+      go(req, resp, resourceName, columnName, "", (dataset, copynum, column, _) =>
         new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column"))
     }
   }
@@ -87,7 +90,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   case class service(resourceName: ResourceName, columnName: ColumnName, text: String) extends SodaResource {
     override def get = { req => resp =>
       log.info(s"GET /suggest $resourceName :: $columnName :: $text")
-      go(resourceName, columnName, (dataset, copynum, column, text) => {
+      go(req, resp, resourceName, columnName, text, (dataset, copynum, column, text) => {
         val encText = java.net.URLEncoder.encode(text, "utf-8") // protect param 'text' from arbitrary url insertion
         new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column/$encText")
       })
