@@ -6,6 +6,7 @@ import javax.servlet.http.HttpServletResponse
 import com.rojoma.json.v3.ast.JNull
 import com.socrata.http.client._
 import com.socrata.http.client.exceptions.ContentTypeException
+import com.socrata.http.server._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.server.config.SuggestConfig
@@ -44,41 +45,52 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     }
   }
 
-  case class service(resourceName: ResourceName, columnName: ColumnName, text: String) extends SodaResource {
+  def go(resourceName: ResourceName, columnName: ColumnName,
+         f: (String, Long, String, String) => URI): HttpService = { req => resp =>
+    // f(dataset name, copy num, column name, text)
+    def notFound(resp: HttpServletResponse, name: String) = {
+      NotFound(resp)
+      log.info("{} not found - {}.{}", name, resourceName, columnName)
+      None
+    }
 
+    for {
+      ds <- datasetId(resourceName).orElse(notFound(resp, "dataset id"))
+      cn <- copyNum(resourceName).orElse(notFound(resp, "copy"))
+      col <- datacoordinatorColumnId(resourceName, columnName).orElse(notFound(resp, "column"))
+    } yield {
+      val spandexRequest: SimpleHttpRequest = RequestBuilder(f(ds, cn, col, ""))
+        .addParameters(req.queryParameters)
+        .get
+
+      httpClient.execute(spandexRequest).run { spandexResponse =>
+        val body = try {
+          spandexResponse.jValue()
+        } catch {
+          case e: ContentTypeException => log.warn(s"Non JSON response: $e")
+            JNull
+        }
+
+        (Status(spandexResponse.resultCode) ~> Json(body))(resp)
+      }
+    }
+  }
+
+  case class sampleService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
+    override def get = { req => resp =>
+      log.info(s"GET /suggest $resourceName :: $columnName [sample]")
+      go(resourceName, columnName, (dataset, copynum, column, _) =>
+        new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column"))
+    }
+  }
+
+  case class service(resourceName: ResourceName, columnName: ColumnName, text: String) extends SodaResource {
     override def get = { req => resp =>
       log.info(s"GET /suggest $resourceName :: $columnName :: $text")
-
-      def notFound(resp: HttpServletResponse, name: String) = {
-        NotFound(resp)
-        log.info("{} not found - {}.{}", name, resourceName, columnName)
-        None
-      }
-
-      for {
-        ds <- datasetId(resourceName).orElse(notFound(resp, "dataset id"))
-        cn <- copyNum(resourceName).orElse(notFound(resp, "copy"))
-        col <- datacoordinatorColumnId(resourceName, columnName).orElse(notFound(resp, "column"))
-      } yield {
+      go(resourceName, columnName, (dataset, copynum, column, text) => {
         val encText = java.net.URLEncoder.encode(text, "utf-8") // protect param 'text' from arbitrary url insertion
-
-        val uri = new URI(s"http://$spandexAddress/suggest/$ds/$cn/$col/$encText")
-        log.info(s"SPANDEX GET $uri ${req.queryParameters}")
-        val spandexRequest: SimpleHttpRequest = RequestBuilder(uri)
-          .addParameters(req.queryParameters)
-          .get
-
-        httpClient.execute(spandexRequest).run { spandexResponse =>
-          val body = try {
-            spandexResponse.jValue()
-          } catch {
-            case e: ContentTypeException => log.warn(s"Non JSON response: $e")
-              JNull
-          }
-
-          (Status(spandexResponse.resultCode) ~> Json(body))(resp)
-        }
-      }
+        new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column/$encText")
+      })
     }
   }
 
