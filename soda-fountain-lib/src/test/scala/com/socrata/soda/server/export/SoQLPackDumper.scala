@@ -6,19 +6,15 @@ import org.velvia.MsgPackUtils._
 import com.vividsolutions.jts.io.WKBReader
 
 /**
- * App that takes a SoQLPack binary file and dumps out the header and rows
+ * App that takes a SoQLPack stream from STDIN and dumps out the header and rows
  * This should be moved into part of the main instead of test package, but this would
  * mess up the java -jar soda-fountain-assembly experience...
  *
  * Run in the soda-fountain directory like:
- *   sbt 'soda-fountain-lib/test:run com.socrata.soda.server.export.SoQLPackDumper /tmp/soqlpack.in'
- *
- * Sorry wanted to make this work on STDIN but SBT is not cooperating.  Fix this once we
- * fix the SBT assembly issue.
+ *  curl ... | sbt 'soda-fountain-lib/test:runMain com.socrata.soda.server.export.SoQLPackDumper'
  */
 object SoQLPackDumper extends App {
-  // val dis = new DataInputStream(System.in)
-  val dis = new DataInputStream(new FileInputStream(args(0)))
+  val dis = new DataInputStream(System.in)
   val headerMap = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
   println("--- Schema ---")
   headerMap.foreach { case (key, value) => println("%25s: %s".format(key, value)) }
