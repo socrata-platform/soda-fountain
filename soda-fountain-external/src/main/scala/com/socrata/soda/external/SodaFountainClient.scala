@@ -1,7 +1,7 @@
 package com.socrata.soda.external
 
 import com.rojoma.json.v3.ast.{JNull, JValue}
-import com.rojoma.json.v3.io.{JsonReader, JValueEventIterator}
+import com.rojoma.json.v3.io._
 import com.rojoma.simplearm.util._
 import com.socrata.http.client._
 import com.socrata.http.common.AuxiliaryData
@@ -53,7 +53,7 @@ class SodaFountainClient(httpClient: HttpClient,
    * @param payload Request POST body
    * @return HTTP response code and body
    */
-  def create(payload: JValue): Result = post(createUrl, payload)
+  def create(payload: JValue): Result = post(createUrl, JValueEventIterator(payload))
 
   /**
    * Sends a request to Soda Fountain to publish a dataset
@@ -61,7 +61,7 @@ class SodaFountainClient(httpClient: HttpClient,
    * @param resourceName Resource name of the dataset to publish
    * @return HTTP response code and body
    */
-  def publish(resourceName: String): Result = post(publishUrl(_, resourceName), JNull)
+  def publish(resourceName: String): Result = post(publishUrl(_, resourceName), JValueEventIterator(JNull))
 
   /**
    * Sends a request to Soda Fountain to upsert rows to a dataset
@@ -70,7 +70,22 @@ class SodaFountainClient(httpClient: HttpClient,
    * @param payload Request POST body
    * @return HTTP response code and body
    */
-  def upsert(resourceName: String, payload: JValue): Result = post(upsertUrl(_, resourceName), payload)
+  def upsert(resourceName: String, payload: JValue): Result = post(upsertUrl(_, resourceName), JValueEventIterator(payload))
+
+  /**
+   * Sends a request to Soda Fountain to upsert rows to a dataset
+   * and returns the response
+   * @param resourceName Resource name of the dataset to upsert to
+   * @param jIterator JValue iterator to stream
+   * @return HTTP response code and body
+   */
+  def upsertStream(resourceName: String, jIterator: Iterator[JValue]): Result = {
+    val upsertIterator = Iterator.single(StartOfArrayEvent()(Position.Invalid)) ++
+                          jIterator.flatMap {item=> JValueEventIterator(item) } ++
+                          Iterator.single(EndOfArrayEvent()(Position.Invalid))
+
+    post(upsertUrl(_, resourceName), upsertIterator)
+  }
 
   /**
    * Sends a request to Soda Fountain to query or retrieve rows from a dataset
@@ -115,8 +130,8 @@ class SodaFountainClient(httpClient: HttpClient,
     rb.p("dataset", resourceName)
   }
 
-  private def post(requestBuilder: RequestBuilder => RequestBuilder, payload: JValue): Result =
-    requestAndGetResponse { rb => requestBuilder(rb).json(JValueEventIterator(payload)) }
+  private def post(requestBuilder: RequestBuilder => RequestBuilder, payload: Iterator[JsonEvent]): Result =
+    requestAndGetResponse { rb => requestBuilder(rb).json(payload) }
 
   private def get(requestBuilder: RequestBuilder => RequestBuilder): Result =
     requestAndGetResponse { rb => requestBuilder(rb).get }
