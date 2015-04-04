@@ -1,18 +1,24 @@
 package com.socrata.soda.server.resources
 
+import java.net.URI
+import java.util.concurrent.Executors
+import javax.servlet.http.{HttpServletResponse => HttpStatus}
+
 import com.socrata.http.client._
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
+import com.socrata.soda.server._
 import com.socrata.soda.server.config.{SodaFountainConfig, SuggestConfig}
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord}
+import com.socrata.soda.server.util.CloseableExecutorService
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLNull
 import com.typesafe.config.ConfigFactory
 import org.joda.time.DateTime
 import org.scalamock.scalatest.proxy.MockFactory
-import org.scalatest.{FunSuite, Ignore, Matchers}
+import org.scalatest.{FunSuite, Matchers}
 import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResponse}
 
 class SuggestTest extends FunSuite with Matchers with MockFactory {
@@ -102,6 +108,34 @@ class SuggestTest extends FunSuite with Matchers with MockFactory {
   }
 
   // TODO: fix these tests by correctly mocking http response execute
+  ignore("spandex go - executes external request") {
+    val d = mock[DatasetDAO]
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
+    d.expects('getCurrentCopyNum)(resourceName).returning(Some(expectedCopyNum))
+
+    val c = mock[ColumnDAO]
+    c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
+
+    val uri = new URI("http://localhost/")
+
+    val servletReq = new MockHttpServletRequest()
+    servletReq.setRequestURI(uri.toString)
+    val augReq = new AugmentedHttpServletRequest(servletReq)
+    val httpReq = httpRequest(augReq)
+
+    val executor = new CloseableExecutorService(Executors.newCachedThreadPool())
+    val h = new HttpClientHttpClient(executor)
+
+    val servletResp = new MockHttpServletResponse()
+
+    mockSuggest(datasetDao = d, columnDao = c, httpClient = h)
+      .go(httpReq, servletResp, resourceName, columnName, suggestText, (_,_,_,_) => uri)
+
+    servletResp.getStatus should be(HttpStatus.SC_OK)
+    servletResp.getContentType should include("application/json")
+    servletResp.getContentAsString should include("BATMAN")
+  }
+
   ignore("get suggestions - found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
