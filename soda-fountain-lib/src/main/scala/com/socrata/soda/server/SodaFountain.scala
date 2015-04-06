@@ -190,7 +190,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   def close() { // simulate a cascade of "finally" blocks
     var pendingException: Throwable = null
-    while(!cleanup.isEmpty) {
+    while(cleanup.nonEmpty) {
       try { cleanup.pop().close() }
       catch { case t: Throwable =>
         if(pendingException != null) pendingException.addSuppressed(t)
