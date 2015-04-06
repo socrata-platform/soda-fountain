@@ -18,10 +18,12 @@ import com.socrata.soql.types.SoQLNull
 import com.typesafe.config.ConfigFactory
 import org.joda.time.DateTime
 import org.scalamock.scalatest.proxy.MockFactory
+import org.scalatest.concurrent.Timeouts
+import org.scalatest.time.SpanSugar._
 import org.scalatest.{FunSuite, Matchers}
 import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResponse}
 
-class SuggestTest extends FunSuite with Matchers with MockFactory {
+class SuggestTest extends FunSuite with Matchers with MockFactory with Timeouts {
   val resourceName = new ResourceName("abcd-1234")
   val expectedDatasetId = "primus.1234"
   val expectedCopyNum = 17L
@@ -184,5 +186,17 @@ class SuggestTest extends FunSuite with Matchers with MockFactory {
 
     response.getStatus should be(expectedStatusCode)
     response.getContentAsString should contain(expectedSuggestion)
+  }
+
+  ignore("connect timeout") {
+    failAfter(1 second) {
+      // TODO: connect takes too long
+    }
+  }
+
+  ignore("receive timeout") {
+    failAfter(5 seconds) {
+      // TODO: connect succeeds, receive takes too long
+    }
   }
 }

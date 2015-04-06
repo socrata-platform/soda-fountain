@@ -20,6 +20,14 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
   lazy val spandexAddress = s"${config.host}:${config.port}"
 
+  private[this] lazy val connectTimeoutMS = config.connectTimeout.toMillis.toInt
+  if (connectTimeoutMS != config.connectTimeout.toMillis)
+    throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")
+
+  private[this] lazy val receiveTimeoutMS = config.receiveTimeout.toMillis.toInt
+  if (receiveTimeoutMS != config.receiveTimeout.toMillis)
+    throw new IllegalArgumentException("Receive timeout out of range (milliseconds must fit in an int)")
+
   def datasetId(resourceName: ResourceName): Option[String] = {
     datasetDao.getDataset(resourceName, None) match {
       case DatasetDAO.Found(d) => Some(d.systemId.underlying)
@@ -63,6 +71,8 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
       val uri = f(ds, cn, col, text)
       log.info(s"GO SPANDEX: $uri")
       val spandexRequest: SimpleHttpRequest = RequestBuilder(uri)
+        .connectTimeoutMS(connectTimeoutMS)
+        .receiveTimeoutMS(receiveTimeoutMS)
         .addParameters(req.queryParameters)
         .get
 

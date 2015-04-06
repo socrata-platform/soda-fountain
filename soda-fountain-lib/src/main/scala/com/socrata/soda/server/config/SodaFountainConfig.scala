@@ -74,4 +74,6 @@ class BalboaConfig(config: Config, root: String) extends ConfigClass(config, roo
 class SuggestConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val host = getString("host")
   val port = getInt("port")
+  val connectTimeout = getDuration("connect-timeout")
+  val receiveTimeout = getDuration("receive-timeout")
 }
