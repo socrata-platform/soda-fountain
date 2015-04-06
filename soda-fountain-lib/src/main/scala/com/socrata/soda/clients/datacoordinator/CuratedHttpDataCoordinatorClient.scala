@@ -22,7 +22,7 @@ class CuratedHttpDataCoordinatorClient(httpClient: HttpClient,
 
   private[this] val receiveTimeoutMS = receiveTimeout.toMillis.toInt
   if (receiveTimeoutMS != receiveTimeout.toMillis) {
-    throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")
+    throw new IllegalArgumentException("Receive timeout out of range (milliseconds must fit in an int)")
   }
 
 
