@@ -5,6 +5,7 @@ import java.util.concurrent.Executors
 import javax.servlet.http.{HttpServletResponse => HttpStatus}
 
 import com.socrata.http.client._
+import com.socrata.http.client.exceptions.{ConnectTimeout, ReceiveTimeout}
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.soda.server._
@@ -18,10 +19,12 @@ import com.socrata.soql.types.SoQLNull
 import com.typesafe.config.ConfigFactory
 import org.joda.time.DateTime
 import org.scalamock.scalatest.proxy.MockFactory
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.Matchers
+import org.scalatest.concurrent.Timeouts
+import org.scalatest.time.SpanSugar._
 import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResponse}
 
-class SuggestTest extends FunSuite with Matchers with MockFactory {
+class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with Timeouts {
   val resourceName = new ResourceName("abcd-1234")
   val expectedDatasetId = "primus.1234"
   val expectedCopyNum = 17L
@@ -40,9 +43,15 @@ class SuggestTest extends FunSuite with Matchers with MockFactory {
     SoQLNull, "", "", false, None
   )
 
+  def httpClient: HttpClient =
+    new HttpClientHttpClient(
+      new CloseableExecutorService(Executors.newCachedThreadPool()),
+      HttpClientHttpClient.defaultOptions.
+        withUserAgent("TEST"))
+
   def mockSuggest(datasetDao: DatasetDAO = mock[DatasetDAO],
                   columnDao: ColumnDAO = mock[ColumnDAO],
-                  httpClient: HttpClient = mock[HttpClient],
+                  httpClient: HttpClient = httpClient,
                   config: SuggestConfig = new SodaFountainConfig(ConfigFactory.load()).suggest
                    ): Suggest =
     Suggest(datasetDao, columnDao, httpClient, config)
@@ -129,7 +138,7 @@ class SuggestTest extends FunSuite with Matchers with MockFactory {
     val servletResp = new MockHttpServletResponse()
 
     mockSuggest(datasetDao = d, columnDao = c, httpClient = h)
-      .go(httpReq, servletResp, resourceName, columnName, suggestText, (_,_,_,_) => uri)
+      .go(httpReq, servletResp, resourceName, columnName, suggestText, (_, _, _, _) => uri)
 
     servletResp.getStatus should be(HttpStatus.SC_OK)
     servletResp.getContentType should include("application/json")
@@ -184,5 +193,23 @@ class SuggestTest extends FunSuite with Matchers with MockFactory {
 
     response.getStatus should be(expectedStatusCode)
     response.getContentAsString should contain(expectedSuggestion)
+  }
+
+  test("spandex connect timeout") {
+    setSpandexResponse(url = "/", body = "connect timeout", syntheticDelayMs = 10000)
+    failAfter(2 seconds) {
+      a[ConnectTimeout] should be thrownBy {
+        mockSuggest().getSpandexResponse(new URI("http://10.255.255.1/")) // non-routable address
+      }
+    }
+  }
+
+  test("spandex receive timeout") {
+    setSpandexResponse(url = "/", body = "receive timeout", syntheticDelayMs = 10000)
+    failAfter(6 seconds) {
+      a[ReceiveTimeout] should be thrownBy {
+        mockSuggest().getSpandexResponse(new URI(s"http://localhost:$mockServerPort/"))
+      }
+    }
   }
 }

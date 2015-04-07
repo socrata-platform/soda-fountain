@@ -3,7 +3,7 @@ package com.socrata.soda.server.resources
 import java.net.URI
 import javax.servlet.http.HttpServletResponse
 
-import com.rojoma.json.v3.ast.JNull
+import com.rojoma.json.v3.ast.{JValue, JNull}
 import com.socrata.http.client._
 import com.socrata.http.client.exceptions.ContentTypeException
 import com.socrata.http.server._
@@ -19,6 +19,14 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
   lazy val spandexAddress = s"${config.host}:${config.port}"
+
+  private[this] lazy val connectTimeoutMS = config.connectTimeout.toMillis.toInt
+  if (connectTimeoutMS != config.connectTimeout.toMillis)
+    throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")
+
+  private[this] lazy val receiveTimeoutMS = config.receiveTimeout.toMillis.toInt
+  if (receiveTimeoutMS != config.receiveTimeout.toMillis)
+    throw new IllegalArgumentException("Receive timeout out of range (milliseconds must fit in an int)")
 
   def datasetId(resourceName: ResourceName): Option[String] = {
     datasetDao.getDataset(resourceName, None) match {
@@ -60,22 +68,27 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
       cn <- copyNum(resourceName).orElse(notFound(resp, "copy"))
       col <- datacoordinatorColumnId(resourceName, columnName).orElse(notFound(resp, "column"))
     } yield {
-      val uri = f(ds, cn, col, text)
-      log.info(s"GO SPANDEX: $uri")
-      val spandexRequest: SimpleHttpRequest = RequestBuilder(uri)
-        .addParameters(req.queryParameters)
-        .get
+      val (code, body) = getSpandexResponse(f(ds, cn, col, text), req.queryParameters)
+      (Status(code) ~> Json(body))(resp)
+    }
+  }
 
-      httpClient.execute(spandexRequest).run { spandexResponse =>
-        val body = try {
-          spandexResponse.jValue()
-        } catch {
-          case e: ContentTypeException => log.warn(s"Non JSON response: $e")
-            JNull
-        }
+  def getSpandexResponse(uri: URI, params: Map[String, String] = Map.empty): (Int, JValue) = {
+    log.info(s"GO SPANDEX: $uri")
+    val spandexRequest: SimpleHttpRequest = RequestBuilder(uri)
+      .connectTimeoutMS(connectTimeoutMS)
+      .receiveTimeoutMS(receiveTimeoutMS)
+      .addParameters(params)
+      .get
 
-        (Status(spandexResponse.resultCode) ~> Json(body))(resp)
+    httpClient.execute(spandexRequest).run { spandexResponse =>
+      val body = try {
+        spandexResponse.jValue()
+      } catch {
+        case e: ContentTypeException => log.warn(s"Non JSON response: $e")
+          JNull
       }
+      (spandexResponse.resultCode, body)
     }
   }
 
