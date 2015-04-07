@@ -21,6 +21,7 @@ object SodaFountainLib {
       liquibasePlugin,
       log4j,
       metricsScala,
+      msgpack4s,
       postgresql,
       rojomaSimpleArm,
       rojomaSimpleArmV2,
