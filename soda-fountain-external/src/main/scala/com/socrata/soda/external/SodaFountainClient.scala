@@ -81,7 +81,7 @@ class SodaFountainClient(httpClient: HttpClient,
    */
   def upsertStream(resourceName: String, jIterator: Iterator[JValue]): Result = {
     val upsertIterator = Iterator.single(StartOfArrayEvent()(Position.Invalid)) ++
-                          jIterator.flatMap {item=> JValueEventIterator(item) } ++
+                          jIterator.flatMap { item => JValueEventIterator(item) } ++
                           Iterator.single(EndOfArrayEvent()(Position.Invalid))
 
     post(upsertUrl(_, resourceName), upsertIterator)
