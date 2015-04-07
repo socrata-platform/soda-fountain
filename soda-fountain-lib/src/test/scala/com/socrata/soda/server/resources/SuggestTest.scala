@@ -81,18 +81,16 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
       ConfigFactory.load()
         .withValue("com.socrata.soda-fountain.suggest.port", ConfigValueFactory.fromAnyRef(-1))
     ).suggest
-    val suggestLow = mockSuggest(config = configLow)
     a[IllegalArgumentException] should be thrownBy {
-      suggestLow.spandexAddress
+      mockSuggest(config = configLow)
     }
 
     val configHigh = new SodaFountainConfig(
       ConfigFactory.load()
         .withValue("com.socrata.soda-fountain.suggest.port", ConfigValueFactory.fromAnyRef(65536))
     ).suggest
-    val suggestHigh = mockSuggest(config = configHigh)
     a[IllegalArgumentException] should be thrownBy {
-      suggestHigh.spandexAddress
+      mockSuggest(config = configHigh)
     }
   }
 
@@ -101,18 +99,16 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
       ConfigFactory.load()
         .withValue("com.socrata.soda-fountain.suggest.connect-timeout", ConfigValueFactory.fromAnyRef("-1 s"))
     ).suggest
-    val suggestLow = mockSuggest(config = configLow)
     a[IllegalArgumentException] should be thrownBy {
-      suggestLow.connectTimeoutMS
+      mockSuggest(config = configLow)
     }
 
     val configHigh = new SodaFountainConfig(
       ConfigFactory.load()
         .withValue("com.socrata.soda-fountain.suggest.connect-timeout", ConfigValueFactory.fromAnyRef("25 d"))
     ).suggest
-    val suggestHigh = mockSuggest(config = configHigh)
     a[IllegalArgumentException] should be thrownBy {
-      suggestHigh.connectTimeoutMS
+      mockSuggest(config = configHigh)
     }
   }
 
@@ -121,18 +117,16 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
       ConfigFactory.load()
         .withValue("com.socrata.soda-fountain.suggest.receive-timeout", ConfigValueFactory.fromAnyRef("-1 s"))
     ).suggest
-    val suggestLow = mockSuggest(config = configLow)
     a[IllegalArgumentException] should be thrownBy {
-      suggestLow.receiveTimeoutMS
+      mockSuggest(config = configLow)
     }
 
     val configHigh = new SodaFountainConfig(
       ConfigFactory.load()
         .withValue("com.socrata.soda-fountain.suggest.receive-timeout", ConfigValueFactory.fromAnyRef("25 d"))
     ).suggest
-    val suggestHigh = mockSuggest(config = configHigh)
     a[IllegalArgumentException] should be thrownBy {
-      suggestHigh.receiveTimeoutMS
+      mockSuggest(config = configHigh)
     }
   }
 
