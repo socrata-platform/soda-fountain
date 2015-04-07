@@ -5,7 +5,7 @@ import javax.servlet.http.HttpServletResponse
 
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.socrata.http.client._
-import com.socrata.http.client.exceptions.ContentTypeException
+import com.socrata.http.client.exceptions.{ConnectTimeout, ReceiveTimeout, ConnectFailed, ContentTypeException}
 import com.socrata.http.server._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -58,23 +58,21 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   def go(req: HttpRequest, resp: HttpServletResponse,
          resourceName: ResourceName, columnName: ColumnName, text: String,
          f: (String, Long, String, String) => URI): Unit = {
-    val (ds, cn, col) = internalContext(resp, resourceName, columnName).get
+    val (ds: String, cn: Long, col: String) = internalContext(resourceName, columnName).getOrElse(NotFound(resp))
     val (code, body) = getSpandexResponse(f(ds, cn, col, text), req.queryParameters)
     (Status(code) ~> Json(body))(resp)
   }
 
-  def internalContext(resp: HttpServletResponse,
-                      resourceName: ResourceName, columnName: ColumnName): Option[(String, Long, String)] = {
-    def notFound(resp: HttpServletResponse, name: String) = {
-      NotFound(resp)
+  def internalContext(resourceName: ResourceName, columnName: ColumnName): Option[(String, Long, String)] = {
+    def notFound(name: String) = {
       log.info("{} not found - {}.{}", name, resourceName, columnName)
       None
     }
 
     for {
-      ds <- datasetId(resourceName).orElse(notFound(resp, "dataset id"))
-      cn <- copyNum(resourceName).orElse(notFound(resp, "copy"))
-      col <- datacoordinatorColumnId(resourceName, columnName).orElse(notFound(resp, "column"))
+      ds <- datasetId(resourceName).orElse(notFound("dataset id"))
+      cn <- copyNum(resourceName).orElse(notFound("copy"))
+      col <- datacoordinatorColumnId(resourceName, columnName).orElse(notFound("column"))
     } yield {
       (ds, cn, col)
     }

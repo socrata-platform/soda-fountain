@@ -193,10 +193,9 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
 
-    val resp = new MockHttpServletResponse
     val suggest = mockSuggest(datasetDao = d, columnDao = c)
 
-    val (ds, cn, col) = suggest.internalContext(resp, resourceName, columnName).get
+    val (ds, cn, col) = suggest.internalContext(resourceName, columnName).get
     ds should be(expectedDatasetId)
     cn should be(expectedCopyNum)
     col should be(expectedColumnId)
@@ -210,12 +209,10 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.ColumnNotFound(columnName))
 
-    val resp = new MockHttpServletResponse
     val suggest = mockSuggest(datasetDao = d, columnDao = c)
 
-    val ctx = suggest.internalContext(resp, resourceName, columnName)
+    val ctx = suggest.internalContext(resourceName, columnName)
     ctx shouldNot be('defined)
-    resp.getStatus should be(HttpStatus.SC_NOT_FOUND)
   }
 
   test("make internal context - copy not found") {
@@ -223,24 +220,20 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
     d.expects('getCurrentCopyNum)(resourceName).returning(None)
 
-    val resp = new MockHttpServletResponse
     val suggest = mockSuggest(datasetDao = d)
 
-    val ctx = suggest.internalContext(resp, resourceName, columnName)
+    val ctx = suggest.internalContext(resourceName, columnName)
     ctx shouldNot be('defined)
-    resp.getStatus should be(HttpStatus.SC_NOT_FOUND)
   }
 
   test("make internal context - dataset not found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.NotFound(resourceName))
 
-    val resp = new MockHttpServletResponse
     val suggest = mockSuggest(datasetDao = d)
 
-    val ctx = suggest.internalContext(resp, resourceName, columnName)
+    val ctx = suggest.internalContext(resourceName, columnName)
     ctx shouldNot be('defined)
-    resp.getStatus should be(HttpStatus.SC_NOT_FOUND)
   }
 
   test("execute external request to spandex") {
