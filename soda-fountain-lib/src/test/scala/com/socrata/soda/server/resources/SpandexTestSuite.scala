@@ -1,4 +1,3 @@
-
 package com.socrata.soda.server.resources
 
 import java.net.URI

@@ -12,7 +12,9 @@ object BuildSettings {
         // TODO: enable style checks
         styleCheck in Test := {},
         styleCheck in Compile := {},
-        scalaVersion := "2.10.4"
+        scalaVersion := "2.10.4",
+
+        resolvers += "velvia maven" at "http://dl.bintray.com/velvia/maven"
       )
 
   def projectSettings(assembly: Boolean = false): Seq[Setting[_]] =
