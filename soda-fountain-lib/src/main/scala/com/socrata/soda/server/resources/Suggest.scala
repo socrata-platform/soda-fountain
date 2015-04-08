@@ -18,16 +18,16 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
                    httpClient: HttpClient, config: SuggestConfig) {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
-  if (config.port < 0 || config.port > 65535) throw new IllegalArgumentException("Port out of range (0 to 65535)")
+  require(config.port >= 0 && config.port <= 65535, "Port out of range (0 to 65535)")
   val spandexAddress = s"${config.host}:${config.port}"
 
   val connectTimeoutMS = config.connectTimeout.toMillis.toInt
-  if (connectTimeoutMS != config.connectTimeout.toMillis || connectTimeoutMS < 0)
-    throw new IllegalArgumentException("Connect timeout out of range (milliseconds 0 to 2147483647)")
+  require(connectTimeoutMS == config.connectTimeout.toMillis && connectTimeoutMS >= 0,
+    "Connect timeout out of range (milliseconds 0 to 2147483647)")
 
   val receiveTimeoutMS = config.receiveTimeout.toMillis.toInt
-  if (receiveTimeoutMS != config.receiveTimeout.toMillis || receiveTimeoutMS < 0)
-    throw new IllegalArgumentException("Receive timeout out of range (milliseconds 0 to 2147483647)")
+  require(receiveTimeoutMS == config.receiveTimeout.toMillis && receiveTimeoutMS >= 0,
+  "Receive timeout out of range (milliseconds 0 to 2147483647)")
 
   def datasetId(resourceName: ResourceName): Option[String] = {
     datasetDao.getDataset(resourceName, None) match {
