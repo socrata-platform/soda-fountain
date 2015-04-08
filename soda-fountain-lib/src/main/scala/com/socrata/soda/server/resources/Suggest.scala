@@ -5,7 +5,7 @@ import javax.servlet.http.HttpServletResponse
 
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.socrata.http.client._
-import com.socrata.http.client.exceptions.{ConnectTimeout, ReceiveTimeout, ConnectFailed, ContentTypeException}
+import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, ContentTypeException, ReceiveTimeout}
 import com.socrata.http.server._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -27,7 +27,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
   val receiveTimeoutMS = config.receiveTimeout.toMillis.toInt
   require(receiveTimeoutMS == config.receiveTimeout.toMillis && receiveTimeoutMS >= 0,
-  "Receive timeout out of range (milliseconds 0 to 2147483647)")
+    "Receive timeout out of range (milliseconds 0 to 2147483647)")
 
   def datasetId(resourceName: ResourceName): Option[String] = {
     datasetDao.getDataset(resourceName, None) match {
@@ -94,7 +94,6 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   }
 
   def getSpandexResponse(uri: URI, params: Map[String, String] = Map.empty): (Int, JValue) = {
-    log.info(s"GO SPANDEX: $uri")
     val spandexRequest: SimpleHttpRequest = RequestBuilder(uri)
       .connectTimeoutMS(connectTimeoutMS)
       .receiveTimeoutMS(receiveTimeoutMS)
@@ -114,7 +113,6 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
   case class sampleService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def get = { req => resp =>
-      log.info(s"GET /suggest $resourceName :: $columnName [sample]")
       go(req, resp, resourceName, columnName, "", (dataset, copynum, column, _) =>
         new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column"))
     }
@@ -122,7 +120,6 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
   case class service(resourceName: ResourceName, columnName: ColumnName, text: String) extends SodaResource {
     override def get = { req => resp =>
-      log.info(s"GET /suggest $resourceName :: $columnName :: $text")
       go(req, resp, resourceName, columnName, text, (dataset, copynum, column, text) => {
         val encText = java.net.URLEncoder.encode(text, "utf-8") // protect param 'text' from arbitrary url insertion
         new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column/$encText")
