@@ -58,21 +58,24 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   def go(req: HttpRequest, resp: HttpServletResponse,
          resourceName: ResourceName, columnName: ColumnName, text: String,
          f: (String, Long, String, String) => URI): Unit = {
-    val (ds: String, cn: Long, col: String) = internalContext(resourceName, columnName).getOrElse(NotFound(resp))
-    val (code, body) = try {
-      getSpandexResponse(f(ds, cn, col, text), req.queryParameters)
-    } catch {
-      case rt: ReceiveTimeout => log.warn(s"Spandex receive timeout $rt")
-        (500, JNull)
-      case ct: ConnectTimeout => log.warn(s"Spandex connect timeout $ct")
-        (500, JNull)
-      case cf: ConnectFailed => log.warn(s"Spandex connect failed $cf")
-        (500, JNull)
-      case e: Exception => log.error(s"Spandex unknown error $e")
-        (500, JNull)
-    }
+    internalContext(resourceName, columnName) match {
+      case None => NotFound(resp)
+      case Some((ds: String, cn: Long, col: String)) =>
+        val (code, body) = try {
+          getSpandexResponse(f(ds, cn, col, text), req.queryParameters)
+        } catch {
+          case rt: ReceiveTimeout => log.warn(s"Spandex receive timeout $rt")
+            (500, JNull)
+          case ct: ConnectTimeout => log.warn(s"Spandex connect timeout $ct")
+            (500, JNull)
+          case cf: ConnectFailed => log.warn(s"Spandex connect failed $cf")
+            (500, JNull)
+          case e: Exception => log.error(s"Spandex unknown error $e")
+            (500, JNull)
+        }
 
-    (Status(code) ~> Json(body))(resp)
+        (Status(code) ~> Json(body))(resp)
+    }
   }
 
   def internalContext(resourceName: ResourceName, columnName: ColumnName): Option[(String, Long, String)] = {

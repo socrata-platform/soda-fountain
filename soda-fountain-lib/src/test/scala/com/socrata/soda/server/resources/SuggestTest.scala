@@ -280,6 +280,19 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     response.getContentAsString should be(expectedBody)
   }
 
+  test("service suggestions - dataset not found") {
+    val d = mock[DatasetDAO]
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.NotFound(resourceName))
+
+    val suggest = mockSuggest(datasetDao = d)
+
+    val httpReq = mock[HttpRequest]
+    val response = new MockHttpServletResponse()
+    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
+
+    response.getStatus should be(HttpStatus.SC_NOT_FOUND)
+  }
+
   test("service samples - found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
@@ -304,6 +317,19 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
 
     response.getStatus should be(expectedStatusCode)
     response.getContentAsString should be(expectedBody)
+  }
+
+  test("service samples - dataset not found") {
+    val d = mock[DatasetDAO]
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.NotFound(resourceName))
+
+    val suggest = mockSuggest(datasetDao = d)
+
+    val httpReq = mock[HttpRequest]
+    val response = new MockHttpServletResponse()
+    suggest.sampleService(resourceName, columnName).get(httpReq)(response)
+
+    response.getStatus should be(HttpStatus.SC_NOT_FOUND)
   }
 
   test("spandex connect timeout") {
