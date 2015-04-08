@@ -66,8 +66,11 @@ object CJson {
   case class CannotDecodeSchema(value: JValue) extends Result
 
   case class RowWasNotAnArray(value: JValue) extends Exception("Row was not an array")
-  case class RowIncorrectLength(got: Int, expected: Int) extends Exception(s"Incorrect number of elements in row; expected $expected, got $got")
-  case class UndecodableValue(got: JValue, expected: SoQLType) extends Exception(s"")
+  case class RowIncorrectLength(got: Int, expected: Int)
+    extends Exception(s"Incorrect number of elements in row; expected $expected, got $got")
+  case class UndecodableValue(got: JValue, expected: SoQLType)
+    extends Exception(s"Undecodable json value: ${got} (${got.jsonType}), " +
+                      s"expected SoQLType: ${expected.name.name}")
 }
 
 class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extends ExportDAO {
