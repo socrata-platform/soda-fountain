@@ -325,7 +325,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def fetchMinimalColumn(conn: Connection, datasetId: DatasetId, columnId: ColumnId, copyNumber: Long): MinimalColumnRecord = {
+  def fetchMinimalColumn(conn: Connection, datasetId: DatasetId, columnId: ColumnId, copyNumber: Long): Option[MinimalColumnRecord] = {
     val sql = fetchMinimalColumnsSql(includeColumnFilter = true)
 
     using(conn.prepareStatement(sql)) { colQuery =>
@@ -333,8 +333,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       colQuery.setString(2, datasetId.underlying)
       colQuery.setLong(3, copyNumber)
       using (colQuery.executeQuery()) { rs =>
-        rs.next()
-        parseMinimalColumn(conn, datasetId, rs, copyNumber)
+        if (!rs.next) None
+        else Some(parseMinimalColumn(conn, datasetId, rs, copyNumber))
       }
     }
   }
@@ -423,7 +423,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     def sourceColumns = rs.getArray("source_columns") match {
       case arr: java.sql.Array =>
         val columnIds = arr.getArray.asInstanceOf[Array[String]].toSeq // yuk
-        Some(columnIds.map(columnId => fetchMinimalColumn(conn, datasetId, ColumnId(columnId), copyNumber)))
+        Some(columnIds.map(columnId => fetchMinimalColumn(conn, datasetId, ColumnId(columnId), copyNumber)).flatten)
       case _                   =>
         None
     }
