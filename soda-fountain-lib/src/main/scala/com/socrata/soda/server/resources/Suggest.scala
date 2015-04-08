@@ -84,9 +84,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
       ds <- datasetId(resourceName).orElse(notFound("dataset id"))
       cn <- copyNum(resourceName).orElse(notFound("copy"))
       col <- datacoordinatorColumnId(resourceName, columnName).orElse(notFound("column"))
-    } yield {
-      (ds, cn, col)
-    }
+    } yield (ds, cn, col)
   }
 
   def getSpandexResponse(uri: URI, params: Map[String, String] = Map.empty): (Int, JValue) = {
