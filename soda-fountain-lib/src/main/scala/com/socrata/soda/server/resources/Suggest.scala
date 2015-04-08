@@ -34,9 +34,8 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
       case DatasetDAO.Found(d) => Some(d.systemId.underlying)
       case DatasetDAO.NotFound(d) => None
       case x: DatasetDAO.Result =>
-        val msg = s"dataset not found $resourceName ${x.getClass.getName}"
-        log.error(msg)
-        throw new Exception(msg)
+        log.error(s"dataset not found $resourceName ${x.getClass.getName}")
+        throw new MatchError(x)
     }
   }
 
@@ -48,9 +47,8 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
       case ColumnDAO.Found(_, c, _) => Some(c.id.underlying)
       case ColumnDAO.ColumnNotFound(c) => None
       case x: ColumnDAO.Result =>
-        val msg = s"column not found $columnName ${x.getClass.getName}"
-        log.error(msg)
-        throw new Exception(msg)
+        log.error(s"column not found $columnName ${x.getClass.getName}")
+        throw new MatchError(x)
     }
   }
 
@@ -69,8 +67,6 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
           case ct: ConnectTimeout => log.warn(s"Spandex connect timeout $ct")
             (500, JNull)
           case cf: ConnectFailed => log.warn(s"Spandex connect failed $cf")
-            (500, JNull)
-          case e: Exception => log.error(s"Spandex unknown error $e")
             (500, JNull)
         }
 
