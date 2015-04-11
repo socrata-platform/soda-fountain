@@ -61,7 +61,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
           rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
           (if (noRollup) List(qpNoRollup -> "y") else Nil) ++
           secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)
-        log.info("Query Coordinator request parameters: " + params)
+        log.debug("Query Coordinator request parameters: " + params)
         val request = host.addHeaders(PreconditionRenderer(precondition) ++
                                       ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate) ++
                                       extraHeaders).form(params)
