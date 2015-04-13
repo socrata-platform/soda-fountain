@@ -1,6 +1,7 @@
 package com.socrata.soda.server.export
 
 import java.io.{DataInputStream, FileInputStream}
+import org.apache.commons.io.input.CountingInputStream
 import org.velvia.MsgPack
 import org.velvia.MsgPackUtils._
 import com.vividsolutions.jts.io.WKBReader
@@ -14,7 +15,8 @@ import com.vividsolutions.jts.io.WKBReader
  *  curl ... | sbt 'soda-fountain-lib/test:runMain com.socrata.soda.server.export.SoQLPackDumper'
  */
 object SoQLPackDumper extends App {
-  val dis = new DataInputStream(System.in)
+  val cis = new CountingInputStream(System.in)
+  val dis = new DataInputStream(cis)
   val headerMap = MsgPack.unpack(dis, MsgPack.UNPACK_RAW_AS_STRING).asInstanceOf[Map[String, Any]]
   println("--- Schema ---")
   headerMap.foreach { case (key, value) => println("%25s: %s".format(key, value)) }
@@ -25,6 +27,7 @@ object SoQLPackDumper extends App {
   val reader = new WKBReader
 
   while (dis.available > 0) {
+    print("[%10d] ".format(cis.getCount()))
     // Don't unpack raw byte arrays as Strings - they might be Geometries or other blobs
     val row = MsgPack.unpack(dis, 0).asInstanceOf[Seq[Any]]
     for (i <- 0 until row.length) {

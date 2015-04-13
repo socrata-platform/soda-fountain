@@ -1,6 +1,7 @@
 import com.socrata.sbtplugins.StylePlugin.StyleKeys._
 import sbt.Keys._
 import sbt._
+import sbtassembly.AssemblyKeys
 
 object BuildSettings {
   def buildSettings: Seq[Setting[_]] =
@@ -18,5 +19,6 @@ object BuildSettings {
       )
 
   def projectSettings(assembly: Boolean = false): Seq[Setting[_]] =
-    buildSettings
+    buildSettings ++
+    (if (!assembly) Seq(AssemblyKeys.assembly := file(".")) else Nil)
 }

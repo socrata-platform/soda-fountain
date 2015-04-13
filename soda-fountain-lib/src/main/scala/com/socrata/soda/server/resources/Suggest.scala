@@ -13,10 +13,14 @@ import com.socrata.soda.server.config.SuggestConfig
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soql.environment.ColumnName
+import com.socrata.thirdparty.metrics.Metrics
 
 case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
-                   httpClient: HttpClient, config: SuggestConfig) {
+                   httpClient: HttpClient, config: SuggestConfig) extends Metrics {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
+
+  val suggestTimer = metrics.timer("suggest-route")
+  val sampleTimer = metrics.timer("suggest-sample-route")
 
   require(config.port >= 0 && config.port <= 65535, "Port out of range (0 to 65535)")
   val spandexAddress = s"${config.host}:${config.port}"
@@ -107,17 +111,21 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
   case class sampleService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def get = { req => resp =>
-      go(req, resp, resourceName, columnName, "", (dataset, copynum, column, _) =>
-        new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column"))
+      sampleTimer.time {
+        go(req, resp, resourceName, columnName, "", (dataset, copynum, column, _) =>
+          new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column"))
+      }
     }
   }
 
   case class service(resourceName: ResourceName, columnName: ColumnName, text: String) extends SodaResource {
     override def get = { req => resp =>
-      go(req, resp, resourceName, columnName, text, (dataset, copynum, column, text) => {
-        val encText = java.net.URLEncoder.encode(text, "utf-8") // protect param 'text' from arbitrary url insertion
-        new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column/$encText")
-      })
+      suggestTimer.time {
+        go(req, resp, resourceName, columnName, text, (dataset, copynum, column, text) => {
+          val encText = java.net.URLEncoder.encode(text, "utf-8") // protect param 'text' from arbitrary url insertion
+          new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column/$encText")
+        })
+      }
     }
   }
 

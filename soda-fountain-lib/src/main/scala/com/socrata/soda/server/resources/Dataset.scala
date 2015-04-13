@@ -47,7 +47,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
   def response(req: HttpRequest, result: DatasetDAO.Result): HttpResponse = {
     // TODO: Negotiate content type
-    log.info(s"sending response, result: ${result}")
+    log.debug(s"sending response, result: ${result}")
     result match {
       case DatasetDAO.Created(record) => Created ~> Json(record.asSpec)
       case DatasetDAO.Updated(record) => OK ~> Json(record.asSpec)
