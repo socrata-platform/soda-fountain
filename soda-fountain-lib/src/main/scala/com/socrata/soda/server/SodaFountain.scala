@@ -58,7 +58,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
                 resp.reset()
                 SodaUtils.internalError(req, e)(resp)
               } else {
-                log.warn("Caught exception but the response is already committed; just cutting the client off", e)
+                log.warn("Caught exception but the response is already committed; just cutting the client off" +
+                         "\n" + e.getMessage, e)
               }
           }
         }
