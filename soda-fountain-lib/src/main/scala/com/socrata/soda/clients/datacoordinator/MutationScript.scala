@@ -5,17 +5,25 @@ import java.io._
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io._
 import com.rojoma.json.v3.util.JsonUtil
+import org.slf4j.LoggerFactory
 
 class MutationScript(
         user: String,
         copyInstruction: DatasetCopyInstruction,
-        instructions: Iterator[DataCoordinatorInstruction]){
+        instructions: Iterator[DataCoordinatorInstruction],
+        reportingInterval: Int = 10000){
+  val log = LoggerFactory.getLogger(getClass)
 
   def it : Iterator[JsonEvent] = {
     var rowDataDeclared = false
     var declaredOptions = RowUpdateOptionChange()
+    var seqNum = 0
 
-    val dcInstructions = instructions.map{ instruction =>
+    val dcInstructions = instructions.map { instruction =>
+      seqNum += 1
+      if (seqNum % reportingInterval == 0)
+        log.info(s"MutationScript: instruction # $seqNum [$instruction]")
+
       val ops = new scala.collection.mutable.ListBuffer[JValue]
       instruction match {
         case _:ColumnMutation | _:RollupMutation  => {
@@ -70,12 +78,17 @@ class MutationScript(
   def streamJson(out: Writer){
     var rowDataDeclared = false
     var declaredOptions = RowUpdateOptionChange()
+    var seqNum = 0
 
     out.write('[')
     out.write(JsonUtil.renderJson(JObject(topLevelCommand)))
 
-    while (instructions.hasNext){
+    while (instructions.hasNext) {
       val instruction = instructions.next
+      seqNum += 1
+      if (seqNum % reportingInterval == 0)
+        log.info(s"MutationScript streamJson: instruction # $seqNum [$instruction]")
+
       out.write(',')
       instruction match {
         case _:ColumnMutation | _:RollupMutation  => {
