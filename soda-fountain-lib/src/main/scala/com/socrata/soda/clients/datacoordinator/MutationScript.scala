@@ -11,7 +11,7 @@ class MutationScript(
         user: String,
         copyInstruction: DatasetCopyInstruction,
         instructions: Iterator[DataCoordinatorInstruction],
-        reportingInterval: Int = 10000){
+        reportingInterval: Int = 50000){
   val log = LoggerFactory.getLogger(getClass)
 
   def it : Iterator[JsonEvent] = {
