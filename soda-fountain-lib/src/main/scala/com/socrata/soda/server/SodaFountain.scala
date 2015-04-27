@@ -137,7 +137,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     config.queryCoordinatorClient.connectTimeout,
     config.queryCoordinatorClient.receiveTimeout))
 
-  val geospace = si(new CuratedGeospaceClient(discovery, config.geospaceClient.serviceName))
+  val geospace = si(new CuratedGeospaceClient(discovery, config.geospaceClient))
 
   val dataSource = i(DataSourceFromConfig(config.database))
 

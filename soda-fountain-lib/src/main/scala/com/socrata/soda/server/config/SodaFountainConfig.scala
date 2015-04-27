@@ -39,6 +39,8 @@ class QueryCoordinatorClientConfig(config: Config, root: String) extends ConfigC
 
 class GeospaceClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val serviceName = getString("service-name")
+  val connectTimeout = getDuration("connect-timeout")
+  val readTimeout = getDuration("read-timeout")
 }
 
 class NetworkConfig(config: Config, root: String) extends ConfigClass(config, root) {
