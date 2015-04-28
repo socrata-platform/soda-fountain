@@ -1,13 +1,16 @@
 package com.socrata.soda.clients.geospace
 
+import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.soda.clients.geospace.GeospaceClient._
 import com.socrata.soda.server.config.GeospaceClientConfig
 import com.socrata.thirdparty.curator.CuratorServiceBase
 import org.apache.curator.x.discovery.ServiceDiscovery
+import org.slf4j.LoggerFactory
 import scalaj.http.{HttpOptions, Http}
-import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 
 object GeospaceClient {
+  // When passing on the geospace error response,
+  // we'll truncate it to this number of characters.
   val PartialResponseLength = 500
 
   sealed trait VersionCheckResult
@@ -25,11 +28,18 @@ trait GeospaceClient {
 case class CuratedGeospaceClient[T](discovery: ServiceDiscovery[T], config: GeospaceClientConfig)
   extends CuratorServiceBase(discovery, config.serviceName) with GeospaceClient {
 
-  def urlPrefix: Option[String] = Option(provider.getInstance()).map { serv => serv.buildUriSpec() }
+  val logger = LoggerFactory.getLogger(getClass)
 
-  def request(url: String): Http.Request = Http.get(url)
+  private def urlPrefix: Option[String] = Option(provider.getInstance()).map { serv => serv.buildUriSpec() }
+
+  private def request(url: String): Http.Request = Http.get(url)
     .option(HttpOptions.connTimeout(config.connectTimeout.toMillis.toInt))
     .option(HttpOptions.readTimeout(config.readTimeout.toMillis.toInt))
+
+  private def logVersionError(url: String, status: Int, response: String): Unit =
+    logger.error(s"Unexpected response from Geospace @ $url: " +
+      s"status $status, " +
+      s"response: ${response.take(PartialResponseLength)}")
 
   def versionCheck = {
     urlPrefix match {
@@ -41,14 +51,18 @@ case class CuratedGeospaceClient[T](discovery: ServiceDiscovery[T], config: Geos
           if (status == 200 && response.contains("version")) {
             Success
           } else {
+            logVersionError(url, status, response)
             Failure(url, status, response.take(PartialResponseLength))
           }
         } catch {
           case e: scalaj.http.HttpException =>
+            logVersionError(url, e.code, e.body)
             Failure(url, e.code, e.body.take(PartialResponseLength))
         }
       case None =>
-        Failure("", 0, "Unable to get geospace instance from Curator")
+        val msg = "Unable to get geospace instance from Curator"
+        logger.error(msg)
+        Failure("", 0, msg)
     }
   }
 }
