@@ -332,6 +332,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     response.getStatus should be(HttpStatus.SC_NOT_FOUND)
   }
 
+  // Needs VPN to be on to pass on localhost, apparently
   test("spandex connect timeout") {
     setSpandexResponse(url = "/", body = "connect timeout", syntheticDelayMs = 10000)
     failAfter(2 seconds) {
