@@ -17,13 +17,14 @@ object Dependencies {
     val postgresql        = "9.1-901-1.jdbc4"
     val quasiQuotes       = "2.0.0"
     val rojomaJson        = "3.2.2"
+    val rojomaJsonGrisu   = "1.0.0"
     val rojomaSimpleArm   = "1.2.0"
     val rojomaSimpleArmV2 = "2.1.0"
     val scalaj            = "0.3.15"
     val socrataHttp       = "3.3.0"
     val soqlBrita         = "1.3.0"
     val soqlReference     = "0.5.1"
-    val thirdPartyUtils   = "3.0.0"
+    val thirdPartyUtils   = "3.1.1"
     val typesafeConfig    = "1.0.2"
 
     // Test
@@ -64,7 +65,7 @@ object Dependencies {
 
   val quasiQuotes              = "org.scalamacros" %% "quasiquotes"                 % versions.quasiQuotes
 
-  val rojomaJson               = "com.rojoma"      %% "rojoma-json-v3"              % versions.rojomaJson
+  val rojomaJson               = "com.rojoma"      %% "rojoma-json-v3-grisu"        % versions.rojomaJsonGrisu
 
   val rojomaSimpleArm          = "com.rojoma"      %% "simple-arm"                  % versions.rojomaSimpleArm
   val rojomaSimpleArmV2        = "com.rojoma"      %% "simple-arm-v2"               % versions.rojomaSimpleArmV2
