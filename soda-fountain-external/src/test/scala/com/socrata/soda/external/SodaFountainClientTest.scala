@@ -158,7 +158,7 @@ class SodaFountainClientTest extends FunSuite with Matchers with BeforeAndAfterA
 
     val result = sodaFountain.query("foo")
     result.getClass should be (classOf[Failed])
-    result.asInstanceOf[Failed].exception.getClass should be (classOf[ConnectFailed])
+    result.asInstanceOf[Failed].exception.getClass should be (MyCustomNoServersException.getClass)
 
     // Restart the mock server so the rest of the tests run normally
     mockServer.start()
