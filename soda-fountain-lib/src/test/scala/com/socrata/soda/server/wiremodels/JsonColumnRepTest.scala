@@ -121,6 +121,19 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
     JsonColumnRep.forClientType(SoQLPoint).fromJValue(JsonReader.fromString(input)) must equal (None)
   }
 
+  test("JSON type checker can read WKT geom fields") {
+    val wkt = "POINT (-30.04045 48.606567)"
+    val soqlPointFromWkt = JsonColumnRep.forClientType(SoQLPoint)
+                             .fromJValue(JString(wkt)).get.asInstanceOf[SoQLPoint]
+    soqlPointFromWkt.value.getX must be { -30.04045 +- 0.000001 }
+    soqlPointFromWkt.value.getY must be { 48.606567 +- 0.000001 }
+  }
+
+  test("JSON type checker handles non-WKT geom fields") {
+    val notWkt = "blah (lbah lbah)"
+    JsonColumnRep.forClientType(SoQLPoint).fromJValue(JString(notWkt)) must equal (None)
+  }
+
   test("JSON type checker with MultiLine"){
     val input = """{"type":"MultiLineString","coordinates":[[[100,0.123456789012],[101,1]],[[102,2],[103,3]]]}"""
     val SoQLMultiLine.JsonRep(asGeom) = input
