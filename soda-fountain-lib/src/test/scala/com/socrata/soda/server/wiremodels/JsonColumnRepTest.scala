@@ -133,6 +133,23 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
     JsonColumnRep.forClientType(SoQLMultiPolygon).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLMultiPolygon(asGeom)))
   }
 
+  test("JSON type checker with Line"){
+    val input = """{"type":"LineString","coordinates":[[40,40],[20,45.123456789012],[45,30],[40,40]]}"""
+    val SoQLLine.JsonRep(asGeom) = input
+    JsonColumnRep.forClientType(SoQLLine).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLLine(asGeom)))
+  }
+  test("JSON type checker with Polygon"){
+    val input = """{"type":"Polygon","coordinates":[[ [100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0] ], [ [100.2, 0.2], [100.8, 0.2], [100.8, 0.8], [100.2, 0.8], [100.2, 0.2] ]]}"""
+    val SoQLPolygon.JsonRep(asGeom) = input
+    JsonColumnRep.forClientType(SoQLPolygon).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLPolygon(asGeom)))
+  }
+
+  test("JSON type checker with Multipoint"){
+    val input = """{"type":"MultiPoint","coordinates":[[40,40],[20,45.123456789012],[45,30]]}"""
+    val SoQLMultiPoint.JsonRep(asGeom) = input
+    JsonColumnRep.forClientType(SoQLMultiPoint).fromJValue(JsonReader.fromString(input)) must equal (Some(SoQLMultiPoint(asGeom)))
+  }
+
   val factory = new GeometryFactory
   test("can export geometry types") {
     val pt = SoQLPoint(factory.createPoint(new Coordinate(1.0, 2.0)))
