@@ -195,12 +195,14 @@ object JsonColumnRep {
   class ClientGeometryLikeRep[T <: Geometry](repType: SoQLType, geometry: SoQLValue => T, value: T => SoQLValue) extends JsonColumnRep {
     val representedType = repType
 
+    def fromWkt(str: String) = repType.asInstanceOf[SoQLGeometryLike[T]].WktRep.unapply(str)
     def fromJson(str: String) = repType.asInstanceOf[SoQLGeometryLike[T]].JsonRep.unapply(str)
     def toJson(v: SoQLValue) = v.typ.asInstanceOf[SoQLGeometryLike[T]].JsonRep(geometry(v))
 
     def fromJValue(input: JValue) = {
       input match {
         case JNull => Some(SoQLNull)
+        case JString(str) => fromWkt(str).map(geometry => value(geometry))
         case _ => {
           val geometry = try { Some(geoCodec.decode(input).right.get) } catch { case e: IOException => None }
           Try(geometry.map { geom => value(geom.asInstanceOf[T]) }).getOrElse(None)
