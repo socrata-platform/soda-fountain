@@ -6,7 +6,7 @@ import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
 import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
-import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point, LineString, MultiPoint, Polygon}
+import com.vividsolutions.jts.geom._
 import java.io.IOException
 import scala.util.Try
 

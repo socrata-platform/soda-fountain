@@ -2,7 +2,7 @@ package com.socrata.soda.server.wiremodels
 
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.socrata.soql.types._
-import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point, LineString, Polygon, MultiPoint}
+import com.vividsolutions.jts.geom._
 
 trait CsvColumnWriteRep {
   def toString(value: SoQLValue): String
