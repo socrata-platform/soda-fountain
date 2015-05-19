@@ -19,12 +19,12 @@ import scala.annotation.tailrec
 import scalaj.http.{HttpOptions, Http}
 
 /**
- * A [[ComputationHandler]] that uses Geospace to match a row to a georegion,
+ * A [[ComputationHandler]] that uses region-coder service to match a row to a georegion,
  * based on the value of a specified source column.
- * @param config    Configuration information for connecting to Geospace
+ * @param config    Configuration information for connecting to region-coder service
  * @param discovery ServiceDiscovery instance used for discovering other services using ZK/Curator
  * @tparam T        ServiceDiscovery payload type
- * @tparam V        Type of the source column passed to Geospace to get back a matching georegion
+ * @tparam V        Type of the source column passed to region-coder service to get back a matching georegion
  */
 abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDiscovery[T]) extends ComputationHandler {
   import ComputationHandler._
@@ -37,12 +37,12 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
   val connectTimeout = config.getDuration("connect-timeout", TimeUnit.MILLISECONDS).toInt
   val readTimeout    = config.getDuration("read-timeout", TimeUnit.MILLISECONDS).toInt
 
-  class GeospaceService[T](discovery: ServiceDiscovery[T]) extends CuratorServiceBase(discovery, serviceName)
-  val service = new GeospaceService(discovery)
+  class RegionCoderService[T](discovery: ServiceDiscovery[T]) extends CuratorServiceBase(discovery, serviceName)
+  val service = new RegionCoderService(discovery)
   service.start()
 
   def urlPrefix = Option(service.provider.getInstance()).map { serv => serv.buildUriSpec() + "v1" }.
-    getOrElse(throw new RuntimeException("Unable to get Geospace instance from Curator/ZK"))
+    getOrElse(throw new RuntimeException("Unable to get region-coder instance from Curator/ZK"))
 
   private val logger = LoggerFactory.getLogger(getClass)
 
@@ -51,9 +51,9 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
   private val timeCounter = new MetricCounter()
 
   /**
-   * Constructs the Geospace region coding endpoint
+   * Constructs the region-coder endpoint
    * @param computedColumn Computed column definition
-   * @return       Geospace endpoint to be used for region coding
+   * @return               Endpoint to be used for region coding
    */
   protected def genEndpoint(computedColumn: ColumnRecordLike): String
 
@@ -66,15 +66,15 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
   protected def extractSourceColumnValueFromRow(rowmap: SoQLRow, colName: ColumnName): Option[V]
 
   /**
-   * Converts the source column value to a JSON format that Geospace understands
+   * Converts the source column value to a JSON format that region-coder understands
    * @param value Raw value of the source column
-   * @return      Source column value in the format expected by Geospace
+   * @return      Source column value in the format expected by region-coder
    */
   protected def toJValue(value: V): JValue
 
   /**
    * A single-threaded (for now) geo-region-coding handler.  Batches and sends out the source
-   * column values to Geospace, then incorporates the feature IDs into a new column.
+   * column values to region-coder, then incorporates the feature IDs into a new column.
    * @param sourceIt Iterator of rows to be georegion coded
    * @param column   Computed column definition
    * @return         The original set of rows with the feature ID of the matching georegion appended to each row
@@ -100,7 +100,7 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
       // Deletes are returned untouched.
       val start = System.currentTimeMillis
       val endpoint = genEndpoint(column)
-      val featureIds = geospaceRegionCoder(endpoint, sourceValuesWithIndex.map(_._1))
+      val featureIds = regionCoder(endpoint, sourceValuesWithIndex.map(_._1))
       timeCounter.add(System.currentTimeMillis - start)
       noMatchRowsCounter.add(featureIds.count(_.isEmpty))
       val featureIdsWithIndex = sourceValuesWithIndex.map(_._2).zip(featureIds).toMap
@@ -157,7 +157,7 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
       throw new IllegalArgumentException("Source column was not defined in computation strategy"))
   }
 
-  private def geospaceRegionCoder(endpoint: String, items: Seq[V]): Seq[Option[Int]] = {
+  private def regionCoder(endpoint: String, items: Seq[V]): Seq[Option[Int]] = {
     if (items.size == 0) return Seq.empty[Option[Int]]
 
     val url = urlPrefix + endpoint

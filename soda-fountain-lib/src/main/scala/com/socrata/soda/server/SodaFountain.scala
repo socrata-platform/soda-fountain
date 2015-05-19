@@ -6,7 +6,7 @@ import com.socrata.http.common.AuxiliaryData
 import com.socrata.http.server.util.handlers.{NewLoggingHandler, ThreadRenamingHandler}
 import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
-import com.socrata.soda.clients.geospace.CuratedGeospaceClient
+import com.socrata.soda.clients.regioncoder.CuratedRegionCoderClient
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.server.config.SodaFountainConfig
@@ -137,7 +137,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     config.queryCoordinatorClient.connectTimeout,
     config.queryCoordinatorClient.receiveTimeout))
 
-  val geospace = si(new CuratedGeospaceClient(discovery, config.geospaceClient))
+  val regionCoder = si(new CuratedRegionCoderClient(discovery, config.regionCoderClient))
 
   val dataSource = i(DataSourceFromConfig(config.database))
 
@@ -157,7 +157,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val router = i {
     import com.socrata.soda.server.resources._
 
-    val healthZ = HealthZ(geospace)
+    val healthZ = HealthZ(regionCoder)
     // TODO: this should probably be a different max size value
     val resource = Resource(rowDAO, datasetDAO, etagObfuscator, config.maxDatumSize, computedColumns, metricProvider)
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
