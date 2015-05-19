@@ -9,11 +9,11 @@ import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
 
 /**
- * A [[ComputationHandler]] that uses Geospace to match a row to a georegion,
+ * A [[ComputationHandler]] that uses region-coder to match a row to a georegion,
  * based on the value of a specified string column.
  * The georegion feature ID returned for each row represents the georegion
  * whose corresponding string column contains the same value as the row.
- * @param config    Configuration information for connecting to Geospace
+ * @param config    Configuration information for connecting to region-coder
  * @param discovery ServiceDiscovery instance used for discovering other services using ZK/Curator
  * @tparam T        ServiceDiscovery payload type
  */
@@ -21,14 +21,14 @@ class GeoregionMatchOnStringHandler[T](config: Config, discovery: ServiceDiscove
   extends GeoregionMatchHandler[T, String](config, discovery){
 
   /**
-   * Constructs the Geospace region coding endpoint. Format is:
+   * Constructs the region-coder endpoint. Format is:
    * /regions/:resourceName/geocode?column=:columnName
    * where :resourceName is the name of the georegion to match against,
    * defined in the computed column parameters as 'region'
    * and :columnName is the name of the column in the georegion dataset
    * whose value to match against
    * @param computedColumn Computed column definition
-   * @return               Geospace endpoint for georegion coding against points
+   * @return               region-coder endpoint for georegion coding against strings
    */
   protected def genEndpoint(computedColumn: ColumnRecordLike): String = {
     require(computedColumn.computationStrategy.isDefined, "No computation strategy found")
@@ -41,7 +41,7 @@ class GeoregionMatchOnStringHandler[T](config: Config, discovery: ServiceDiscove
         s"/regions/$region/stringcode?column=$column"
       case x =>
         throw new IllegalArgumentException("Computation strategy parameters were invalid." +
-          """Expected format: { "region" : "{region_resource_name", "column" : "{column_name" }""")
+          """Expected format: { "region" : "[REGION_RESOURCE_NAME]", "column" : "[COLUMN_NAME]" }""")
     }
   }
 
@@ -61,7 +61,7 @@ class GeoregionMatchOnStringHandler[T](config: Config, discovery: ServiceDiscove
     }
 
   /**
-   * Serializes a point to a JSON format that Geospace understands
+   * Serializes a string to a JSON format that region-coder understands
    * @param str String value
    * @return    JSONified string
    */

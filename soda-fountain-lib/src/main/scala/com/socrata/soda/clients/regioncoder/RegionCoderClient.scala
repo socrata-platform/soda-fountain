@@ -1,15 +1,15 @@
-package com.socrata.soda.clients.geospace
+package com.socrata.soda.clients.regioncoder
 
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
-import com.socrata.soda.clients.geospace.GeospaceClient._
-import com.socrata.soda.server.config.GeospaceClientConfig
+import com.socrata.soda.clients.regioncoder.RegionCoderClient._
+import com.socrata.soda.server.config.RegionCoderClientConfig
 import com.socrata.thirdparty.curator.CuratorServiceBase
 import org.apache.curator.x.discovery.ServiceDiscovery
-import org.slf4j.LoggerFactory
 import scalaj.http.{HttpOptions, Http}
+import java.net.ConnectException
 
-object GeospaceClient {
-  // When passing on the geospace error response,
+object RegionCoderClient {
+  // When passing on the region-coder error response,
   // we'll truncate it to this number of characters.
   val PartialResponseLength = 500
 
@@ -21,12 +21,12 @@ object GeospaceClient {
   }
 }
 
-trait GeospaceClient {
+trait RegionCoderClient {
   def versionCheck: VersionCheckResult
 }
 
-case class CuratedGeospaceClient[T](discovery: ServiceDiscovery[T], config: GeospaceClientConfig)
-  extends CuratorServiceBase(discovery, config.serviceName) with GeospaceClient {
+case class CuratedRegionCoderClient[T](discovery: ServiceDiscovery[T], config: RegionCoderClientConfig)
+  extends CuratorServiceBase(discovery, config.serviceName) with RegionCoderClient {
 
   private def urlPrefix: Option[String] = Option(provider.getInstance()).map { serv => serv.buildUriSpec() }
 
@@ -46,11 +46,14 @@ case class CuratedGeospaceClient[T](discovery: ServiceDiscovery[T], config: Geos
             Failure(url, status, response.take(PartialResponseLength))
           }
         } catch {
+          case e: ConnectException =>
+            // Occurs when region-coder is in the middle of shutting down
+            Failure(url, 0, e.getMessage.take(PartialResponseLength))
           case e: scalaj.http.HttpException =>
             Failure(url, e.code, e.body.take(PartialResponseLength))
         }
       case None =>
-        Failure("", 0, "Unable to get geospace instance from Curator")
+        Failure("", 0, "Unable to get region-coder instance from Curator")
     }
   }
 }

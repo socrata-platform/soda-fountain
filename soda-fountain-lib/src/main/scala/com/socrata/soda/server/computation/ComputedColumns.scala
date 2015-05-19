@@ -24,6 +24,8 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
     ComputationStrategyType.GeoRegion              -> (() => geoRegionMatchOnPointHandler)
   )
 
-  private def geoRegionMatchOnPointHandler  = new GeoregionMatchOnPointHandler(handlersConfig.getConfig("geospace"), discovery)
-  private def geoRegionMatchOnStringHandler = new GeoregionMatchOnStringHandler(handlersConfig.getConfig("geospace"), discovery)
+  private def geoRegionMatchOnPointHandler  = new GeoregionMatchOnPointHandler(
+    handlersConfig.getConfig("region-coder"), discovery)
+  private def geoRegionMatchOnStringHandler = new GeoregionMatchOnStringHandler(
+    handlersConfig.getConfig("region-coder"), discovery)
 }
