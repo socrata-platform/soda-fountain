@@ -106,7 +106,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
         withBody(returnedBody))
   }
 
-  test("HTTP geocoder works with mock HTTP server") {
+  test("HTTP point-to-polygon region coding works with mock HTTP server") {
     mockPointCodeRoute(".+122.+", """[1]""")
     mockPointCodeRoute(".+121.+", """[2]""")
     mockPointCodeRoute(".+120.+", """[null,5]""")

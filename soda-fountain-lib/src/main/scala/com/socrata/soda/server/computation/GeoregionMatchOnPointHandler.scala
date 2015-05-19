@@ -25,7 +25,7 @@ class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscover
 
   /**
    * Constructs the region-coder endpoint. Format is:
-   * /regions/:resourceName/geocode
+   * /regions/:resourceName/pointcode
    * where :resourceName is the name of the georegion to match against,
    * defined in the computed column parameters as 'region'
    * @param computedColumn Computed column definition

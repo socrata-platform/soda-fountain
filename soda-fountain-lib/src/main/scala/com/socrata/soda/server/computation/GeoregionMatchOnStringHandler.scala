@@ -22,7 +22,7 @@ class GeoregionMatchOnStringHandler[T](config: Config, discovery: ServiceDiscove
 
   /**
    * Constructs the region-coder endpoint. Format is:
-   * /regions/:resourceName/geocode?column=:columnName
+   * /regions/:resourceName/pointcode?column=:columnName
    * where :resourceName is the name of the georegion to match against,
    * defined in the computed column parameters as 'region'
    * and :columnName is the name of the column in the georegion dataset
