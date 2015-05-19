@@ -2,7 +2,7 @@ package com.socrata.soda.server.wiremodels
 
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.socrata.soql.types._
-import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point}
+import com.vividsolutions.jts.geom._
 
 trait CsvColumnWriteRep {
   def toString(value: SoQLValue): String
@@ -119,6 +119,9 @@ object CsvColumnRep {
     SoQLJson -> JValueRep,
     SoQLPoint -> new GeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value),
     SoQLMultiLine -> new GeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value),
-    SoQLMultiPolygon -> new GeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value)
+    SoQLMultiPolygon -> new GeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value),
+    SoQLLine -> new GeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value),
+    SoQLMultiPoint -> new GeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value),
+    SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value)
   )
 }

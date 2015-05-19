@@ -88,6 +88,9 @@ object SoQLPackExporter extends Exporter {
             case SoQLPoint(pt)       => wkbWriter.write(pt)
             case SoQLMultiLine(ml)   => wkbWriter.write(ml)
             case SoQLMultiPolygon(p) => wkbWriter.write(p)
+            case SoQLPolygon(p)      => wkbWriter.write(p)
+            case SoQLLine(l)         => wkbWriter.write(l)
+            case SoQLMultiPoint(mp)  => wkbWriter.write(mp)
             case SoQLText(str)       => str
             case SoQLNull            => null
             case null                => null
