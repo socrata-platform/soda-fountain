@@ -7,4 +7,11 @@ exec su socrata -c '/usr/bin/java \
     -Xmx${JAVA_XMX} \
     -Xms${JAVA_XMX} \
     -Dconfig.file=${SERVER_CONFIG} \
+    -Djava.net.preferIPv4Stack=true \
+    -Dcom.sun.management.jmxremote \
+    -Dcom.sun.management.jmxremote.port=${JMX_PORT} \
+    -Dcom.sun.management.jmxremote.rmi.port=${JMX_PORT} \
+    -Dcom.sun.management.jmxremote.ssl=false \
+    -Dcom.sun.management.jmxremote.authenticate=false \
+    -Djava.rmi.server.hostname=${ARK_HOST:-localhost} \
     -jar $SERVER_ARTIFACT'
