@@ -3,7 +3,7 @@ package com.socrata.soda.server.resources
 import java.net.URI
 import javax.servlet.http.HttpServletResponse
 
-import com.rojoma.json.v3.ast.{JNull, JValue}
+import com.rojoma.json.v3.ast._
 import com.socrata.http.client._
 import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, ContentTypeException, ReceiveTimeout}
 import com.socrata.http.server._
@@ -54,6 +54,16 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     }
   }
 
+  case class SuggestError(error: Throwable) {
+    def json: JValue = {
+      JObject(Map(
+        "source"       -> JString("soda-fountain"),
+        "entity"       -> JString("Suggest"),
+        "errorMessage" -> JString(error.toString)
+      ))
+    }
+  }
+
   // f(dataset name, copy num or lifecycle stage, column name, text) => spandex uri to get
   def go(req: HttpRequest, resp: HttpServletResponse,
          resourceName: ResourceName, columnName: ColumnName, text: String,
@@ -61,15 +71,15 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     internalContext(resourceName, columnName) match {
       case None => NotFound(resp)
       case Some((ds: String, stage: Stage, col: String)) =>
-        val (code, body) = try {
+        val (code: Int, body: JValue) = try {
           getSpandexResponse(f(ds, stage, col, text), req.queryParameters)
         } catch {
           case rt: ReceiveTimeout => log.warn(s"Spandex receive timeout $rt")
-            (500, JNull)
+            (HttpServletResponse.SC_INTERNAL_SERVER_ERROR, SuggestError(rt).json)
           case ct: ConnectTimeout => log.warn(s"Spandex connect timeout $ct")
-            (500, JNull)
+            (HttpServletResponse.SC_INTERNAL_SERVER_ERROR, SuggestError(ct).json)
           case cf: ConnectFailed => log.warn(s"Spandex connect failed $cf")
-            (500, JNull)
+            (HttpServletResponse.SC_INTERNAL_SERVER_ERROR, SuggestError(cf).json)
         }
 
         (Status(code) ~> Json(body))(resp)

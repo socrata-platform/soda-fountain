@@ -7,7 +7,7 @@ import javax.servlet.http.{HttpServletRequest, HttpServletResponse => HttpStatus
 import com.rojoma.json.v3.ast.{JNull, JObject, JString}
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.http.client._
-import com.socrata.http.client.exceptions.{ConnectTimeout, ReceiveTimeout}
+import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, ReceiveTimeout}
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.soda.server.config.{SodaFountainConfig, SuggestConfig}
@@ -25,6 +25,8 @@ import org.scalatest.Matchers
 import org.scalatest.concurrent.Timeouts
 import org.scalatest.time.SpanSugar._
 import org.springframework.mock.web.MockHttpServletResponse
+
+import scala.language.postfixOps
 
 class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with Timeouts {
   val resourceName = new ResourceName("abcd-1234")
@@ -298,12 +300,21 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     response.getStatus should be(HttpStatus.SC_NOT_FOUND)
   }
 
-  // Needs VPN to be on to pass on localhost, apparently
+  test("spandex connect failed") {
+    failAfter(2 seconds) {
+      a[ConnectFailed] should be thrownBy {
+        // non existent host
+        mockSuggest().getSpandexResponse(new URI("http://255.255.255.255/"))
+      }
+    }
+  }
   test("spandex connect timeout") {
     setSpandexResponse(url = "/", body = "connect timeout", syntheticDelayMs = 10000)
     failAfter(2 seconds) {
       a[ConnectTimeout] should be thrownBy {
-        mockSuggest().getSpandexResponse(new URI("http://10.255.255.1/")) // non-routable address
+        // Needs VPN to be on to pass on localhost, apparently
+        // non-routable address
+        mockSuggest().getSpandexResponse(new URI("http://10.255.255.1/"))
       }
     }
   }
@@ -315,5 +326,97 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
         mockSuggest().getSpandexResponse(mockServerUri(path))
       }
     }
+  }
+
+  test("spandex connect failed - send error message in response") {
+    val d = mock[DatasetDAO]
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
+
+    val c = mock[ColumnDAO]
+    c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
+
+    val path = s"/suggest/$expectedDatasetId/$lifecycleStage/$expectedColumnId/$suggestText"
+    setSpandexResponse(url = path, body = expectedBody)
+
+    val suggest = mockSuggest(datasetDao = d, columnDao = c,
+      config = new SuggestConfig(ConfigFactory.parseString(
+      """  suggest {
+        |    host = "255.255.255.255"
+        |    port = 8042
+        |    connect-timeout = 1s
+        |    receive-timeout = 5s
+        |  }
+      """.stripMargin), "suggest"))
+
+    val servReq = mock[HttpServletRequest]
+    servReq.expects('getQueryString)()
+    val augReq = new AugmentedHttpServletRequest(servReq)
+    val httpReq = mock[HttpRequest]
+    httpReq.expects('servletRequest)().returning(augReq)
+
+    val response = new MockHttpServletResponse()
+    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
+    response.getContentType should include("application/json")
+    response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+    response.getContentAsString should include("Suggest")
+    response.getContentAsString should include("com.socrata.http.client.exceptions.ConnectFailed")
+  }
+  test("spandex connect timeout - send error message in response") {
+    val d = mock[DatasetDAO]
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
+
+    val c = mock[ColumnDAO]
+    c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
+
+    val path = s"/suggest/$expectedDatasetId/$lifecycleStage/$expectedColumnId/$suggestText"
+    setSpandexResponse(url = path, body = expectedBody)
+
+    val suggest = mockSuggest(datasetDao = d, columnDao = c,
+      config = new SuggestConfig(ConfigFactory.parseString(
+        """  suggest {
+          |    host = "10.255.255.1"
+          |    port = 8042
+          |    connect-timeout = 1s
+          |    receive-timeout = 5s
+          |  }
+        """.stripMargin), "suggest"))
+
+    val servReq = mock[HttpServletRequest]
+    servReq.expects('getQueryString)()
+    val augReq = new AugmentedHttpServletRequest(servReq)
+    val httpReq = mock[HttpRequest]
+    httpReq.expects('servletRequest)().returning(augReq)
+
+    val response = new MockHttpServletResponse()
+    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
+    response.getContentType should include("application/json")
+    response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+    response.getContentAsString should include("Suggest")
+    response.getContentAsString should include("com.socrata.http.client.exceptions.ConnectTimeout")
+  }
+  test("spandex receive timeout - send error message in response") {
+    val d = mock[DatasetDAO]
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
+
+    val c = mock[ColumnDAO]
+    c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
+
+    val path = s"/suggest/$expectedDatasetId/$lifecycleStage/$expectedColumnId/$suggestText"
+    setSpandexResponse(url = path, body = expectedBody, syntheticDelayMs = 86400000)
+
+    val suggest = mockSuggest(datasetDao = d, columnDao = c)
+
+    val servReq = mock[HttpServletRequest]
+    servReq.expects('getQueryString)()
+    val augReq = new AugmentedHttpServletRequest(servReq)
+    val httpReq = mock[HttpRequest]
+    httpReq.expects('servletRequest)().returning(augReq)
+
+    val response = new MockHttpServletResponse()
+    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
+    response.getContentType should include("application/json")
+    response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+    response.getContentAsString should include("Suggest")
+    response.getContentAsString should include("com.socrata.http.client.exceptions.ReceiveTimeout")
   }
 }
