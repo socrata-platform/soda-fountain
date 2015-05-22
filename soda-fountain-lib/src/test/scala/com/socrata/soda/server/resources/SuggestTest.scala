@@ -11,6 +11,7 @@ import com.socrata.http.client.exceptions.{ConnectTimeout, ReceiveTimeout}
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.soda.server.config.{SodaFountainConfig, SuggestConfig}
+import com.socrata.soda.server.copy.Published
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord}
@@ -28,7 +29,7 @@ import org.springframework.mock.web.MockHttpServletResponse
 class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with Timeouts {
   val resourceName = new ResourceName("abcd-1234")
   val expectedDatasetId = "primus.1234"
-  val lifecycleStage = "published"
+  val lifecycleStage = Published
   val columnName = new ColumnName("some_column_name")
   val expectedColumnId = "abcd-1235"
   val suggestText = "nar"
@@ -180,7 +181,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
 
     val (ds, cn, col) = suggest.internalContext(resourceName, columnName).get
     ds should be(expectedDatasetId)
-    cn should be("published")
+    cn should be(Published)
     col should be(expectedColumnId)
   }
   test("make internal context - column not found") {

@@ -10,6 +10,7 @@ import com.socrata.http.server._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.server.config.SuggestConfig
+import com.socrata.soda.server.copy.{Published, Stage}
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soql.environment.ColumnName
@@ -56,10 +57,10 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   // f(dataset name, copy num or lifecycle stage, column name, text) => spandex uri to get
   def go(req: HttpRequest, resp: HttpServletResponse,
          resourceName: ResourceName, columnName: ColumnName, text: String,
-         f: (String, String, String, String) => URI): Unit = {
+         f: (String, Stage, String, String) => URI): Unit = {
     internalContext(resourceName, columnName) match {
       case None => NotFound(resp)
-      case Some((ds: String, stage: String, col: String)) =>
+      case Some((ds: String, stage: Stage, col: String)) =>
         val (code, body) = try {
           getSpandexResponse(f(ds, stage, col, text), req.queryParameters)
         } catch {
@@ -75,7 +76,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     }
   }
 
-  def internalContext(resourceName: ResourceName, columnName: ColumnName): Option[(String, String, String)] = {
+  def internalContext(resourceName: ResourceName, columnName: ColumnName): Option[(String, Stage, String)] = {
     def notFound(name: String) = {
       log.info("{} not found - {}.{}", name, resourceName, columnName)
       None
@@ -83,7 +84,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
     for {
       ds <- datasetId(resourceName).orElse(notFound("dataset id"))
-      stage <- Some("published")
+      stage <- Some(Published)
       col <- datacoordinatorColumnId(resourceName, columnName).orElse(notFound("column"))
     } yield (ds, stage, col)
   }
