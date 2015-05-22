@@ -11,6 +11,7 @@ import com.socrata.http.client.exceptions.{ConnectTimeout, ReceiveTimeout}
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.soda.server.config.{SodaFountainConfig, SuggestConfig}
+import com.socrata.soda.server.copy.Published
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord}
@@ -28,7 +29,7 @@ import org.springframework.mock.web.MockHttpServletResponse
 class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with Timeouts {
   val resourceName = new ResourceName("abcd-1234")
   val expectedDatasetId = "primus.1234"
-  val expectedCopyNum = 17L
+  val lifecycleStage = Published
   val columnName = new ColumnName("some_column_name")
   val expectedColumnId = "abcd-1235"
   val suggestText = "nar"
@@ -75,7 +76,6 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     Some(mockConfig.connectTimeout) should be('defined)
     Some(mockConfig.receiveTimeout) should be('defined)
   }
-
   test("config value port out of range exception") {
     val configLow = new SodaFountainConfig(
       ConfigFactory.load()
@@ -93,7 +93,6 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
       mockSuggest(config = configHigh)
     }
   }
-
   test("config value connectTimeout out of range exception") {
     val configLow = new SodaFountainConfig(
       ConfigFactory.load()
@@ -111,7 +110,6 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
       mockSuggest(config = configHigh)
     }
   }
-
   test("config value receiveTimeout out of range exception") {
     val configLow = new SodaFountainConfig(
       ConfigFactory.load()
@@ -151,19 +149,6 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     }
   }
 
-  test("get latest copy number - found") {
-    val d = mock[DatasetDAO]
-    d.expects('getCurrentCopyNum)(resourceName).returning(Some(expectedCopyNum))
-
-    mockSuggest(datasetDao = d).copyNum(resourceName) should be(Some(expectedCopyNum))
-  }
-  test("get latest copy number - not found") {
-    val d = mock[DatasetDAO]
-    d.expects('getCurrentCopyNum)(resourceName).returning(None)
-
-    mockSuggest(datasetDao = d).copyNum(resourceName) should be(None)
-  }
-
   test("translate column name to id - found") {
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
@@ -188,7 +173,6 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
   test("make internal context - all found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
-    d.expects('getCurrentCopyNum)(resourceName).returning(Some(expectedCopyNum))
 
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
@@ -197,14 +181,12 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
 
     val (ds, cn, col) = suggest.internalContext(resourceName, columnName).get
     ds should be(expectedDatasetId)
-    cn should be(expectedCopyNum)
+    cn should be(Published)
     col should be(expectedColumnId)
   }
-
   test("make internal context - column not found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
-    d.expects('getCurrentCopyNum)(resourceName).returning(Some(expectedCopyNum))
 
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.ColumnNotFound(columnName))
@@ -214,18 +196,6 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val ctx = suggest.internalContext(resourceName, columnName)
     ctx shouldNot be('defined)
   }
-
-  test("make internal context - copy not found") {
-    val d = mock[DatasetDAO]
-    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
-    d.expects('getCurrentCopyNum)(resourceName).returning(None)
-
-    val suggest = mockSuggest(datasetDao = d)
-
-    val ctx = suggest.internalContext(resourceName, columnName)
-    ctx shouldNot be('defined)
-  }
-
   test("make internal context - dataset not found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.NotFound(resourceName))
@@ -257,12 +227,11 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
   test("service suggestions - found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
-    d.expects('getCurrentCopyNum)(resourceName).returning(Some(expectedCopyNum))
 
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
 
-    val path = s"/suggest/$expectedDatasetId/$expectedCopyNum/$expectedColumnId/$suggestText"
+    val path = s"/suggest/$expectedDatasetId/$lifecycleStage/$expectedColumnId/$suggestText"
     setSpandexResponse(url = path, body = expectedBody)
 
     val suggest = mockSuggest(datasetDao = d, columnDao = c)
@@ -279,7 +248,6 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     response.getStatus should be(expectedStatusCode)
     response.getContentAsString should be(expectedBody)
   }
-
   test("service suggestions - dataset not found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.NotFound(resourceName))
@@ -296,12 +264,11 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
   test("service samples - found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
-    d.expects('getCurrentCopyNum)(resourceName).returning(Some(expectedCopyNum))
 
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
 
-    val path = s"/suggest/$expectedDatasetId/$expectedCopyNum/$expectedColumnId"
+    val path = s"/suggest/$expectedDatasetId/$lifecycleStage/$expectedColumnId"
     setSpandexResponse(url = path, body = expectedBody)
 
     val suggest = mockSuggest(datasetDao = d, columnDao = c)
@@ -318,7 +285,6 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     response.getStatus should be(expectedStatusCode)
     response.getContentAsString should be(expectedBody)
   }
-
   test("service samples - dataset not found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.NotFound(resourceName))
@@ -341,7 +307,6 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
       }
     }
   }
-
   test("spandex receive timeout") {
     val path = "/"
     setSpandexResponse(url = path, body = "receive timeout", syntheticDelayMs = 10000)

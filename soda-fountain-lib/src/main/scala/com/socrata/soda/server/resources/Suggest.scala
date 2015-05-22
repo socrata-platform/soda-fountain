@@ -10,6 +10,7 @@ import com.socrata.http.server._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.server.config.SuggestConfig
+import com.socrata.soda.server.copy.{Published, Stage}
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soql.environment.ColumnName
@@ -43,9 +44,6 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     }
   }
 
-  def copyNum(resourceName: ResourceName): Option[Long] =
-    datasetDao.getCurrentCopyNum(resourceName)
-
   def datacoordinatorColumnId(resourceName: ResourceName, columnName: ColumnName): Option[String] = {
     columnDao.getColumn(resourceName, columnName) match {
       case ColumnDAO.Found(_, c, _) => Some(c.id.underlying)
@@ -56,15 +54,15 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     }
   }
 
-  // f(dataset name, copy num, column name, text) => spandex uri to get
+  // f(dataset name, copy num or lifecycle stage, column name, text) => spandex uri to get
   def go(req: HttpRequest, resp: HttpServletResponse,
          resourceName: ResourceName, columnName: ColumnName, text: String,
-         f: (String, Long, String, String) => URI): Unit = {
+         f: (String, Stage, String, String) => URI): Unit = {
     internalContext(resourceName, columnName) match {
       case None => NotFound(resp)
-      case Some((ds: String, cn: Long, col: String)) =>
+      case Some((ds: String, stage: Stage, col: String)) =>
         val (code, body) = try {
-          getSpandexResponse(f(ds, cn, col, text), req.queryParameters)
+          getSpandexResponse(f(ds, stage, col, text), req.queryParameters)
         } catch {
           case rt: ReceiveTimeout => log.warn(s"Spandex receive timeout $rt")
             (500, JNull)
@@ -78,7 +76,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     }
   }
 
-  def internalContext(resourceName: ResourceName, columnName: ColumnName): Option[(String, Long, String)] = {
+  def internalContext(resourceName: ResourceName, columnName: ColumnName): Option[(String, Stage, String)] = {
     def notFound(name: String) = {
       log.info("{} not found - {}.{}", name, resourceName, columnName)
       None
@@ -86,9 +84,9 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
 
     for {
       ds <- datasetId(resourceName).orElse(notFound("dataset id"))
-      cn <- copyNum(resourceName).orElse(notFound("copy"))
+      stage <- Some(Published)
       col <- datacoordinatorColumnId(resourceName, columnName).orElse(notFound("column"))
-    } yield (ds, cn, col)
+    } yield (ds, stage, col)
   }
 
   def getSpandexResponse(uri: URI, params: Map[String, String] = Map.empty): (Int, JValue) = {
@@ -112,8 +110,8 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   case class sampleService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def get = { req => resp =>
       sampleTimer.time {
-        go(req, resp, resourceName, columnName, "", (dataset, copynum, column, _) =>
-          new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column"))
+        go(req, resp, resourceName, columnName, "", (dataset, stage, column, _) =>
+          new URI(s"http://$spandexAddress/suggest/$dataset/$stage/$column"))
       }
     }
   }
@@ -121,9 +119,10 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   case class service(resourceName: ResourceName, columnName: ColumnName, text: String) extends SodaResource {
     override def get = { req => resp =>
       suggestTimer.time {
-        go(req, resp, resourceName, columnName, text, (dataset, copynum, column, text) => {
-          val encText = java.net.URLEncoder.encode(text, "utf-8") // protect param 'text' from arbitrary url insertion
-          new URI(s"http://$spandexAddress/suggest/$dataset/$copynum/$column/$encText")
+        go(req, resp, resourceName, columnName, text, (dataset, stage, column, text) => {
+          // protect param 'text' from arbitrary url insertion
+          val encText = java.net.URLEncoder.encode(text, "utf-8")
+          new URI(s"http://$spandexAddress/suggest/$dataset/$stage/$column/$encText")
         })
       }
     }
