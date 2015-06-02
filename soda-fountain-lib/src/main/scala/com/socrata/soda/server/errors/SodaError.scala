@@ -23,6 +23,8 @@ abstract class SodaError(val httpResponseCode: Int, val errorCode: String, val d
   // Some responses, such as NotModified, cannot have content according to HTTP 1.1
   def hasContent: Boolean = true
   def humanReadableMessage: String = SodaError.translate(errorCode, data)
+
+  def sanitizedData: Map[String, JValue] = data -  "stackTrace" - "errorClass"
 }
 
 object SodaError {
