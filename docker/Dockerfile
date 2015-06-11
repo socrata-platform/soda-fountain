@@ -1,7 +1,8 @@
 FROM socrata/java
 
-# TODO expose JMX
 EXPOSE 6010
+ENV JMX_PORT 6019
+EXPOSE 6019
 
 ENV SERVER_ROOT /srv/soda-fountain/
 # TODO sbt task to copy latest jar into docker/

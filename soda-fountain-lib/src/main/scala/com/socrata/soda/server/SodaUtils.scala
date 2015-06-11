@@ -50,7 +50,7 @@ object SodaUtils {
         val content = JObject(Map(
           "message" -> JString(error.humanReadableMessage),
           "errorCode" -> JString(error.errorCode),
-          "data" -> JObject(error.data)
+          "data" -> JObject(error.sanitizedData)
         ))
         Json(content)
       } else
