@@ -3,7 +3,7 @@ set -ev
 
 /bin/env_parse ${SERVER_CONFIG}.j2
 
-exec su socrata -c '/usr/bin/java \
+su socrata -c '/usr/bin/java \
     -Dconfig.file=${SERVER_CONFIG} \
     -cp $SERVER_ARTIFACT \
     com.socrata.soda.server.MigrateSchema migrate'
