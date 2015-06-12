@@ -4,6 +4,11 @@ set -ev
 /bin/env_parse ${SERVER_CONFIG}.j2
 
 exec su socrata -c '/usr/bin/java \
+    -Dconfig.file=${SERVER_CONFIG} \
+    -cp $SERVER_ARTIFACT \
+    com.socrata.soda.server.MigrateSchema migrate'
+
+exec su socrata -c '/usr/bin/java \
     -Xmx${JAVA_XMX} \
     -Xms${JAVA_XMX} \
     -Dconfig.file=${SERVER_CONFIG} \
