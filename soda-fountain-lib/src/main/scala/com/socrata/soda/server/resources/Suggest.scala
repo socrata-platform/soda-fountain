@@ -9,10 +9,12 @@ import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, Conten
 import com.socrata.http.server._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
+import com.socrata.soda.server.SodaUtils.errorResponse
 import com.socrata.soda.server.config.SuggestConfig
 import com.socrata.soda.server.copy.{Published, Stage}
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.{errors => SodaError}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.thirdparty.metrics.Metrics
 
@@ -54,35 +56,24 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     }
   }
 
-  case class SuggestError(error: Throwable) {
-    def json: JValue = {
-      JObject(Map(
-        "source"       -> JString("soda-fountain"),
-        "entity"       -> JString("Suggest"),
-        "errorMessage" -> JString(error.toString)
-      ))
-    }
-  }
-
   // f(dataset name, copy num or lifecycle stage, column name, text) => spandex uri to get
-  def go(req: HttpRequest, resp: HttpServletResponse,
+  def suggest(req: HttpRequest, resp: HttpServletResponse,
          resourceName: ResourceName, columnName: ColumnName, text: String,
          f: (String, Stage, String, String) => URI): Unit = {
+    def err(e: Throwable, msg: String): HttpResponse = {
+      errorResponse(com.socrata.soda.server.toServletHttpRequest(req), SodaError.HttpClientException(e, msg, "Suggest"))
+    }
     internalContext(resourceName, columnName) match {
       case None => NotFound(resp)
       case Some((ds: String, stage: Stage, col: String)) =>
-        val (code: Int, body: JValue) = try {
-          getSpandexResponse(f(ds, stage, col, text), req.queryParameters)
+        try {
+          val (code: Int, body: JValue) = getSpandexResponse(f(ds, stage, col, text), req.queryParameters)
+          (Status(code) ~> Json(body))(resp)
         } catch {
-          case rt: ReceiveTimeout => log.warn(s"Spandex receive timeout $rt")
-            (HttpServletResponse.SC_INTERNAL_SERVER_ERROR, SuggestError(rt).json)
-          case ct: ConnectTimeout => log.warn(s"Spandex connect timeout $ct")
-            (HttpServletResponse.SC_INTERNAL_SERVER_ERROR, SuggestError(ct).json)
-          case cf: ConnectFailed => log.warn(s"Spandex connect failed $cf")
-            (HttpServletResponse.SC_INTERNAL_SERVER_ERROR, SuggestError(cf).json)
+          case rt: ReceiveTimeout => err(rt, "Spandex receive timeout")(resp)
+          case ct: ConnectTimeout => err(ct, "Spandex connect timeout")(resp)
+          case cf: ConnectFailed => err(cf, "Spandex connect failed")(resp)
         }
-
-        (Status(code) ~> Json(body))(resp)
     }
   }
 
@@ -120,7 +111,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   case class sampleService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def get = { req => resp =>
       sampleTimer.time {
-        go(req, resp, resourceName, columnName, "", (dataset, stage, column, _) =>
+        suggest(req, resp, resourceName, columnName, "", (dataset, stage, column, _) =>
           new URI(s"http://$spandexAddress/suggest/$dataset/$stage/$column"))
       }
     }
@@ -129,7 +120,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   case class service(resourceName: ResourceName, columnName: ColumnName, text: String) extends SodaResource {
     override def get = { req => resp =>
       suggestTimer.time {
-        go(req, resp, resourceName, columnName, text, (dataset, stage, column, text) => {
+        suggest(req, resp, resourceName, columnName, text, (dataset, stage, column, text) => {
           // protect param 'text' from arbitrary url insertion
           val encText = java.net.URLEncoder.encode(text, "utf-8")
           new URI(s"http://$spandexAddress/suggest/$dataset/$stage/$column/$encText")

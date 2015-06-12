@@ -352,14 +352,13 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     servReq.expects('getQueryString)()
     val augReq = new AugmentedHttpServletRequest(servReq)
     val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().returning(augReq)
+    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
 
     val response = new MockHttpServletResponse()
     suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
     response.getContentType should include("application/json")
     response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
-    response.getContentAsString should include("Suggest")
-    response.getContentAsString should include("com.socrata.http.client.exceptions.ConnectFailed")
+    response.getContentAsString should include("Spandex connect failed")
   }
   test("spandex connect timeout - send error message in response") {
     val d = mock[DatasetDAO]
@@ -385,14 +384,13 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     servReq.expects('getQueryString)()
     val augReq = new AugmentedHttpServletRequest(servReq)
     val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().returning(augReq)
+    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
 
     val response = new MockHttpServletResponse()
     suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
     response.getContentType should include("application/json")
     response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
-    response.getContentAsString should include("Suggest")
-    response.getContentAsString should include("com.socrata.http.client.exceptions.ConnectTimeout")
+    response.getContentAsString should include("Spandex connect timeout")
   }
   test("spandex receive timeout - send error message in response") {
     val d = mock[DatasetDAO]
@@ -410,13 +408,12 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     servReq.expects('getQueryString)()
     val augReq = new AugmentedHttpServletRequest(servReq)
     val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().returning(augReq)
+    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
 
     val response = new MockHttpServletResponse()
     suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
     response.getContentType should include("application/json")
     response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
-    response.getContentAsString should include("Suggest")
-    response.getContentAsString should include("com.socrata.http.client.exceptions.ReceiveTimeout")
+    response.getContentAsString should include("Spandex receive timeout")
   }
 }
