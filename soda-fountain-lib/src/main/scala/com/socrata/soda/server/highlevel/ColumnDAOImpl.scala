@@ -183,38 +183,47 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
     }
   }
 
-
   def deleteColumn(user: String, dataset: ResourceName, column: ColumnName, requestId: RequestId): Result = {
     retryable(limit = 3) {
       store.lookupDataset(dataset, Some(Latest)) match {
         case Some(datasetRecord) =>
           datasetRecord.columnsByName.get(column) match {
             case Some(columnRef) =>
-              val extraHeaders = Map(ReqIdHeader -> requestId,
-                                     SodaUtils.ResourceHeader -> dataset.name)
-              dc.update(datasetRecord.systemId,
-                        datasetRecord.schemaHash,
-                        user,
-                        Iterator.single(DropColumnInstruction(columnRef.id)),
-                        extraHeaders) {
-                case DataCoordinatorClient.Success(_, etag, copyNumber, newVersion, lastModified) =>
-                  store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber)
-                  store.updateVersionInfo(datasetRecord.systemId,
-                                          newVersion,
-                                          lastModified,
-                                          None,
-                                          copyNumber,
-                                          None)
-                  ColumnDAO.Deleted(columnRef, etag)
-                case DataCoordinatorClient.SchemaOutOfDate(realSchema) =>
-                  store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)
-                  retry()
-                case DataCoordinatorClient.CannotDeleteRowId =>
-                  ColumnDAO.InvalidRowIdOperation(columnRef, "DELETE")
-                // TODO other cases have not been implemented
-                case _@x =>
-                  log.warn("case is NOT implemented")
-                  ???
+              val hasDependencies = (for {
+                col   <- datasetRecord.columns
+                strat <- col.computationStrategy
+                src   <- strat.sourceColumns
+              } yield src.exists(_.id == columnRef.id)).fold(false)(_ || _)
+
+              if (hasDependencies) {
+                ColumnDAO.ColumnHasDependencies(columnRef.fieldName)
+              } else {
+                val extraHeaders = Map(ReqIdHeader -> requestId,
+                                       SodaUtils.ResourceHeader -> dataset.name)
+                dc.update(datasetRecord.systemId,
+                          datasetRecord.schemaHash,
+                          user,
+                          Iterator.single(DropColumnInstruction(columnRef.id)),
+                          extraHeaders) {
+                  case DataCoordinatorClient.Success(_, etag, copyNumber, newVersion, lastModified) =>
+                    store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber)
+                    store.updateVersionInfo(datasetRecord.systemId,
+                                            newVersion,
+                                            lastModified,
+                                            None,
+                                            copyNumber,
+                                            None)
+                    ColumnDAO.Deleted(columnRef, etag)
+                  case DataCoordinatorClient.SchemaOutOfDate(realSchema) =>
+                    store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)
+                    retry()
+                  case DataCoordinatorClient.CannotDeleteRowId =>
+                    ColumnDAO.InvalidRowIdOperation(columnRef, "DELETE")
+                  // TODO other cases have not been implemented
+                  case _@x =>
+                    log.warn("case is NOT implemented")
+                    ???
+                }
               }
             case None =>
               ColumnDAO.ColumnNotFound(column)
