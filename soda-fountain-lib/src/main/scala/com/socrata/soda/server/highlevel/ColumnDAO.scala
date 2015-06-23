@@ -37,8 +37,8 @@ object ColumnDAO {
   case class DatasetNotFound(dataset: ResourceName) extends Result
   case class ColumnNotFound(column: ColumnName) extends Result
   case class Deleted(rec: ColumnRecord, etag: Option[EntityTag]) extends Result
-  case class InvalidColumnName(name: ColumnName) extends Result
-  case class ColumnHasDependencies(rec: ColumnName, deps: Seq[ColumnName]) extends Result
+  case class InvalidColumnName(col: ColumnName) extends Result
+  case class ColumnHasDependencies(col: ColumnName, deps: Seq[ColumnName]) extends Result
   case class InvalidRowIdOperation(columnRec: ColumnRecord, method: String) extends Result
   case class NonUniqueRowId(rec: ColumnRecord) extends Result
   case class InvalidDatasetState(data: Map[String, JValue]) extends Result
