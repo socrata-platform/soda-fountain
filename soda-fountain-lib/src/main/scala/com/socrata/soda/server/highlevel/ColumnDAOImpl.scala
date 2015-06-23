@@ -13,7 +13,7 @@ import scala.util.control.ControlThrowable
 
 // TODO: This shouldn't be referenced here.
 import com.socrata.http.server.util.Precondition
-import com.socrata.soda.server.persistence.{DatasetRecord, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{MinimalColumnRecord, DatasetRecord, NameAndSchemaStore}
 
 class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils) extends ColumnDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnDAOImpl])
@@ -183,20 +183,23 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
     }
   }
 
+  def getDependencies(datasetRecord: DatasetRecord, id: ColumnId): Seq[ColumnName] =
+    datasetRecord.columns.filter { col =>
+      col.computationStrategy.nonEmpty &&
+      col.computationStrategy.get.sourceColumns.nonEmpty &&
+      col.computationStrategy.get.sourceColumns.get.exists(_.id == id)
+    }.map(_.fieldName)
+
   def deleteColumn(user: String, dataset: ResourceName, column: ColumnName, requestId: RequestId): Result = {
     retryable(limit = 3) {
       store.lookupDataset(dataset, Some(Latest)) match {
         case Some(datasetRecord) =>
           datasetRecord.columnsByName.get(column) match {
             case Some(columnRef) =>
-              val hasDependencies = (for {
-                col   <- datasetRecord.columns
-                strat <- col.computationStrategy
-                src   <- strat.sourceColumns
-              } yield src.exists(_.id == columnRef.id)).fold(false)(_ || _)
+              val deps = getDependencies(datasetRecord, columnRef.id)
 
-              if (hasDependencies) {
-                ColumnDAO.ColumnHasDependencies(columnRef.fieldName)
+              if (deps.nonEmpty) {
+                ColumnDAO.ColumnHasDependencies(columnRef.fieldName, deps)
               } else {
                 val extraHeaders = Map(ReqIdHeader -> requestId,
                                        SodaUtils.ResourceHeader -> dataset.name)

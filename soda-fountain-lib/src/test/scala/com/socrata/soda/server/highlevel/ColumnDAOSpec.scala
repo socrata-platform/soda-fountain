@@ -34,6 +34,7 @@ class ColumnDAOSpec extends FunSuiteLike
   test("Delete column with dependency") {
     val dataset = TestDatasetWithComputedColumn.dataset
     val toDelete = dataset.col("source")
+    val dependency = dataset.col(":computed")
     val requestId = "1234"
 
     val dc = mock[DataCoordinatorClient]
@@ -46,7 +47,7 @@ class ColumnDAOSpec extends FunSuiteLike
 
     val result = dao.deleteColumn("user", dataset.resourceName, toDelete.fieldName, requestId)
 
-    result should be(ColumnHasDependencies(toDelete.fieldName))
+    result should be(ColumnHasDependencies(toDelete.fieldName, Seq(dependency.fieldName)))
   }
 
   test("Delete column") {
