@@ -7,7 +7,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
 import com.socrata.soda.server._
 import com.socrata.soda.server.computation.ComputedColumnsLike
-import com.socrata.soda.server.errors.{EtagPreconditionFailed, HttpMethodNotAllowed, NonUniqueRowId, ResourceNotModified}
+import com.socrata.soda.server.errors._
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
@@ -43,6 +43,8 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       case ColumnDAO.ColumnNotFound(column) => NotFound /* TODO: content */
       case ColumnDAO.DatasetNotFound(dataset) => NotFound /* TODO: content */
       case ColumnDAO.InvalidColumnName(column) => BadRequest /* TODO: content */
+      case ColumnDAO.ColumnHasDependencies(col, deps) =>
+        SodaUtils.errorResponse(req, ColumnHasDependencies(col, deps))
       case ColumnDAO.InvalidRowIdOperation(column, method) =>
         SodaUtils.errorResponse(req, HttpMethodNotAllowed(method, Seq("GET", "PATCH")))
       case ColumnDAO.NonUniqueRowId(column) =>

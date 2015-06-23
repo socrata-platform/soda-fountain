@@ -143,6 +143,12 @@ case class RowNotFound(value: RowSpecifier)
   extends SodaError(SC_NOT_FOUND, "soda.row.not-found",
      "value" -> JString(value.underlying))
 
+case class ColumnHasDependencies(columnName: ColumnName,
+                                 deps: Seq[ColumnName])
+  extends SodaError(SC_BAD_REQUEST, "soda.column-with-dependencies-not-deleteable",
+     "column"       -> JString(columnName.name),
+     "dependencies" -> JArray(deps.map { d => JString(d.name) }))
+
 /**
  * Column not found in a row operation
  */
