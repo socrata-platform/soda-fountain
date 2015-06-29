@@ -32,7 +32,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
   }
 
   def response(req: HttpServletRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte] = defaultSuffix, isGet: Boolean = false): HttpResponse = {
-    log.info("TODO: Negotiate content type")
+    // TODO: Negotiate content type
     def prepareETag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(etagSuffix))
     result match {
       case ColumnDAO.Created(column, etagOpt) =>
@@ -53,7 +53,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       case ColumnDAO.UserError(code, data) => BadRequest ~> Json(data + ("code" -> JStringV3(code)))
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
         if(isGet) {
-          log.info("TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified")
+          // TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified
           SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareETag), None))
         } else {
           SodaUtils.errorResponse(req, EtagPreconditionFailed)

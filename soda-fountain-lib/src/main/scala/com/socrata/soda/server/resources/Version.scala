@@ -22,7 +22,7 @@ object Version {
     } yield JsonReader.fromReader(reader)
 
     def response = {
-      log.info("TODO: Negotiate content-type")
+      // TODO: Negotiate content-type
       OK ~> Json(responseJ)
     }
 

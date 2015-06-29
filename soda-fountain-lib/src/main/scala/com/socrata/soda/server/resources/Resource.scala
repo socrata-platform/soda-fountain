@@ -68,7 +68,7 @@ case class Resource(rowDAO: RowDAO,
   }
 
   def response(result: RowDAO.Result): HttpResponse = {
-    log.info("TODO: Negotiate content-type")
+    // TODO: Negotiate content-type
     result match {
       case RowDAO.Success(code, value) =>
         Status(code) ~> Json(value)
@@ -80,7 +80,7 @@ case class Resource(rowDAO: RowDAO,
   }
 
   def rowResponse(req: HttpServletRequest, result: RowDAO.Result): HttpResponse = {
-    log.info("TODO: Negotiate content-type")
+    // TODO: Negotiate content-type
     result match {
       case RowDAO.Success(code, value) =>
         Status(code) ~> Json(value)
