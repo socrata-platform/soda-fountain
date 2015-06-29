@@ -24,13 +24,13 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                             column: ColumnName,
                             rawSpec: UserProvidedColumnSpec,
                             requestId: RequestId): ColumnDAO.Result = {
-    log.info("TODO: This really needs to be a transaction.  It WILL FAIL if a dataset frequently read is being updated, because one of the readers will have generated dummy columns as part of inconsistency resolution")
+    // TODO: This really needs to be a transaction.  It WILL FAIL if a dataset frequently read is being updated, because one of the readers will have generated dummy columns as part of inconsistency resolution
     val spec = rawSpec.copy(fieldName = rawSpec.fieldName.orElse(Some(column)))
     store.lookupDataset(dataset, Some(Latest)) match {
       case Some(datasetRecord) =>
         datasetRecord.columnsByName.get(column) match {
           case Some(columnRecord) =>
-            log.info("TODO: updating existing columns")
+            log.warn("TODO: updating existing columns not supported yet")
             ???
           case None =>
             createColumn(user, datasetRecord, precondition, column, spec, requestId)
@@ -57,7 +57,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
             dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
                       Iterator.single(addColumn), extraHeaders) {
               case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
-                log.info("TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here")
+                // TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here
                 store.addColumn(datasetRecord.systemId, copyNumber, spec)
                 store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                 log.info("column created {} {} {}", datasetRecord.systemId.toString, copyNumber.toString, column.name)

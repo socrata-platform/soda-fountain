@@ -456,7 +456,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
       using(connection.prepareStatement(addColumnSql)) { colAdder =>
         for(crec <- columns) {
-          log.info("TODO: Ensure the names will fit in the space available")
+          // TODO: Ensure the names will fit in the space available
           colAdder.setString(1, datasetId.underlying)
           colAdder.setString(2, crec.fieldName.caseFolded)
           colAdder.setString(3, crec.fieldName.name)
@@ -508,7 +508,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         insert into datasets (resource_name_casefolded, resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id) values(?, ?, ?, ?, ?, ?, ?, ?);
         insert into dataset_copies(dataset_system_id, copy_number, schema_hash, primary_key_column_id, lifecycle_stage, latest_version) values(?, 1, ?, ?, 'Unpublished', 1);
         """)) { adder =>
-        log.info("TODO: Ensure the names will fit in the space available")
+        // TODO: Ensure the names will fit in the space available
         adder.setString(1, newRecord.resourceName.caseFolded)
         adder.setString(2, newRecord.resourceName.name)
         adder.setString(3, newRecord.systemId.underlying)
