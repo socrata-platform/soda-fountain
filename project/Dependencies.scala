@@ -23,7 +23,7 @@ object Dependencies {
     val scalaj            = "0.3.15"
     val socrataHttp       = "3.3.0"
     val soqlBrita         = "1.3.0"
-    val soqlReference     = "0.5.3"
+    val soqlReference     = "0.6.0"
     val thirdPartyUtils   = "3.1.2"
     val typesafeConfig    = "1.0.2"
 
@@ -82,6 +82,7 @@ object Dependencies {
   val soqlBrita                = "com.socrata"     %% "soql-brita"                  % versions.soqlBrita
 
   val soqlAnalyzer             = "com.socrata"     %% "soql-analyzer"               % versions.soqlReference
+  val soqlPack                 = "com.socrata"     %% "soql-pack"                   % versions.soqlReference
   val soqlStandaloneParser     = "com.socrata"     %% "soql-standalone-parser"      % versions.soqlReference
   val soqlStdLib               = "com.socrata"     %% "soql-stdlib"                 % versions.soqlReference
   val soqlTypes                = "com.socrata"     %% "soql-types"                  % versions.soqlReference
