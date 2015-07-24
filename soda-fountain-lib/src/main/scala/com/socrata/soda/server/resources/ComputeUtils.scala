@@ -20,16 +20,20 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ComputeUtils])
 
-  private def columnsToExport(dataset: DatasetRecordLike, computationStrategy: ComputationStrategyRecord): Seq[ColumnRecordLike] = {
-    def sourceColumns    = getSourceColumns(dataset, computationStrategy)
+  private def columnsToExport(requestId: RequestId.RequestId,
+                              dataset: DatasetRecordLike,
+                              computationStrategy: ComputationStrategyRecord): Seq[ColumnRecordLike] = {
+    def sourceColumns    = getSourceColumns(requestId, dataset, computationStrategy)
     def primaryKeyColumn = dataset.columnsById(dataset.primaryKey)
     sourceColumns ++ Seq(primaryKeyColumn)
   }
 
-  private def getSourceColumns(dataset: DatasetRecordLike, computationStrategy: ComputationStrategyRecord): Seq[ColumnRecordLike] = {
+  private def getSourceColumns(requestId: RequestId.RequestId,
+                               dataset: DatasetRecordLike,
+                               computationStrategy: ComputationStrategyRecord): Seq[ColumnRecordLike] = {
     computationStrategy.sourceColumns match {
       case Some(columns: Seq[MinimalColumnRecord]) =>
-        val trans = new RowDataTranslator(dataset, false)
+        val trans = new RowDataTranslator(requestId, dataset, false)
         trans.getInfoForColumnList(columns.map(_.id.underlying))
       case None => Seq()
     }
@@ -65,7 +69,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
              (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit): Unit =
     column.computationStrategy match {
       case Some(strategy) =>
-        val columns = columnsToExport(dataset, strategy)
+        val columns = columnsToExport(RequestId.getFromRequest(req), dataset, strategy)
         val requestId = RequestId.getFromRequest(req)
         exportDAO.export(dataset.resourceName,
           JsonExporter.validForSchema,
@@ -78,7 +82,8 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
           sorted = false,
           requestId) {
           case ExportDAO.Success(schema, newTag, rows) =>
-            val transformer = new RowDataTranslator(dataset, false)
+            val transformer = new RowDataTranslator(
+              RequestId.getFromRequest(req), dataset, false)
             val upsertRows = transformer.transformDcRowsForUpsert(computedColumns, Seq(column), schema, rows)
             rowDAO.upsert(user, dataset, upsertRows, requestId)(UpsertUtils.handleUpsertErrors(req, response)(successHandler))
           case ExportDAO.PreconditionFailed => SodaUtils.errorResponse(req, SodaError.EtagPreconditionFailed)(response)

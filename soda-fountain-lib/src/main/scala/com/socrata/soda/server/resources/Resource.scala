@@ -102,7 +102,8 @@ case class Resource(rowDAO: RowDAO,
                     f: rowDaoFunc) = {
     datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
-        val transformer = new RowDataTranslator(datasetRecord, false)
+        val transformer = new RowDataTranslator(
+          RequestId.getFromRequest(req), datasetRecord, false)
         val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
       case DatasetDAO.NotFound(dataset) =>
