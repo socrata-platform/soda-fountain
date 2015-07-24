@@ -121,7 +121,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
         }
       case d: DeleteAsCJson  => d
     }
-    val newRows = handler.compute(testRows.toIterator, columnSpec)
+    val newRows = handler.compute("a-request-id", testRows.toIterator, columnSpec)
     newRows.toSeq must equal (expectedRows)
   }
 
@@ -136,7 +136,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     mockPointCodeRoute(".+122.+", """[1]""", 200)
     mockPointCodeRoute(".+122.+", "", 500)
 
-    val newRows = handler.compute(Iterator(testRow), columnSpec)
+    val newRows = handler.compute("a-request-id", Iterator(testRow), columnSpec)
     newRows.toSeq must equal (Stream(expectedRow))
   }
 
@@ -161,7 +161,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
       case d: DeleteAsCJson  => d
     }
 
-    val newRows = handler.compute(rows.toIterator, columnSpec)
+    val newRows = handler.compute("a-request-id", rows.toIterator, columnSpec)
     newRows.toSeq must equal (expectedRows)
   }
 
@@ -170,7 +170,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
       UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"))),
       UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015"))))
 
-    val newRows = handler.compute(rows.toIterator, columnSpec)
+    val newRows = handler.compute("a-request-id", rows.toIterator, columnSpec)
     newRows.toSeq must equal (rows)
   }
 
@@ -183,7 +183,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     // The way we verify this is a variant of above test.  Unless we call next(), errors in the input
     // will not result in an exception because processing hasn't started yet
     val rows = Seq(Map("date-1234" -> SoQLText("12/31/2013")))    // geom column missing
-    handler.compute(rows.map(UpsertAsSoQL(_)).toIterator, columnSpec)
+    handler.compute("a-request-id", rows.map(UpsertAsSoQL(_)).toIterator, columnSpec)
   }
 
   test("handler.close() closes provider") {
@@ -208,7 +208,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     // If not MultiLine
     intercept[MaltypedDataEx] {
       val rows = Seq(Map("geom-1234" -> converter(multiLine).get))
-      handler.compute(rows.map(UpsertAsSoQL).toIterator, columnSpec).next
+      handler.compute("a-request-id", rows.map(UpsertAsSoQL).toIterator, columnSpec).next
     }
   }
 
@@ -230,7 +230,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
 
   test("Will throw ComputationEx if computing an unsupported row type") {
     val ex = the [ComputationEx] thrownBy {
-      handler.compute(Iterator(null), columnSpec).
+      handler.compute("a-request-id", Iterator(null), columnSpec).
         foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
@@ -242,7 +242,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     when(badColumnSpec.computationStrategy).thenReturn(None)
 
     val ex = the [IllegalArgumentException] thrownBy {
-      handler.compute(testRows.iterator, badColumnSpec)
+      handler.compute("a-request-id", testRows.iterator, badColumnSpec)
     }
 
     ex.getMessage must include ("No computation strategy found")
@@ -258,7 +258,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
         Some(JObject(Map())))))
 
     val ex = the [IllegalArgumentException] thrownBy {
-      handler.compute(testRows.iterator, badColumnSpec).next()
+      handler.compute("a-request-id", testRows.iterator, badColumnSpec).next()
     }
     ex.getMessage must include ("parameters does not contain 'region'")
   }
@@ -273,7 +273,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
         null)))
 
     val ex = the [IllegalArgumentException] thrownBy {
-      handler.compute(testRows.iterator, badColumnSpec)
+      handler.compute("a-request-id", testRows.iterator, badColumnSpec)
     }
     ex.getMessage must include ("Source column was not defined " +
       "in computation strategy")
@@ -283,7 +283,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     mockPointCodeRoute(".+", "[]", 300)
 
     val ex = the [ComputationEx] thrownBy {
-      handler.compute(Iterator(testRow), columnSpec).
+      handler.compute("a-request-id", Iterator(testRow), columnSpec).
         foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
@@ -298,7 +298,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     mockPointCodeRoute(".+", "null", 200)
 
     val ex = the [ComputationEx] thrownBy {
-      handler.compute(Iterator(testRow), columnSpec).
+      handler.compute("a-request-id", Iterator(testRow), columnSpec).
         foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
@@ -314,7 +314,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     mockPointCodeRoute(".+", "", 200)
 
     val ex = the [ComputationEx] thrownBy {
-      handler.compute(Iterator(testRow), columnSpec).
+      handler.compute("a-request-id", Iterator(testRow), columnSpec).
         foreach(Function.const(())) // Force evaluation of the iterator.
     }
 

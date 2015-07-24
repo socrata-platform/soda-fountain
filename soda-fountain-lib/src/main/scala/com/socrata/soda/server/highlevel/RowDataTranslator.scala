@@ -2,6 +2,7 @@ package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.conversions._
+import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.id.ColumnId
@@ -18,7 +19,9 @@ import com.socrata.soql.types.{SoQLValue, SoQLType}
  *                             should cause an error to be thrown or
  *                             simply be ignored.
  */
-class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolean) {
+class RowDataTranslator(requestId: RequestId,
+                        dataset: DatasetRecordLike,
+                        ignoreUnknownColumns: Boolean) {
   import RowDataTranslator._
 
   private[this] sealed abstract class ColumnResult
@@ -82,7 +85,7 @@ class RowDataTranslator(dataset: DatasetRecordLike, ignoreUnknownColumns: Boolea
                                      rows: Iterator[Computable]): Iterator[RowUpdate] = {
     import ComputedColumnsLike._
 
-    val computedResult = cc.addComputedColumns(rows, toCompute)
+    val computedResult = cc.addComputedColumns(requestId, rows, toCompute)
     computedResult match {
       case ComputeSuccess(computedRows) =>
         val rowUpdates = computedRows.map {

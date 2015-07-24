@@ -5,10 +5,11 @@ import java.util.concurrent.TimeUnit
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
+import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soda.server.metrics.MetricCounter
-import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRecordLike}
+import com.socrata.soda.server.persistence.ColumnRecordLike
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLNumber
 import com.socrata.thirdparty.curator.CuratorServiceBase
@@ -79,7 +80,9 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
    * @param column   Computed column definition
    * @return         The original set of rows with the feature ID of the matching georegion appended to each row
    */
-  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: ColumnRecordLike): Iterator[RowDataTranslator.Computable] = {
+  def compute(requestId: RequestId,
+              sourceIt: Iterator[RowDataTranslator.Computable],
+              column: ColumnRecordLike): Iterator[RowDataTranslator.Computable] = {
     require(column.computationStrategy.isDefined, "No computation strategy found")
 
     // Only a single column is allowed as a source for now
@@ -100,7 +103,7 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
       // Deletes are returned untouched.
       val start = System.currentTimeMillis
       val endpoint = genEndpoint(column)
-      val featureIds = regionCoder(endpoint, sourceValuesWithIndex.map(_._1))
+      val featureIds = regionCoder(requestId, endpoint, sourceValuesWithIndex.map(_._1))
       timeCounter.add(System.currentTimeMillis - start)
       noMatchRowsCounter.add(featureIds.count(_.isEmpty))
       val featureIdsWithIndex = sourceValuesWithIndex.map(_._2).zip(featureIds).toMap
@@ -157,12 +160,15 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
       throw new IllegalArgumentException("Source column was not defined in computation strategy"))
   }
 
-  private def regionCoder(endpoint: String, items: Seq[V]): Seq[Option[Int]] = {
+  private def regionCoder(requestId: RequestId,
+                          endpoint: String,
+                          items: Seq[V]): Seq[Option[Int]] = {
     if (items.size == 0) return Seq.empty[Option[Int]]
 
     val url = urlPrefix + endpoint
     logger.debug("HTTP POST [{}] with {} items...", url, items.length)
-    val (status, response) = postWithRetry(url, JArray(items.map(toJValue)), maxRetries)
+    val (status, response) = postWithRetry(
+      requestId, url, JArray(items.map(toJValue)), maxRetries)
 
     logger.debug("Got back status {}, response [{}]", status, response)
     status match {
@@ -178,10 +184,14 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
 
   // Note: "status" cannot be a 4xx or 5xx, because that will throw a HttpException
   @tailrec
-  private def postWithRetry(url: String, payload: JArray, retriesLeft: Int): (Int, String) = {
+  private def postWithRetry(requestId: RequestId,
+                            url: String,
+                            payload: JArray,
+                            retriesLeft: Int): (Int, String) = {
     try {
       val (status, _, response) = Http.postData(url, CompactJsonWriter.toString(payload)).
         header("content-type", "application/json").
+        header("X-Socrata-RequestId", requestId).
         option(HttpOptions.connTimeout(connectTimeout)).
         option(HttpOptions.readTimeout(readTimeout)).
         asHeadersAndParse(Http.readString)
@@ -190,7 +200,7 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
       case e: scalaj.http.HttpException =>
         if (retriesLeft > 0) {
           Thread.sleep(retryWait)
-          postWithRetry(url, payload, retriesLeft - 1)
+          postWithRetry(requestId, url, payload, retriesLeft - 1)
         } else {
           logger.error("HTTP Error: ", e)
           throw ComputationEx("HTTP Error reading " + url, Some(e))
