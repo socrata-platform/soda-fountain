@@ -1,7 +1,10 @@
 package com.socrata.soda.server.computation
 
+import java.util.concurrent.Executors
+
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.conversions._
+import com.socrata.http.client.HttpClientHttpClient
 import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.persistence.{MinimalColumnRecord, ComputationStrategyRecord, ColumnRecordLike}
@@ -12,7 +15,7 @@ import com.typesafe.config.ConfigFactory
 import org.apache.curator.x.discovery._
 import org.mockito.Mockito._
 import org.mockito.Matchers._
-import org.scalatest.{Matchers, PrivateMethodTester, FunSuiteLike}
+import org.scalatest.{BeforeAndAfterAll, Matchers, PrivateMethodTester, FunSuiteLike}
 import org.scalatest.mock.MockitoSugar
 import scala.collection.JavaConverters._
 
@@ -27,7 +30,7 @@ trait FakeDiscovery extends MockitoSugar {
   when(builder.build()).thenReturn(provider)
 }
 
-class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery with PrivateMethodTester with Matchers {
+class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery with PrivateMethodTester with Matchers with BeforeAndAfterAll {
   val testConfig = ConfigFactory.parseMap(Map(
     "service-name"    -> "region-coder",
     "batch-size"      -> 2,
@@ -37,13 +40,20 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     "read-timeout"    -> "5s"
   ).asJava)
 
-  val handler = new GeoregionMatchOnStringHandler(testConfig, discovery)
+  val executor = Executors.newCachedThreadPool()
+  val http = new HttpClientHttpClient(executor)
+  val handler = new GeoregionMatchOnStringHandler(testConfig, discovery, http)
 
   val genEndpoint         = PrivateMethod[String]('genEndpoint)
   val extractSourceColumn = PrivateMethod[Option[String]]('extractSourceColumnValueFromRow)
   val toJValue            = PrivateMethod[JValue]('toJValue)
 
   def sourceColumn = MinimalColumnRecord(ColumnId("abcd-2345"), ColumnName("my_source_column"), SoQLNull, false, None)
+
+  override def afterAll(): Unit = {
+    http.close()
+    executor.shutdown()
+  }
 
   test("genEndpoint - valid column definition") {
     val columnDef = mock[ColumnRecordLike]

@@ -143,7 +143,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
 
-  val computedColumns = new ComputedColumns(config.handlers, discovery)
+  val computedColumns = new ComputedColumns(config.handlers, discovery, httpClient)
 
   val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
   val columnDAO = i(new ColumnDAOImpl(dc, store, columnSpecUtils))

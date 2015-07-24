@@ -1,11 +1,13 @@
 package com.socrata.soda.server.computation
 
 import java.math.{BigDecimal => BD}
+import java.util.concurrent.Executors
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.io.JsonReader
+import com.socrata.http.client.HttpClientHttpClient
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.id.ColumnId
@@ -79,7 +81,9 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     "read-timeout"    -> "5s"
   ).asJava)
 
-  lazy val handler = new GeoregionMatchOnPointHandler(testConfig, discovery)
+  val executor = Executors.newCachedThreadPool()
+  val http = new HttpClientHttpClient(executor)
+  lazy val handler = new GeoregionMatchOnPointHandler(testConfig, discovery, http)
 
   override def beforeAll() {
     startServices()
@@ -91,6 +95,8 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     broker.deregister(cookie)
     server.stop
     stopServices()
+    http.close()
+    executor.shutdown()
   }
 
   override def beforeEach() {
@@ -196,7 +202,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     when(mockBuilder.serviceName(anyString)).thenReturn(mockBuilder)
     when(mockBuilder.build()).thenReturn(mockProvider)
 
-    val handler = new GeoregionMatchOnPointHandler(testConfig, mockDiscovery)
+    val handler = new GeoregionMatchOnPointHandler(testConfig, mockDiscovery, http)
     handler.close()
 
     verify(mockProvider).close()
@@ -222,7 +228,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     when(mockBuilder.serviceName(anyString)).thenReturn(mockBuilder)
     when(mockBuilder.build()).thenReturn(mockProvider)
 
-    val handler = new GeoregionMatchOnPointHandler(testConfig, mockDiscovery)
+    val handler = new GeoregionMatchOnPointHandler(testConfig, mockDiscovery, http)
     the [RuntimeException] thrownBy {
       handler.urlPrefix
     } must have message "Unable to get region-coder instance from Curator/ZK"

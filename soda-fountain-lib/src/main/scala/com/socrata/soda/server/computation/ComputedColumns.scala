@@ -1,5 +1,6 @@
 package com.socrata.soda.server.computation
 
+import com.socrata.http.client.HttpClient
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
@@ -10,7 +11,7 @@ import org.apache.curator.x.discovery.ServiceDiscovery
  * @param handlersConfig a Typesafe Config containing an entry for configuring each handler.
  * @param discovery the ServiceDiscovery instance used for discovering other services using ZK/Curator
  */
-class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T]) extends ComputedColumnsLike {
+class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T], http: HttpClient) extends ComputedColumnsLike {
 
   /**
    * Instantiates a computation handler handle a given computation strategy type.
@@ -25,7 +26,7 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
   )
 
   private def geoRegionMatchOnPointHandler  = new GeoregionMatchOnPointHandler(
-    handlersConfig.getConfig("region-coder"), discovery)
+    handlersConfig.getConfig("region-coder"), discovery, http)
   private def geoRegionMatchOnStringHandler = new GeoregionMatchOnStringHandler(
-    handlersConfig.getConfig("region-coder"), discovery)
+    handlersConfig.getConfig("region-coder"), discovery, http)
 }

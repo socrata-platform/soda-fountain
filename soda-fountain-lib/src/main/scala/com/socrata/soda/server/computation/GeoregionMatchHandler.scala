@@ -1,10 +1,14 @@
 package com.socrata.soda.server.computation
 
+import java.io.IOException
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
+import com.socrata.http.client.exceptions.HttpClientException
+import com.socrata.http.client.{RequestBuilder, HttpClient}
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soda.server.metrics.MetricCounter
@@ -16,7 +20,7 @@ import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
 import org.slf4j.LoggerFactory
 import scala.annotation.tailrec
-import scalaj.http.{HttpOptions, Http}
+import scalaj.http.Http
 
 /**
  * A [[ComputationHandler]] that uses region-coder service to match a row to a georegion,
@@ -26,7 +30,7 @@ import scalaj.http.{HttpOptions, Http}
  * @tparam T        ServiceDiscovery payload type
  * @tparam V        Type of the source column passed to region-coder service to get back a matching georegion
  */
-abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDiscovery[T]) extends ComputationHandler {
+abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDiscovery[T], http: HttpClient) extends ComputationHandler {
   import ComputationHandler._
 
   // Get config values
@@ -179,22 +183,32 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
   // Note: "status" cannot be a 4xx or 5xx, because that will throw a HttpException
   @tailrec
   private def postWithRetry(url: String, payload: JArray, retriesLeft: Int): (Int, String) = {
+    def maybeFail(e: Exception) {
+      if (retriesLeft > 0) {
+        Thread.sleep(retryWait)
+      } else {
+        logger.error("HTTP Error: ", e)
+        throw ComputationEx("HTTP Error reading " + url, Some(e))
+      }
+    }
+
     try {
-      val (status, _, response) = Http.postData(url, CompactJsonWriter.toString(payload)).
-        header("content-type", "application/json").
-        option(HttpOptions.connTimeout(connectTimeout)).
-        option(HttpOptions.readTimeout(readTimeout)).
-        asHeadersAndParse(Http.readString)
-      (status, response)
+      val req = RequestBuilder(new URI(url)).
+        connectTimeoutMS(connectTimeout).
+        receiveTimeoutMS(readTimeout).
+        jsonBody(payload)
+      for(resp <- http.execute(req)) {
+        val status = resp.resultCode
+        val content = Http.readString(resp.inputStream())
+        (status, content)
+      }
     } catch {
-      case e: scalaj.http.HttpException =>
-        if (retriesLeft > 0) {
-          Thread.sleep(retryWait)
-          postWithRetry(url, payload, retriesLeft - 1)
-        } else {
-          logger.error("HTTP Error: ", e)
-          throw ComputationEx("HTTP Error reading " + url, Some(e))
-        }
+      case e: IOException =>
+        maybeFail(e)
+        postWithRetry(url, payload, retriesLeft - 1)
+      case e: HttpClientException =>
+        maybeFail(e)
+        postWithRetry(url, payload, retriesLeft - 1)
     }
   }
 }

@@ -1,6 +1,7 @@
 package com.socrata.soda.server.computation
 
 import com.rojoma.json.v3.ast._
+import com.socrata.http.client.HttpClient
 import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRecordLike}
 import com.socrata.soql.environment.ColumnName
@@ -17,8 +18,8 @@ import org.apache.curator.x.discovery.ServiceDiscovery
  * @param discovery ServiceDiscovery instance used for discovering other services using ZK/Curator
  * @tparam T        ServiceDiscovery payload type
  */
-class GeoregionMatchOnStringHandler[T](config: Config, discovery: ServiceDiscovery[T])
-  extends GeoregionMatchHandler[T, String](config, discovery){
+class GeoregionMatchOnStringHandler[T](config: Config, discovery: ServiceDiscovery[T], http: HttpClient)
+  extends GeoregionMatchHandler[T, String](config, discovery, http){
 
   /**
    * Constructs the region-coder endpoint. Format is:
