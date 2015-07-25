@@ -29,7 +29,7 @@ trait FakeDiscovery extends MockitoSugar {
 
 class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery with PrivateMethodTester with Matchers {
   val testConfig = ConfigFactory.parseMap(Map(
-    "service-name"    -> "geospace",
+    "service-name"    -> "region-coder",
     "batch-size"      -> 2,
     "max-retries"     -> 1,
     "retry-wait"      -> "500ms",

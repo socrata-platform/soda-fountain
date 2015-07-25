@@ -7,7 +7,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
 import com.socrata.soda.server._
 import com.socrata.soda.server.computation.ComputedColumnsLike
-import com.socrata.soda.server.errors.{EtagPreconditionFailed, HttpMethodNotAllowed, NonUniqueRowId, ResourceNotModified}
+import com.socrata.soda.server.errors._
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
@@ -32,7 +32,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
   }
 
   def response(req: HttpServletRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte] = defaultSuffix, isGet: Boolean = false): HttpResponse = {
-    log.info("TODO: Negotiate content type")
+    // TODO: Negotiate content type
     def prepareETag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(etagSuffix))
     result match {
       case ColumnDAO.Created(column, etagOpt) =>
@@ -43,6 +43,8 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       case ColumnDAO.ColumnNotFound(column) => NotFound /* TODO: content */
       case ColumnDAO.DatasetNotFound(dataset) => NotFound /* TODO: content */
       case ColumnDAO.InvalidColumnName(column) => BadRequest /* TODO: content */
+      case ColumnDAO.ColumnHasDependencies(col, deps) =>
+        SodaUtils.errorResponse(req, ColumnHasDependencies(col, deps))
       case ColumnDAO.InvalidRowIdOperation(column, method) =>
         SodaUtils.errorResponse(req, HttpMethodNotAllowed(method, Seq("GET", "PATCH")))
       case ColumnDAO.NonUniqueRowId(column) =>
@@ -51,7 +53,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       case ColumnDAO.UserError(code, data) => BadRequest ~> Json(data + ("code" -> JStringV3(code)))
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
         if(isGet) {
-          log.info("TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified")
+          // TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified
           SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareETag), None))
         } else {
           SodaUtils.errorResponse(req, EtagPreconditionFailed)

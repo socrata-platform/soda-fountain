@@ -13,10 +13,10 @@ import com.vividsolutions.jts.geom.Coordinate
 import org.apache.curator.x.discovery.ServiceDiscovery
 
 /**
- * A [[ComputationHandler]] that uses Geospace to match a row to a georegion,
+ * A [[ComputationHandler]] that uses region-coder to match a row to a georegion,
  * based on the value of a specified point column. The georegion feature ID
  * returned for each row represents the georegion whose shape contains the point value.
- * @param config    Configuration information for connecting to Geospace
+ * @param config    Configuration information for connecting to region-coder
  * @param discovery ServiceDiscovery instance used for discovering other services using ZK/Curator
  * @tparam T        ServiceDiscovery payload type
  */
@@ -24,12 +24,12 @@ class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscover
   extends GeoregionMatchHandler[T, Coordinate](config, discovery) {
 
   /**
-   * Constructs the Geospace region coding endpoint. Format is:
-   * /regions/:resourceName/geocode
+   * Constructs the region-coder endpoint. Format is:
+   * /regions/:resourceName/pointcode
    * where :resourceName is the name of the georegion to match against,
    * defined in the computed column parameters as 'region'
    * @param computedColumn Computed column definition
-   * @return               Geospace endpoint for georegion coding against points
+   * @return               region-coder endpoint for georegion coding against points
    */
   protected def genEndpoint(computedColumn: ColumnRecordLike): String = {
     require(computedColumn.computationStrategy.isDefined, "No computation strategy found")
@@ -37,10 +37,10 @@ class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscover
       case Some(ComputationStrategyRecord(_, _, _, Some(JObject(map)))) =>
         require(map.contains("region"), "parameters does not contain 'region'")
         val JString(region) = map("region")
-        s"/regions/$region/geocode"
+        s"/regions/$region/pointcode"
       case x =>
         throw new IllegalArgumentException("Computation strategy parameters were invalid." +
-          """Expected format: { "region" : "{region_resource_name" }""")
+          """Expected format: { "region" : "[REGION_RESOURCE_NAME]" }""")
     }
   }
 
@@ -59,10 +59,10 @@ class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscover
     }
 
   /**
-   * Serializes a point to a JSON format that Geospace understands
+   * Serializes a point to a JSON format that region-coder understands
    * eg. Point(1,1) would be converted to [1,1]
    * @param point Point object
-   * @return      Point value in the format expected by Geospace
+   * @return      Point value in the format expected by region-coder
    */
   protected def toJValue(point: Coordinate): JValue = CoordinateCodec.encode(point)
 }

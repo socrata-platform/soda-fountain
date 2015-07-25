@@ -30,6 +30,7 @@ object SodaFountainLib {
       socrataThirdPartyUtils,
       soqlAnalyzer,
       soqlBrita,
+      soqlPack,
       soqlStandaloneParser,
       soqlStdLib exclude ("javax.media", "jai_core"),
       soqlTypes exclude ("javax.media", "jai_core"),
@@ -40,7 +41,8 @@ object SodaFountainLib {
       Test.scalaCheck,
       Test.scalaMock,
       Test.socrataThirdPartyUtils,
-      Test.springTest
+      Test.springTest,
+      Test.wiremock
     ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
   )
   def genVersion(resourceManaged: File, name: String, version: String, scalaVersion: String): Seq[File] = {

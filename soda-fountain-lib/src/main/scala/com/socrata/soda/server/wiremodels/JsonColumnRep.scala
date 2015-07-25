@@ -6,7 +6,7 @@ import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
 import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
-import com.vividsolutions.jts.geom.{Geometry, MultiLineString, MultiPolygon, Point}
+import com.vividsolutions.jts.geom._
 import java.io.IOException
 import scala.util.Try
 
@@ -195,12 +195,14 @@ object JsonColumnRep {
   class ClientGeometryLikeRep[T <: Geometry](repType: SoQLType, geometry: SoQLValue => T, value: T => SoQLValue) extends JsonColumnRep {
     val representedType = repType
 
+    def fromWkt(str: String) = repType.asInstanceOf[SoQLGeometryLike[T]].WktRep.unapply(str)
     def fromJson(str: String) = repType.asInstanceOf[SoQLGeometryLike[T]].JsonRep.unapply(str)
     def toJson(v: SoQLValue) = v.typ.asInstanceOf[SoQLGeometryLike[T]].JsonRep(geometry(v))
 
     def fromJValue(input: JValue) = {
       input match {
         case JNull => Some(SoQLNull)
+        case JString(str) => fromWkt(str).map(geometry => value(geometry))
         case _ => {
           val geometry = try { Some(geoCodec.decode(input).right.get) } catch { case e: IOException => None }
           Try(geometry.map { geom => value(geom.asInstanceOf[T]) }).getOrElse(None)
@@ -251,7 +253,10 @@ object JsonColumnRep {
       SoQLJson -> JValueRep,
       SoQLPoint -> new ClientGeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value, SoQLPoint(_)),
       SoQLMultiLine -> new ClientGeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value, SoQLMultiLine(_)),
-      SoQLMultiPolygon -> new ClientGeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value, SoQLMultiPolygon(_))
+      SoQLMultiPolygon -> new ClientGeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value, SoQLMultiPolygon(_)),
+      SoQLLine -> new ClientGeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value, SoQLLine(_)),
+      SoQLMultiPoint -> new ClientGeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value, SoQLMultiPoint(_)),
+      SoQLPolygon -> new ClientGeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_))
     )
 
   val forDataCoordinatorType: Map[SoQLType, JsonColumnRep] =
@@ -272,6 +277,9 @@ object JsonColumnRep {
       SoQLJson -> JValueRep,
       SoQLPoint -> new GeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value, SoQLPoint(_)),
       SoQLMultiLine -> new GeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value, SoQLMultiLine(_)),
-      SoQLMultiPolygon -> new GeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value, SoQLMultiPolygon(_))
+      SoQLMultiPolygon -> new GeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value, SoQLMultiPolygon(_)),
+      SoQLLine -> new GeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value, SoQLLine(_)),
+      SoQLMultiPoint -> new GeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value, SoQLMultiPoint(_)),
+      SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_))
     )
 }

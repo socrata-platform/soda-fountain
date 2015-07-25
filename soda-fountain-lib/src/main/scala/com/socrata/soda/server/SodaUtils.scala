@@ -1,17 +1,18 @@
 package com.socrata.soda.server
 
+import java.nio.charset.{Charset, StandardCharsets}
+import javax.servlet.http.HttpServletRequest
+
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.socrata.http.server.HttpResponse
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util._
-import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
+import com.socrata.http.server.util.RequestId.{ReqIdHeader, RequestId}
 import com.socrata.soda.server.errors.{InternalException, SodaError}
 import com.socrata.soda.server.id.{AbstractId, ResourceName}
 import com.socrata.soql.environment.AbstractName
-import java.nio.charset.{StandardCharsets, Charset}
-import javax.servlet.http.HttpServletRequest
 
 object SodaUtils {
   val errorLog = org.slf4j.LoggerFactory.getLogger("com.socrata.soda.server.Error")
@@ -21,7 +22,7 @@ object SodaUtils {
 
   val ResourceHeader = "X-Socrata-Resource"
 
-  def JsonContent[T : JsonEncode : JsonDecode](thing: T, charset: Charset): HttpResponse = {
+  def JsonContent[T: JsonEncode : JsonDecode](thing: T, charset: Charset): HttpResponse = {
     val j = JsonEncode[T].encode(thing)
     Write(jsonContentTypeBase + "; charset=" + charset.name) { out =>
       val jw = new CompactJsonWriter(out)
@@ -31,7 +32,7 @@ object SodaUtils {
   }
 
   @deprecated(message = "Need to negotiate a charset", since = "forever")
-  def JsonContent[T : JsonEncode : JsonDecode](thing: T): HttpResponse =
+  def JsonContent[T: JsonEncode : JsonDecode](thing: T): HttpResponse =
     JsonContent(thing, StandardCharsets.UTF_8)
 
   def errorResponse(req: HttpServletRequest, error: SodaError, logTags: LogTag*): HttpResponse = {
@@ -50,12 +51,13 @@ object SodaUtils {
         val content = JObject(Map(
           "message" -> JString(error.humanReadableMessage),
           "errorCode" -> JString(error.errorCode),
-          "data" -> JObject(error.data)
+          "data" -> JObject(error.sanitizedData)
         ))
         Json(content)
-      } else
-      // when passing unit, must pass using (()) as compiler will not infer () you meaning to pass Unit.
-        Function.const(())_
+      } else {
+        // when passing unit, must pass using (()) as compiler will not infer () you meaning to pass Unit.
+        Function.const(()) _
+      }
 
     header ~> potentialContent
   }
@@ -63,7 +65,7 @@ object SodaUtils {
   def internalError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {
     val tag = java.util.UUID.randomUUID.toString
     errorLog.error("Internal exception: " + tag, th)
-    errorResponse(request, InternalException(th, tag), logTags:_*)
+    errorResponse(request, InternalException(th, tag), logTags: _*)
   }
 
   /**
@@ -81,7 +83,7 @@ class LogTag(s: String) {
 
 object LogTag {
   import scala.language.implicitConversions
-  implicit def s2tag(s: String) = new LogTag(s)
-  implicit def n2tag(n: AbstractName[_]) = new LogTag(n.name)
-  implicit def id2tag(i: AbstractId) = new LogTag(i.underlying)
+  implicit def s2tag(s: String): LogTag = new LogTag(s)
+  implicit def n2tag(n: AbstractName[_]): LogTag = new LogTag(n.name)
+  implicit def id2tag(i: AbstractId): LogTag = new LogTag(i.underlying)
 }

@@ -99,7 +99,7 @@ class ColumnSpecUtils(rng: Random) {
   }
 
   def systemColumns = {
-    log.info("TODO: Grovel system columns out of the data coordinator instead of hardcoding")
+    // TODO: Grovel system columns out of the data coordinator instead of hardcoding
     _systemColumns
   }
 

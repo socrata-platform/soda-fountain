@@ -1,13 +1,14 @@
 package com.socrata.soda.server.errors
 
+import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse._
+
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec._
-import javax.activation.MimeType
-import com.socrata.soql.environment.{ColumnName, TypeName}
 import com.socrata.http.server.util.EntityTag
-import com.socrata.soda.server.id.{RollupName, ResourceName, RowSpecifier}
+import com.socrata.soda.server.id.{ResourceName, RollupName, RowSpecifier}
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
+import com.socrata.soql.environment.{ColumnName, TypeName}
 
 case class ResourceNotModified(override val etags: Seq[EntityTag], override val vary: Option[String], override val hasContent: Boolean = false)
   extends SodaError(SC_NOT_MODIFIED, "not-modified")
@@ -26,10 +27,19 @@ case class InternalError(tag: String)
 
 case class InternalException(th: Throwable, tag: String)
   extends SodaError(SC_INTERNAL_SERVER_ERROR, "internal-error",
-    "tag" -> JString(tag),
-    "errorMessage" -> JString(th.getMessage),
+    "tag"          -> JString(tag),
+    "errorMessage" -> JString(Option(th.getMessage).getOrElse("")),
     "errorClass"   -> JString(th.getClass.getCanonicalName),
-    "stackTrace"   -> JArray(th.getStackTrace.map(x => JString(x.toString))))
+    "stackTrace"   -> JArray(th.getStackTrace.map(x => JString(x.toString)))
+  )
+
+case class HttpClientException(th: Throwable, msg: String, tag: String)
+  extends SodaError(SC_INTERNAL_SERVER_ERROR, "http-client-exception",
+    "tag"          -> JString(tag),
+    "errorMessage" -> JString(msg),
+    "errorClass"   -> JString(th.getClass.getCanonicalName),
+    "stackTrace"   -> JArray(th.getStackTrace.map(x => JString(x.toString)))
+  )
 
 case class HttpMethodNotAllowed(method: String, allowed: TraversableOnce[String])
   extends SodaError(SC_METHOD_NOT_ALLOWED, "method-not-allowed",
@@ -132,6 +142,12 @@ case class ColumnNotFound(resourceName: ResourceName, columnName: ColumnName)
 case class RowNotFound(value: RowSpecifier)
   extends SodaError(SC_NOT_FOUND, "soda.row.not-found",
      "value" -> JString(value.underlying))
+
+case class ColumnHasDependencies(columnName: ColumnName,
+                                 deps: Seq[ColumnName])
+  extends SodaError(SC_BAD_REQUEST, "soda.column-with-dependencies-not-deleteable",
+     "column"       -> JString(columnName.name),
+     "dependencies" -> JArray(deps.map { d => JString(d.name) }))
 
 /**
  * Column not found in a row operation

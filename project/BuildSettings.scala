@@ -1,6 +1,7 @@
 import com.socrata.sbtplugins.StylePlugin.StyleKeys._
 import sbt.Keys._
 import sbt._
+import sbtassembly.AssemblyKeys
 
 object BuildSettings {
   def buildSettings: Seq[Setting[_]] =
@@ -12,9 +13,12 @@ object BuildSettings {
         // TODO: enable style checks
         styleCheck in Test := {},
         styleCheck in Compile := {},
-        scalaVersion := "2.10.4"
+        scalaVersion := "2.10.4",
+
+        resolvers += "velvia maven" at "http://dl.bintray.com/velvia/maven"
       )
 
   def projectSettings(assembly: Boolean = false): Seq[Setting[_]] =
-    buildSettings
+    buildSettings ++
+    (if (!assembly) Seq(AssemblyKeys.assembly := file(".")) else Nil)
 }

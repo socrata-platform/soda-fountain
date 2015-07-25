@@ -13,7 +13,7 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val network = getConfig("network", new NetworkConfig(_, _))
   val dataCoordinatorClient = getConfig("data-coordinator-client", new DataCoordinatorClientConfig(_, _))
   val queryCoordinatorClient = getConfig("query-coordinator-client", new QueryCoordinatorClientConfig(_, _))
-  val geospaceClient = getConfig("geospace-client", new GeospaceClientConfig(_, _))
+  val regionCoderClient = getConfig("region-coder-client", new RegionCoderClientConfig(_, _))
   val database = getConfig("database", new DataSourceConfig(_, _))
   val log4j = getRawConfig("log4j")
   // This is a Typesafe config because there are variable number of subentries, one per handler
@@ -37,8 +37,10 @@ class QueryCoordinatorClientConfig(config: Config, root: String) extends ConfigC
   val receiveTimeout = getDuration("receive-timeout")
 }
 
-class GeospaceClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
+class RegionCoderClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val serviceName = getString("service-name")
+  val connectTimeout = getDuration("connect-timeout")
+  val readTimeout = getDuration("read-timeout")
 }
 
 class NetworkConfig(config: Config, root: String) extends ConfigClass(config, root) {
@@ -74,4 +76,6 @@ class BalboaConfig(config: Config, root: String) extends ConfigClass(config, roo
 class SuggestConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val host = getString("host")
   val port = getInt("port")
+  val connectTimeout = getDuration("connect-timeout")
+  val receiveTimeout = getDuration("receive-timeout")
 }

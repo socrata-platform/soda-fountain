@@ -5,6 +5,4 @@
 /.idea_modules/
 keystore.jks
 /*.log
-/project/project/target/
-/project/target/
-/target/
+target/

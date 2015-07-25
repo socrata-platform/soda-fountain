@@ -68,7 +68,7 @@ case class Resource(rowDAO: RowDAO,
   }
 
   def response(result: RowDAO.Result): HttpResponse = {
-    log.info("TODO: Negotiate content-type")
+    // TODO: Negotiate content-type
     result match {
       case RowDAO.Success(code, value) =>
         Status(code) ~> Json(value)
@@ -80,7 +80,7 @@ case class Resource(rowDAO: RowDAO,
   }
 
   def rowResponse(req: HttpServletRequest, result: RowDAO.Result): HttpResponse = {
-    log.info("TODO: Negotiate content-type")
+    // TODO: Negotiate content-type
     result match {
       case RowDAO.Success(code, value) =>
         Status(code) ~> Json(value)
@@ -102,7 +102,8 @@ case class Resource(rowDAO: RowDAO,
                     f: rowDaoFunc) = {
     datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
-        val transformer = new RowDataTranslator(datasetRecord, false)
+        val transformer = new RowDataTranslator(
+          RequestId.getFromRequest(req), datasetRecord, false)
         val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
       case DatasetDAO.NotFound(dataset) =>

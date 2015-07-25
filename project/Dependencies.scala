@@ -13,16 +13,18 @@ object Dependencies {
     val log4j             = "1.2.16"
     val metricsScala      = "3.3.0"
     val mortbayJetty      = "6.1.22"
+    val msgpack4s         = "0.4.2"
     val postgresql        = "9.1-901-1.jdbc4"
     val quasiQuotes       = "2.0.0"
     val rojomaJson        = "3.2.2"
+    val rojomaJsonGrisu   = "1.0.0"
     val rojomaSimpleArm   = "1.2.0"
     val rojomaSimpleArmV2 = "2.1.0"
     val scalaj            = "0.3.15"
     val socrataHttp       = "3.3.3"
     val soqlBrita         = "1.3.0"
-    val soqlReference     = "0.5.1"
-    val thirdPartyUtils   = "3.0.0"
+    val soqlReference     = "0.6.0"
+    val thirdPartyUtils   = "3.1.2"
     val typesafeConfig    = "1.0.2"
 
     // Test
@@ -55,13 +57,15 @@ object Dependencies {
 
   val metricsScala             = "nl.grons"        %% "metrics-scala"               % versions.metricsScala
 
+  val msgpack4s                = "org.velvia"      %% "msgpack4s"                   % versions.msgpack4s
+
   val mortbayJetty             = "org.mortbay.jetty" % "jetty"                      % versions.mortbayJetty % "container"
 
   val postgresql               = "postgresql"       % "postgresql"                  % versions.postgresql
 
   val quasiQuotes              = "org.scalamacros" %% "quasiquotes"                 % versions.quasiQuotes
 
-  val rojomaJson               = "com.rojoma"      %% "rojoma-json-v3"              % versions.rojomaJson
+  val rojomaJson               = "com.rojoma"      %% "rojoma-json-v3-grisu"        % versions.rojomaJsonGrisu
 
   val rojomaSimpleArm          = "com.rojoma"      %% "simple-arm"                  % versions.rojomaSimpleArm
   val rojomaSimpleArmV2        = "com.rojoma"      %% "simple-arm-v2"               % versions.rojomaSimpleArmV2
@@ -78,6 +82,7 @@ object Dependencies {
   val soqlBrita                = "com.socrata"     %% "soql-brita"                  % versions.soqlBrita
 
   val soqlAnalyzer             = "com.socrata"     %% "soql-analyzer"               % versions.soqlReference
+  val soqlPack                 = "com.socrata"     %% "soql-pack"                   % versions.soqlReference
   val soqlStandaloneParser     = "com.socrata"     %% "soql-standalone-parser"      % versions.soqlReference
   val soqlStdLib               = "com.socrata"     %% "soql-stdlib"                 % versions.soqlReference
   val soqlTypes                = "com.socrata"     %% "soql-types"                  % versions.soqlReference

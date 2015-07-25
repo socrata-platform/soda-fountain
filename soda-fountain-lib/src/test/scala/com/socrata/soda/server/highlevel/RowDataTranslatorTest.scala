@@ -11,7 +11,7 @@ import org.scalatest.{Matchers, FunSuite}
 class RowDataTranslatorTest extends FunSuite with Matchers with DatasetsForTesting {
   val ds = TestDatasetWithComputedColumn.dataset
   val dsInfo = TestDatasetWithComputedColumn
-  val translator = new RowDataTranslator(ds, false)
+  val translator = new RowDataTranslator("a-request-id", ds, false)
 
   test("getInfoForColumnList") {
     val info = translator.getInfoForColumnList(Seq(ds.colId("source"), ds.colId(":id")))

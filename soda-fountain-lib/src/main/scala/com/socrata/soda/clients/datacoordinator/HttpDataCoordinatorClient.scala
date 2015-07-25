@@ -232,7 +232,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 instructions: Iterator[DataCoordinatorInstruction],
                 extraHeaders: Map[String, String] = Map.empty)
                (f: Result => T): T = {
-    log.info("TODO: update should decode the row op report into something higher-level than JValues")
+    // TODO: update should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val updateScript = new MutationScript(user, UpdateDataset(schemaHash), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), updateScript)(f)
@@ -246,7 +246,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
               instructions: Iterator[DataCoordinatorInstruction],
               extraHeaders: Map[String, String] = Map.empty)
              (f: Result => T): T = {
-    log.info("TODO: copy should decode the row op report into something higher-level than JValues")
+    // TODO: copy should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), createScript)(f)
@@ -260,7 +260,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                  instructions: Iterator[DataCoordinatorInstruction],
                  extraHeaders: Map[String, String] = Map.empty)
                 (f: Result => T): T = {
-    log.info("TODO: publish should decode the row op report into something higher-level than JValues")
+    // TODO: publish should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schemaHash), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), pubScript)(f)
@@ -273,7 +273,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                   instructions: Iterator[DataCoordinatorInstruction],
                   extraHeaders: Map[String, String] = Map.empty)
                  (f: Result => T): T = {
-    log.info("TODO: dropCopy should decode the row op report into something higher-level than JValues")
+    // TODO: dropCopy should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val dropScript = new MutationScript(user, DropDataset(schemaHash), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), dropScript)(f)
@@ -286,7 +286,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                          user: String,
                          extraHeaders: Map[String, String] = Map.empty)
                         (f: Result => T): T = {
-    log.info("TODO: deleteAllCopies should decode the row op report into something higher-level than JValues")
+    // TODO: deleteAllCopies should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val deleteScript = new MutationScript(user, DropDataset(schemaHash), Iterator.empty)
       sendNonCreateScript(mutateUrl(host, datasetId).
@@ -304,7 +304,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         .addHeaders(extraHeaders)
         .get
       httpClient.execute(request).run { response =>
-        log.info("TODO: Handle errors from the data-coordinator")
+        // TODO: Handle errors from the data-coordinator
         val oVer = response.value[VersionReport]()
         oVer match {
           case Right(ver) => ver

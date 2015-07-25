@@ -5,8 +5,6 @@ resolvers ++= Seq(
 
 addSbtPlugin("com.socrata" % "socrata-sbt-plugins" %"1.4.3")
 
-addSbtPlugin("com.earldouglas" % "xsbt-web-plugin" % "0.4.2")
-
 addSbtPlugin("io.spray" % "sbt-revolver" % "0.7.2")
 
 libraryDependencies ++= Seq(

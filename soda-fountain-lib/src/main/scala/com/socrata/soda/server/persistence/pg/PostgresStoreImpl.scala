@@ -325,7 +325,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def fetchMinimalColumn(conn: Connection, datasetId: DatasetId, columnId: ColumnId, copyNumber: Long): MinimalColumnRecord = {
+  def fetchMinimalColumn(conn: Connection, datasetId: DatasetId, columnId: ColumnId, copyNumber: Long): Option[MinimalColumnRecord] = {
     val sql = fetchMinimalColumnsSql(includeColumnFilter = true)
 
     using(conn.prepareStatement(sql)) { colQuery =>
@@ -333,8 +333,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       colQuery.setString(2, datasetId.underlying)
       colQuery.setLong(3, copyNumber)
       using (colQuery.executeQuery()) { rs =>
-        rs.next()
-        parseMinimalColumn(conn, datasetId, rs, copyNumber)
+        if (!rs.next) None
+        else Some(parseMinimalColumn(conn, datasetId, rs, copyNumber))
       }
     }
   }
@@ -423,7 +423,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     def sourceColumns = rs.getArray("source_columns") match {
       case arr: java.sql.Array =>
         val columnIds = arr.getArray.asInstanceOf[Array[String]].toSeq // yuk
-        Some(columnIds.map(columnId => fetchMinimalColumn(conn, datasetId, ColumnId(columnId), copyNumber)))
+        Some(columnIds.map(columnId => fetchMinimalColumn(conn, datasetId, ColumnId(columnId), copyNumber)).flatten)
       case _                   =>
         None
     }
@@ -456,7 +456,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
       using(connection.prepareStatement(addColumnSql)) { colAdder =>
         for(crec <- columns) {
-          log.info("TODO: Ensure the names will fit in the space available")
+          // TODO: Ensure the names will fit in the space available
           colAdder.setString(1, datasetId.underlying)
           colAdder.setString(2, crec.fieldName.caseFolded)
           colAdder.setString(3, crec.fieldName.name)
@@ -508,7 +508,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         insert into datasets (resource_name_casefolded, resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id) values(?, ?, ?, ?, ?, ?, ?, ?);
         insert into dataset_copies(dataset_system_id, copy_number, schema_hash, primary_key_column_id, lifecycle_stage, latest_version) values(?, 1, ?, ?, 'Unpublished', 1);
         """)) { adder =>
-        log.info("TODO: Ensure the names will fit in the space available")
+        // TODO: Ensure the names will fit in the space available
         adder.setString(1, newRecord.resourceName.caseFolded)
         adder.setString(2, newRecord.resourceName.name)
         adder.setString(3, newRecord.systemId.underlying)

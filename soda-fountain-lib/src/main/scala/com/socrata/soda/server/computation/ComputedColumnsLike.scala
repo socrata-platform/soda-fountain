@@ -1,5 +1,6 @@
 package com.socrata.soda.server.computation
 
+import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike}
 import com.socrata.soda.server.util.ManagedIterator
@@ -40,7 +41,8 @@ trait ComputedColumnsLike {
    *                 Deletes contain only row PK and can be ignored.
    * @param computedColumns the list of computed columns from [[findComputedColumns]]
    */
-  def addComputedColumns(sourceIt: Iterator[RowDataTranslator.Computable],
+  def addComputedColumns(requestId: RequestId,
+                         sourceIt: Iterator[RowDataTranslator.Computable],
                          computedColumns: Seq[ColumnRecordLike]): ComputeResult = {
     var rowIterator = sourceIt
     for (computedColumn <- computedColumns) {
@@ -48,7 +50,8 @@ trait ComputedColumnsLike {
       tryGetHandler match {
         case Some(handlerCreator) =>
           val handler = handlerCreator()
-          rowIterator = new ManagedIterator(handler.compute(rowIterator, computedColumn), handler)
+          rowIterator = new ManagedIterator(handler.compute(
+            requestId, rowIterator, computedColumn), handler)
         case None =>
           return HandlerNotFound(computedColumn.computationStrategy.get.strategyType)
       }

@@ -81,9 +81,13 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
   }
 
   private def getGeometryJson(soqlGeom: SoQLValue): JValue =
+
     soqlGeom match {
       case SoQLPoint(p)         => geoCodec.encode(p)
+      case SoQLMultiPoint(mp)   => geoCodec.encode(mp)
+      case SoQLLine(l)          => geoCodec.encode(l)
       case SoQLMultiLine(ml)    => geoCodec.encode(ml)
+      case SoQLPolygon(p)       => geoCodec.encode(p)
       case SoQLMultiPolygon(mp) => geoCodec.encode(mp)
       case _                    => JNull
     }

@@ -1,5 +1,6 @@
 package com.socrata.soda.server.computation
 
+import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
@@ -23,7 +24,9 @@ trait ComputationHandler extends java.io.Closeable {
    * @param column a ColumnRecord describing the computation and parameters
    * @return an Iterator[SoQLRow] for the output rows.  One of the keys must containing the output column.
    */
-  def compute(sourceIt: Iterator[RowDataTranslator.Computable], column: ColumnRecordLike): Iterator[RowDataTranslator.Computable]
+  def compute(requestId: RequestId,
+              sourceIt: Iterator[RowDataTranslator.Computable],
+              column: ColumnRecordLike): Iterator[RowDataTranslator.Computable]
 
   /**
    * Releases any resources taken up by the handler

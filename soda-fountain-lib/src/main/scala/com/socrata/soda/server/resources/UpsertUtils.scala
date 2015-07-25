@@ -38,7 +38,7 @@ object UpsertUtils {
 
   private def upsertResponse(request: HttpServletRequest, response: HttpServletResponse, result: RowDAO.UpsertResult)
                     (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit) {
-    log.info("TODO: Negotiate content-type")
+    // TODO: Negotiate content-type
     result match {
       case RowDAO.StreamSuccess(report) =>
         successHandler(response, report)
