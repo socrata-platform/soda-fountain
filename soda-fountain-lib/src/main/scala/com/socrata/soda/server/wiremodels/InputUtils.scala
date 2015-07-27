@@ -5,7 +5,7 @@ import java.io.{IOException, Reader}
 import scala.{collection => sc}
 
 import com.rojoma.json.v3.ast.{JObject, JValue}
-import com.rojoma.json.v3.io.{FusedBlockJsonEventIterator, JsonReader, JsonReaderException}
+import com.rojoma.json.v3.io.{StartOfArrayEvent, FusedBlockJsonEventIterator, JsonReader, JsonReaderException}
 import com.rojoma.json.v3.util.JsonArrayIterator
 import com.socrata.http.common.util.{AcknowledgeableReader, TooMuchDataWithoutAcknowledgement}
 import com.socrata.http.server.HttpRequest
@@ -55,10 +55,18 @@ object InputUtils {
    * @note The iterator can throw a `TooMuchDataWithoutAcknowledgement` exception if the user
    *       sends an element which cannot be read within `approximateMaxDatumBound` bytes.
    */
-  def jsonArrayValuesStream(req: HttpRequest, approximateMaxDatumBound: Long): Either[SodaError, Iterator[JValue]] = {
+  def jsonValueOrArrayValuesStream(req: HttpRequest, approximateMaxDatumBound: Long): Either[SodaError, Iterator[JValue]] = {
     streamJson(req, approximateMaxDatumBound) match {
       case Right(boundedReader) =>
-        val it = JsonArrayIterator[JValue](eventIterator(boundedReader))
+        val evIt = eventIterator(boundedReader).buffered
+        val it =
+          if(evIt.hasNext && evIt.head.isInstanceOf[StartOfArrayEvent]) {
+            JsonArrayIterator[JValue](evIt)
+          } else {
+            // "Iterator.empty ++" keeps the laziness properties of this branch the same;
+            // the object will not be read until it is demanded, if it is a non-atom.
+            Iterator.empty ++ Iterator.single(JsonReader.fromEvents(evIt))
+          }
         val boundedIt = it.map { ev => boundedReader.acknowledge(); ev }
         Right(boundedIt)
       case Left(e) => Left(e)

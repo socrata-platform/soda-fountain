@@ -226,7 +226,7 @@ case class Resource(rowDAO: RowDAO,
     }
 
     private def upsertMany(req: HttpRequest, response: HttpServletResponse, f: rowDaoFunc) {
-      InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
+      InputUtils.jsonValueOrArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
           upsertishFlow(req, response, resourceName.value, boundedIt, f)
         case Left(err) =>
