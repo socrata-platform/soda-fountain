@@ -60,7 +60,7 @@ object InputUtils {
       case Right(boundedReader) =>
         val evIt = eventIterator(boundedReader).buffered
         val it =
-          if(evIt.hasNext && evIt.head.isInstanceOf[StartOfArrayEvent]) {
+          if(!evIt.hasNext || evIt.head.isInstanceOf[StartOfArrayEvent]) {
             JsonArrayIterator[JValue](evIt)
           } else {
             // "Iterator.empty ++" keeps the laziness properties of this branch the same;
