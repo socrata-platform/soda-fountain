@@ -21,5 +21,10 @@
         <addColumn tableName="computation_strategies">
             <column name = "deleted_at" type="timestamp with timezone" defaultValue = "NULL"/>
         </addColumn>
+        <rollback>
+            <dropColumn tableName="datasets" columnName="deleted_at" />
+            <dropColumn tableName="columns" columnName="deleted_at" />
+            <dropColumn tableName="computation_strategies" columnName="deleted_at" />
+        </rollback>
     </changeSet>
 </databaseChangeLog>

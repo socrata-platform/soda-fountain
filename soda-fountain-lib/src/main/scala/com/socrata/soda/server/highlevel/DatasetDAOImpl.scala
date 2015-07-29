@@ -137,7 +137,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, user,
                              traceHeaders(requestId, dataset)) {
             case DataCoordinatorClient.Success(_, _, _, _, _) =>
-              store.removeResource(dataset)
+              store.dropResource(dataset)
               Deleted
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)

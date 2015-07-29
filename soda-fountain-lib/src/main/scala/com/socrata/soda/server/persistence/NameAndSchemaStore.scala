@@ -17,6 +17,7 @@ import org.joda.time.DateTime
 trait NameAndSchemaStore {
   def addResource(newRecord: DatasetRecord)
   def removeResource(resourceName: ResourceName)
+  def dropResource(resourceName: ResourceName)
   def translateResourceName(resourceName: ResourceName, copy: Option[Stage] = None): Option[MinimalDatasetRecord]
   def latestCopyNumber(resourceName: ResourceName): Long
   def lookupCopyNumber(resourceName: ResourceName, copy: Option[Stage]): Option[Long]

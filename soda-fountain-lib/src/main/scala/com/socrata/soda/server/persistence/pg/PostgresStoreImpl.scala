@@ -553,6 +553,35 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       connection.commit()
     }
 
+  def dropResource (resourceName: ResourceName): Unit =
+    using(dataSource.getConnection()) { connection =>
+
+      connection.setAutoCommit(false)
+      val datasetIdOpt = using(connection.prepareStatement("select dataset_system_id from datasets where resource_name_casefolded = ? for update")) { idFetcher =>
+        idFetcher.setString(1, resourceName.caseFolded)
+        using(idFetcher.executeQuery()) { rs =>
+          if (rs.next()) Some(DatasetId(rs.getString(1)))
+          else None
+        }
+    }
+    for(datasetId <- datasetIdOpt) {
+      using(connection.prepareStatement(
+        """
+              update computation_strategies cs set deleted_at = now() where cs.dataset_system_id = ?;
+              update columns c set deleted_at = now () where c.dataset_system_id = ?;
+              update dataset_copies dc set  deleted_at = now() where dc.dataset_system_id = ?;
+              update datasets d set deleted_at = now () where d.dataset_system_id = ?;
+        """)) { insert =>
+        for (i <- 1 to 4) {
+          insert.setString(i, datasetId.underlying)
+        }
+        insert.execute()
+      }
+    }
+    connection.commit()
+}
+
+
   def addColumn(datasetId: DatasetId, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
     using(dataSource.getConnection()) { conn =>
       val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
