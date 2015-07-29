@@ -8,13 +8,10 @@ object BuildSettings {
     spray.revolver.RevolverPlugin.Revolver.settings ++
     Defaults.itSettings ++
       Seq(
-        // TODO: enable coverage minimum
+        // TODO: enable coverage minimum build failure
         scoverage.ScoverageSbtPlugin.ScoverageKeys.coverageFailOnMinimum := false,
-        // TODO: enable style checks
-        styleCheck in Test := {},
-        styleCheck in Compile := {},
-        scalaVersion := "2.10.4",
-
+        // TODO: enable scalastyle build failure
+        styleFailOnError in Compile := false,
         resolvers += "velvia maven" at "http://dl.bintray.com/velvia/maven"
       )
 
