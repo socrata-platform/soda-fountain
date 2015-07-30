@@ -97,13 +97,13 @@ case class Resource(rowDAO: RowDAO,
 
   def upsertishFlow(req: HttpServletRequest,
                     response: HttpServletResponse,
+                    requestId: RequestId.RequestId,
                     resourceName: ResourceName,
                     rows: Iterator[JValue],
                     f: rowDaoFunc) = {
     datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
-        val transformer = new RowDataTranslator(
-          RequestId.getFromRequest(req), datasetRecord, false)
+        val transformer = new RowDataTranslator(requestId, datasetRecord, false)
         val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
       case DatasetDAO.NotFound(dataset) =>
@@ -218,17 +218,22 @@ case class Resource(rowDAO: RowDAO,
     }
 
     override def post = { req => response =>
-      upsertMany(req, response, rowDAO.upsert(user(req), _, _, RequestId.getFromRequest(req)))
+      val requestId = RequestId.getFromRequest(req)
+      upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId))
     }
 
     override def put = { req => response =>
-      upsertMany(req, response, rowDAO.replace(user(req), _, _, RequestId.getFromRequest(req)))
+      val requestId = RequestId.getFromRequest(req)
+      upsertMany(req, response, requestId, rowDAO.replace(user(req), _, _, requestId))
     }
 
-    private def upsertMany(req: HttpRequest, response: HttpServletResponse, f: rowDaoFunc) {
+    private def upsertMany(req: HttpRequest,
+                           response: HttpServletResponse,
+                           requestId: RequestId.RequestId,
+                           f: rowDaoFunc) {
       InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
         case Right(boundedIt) =>
-          upsertishFlow(req, response, resourceName.value, boundedIt, f)
+          upsertishFlow(req, response, requestId, resourceName.value, boundedIt, f)
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName.value)(response)
       }
@@ -316,10 +321,11 @@ case class Resource(rowDAO: RowDAO,
     }
 
     override def post = { req => response =>
+      val requestId = RequestId.getFromRequest(req)
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
         case Right(rowJVal) =>
-          upsertishFlow(req, response, resourceName, Iterator.single(rowJVal),
-                        rowDAO.upsert(user(req), _, _, RequestId.getFromRequest(req)))
+          upsertishFlow(req, response, requestId, resourceName, Iterator.single(rowJVal),
+                        rowDAO.upsert(user(req), _, _, requestId))
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName)(response)
       }
