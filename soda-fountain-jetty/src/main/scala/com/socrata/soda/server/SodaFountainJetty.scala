@@ -39,7 +39,7 @@ object SodaFountainJetty extends App {
     val finished = new CountDownLatch(20)
     try {
       do {
-        sodaFountain.background()
+        sodaFountain.tableDropper()
         finished.countDown()
       } while (!finished.await(10, TimeUnit.SECONDS))
     }

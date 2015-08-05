@@ -68,8 +68,6 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
   val password = getString("password")
   val applicationName = getString("app-name")
   val poolOptions = optionally(getRawConfig("c3p0")) // these are the c3p0 configuration properties
-  //WHY is this failing?
-
 }
 
 class BalboaConfig(config: Config, root: String) extends ConfigClass(config, root) {

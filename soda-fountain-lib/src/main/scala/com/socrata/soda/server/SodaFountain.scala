@@ -160,8 +160,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val tableDropDelay = config.tableDropDelay
   val finished = new CountDownLatch(1)
-  //val store = new PostgresStoreImpl(dataSource)
-
+ 
   val router = i {
     import com.socrata.soda.server.resources._
 
@@ -197,7 +196,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     )
   }
 
-  def background (): Unit = {
+  def tableDropper(): Unit = {
     val tableDropper = new Thread(){
             setName("table dropper")
             override def run(): Unit = {

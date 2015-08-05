@@ -146,7 +146,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
-
             // TODO other cases have not been implemented
             case _@x =>
               log.warn("case is NOT implemented")
@@ -292,8 +291,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       case None =>
         NotFound(dataset)
     }
-
-
 
   /**
    * Maps a rollup definition column name to column id that can be used by lower layers

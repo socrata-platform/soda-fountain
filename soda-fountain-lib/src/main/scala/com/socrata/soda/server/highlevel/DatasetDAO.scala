@@ -31,7 +31,7 @@ trait DatasetDAO {
   def publish(user: String, dataset: ResourceName, snapshotLimit: Option[Int], requestId: RequestId): Result
   def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
 
-    def replaceOrCreateRollup(user: String,
+  def replaceOrCreateRollup(user: String,
                             dataset: ResourceName,
                             rollup: RollupName,
                             spec: UserProvidedRollupSpec,
