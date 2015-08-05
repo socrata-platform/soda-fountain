@@ -52,23 +52,23 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
             SodaUtils.internalError(req, e)
         }
 
-        { resp =>
       { resp =>
-          try {
-            httpResponse(resp)
-          } catch {
-            case e: Throwable if !e.isInstanceOf[Error] =>
-              if(!resp.isCommitted) {
-                resp.reset()
-                SodaUtils.internalError(req, e)(resp)
-              } else {
-                log.warn("Caught exception but the response is already committed; just cutting the client off" +
-                         "\n" + e.getMessage, e)
-              }
-          }
+        try {
+          httpResponse(resp)
+        } catch {
+          case e: Throwable if !e.isInstanceOf[Error] =>
+            if (!resp.isCommitted) {
+              resp.reset()
+              SodaUtils.internalError(req, e)(resp)
+            } else {
+              log.warn("Caught exception but the response is already committed; just cutting the client off" +
+                "\n" + e.getMessage, e)
+            }
         }
       }
-    }
+      }
+      }
+
 
   // Below this line is all setup.
   // Note: all initialization that can possibly throw should
@@ -230,7 +230,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
           }
           log.info ("Start tableDropper thread")
           tableDropper.start()
-
   }
 
   def close() { // simulate a cascade of "finally" blocks
