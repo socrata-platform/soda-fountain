@@ -217,7 +217,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
                     }
                   }
                   else {
-                    log.error ("There is no dataset to delete")
+                    log.info ("There is no dataset to delete")
                   }
                   //call data coordinator to remove datasets in truth
                 }

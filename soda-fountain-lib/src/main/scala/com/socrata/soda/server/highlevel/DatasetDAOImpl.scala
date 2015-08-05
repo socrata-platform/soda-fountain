@@ -139,8 +139,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         case Some(datasetRecord) =>
           dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, "",
             traceHeaders(RequestId.generate(), dataset))
-          //dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, user,
-           // traceHeaders(requestId, dataset))
           {
             case DataCoordinatorClient.Success(_, _, _, _, _) =>
               store.removeResource(dataset)

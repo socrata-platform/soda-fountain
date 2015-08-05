@@ -105,7 +105,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-
   def translateDroppedResource(resourceName: ResourceName, stage: Option[Stage] = None): Option[MinimalDatasetRecord] = {
     using(dataSource.getConnection()){ connection =>
       using(connection.prepareStatement(
