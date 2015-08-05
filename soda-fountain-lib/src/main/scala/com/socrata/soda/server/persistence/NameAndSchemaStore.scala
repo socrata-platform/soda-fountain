@@ -29,7 +29,6 @@ trait NameAndSchemaStore {
     lookupCopyNumber(resourceName, copy).flatMap(lookupDataset(resourceName, _))
   }
   def lookupDroppedDatasets (delay:FiniteDuration):List[Option[MinimalDatasetRecord]]
-  def deleteDatasetAndMetadata (resource:ResourceName)
   /**
    * Return all copies most recent first
    */

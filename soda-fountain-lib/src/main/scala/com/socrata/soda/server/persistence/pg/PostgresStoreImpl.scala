@@ -145,10 +145,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def deleteDatasetAndMetadata (resource: ResourceName): Unit = {
-    removeResource(resource)
-  }
-
 
   def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord] = {
     val datasets = lookupDataset(resourceName, Some(copyNumber))
