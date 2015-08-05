@@ -3,6 +3,7 @@ package com.socrata.soda.server.config
 import com.typesafe.config.Config
 import com.socrata.thirdparty.curator.{CuratorConfig, DiscoveryConfig}
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
+import scala.concurrent.duration.{MILLISECONDS, FiniteDuration, Duration}
 
 class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(config), "com.socrata.soda-fountain") {
   val maxDatumSize = getInt("max-datum-size")
@@ -22,6 +23,7 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val suggest = getConfig("suggest", new SuggestConfig(_,_))
   val codaMetrics = getRawConfig("metrics")
   val threadpool = getRawConfig("threadpool")
+  val tableDropDelay = getDuration ("tableDropDelay")
 }
 
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
@@ -66,6 +68,8 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
   val password = getString("password")
   val applicationName = getString("app-name")
   val poolOptions = optionally(getRawConfig("c3p0")) // these are the c3p0 configuration properties
+  //WHY is this failing?
+
 }
 
 class BalboaConfig(config: Config, root: String) extends ConfigClass(config, root) {

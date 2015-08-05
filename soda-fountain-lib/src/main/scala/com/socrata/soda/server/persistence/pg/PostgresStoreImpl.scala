@@ -3,6 +3,7 @@ package com.socrata.soda.server.persistence.pg
 import java.sql.{Connection, ResultSet, Timestamp, Types}
 
 import scala.annotation.tailrec
+import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Try}
 
 import com.rojoma.json.v3.ast.JObject
@@ -103,6 +104,52 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       }
     }
   }
+
+
+  def translateDroppedResource(resourceName: ResourceName, stage: Option[Stage] = None): Option[MinimalDatasetRecord] = {
+    using(dataSource.getConnection()){ connection =>
+      using(connection.prepareStatement(
+        """
+        SELECT d.resource_name, d.dataset_system_id, d.locale, dc.schema_hash, dc.primary_key_column_id,
+               d.latest_version, d.last_modified, dc.copy_number, dc.lifecycle_stage, dc.deleted_at
+          FROM datasets d
+          Join dataset_copies dc On dc.dataset_system_id = d.dataset_system_id
+         WHERE d.resource_name_casefolded = ?
+           And dc.id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id %s ORDER By copy_number DESC LIMIT 1)
+        """.format(stage.map(_ => " And lifecycle_stage = ?").getOrElse(""))
+      )){ translator =>
+        translator.setString(1, resourceName.caseFolded)
+        stage.foreach(s => translator.setString(2, s.name))
+        val rs = translator.executeQuery()
+        if(rs.next()) {
+          val datasetId = DatasetId(rs.getString("dataset_system_id"))
+          val copyNumber = rs.getLong("copy_number")
+          Some(MinimalDatasetRecord(
+            new ResourceName(rs.getString("resource_name")),
+            datasetId,
+            rs.getString("locale"),
+            rs.getString("schema_hash"),
+            ColumnId(rs.getString("primary_key_column_id")),
+            fetchMinimalDroppedColumns (connection, datasetId, copyNumber),
+            rs.getLong("latest_version"),
+            Stage(rs.getString("lifecycle_stage")),
+            toDateTime(rs.getTimestamp("last_modified")),
+            Some(toDateTime(rs.getTimestamp("deleted_at")))
+          ))
+
+        } else {
+          None
+        }
+
+
+      }
+    }
+  }
+
+  def deleteDatasetAndMetadata (resource: ResourceName): Unit = {
+    removeResource(resource)
+  }
+
 
   def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord] = {
     val datasets = lookupDataset(resourceName, Some(copyNumber))
@@ -339,6 +386,21 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
+  def fetchMinimalDroppedColumns (conn: Connection, datasetId: DatasetId, copyNumber: Long): Seq[MinimalColumnRecord] = {
+    val sql = fetchMinimalDroppedColumnsSql(includeColumnFilter = false)
+
+    using(conn.prepareStatement(sql)) { colQuery =>
+      colQuery.setString(1, datasetId.underlying)
+      colQuery.setLong(2, copyNumber)
+      using(colQuery.executeQuery()) { rs =>
+        val result = Vector.newBuilder[MinimalColumnRecord]
+        while(rs.next()) {
+          result += parseMinimalColumn(conn, datasetId, rs, copyNumber)
+        }
+        result.result()
+      }
+    }
+  }
   def parseMinimalColumn(conn: Connection, datasetId: DatasetId, rs: ResultSet, copyNumber: Long): MinimalColumnRecord =
     MinimalColumnRecord(
       ColumnId(rs.getString("column_id")),
@@ -553,7 +615,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       connection.commit()
     }
 
-  def dropResource (resourceName: ResourceName): Unit =
+  def dropResource (resourceName: ResourceName): Unit = {
     using(dataSource.getConnection()) { connection =>
 
       connection.setAutoCommit(false)
@@ -563,23 +625,67 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           if (rs.next()) Some(DatasetId(rs.getString(1)))
           else None
         }
-    }
-    for(datasetId <- datasetIdOpt) {
-      using(connection.prepareStatement(
-        """
+      }
+      for (datasetId <- datasetIdOpt) {
+        using(connection.prepareStatement(
+          """
               update computation_strategies cs set deleted_at = now() where cs.dataset_system_id = ?;
               update columns c set deleted_at = now () where c.dataset_system_id = ?;
               update dataset_copies dc set  deleted_at = now() where dc.dataset_system_id = ?;
               update datasets d set deleted_at = now () where d.dataset_system_id = ?;
-        """)) { insert =>
-        for (i <- 1 to 4) {
-          insert.setString(i, datasetId.underlying)
+        """)) { update =>
+          for (i <- 1 to 4) {
+            update.setString(i, datasetId.underlying)
+          }
+          update.execute()
         }
-        insert.execute()
+    }
+      connection.commit()
+}
+    }
+
+
+  def lookupDroppedDatasets(delay: FiniteDuration): List[Option[MinimalDatasetRecord]]= {
+
+    using(dataSource.getConnection()) { conn =>
+      conn.setAutoCommit(false)
+      using(conn.prepareStatement(
+        s"""
+           SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, d.last_modified, c.schema_hash,
+                          c.copy_number, c.primary_key_column_id, c.latest_version, c.lifecycle_stage, c.updated_at, c.deleted_at
+                     FROM datasets d
+                     Join dataset_copies c on c.dataset_system_id = d.dataset_system_id
+                    WHERE
+            c.deleted_at < now () - ('{$delay}'::INTERVAL)
+            ORDER By c.copy_number desc""")) { lookup =>
+
+        val rs = lookup.executeQuery()
+
+//       while (rs.next()) {
+//         println("result of query - resource name: " + rs.getString("resource_name"))
+//       }
+        val result = List.newBuilder[Option[MinimalDatasetRecord]]
+
+        while (rs.next()) {
+          val datasetId = DatasetId(rs.getString("dataset_system_id"))
+          val copyNumber = rs.getLong("copy_number")
+          result += Some(MinimalDatasetRecord(
+            new ResourceName(rs.getString("resource_name")),
+            datasetId,
+            rs.getString("locale"),
+            rs.getString("schema_hash"),
+            ColumnId(rs.getString("primary_key_column_id")),
+            fetchMinimalColumns(conn, datasetId, copyNumber),
+            rs.getLong("latest_version"),
+            Stage(rs.getString("lifecycle_stage")),
+            toDateTime(rs.getTimestamp("last_modified")),
+            Some(toDateTime(rs.getTimestamp("deleted_at")))
+          ))
+        }
+        result.result()
       }
     }
-    connection.commit()
-}
+  }
 
 
   def addColumn(datasetId: DatasetId, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
@@ -749,6 +855,7 @@ object PostgresStoreImpl {
        |       c.column_id,
        |       c.type_name,
        |       c.is_inconsistency_resolution_generated,
+       |       c.deleted_at,
        |       cs.computation_strategy_type,
        |       cs.recompute,
        |       cs.source_columns,
@@ -761,6 +868,27 @@ object PostgresStoreImpl {
        |       dc.dataset_system_id = ? AND
        |       dc.copy_number = ? AND
        |       dc.deleted_at is null""".stripMargin
+  }
+
+  def fetchMinimalDroppedColumnsSql (includeColumnFilter: Boolean) = {
+    val columnFilter = if (includeColumnFilter) "c.column_id = ? AND" else ""
+    s"""SELECT c.column_name,
+       |       c.column_id,
+       |       c.type_name,
+       |       c.is_inconsistency_resolution_generated,
+       |       c.deleted_at,
+       |       cs.computation_strategy_type,
+       |       cs.recompute,
+       |       cs.source_columns,
+       |       cs.parameters
+       | FROM columns c
+       | JOIN dataset_copies dc on dc.id = c.copy_id
+       | LEFT JOIN computation_strategies cs
+       | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id AND c.copy_id = cs.copy_id
+       | WHERE $columnFilter
+        |dc.dataset_system_id = ? AND
+        |       dc.copy_number = ?
+        |       """.stripMargin
   }
 
   // The string_to_array function below is a workaround for Postgres JDBC4

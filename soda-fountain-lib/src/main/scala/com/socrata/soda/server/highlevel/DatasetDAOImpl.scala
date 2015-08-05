@@ -1,5 +1,7 @@
 package com.socrata.soda.server.highlevel
 
+import com.socrata.http.server.util.RequestId
+import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.{DropRollupInstruction, CreateOrUpdateRollupInstruction, SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
 import com.socrata.soda.server.id.{ColumnId, SecondaryId, ResourceName, RollupName}
@@ -17,6 +19,7 @@ import com.socrata.soql.environment.{DatasetContext, ColumnName}
 import com.socrata.soql.functions.SoQLFunctionInfo
 import com.socrata.soql.functions.SoQLTypeInfo
 import DatasetDAO._
+import scala.concurrent.duration.FiniteDuration
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Unpublished, Stage}
 
@@ -130,18 +133,22 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                     spec: UserProvidedDatasetSpec,
                     requestId: RequestId): Result = ???
 
-  def deleteDataset(user: String, dataset: ResourceName, requestId: RequestId): Result = {
+  def removeDataset (user: String, dataset: ResourceName, requestId: RequestId): Result = {
     retryable(limit = 5) {
-      store.translateResourceName(dataset) match {
+      store.translateDroppedResource(dataset) match {
         case Some(datasetRecord) =>
-          dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, user,
-                             traceHeaders(requestId, dataset)) {
+          dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, "",
+            traceHeaders(RequestId.generate(), dataset))
+          //dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, user,
+           // traceHeaders(requestId, dataset))
+          {
             case DataCoordinatorClient.Success(_, _, _, _, _) =>
-              store.dropResource(dataset)
+              store.removeResource(dataset)
               Deleted
             case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
+
             // TODO other cases have not been implemented
             case _@x =>
               log.warn("case is NOT implemented")
@@ -151,6 +158,16 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           NotFound(dataset)
       }
     }
+  }
+  def deleteDataset(user: String, dataset: ResourceName, requestId: RequestId): Result = {
+    //TODO: Ask about retryable and give a return value
+      store.translateResourceName(dataset) match {
+        case Some(datasetRecord) =>
+          store.dropResource(dataset)
+          Deleted
+        case None =>
+          NotFound(dataset)
+      }
   }
 
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result =
@@ -277,6 +294,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       case None =>
         NotFound(dataset)
     }
+
 
 
   /**

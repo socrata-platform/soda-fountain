@@ -3,6 +3,7 @@ package com.socrata.soda.server
 import com.mchange.v2.c3p0.DataSources
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import com.socrata.http.common.AuxiliaryData
+import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.handlers.{NewLoggingHandler, ThreadRenamingHandler}
 import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
@@ -12,17 +13,19 @@ import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
-import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{MinimalDatasetRecord, DataSourceFromConfig, NameAndSchemaStore}
 import com.socrata.soda.server.metrics.{BalboaMetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.util._
 import com.socrata.thirdparty.curator.{CuratorFromConfig, DiscoveryFromConfig}
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import java.io.Closeable
 import java.security.SecureRandom
-import java.util.concurrent.Executors
+import java.util.concurrent.{CountDownLatch, TimeUnit, Executors}
 import javax.sql.DataSource
 import org.apache.log4j.PropertyConfigurator
 import scala.collection.mutable
+import com.socrata.soda.server.resources._
+import scala.concurrent.duration.FiniteDuration
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -50,6 +53,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
         }
 
         { resp =>
+      { resp =>
           try {
             httpResponse(resp)
           } catch {
@@ -154,6 +158,10 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
 
+  val tableDropDelay = config.tableDropDelay
+  val finished = new CountDownLatch(1)
+  //val store = new PostgresStoreImpl(dataSource)
+
   val router = i {
     import com.socrata.soda.server.resources._
 
@@ -187,6 +195,42 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       sampleResource = suggest.sampleService,
       suggestResource = suggest.service
     )
+  }
+
+  def background (): Unit = {
+    val tableDropper = new Thread(){
+            setName("table dropper")
+            override def run(): Unit = {
+              println ("in new thread")
+             // do {
+                try {
+                  //while (store.lookupDroppedDatasets(tableDropDelay) != None)
+                  //Ask the store for flagged datasets.
+                  //For each of the datasets, call a delete function on each one of them
+                  //Remove datasets from truth and secondary (?) and finally from soda fountain
+                  val record = store.lookupDroppedDatasets(tableDropDelay)
+                  log.info("record returned from database:" + record)
+                  if(record.nonEmpty)  {
+                    val datasets = record.flatten
+                    for (dataset <- datasets) {
+                      datasetDAO.removeDataset("", dataset.resourceName, RequestId.generate())
+                    }
+                  }
+                  else {
+                    log.error ("There is no dataset to delete")
+                  }
+                  //call data coordinator to remove datasets in truth
+                }
+                catch {
+                  case e: Exception =>
+                    log.error("Unexpected error while cleaning tables", e)
+                }
+             // } while (!finished.await (1, TimeUnit.SECONDS))
+            }
+          }
+          log.info ("Start tableDropper thread")
+          tableDropper.start()
+
   }
 
   def close() { // simulate a cascade of "finally" blocks

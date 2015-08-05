@@ -13,19 +13,23 @@ import com.socrata.thirdparty.json.AdditionalJsonCodecs._
 
 import org.joda.time.DateTime
 
+import scala.concurrent.duration.FiniteDuration
+
 // TODO: this needs to expose a notion of transactions
 trait NameAndSchemaStore {
   def addResource(newRecord: DatasetRecord)
   def removeResource(resourceName: ResourceName)
   def dropResource(resourceName: ResourceName)
   def translateResourceName(resourceName: ResourceName, copy: Option[Stage] = None): Option[MinimalDatasetRecord]
+  def translateDroppedResource(resourceName: ResourceName, stage: Option[Stage] = None): Option[MinimalDatasetRecord]
   def latestCopyNumber(resourceName: ResourceName): Long
   def lookupCopyNumber(resourceName: ResourceName, copy: Option[Stage]): Option[Long]
   def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord]
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
     lookupCopyNumber(resourceName, copy).flatMap(lookupDataset(resourceName, _))
   }
-
+  def lookupDroppedDatasets (delay:FiniteDuration):List[Option[MinimalDatasetRecord]]
+  def deleteDatasetAndMetadata (resource:ResourceName)
   /**
    * Return all copies most recent first
    */
@@ -94,7 +98,8 @@ case class MinimalDatasetRecord(
   columns: Seq[MinimalColumnRecord],
   truthVersion: Long,
   stage: Option[Stage],
-  lastModified: DateTime)
+  lastModified: DateTime,
+  deletedAt: Option[DateTime]= Option(null))
     extends DatasetRecordLike {
   type ColumnRecordT = MinimalColumnRecord
 }
@@ -120,7 +125,8 @@ case class DatasetRecord(
   columns: Seq[ColumnRecord],
   truthVersion: Long,
   stage: Option[Stage],
-  lastModified: DateTime)
+  lastModified: DateTime,
+  deletedAt: Option[DateTime] = Option(null))
     extends DatasetRecordLike {
   type ColumnRecordT = ColumnRecord
 }
