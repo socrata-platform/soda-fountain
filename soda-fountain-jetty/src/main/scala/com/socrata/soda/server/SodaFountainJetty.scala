@@ -34,16 +34,15 @@ object SodaFountainJetty extends App {
           config.discovery.name,
           None)))
 
-    val finished = new CountDownLatch(1)
-
-    do {
-      sodaFountain.background()
-      finished.countDown()
-    }  while (!finished.await (1, TimeUnit.SECONDS))
 
     server.run()
-
-    log.info ("After the server is launched and stopped")
+    val finished = new CountDownLatch(20)
+    try {
+      do {
+        sodaFountain.background()
+        finished.countDown()
+      } while (!finished.await(10, TimeUnit.SECONDS))
+    }
 
 
 //    val finished = new CountDownLatch(1)
