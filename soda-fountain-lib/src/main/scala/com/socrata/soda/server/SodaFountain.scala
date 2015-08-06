@@ -224,7 +224,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
                   case e: Exception =>
                     log.error("Unexpected error while cleaning tables", e)
                 }
-             // } while (!finished.await (1, TimeUnit.SECONDS))
+          
             }
           }
           log.info ("Start tableDropper thread")

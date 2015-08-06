@@ -44,47 +44,5 @@ object SodaFountainJetty extends App {
       } while (!finished.await(10, TimeUnit.SECONDS))
     }
 
-
-//    val finished = new CountDownLatch(1)
-//    val store = sodaFountain.store
-//    val tableDropDelay = sodaFountain.tableDropDelay
-//    val datasetDAO = sodaFountain.datasetDAO
-
-//    val tableDropper = new Thread(){
-//      setName("table dropper")
-//      override def run(): Unit = {
-//        println ("in new thread")
-//        do {
-//          try {
-//            //while (store.lookupDroppedDatasets(tableDropDelay) != None)
-//            //Ask the store for flagged datasets.
-//            //For each of the datasets, call a delete function on each one of them
-//            //Remove datasets from truth and secondary (?) and finally from soda fountain
-//            val record = store.lookupDroppedDatasets(tableDropDelay)
-//            log.info("record returned from database:" + record);
-//            if(record.nonEmpty)  {
-//              val datasets = record.flatten
-//              for (dataset <- datasets) {
-//                datasetDAO.removeDataset("", dataset.resourceName, RequestId.generate())
-//              }
-//            }
-//            else {
-//              log.error ("There is no dataset to delete")
-//            }
-//            //call data coordinator to remove datasets in truth
-//          }
-//          catch {
-//            case e: Exception =>
-//              log.error("Unexpected error while cleaning tables", e)
-//          }
-//        } while (!finished.await (1, TimeUnit.SECONDS))
-//      }
-//    }
-//
-//    try {
-//      tableDropper.start()
-//    } finally {
-//      tableDropper.join()
-//    }
   }
 }
