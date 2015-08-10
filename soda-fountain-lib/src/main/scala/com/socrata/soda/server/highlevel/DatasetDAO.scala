@@ -7,7 +7,6 @@ import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
 import com.socrata.soda.server.persistence.DatasetRecord
 import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, UserProvidedDatasetSpec}
 import com.socrata.soql.environment.ColumnName
-import scala.concurrent.duration.FiniteDuration
 
 trait DatasetDAO {
   import DatasetDAO.Result
@@ -20,8 +19,8 @@ trait DatasetDAO {
                     dataset: ResourceName,
                     spec: UserProvidedDatasetSpec,
                     requestId: RequestId): Result
-  def deleteDataset(user: String, dataset: ResourceName, requestId: RequestId): Result
-  def removeDataset (user: String, dataset: ResourceName, requestId: RequestId):Result
+  def markDatasetForDeletion(user: String, dataset: ResourceName): Result
+  def removeDataset(user: String, dataset: ResourceName, requestId: RequestId):Result
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
   def getCurrentCopyNum(dataset: ResourceName): Option[Long]

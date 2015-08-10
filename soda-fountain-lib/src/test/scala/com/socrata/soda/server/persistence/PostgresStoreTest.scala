@@ -82,8 +82,8 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     f match {
       case Some(MinimalDatasetRecord(rn, did, loc, sch, pky,
         Seq(MinimalColumnRecord(columnId, columnName, _, _, _)), _, _, _, _)) =>
-        ColumnId should be (ColumnId("one"))
-        ColumnName should be (ColumnName("new_field_name"))
+        columnId should be (ColumnId("one"))
+        columnName should be (ColumnName("new_field_name"))
       case None => fail("didn't find columns")
     }
   }
@@ -293,8 +293,8 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
       )
     )
     val (resourceName, _) = createMockDataset(columns)
-    store.dropResource(resourceName)
-    val f = store.translateDroppedResource(resourceName)
+    store.markResourceForDeletion(resourceName)
+    val f = store.translateResourceName(resourceName, isDeleted = true)
     f match {
       case Some(record) =>
         record.deletedAt should be ('defined)
@@ -323,9 +323,9 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
       )
     )
     val (resourceName, _) = createMockDataset(columns)
-    store.dropResource(resourceName)
+    store.markResourceForDeletion(resourceName)
     store.removeResource(resourceName)
-    val f = store.translateDroppedResource(resourceName)
+    val f = store.translateResourceName(resourceName, isDeleted = true)
     f match {
       case Some (record) =>
             fail ("metadata was not deleted")
@@ -335,29 +335,6 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
     }
 
-  test ("dropping a dataset - dropping columns - check if 'deleted-at' is updated in metadata table columns") {
-    val columns = Seq[ColumnRecord](
-      new ColumnRecord(
-        ColumnId("abc123"),
-        ColumnName("a b c 1 2 3"),
-        SoQLText,
-        "column name human",
-        "column desc human",
-        false,
-        None),
-      new ColumnRecord(
-        ColumnId("def456"),
-        ColumnName("d e f 4 5 6"),
-        SoQLText,
-        "column name human",
-        "column desc human",
-        false,
-        None
-      )
-    )
-    val (resourceName, _) = createMockDataset(columns)
-    store.dropResource(resourceName)
-  }
   private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetId) = {
     val dataset = generateDataset("PostgresStoreTest", columns)
     store.addResource(dataset)

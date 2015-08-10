@@ -159,8 +159,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
 
   val tableDropDelay = config.tableDropDelay
-  val finished = new CountDownLatch(1)
- 
+  val dataCleanupDelay = config.dataCleanupDelay
   val router = i {
     import com.socrata.soda.server.resources._
 
@@ -196,40 +195,33 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     )
   }
 
-  def tableDropper(): Unit = {
-    val tableDropper = new Thread(){
-            setName("table dropper")
-            override def run(): Unit = {
-              println ("in new thread")
-             // do {
-                try {
-                  //while (store.lookupDroppedDatasets(tableDropDelay) != None)
-                  //Ask the store for flagged datasets.
-                  //For each of the datasets, call a delete function on each one of them
-                  //Remove datasets from truth and secondary (?) and finally from soda fountain
-                  val record = store.lookupDroppedDatasets(tableDropDelay)
-                  log.info("record returned from database:" + record)
-                  if(record.nonEmpty)  {
-                    val datasets = record.flatten
-                    for (dataset <- datasets) {
-                      datasetDAO.removeDataset("", dataset.resourceName, RequestId.generate())
-                    }
-                  }
-                  else {
-                    log.info ("There is no dataset to delete")
-                  }
-                  //call data coordinator to remove datasets in truth
-                }
-                catch {
-                  case e: Exception =>
-                    log.error("Unexpected error while cleaning tables", e)
-                }
-          
+  //For each of the datasets, call a delete function on each one of them
+  //Remove datasets from truth and secondary and sodafountain
+  val finished = new CountDownLatch(1)
+  val tableDropper = new Thread() {
+    setName("table dropper")
+
+    override def run() {
+
+      do {
+        try {
+          val record = store.lookupDroppedDatasets(tableDropDelay)
+          if (record.nonEmpty) {
+            val datasets = record.flatten
+            datasets.foreach { rec =>
+              datasetDAO.removeDataset("", rec.resourceName, RequestId.generate())
             }
           }
-          log.info ("Start tableDropper thread")
-          tableDropper.start()
+          //call data coordinator to remove datasets in truth
+        }
+        catch {
+          case e: Exception =>
+            log.error("Unexpected error while cleaning tables", e)
+        }
+      } while (!finished.await(dataCleanupDelay, TimeUnit.SECONDS))
+    }
   }
+
 
   def close() { // simulate a cascade of "finally" blocks
     var pendingException: Throwable = null

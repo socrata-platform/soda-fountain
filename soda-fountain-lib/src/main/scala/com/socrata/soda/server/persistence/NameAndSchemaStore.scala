@@ -19,16 +19,15 @@ import scala.concurrent.duration.FiniteDuration
 trait NameAndSchemaStore {
   def addResource(newRecord: DatasetRecord)
   def removeResource(resourceName: ResourceName)
-  def dropResource(resourceName: ResourceName)
-  def translateResourceName(resourceName: ResourceName, copy: Option[Stage] = None): Option[MinimalDatasetRecord]
-  def translateDroppedResource(resourceName: ResourceName, stage: Option[Stage] = None): Option[MinimalDatasetRecord]
+  def markResourceForDeletion(resourceName: ResourceName)
+  def translateResourceName(resourceName: ResourceName, stage: Option[Stage] = None, deleted:Boolean = false): Option[MinimalDatasetRecord]
   def latestCopyNumber(resourceName: ResourceName): Long
   def lookupCopyNumber(resourceName: ResourceName, copy: Option[Stage]): Option[Long]
   def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord]
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
     lookupCopyNumber(resourceName, copy).flatMap(lookupDataset(resourceName, _))
   }
-  def lookupDroppedDatasets (delay:FiniteDuration):List[Option[MinimalDatasetRecord]]
+  def lookupDroppedDatasets(delay:FiniteDuration):List[Option[MinimalDatasetRecord]]
   /**
    * Return all copies most recent first
    */
@@ -98,7 +97,7 @@ case class MinimalDatasetRecord(
   truthVersion: Long,
   stage: Option[Stage],
   lastModified: DateTime,
-  deletedAt: Option[DateTime]= Option(null))
+  deletedAt: Option[DateTime]= None)
     extends DatasetRecordLike {
   type ColumnRecordT = MinimalColumnRecord
 }
@@ -125,7 +124,7 @@ case class DatasetRecord(
   truthVersion: Long,
   stage: Option[Stage],
   lastModified: DateTime,
-  deletedAt: Option[DateTime] = Option(null))
+  deletedAt: Option[DateTime] = None)
     extends DatasetRecordLike {
   type ColumnRecordT = ColumnRecord
 }

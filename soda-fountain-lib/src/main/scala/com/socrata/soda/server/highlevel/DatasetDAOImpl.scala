@@ -135,7 +135,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def removeDataset (user: String, dataset: ResourceName, requestId: RequestId): Result = {
     retryable(limit = 5) {
-      store.translateDroppedResource(dataset) match {
+      store.translateResourceName(dataset, deleted = true) match {
         case Some(datasetRecord) =>
           dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, "",
             traceHeaders(RequestId.generate(), dataset))
@@ -156,11 +156,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       }
     }
   }
-  def deleteDataset(user: String, dataset: ResourceName, requestId: RequestId): Result = {
+  def markDatasetForDeletion(user: String, dataset: ResourceName): Result = {
     //TODO: Ask about retryable and give a return value
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
-          store.dropResource(dataset)
+          store.markResourceForDeletion(dataset)
           Deleted
         case None =>
           NotFound(dataset)
