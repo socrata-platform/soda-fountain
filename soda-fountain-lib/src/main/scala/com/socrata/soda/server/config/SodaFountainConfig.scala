@@ -3,7 +3,6 @@ package com.socrata.soda.server.config
 import com.typesafe.config.Config
 import com.socrata.thirdparty.curator.{CuratorConfig, DiscoveryConfig}
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
-import scala.concurrent.duration.{MILLISECONDS, FiniteDuration, Duration}
 
 class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(config), "com.socrata.soda-fountain") {
   val maxDatumSize = getInt("max-datum-size")
@@ -24,7 +23,7 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val codaMetrics = getRawConfig("metrics")
   val threadpool = getRawConfig("threadpool")
   val tableDropDelay = getDuration("tableDropDelay")
-  val dataCleanupDelay = getInt("dataCleanupDelay")
+  val dataCleanupInterval = getInt("dataCleanupInterval")
 }
 
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {

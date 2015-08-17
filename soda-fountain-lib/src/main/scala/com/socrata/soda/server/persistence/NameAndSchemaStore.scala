@@ -27,7 +27,7 @@ trait NameAndSchemaStore {
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
     lookupCopyNumber(resourceName, copy).flatMap(lookupDataset(resourceName, _))
   }
-  def lookupDroppedDatasets(delay:FiniteDuration):List[Option[MinimalDatasetRecord]]
+  def lookupDroppedDatasets(delay:FiniteDuration):List[MinimalDatasetRecord]
   /**
    * Return all copies most recent first
    */

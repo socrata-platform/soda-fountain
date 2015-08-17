@@ -159,7 +159,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
 
   val tableDropDelay = config.tableDropDelay
-  val dataCleanupDelay = config.dataCleanupDelay
+  val dataCleanupInterval = config.dataCleanupInterval
   val router = i {
     import com.socrata.soda.server.resources._
 
@@ -202,13 +202,11 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     setName("table dropper")
 
     override def run() {
-
       do {
         try {
-          val record = store.lookupDroppedDatasets(tableDropDelay)
-          if (record.nonEmpty) {
-            val datasets = record.flatten
-            datasets.foreach { rec =>
+          val records = store.lookupDroppedDatasets(tableDropDelay)
+          if (records.nonEmpty) {
+            records.foreach { rec =>
               datasetDAO.removeDataset("", rec.resourceName, RequestId.generate())
             }
           }
@@ -218,10 +216,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
           case e: Exception =>
             log.error("Unexpected error while cleaning tables", e)
         }
-      } while (!finished.await(dataCleanupDelay, TimeUnit.SECONDS))
+      } while (!finished.await(dataCleanupInterval, TimeUnit.SECONDS))
     }
   }
-
 
   def close() { // simulate a cascade of "finally" blocks
     var pendingException: Throwable = null

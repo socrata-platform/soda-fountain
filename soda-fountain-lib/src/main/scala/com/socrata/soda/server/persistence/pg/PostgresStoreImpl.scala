@@ -2,7 +2,6 @@ package com.socrata.soda.server.persistence.pg
 
 import java.sql.{Connection, ResultSet, Timestamp, Types}
 
-import scala.Option
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Try}
@@ -31,12 +30,9 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def toTimestamp(time: DateTime): Timestamp = new Timestamp(time.getMillis)
   def toDateTime(time: Timestamp): DateTime = new DateTime(time.getTime)
-  def toDateTimeOptional(time:Timestamp): Option[DateTime] = {
-    if (time!= null)
-      Some(new DateTime(time.getTime()))
-    else
-      None
-  }
+  def toDateTimeOptional(time:Timestamp): Option[DateTime] =
+    Option(time).map {t=> new DateTime (t.getTime())}
+
 
   def latestCopyNumber(resourceName: ResourceName): Long = {
     lookupCopyNumber(resourceName, None).getOrElse(throw new Exception("there should always be a latest copy"))
@@ -554,8 +550,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       for(datasetId <- datasetIdOpt) {
         using(connection.prepareStatement(
           """
-            delete from computation_strategies where dataset_system_id = ?;
             delete from columns where dataset_system_id = ?;
+            delete from computation_strategies where dataset_system_id = ?;
             delete from dataset_copies where dataset_system_id = ?;
             delete from datasets where dataset_system_id = ?;
           """)) { deleter =>
@@ -581,12 +577,10 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       }
       for (datasetId <- datasetIdOpt) {
         using(connection.prepareStatement(
-          """ update computation_strategies cs set deleted_at = now() where cs.dataset_system_id = ?;
-              update columns c set deleted_at = now () where c.dataset_system_id = ?;
-              update dataset_copies dc set  deleted_at = now() where dc.dataset_system_id = ?;
+          """ update dataset_copies dc set  deleted_at = now() where dc.dataset_system_id = ?;
               update datasets d set deleted_at = now () where d.dataset_system_id = ?;
         """)) { update =>
-          for (i <- 1 to 4) {
+          for (i <- 1 to 2) {
             update.setString(i, datasetId.underlying)
           }
           update.execute()
@@ -597,7 +591,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
 
 
-  def lookupDroppedDatasets(delay: FiniteDuration): List[Option[MinimalDatasetRecord]]= {
+  def lookupDroppedDatasets(delay: FiniteDuration): List[MinimalDatasetRecord]= {
     val sql = fetchDatasetSql(resourceName = false, copyNumber = false,isDeleted = true)
 
     using(dataSource.getConnection()) { conn =>
@@ -605,24 +599,31 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       using(conn.prepareStatement(sql)) {lookup =>
         lookup.setString(1, delay.toSeconds.toString())
         val rs = lookup.executeQuery()
-        val result = List.newBuilder[Option[MinimalDatasetRecord]]
-        while (rs.next()) {
-          val datasetId = DatasetId(rs.getString("dataset_system_id"))
-          val copyNumber = rs.getLong("copy_number")
-          result += Some(MinimalDatasetRecord(
-            new ResourceName(rs.getString("resource_name")),
-            datasetId,
-            rs.getString("locale"),
-            rs.getString("schema_hash"),
-            ColumnId(rs.getString("primary_key_column_id")),
-            fetchMinimalColumns(conn, datasetId, copyNumber),
-            rs.getLong("latest_version"),
-            Stage(rs.getString("lifecycle_stage")),
-            toDateTime(rs.getTimestamp("last_modified")),
-            toDateTimeOptional(rs.getTimestamp("deleted_at"))
-          ))
+        val result = List.newBuilder[MinimalDatasetRecord]
+
+        if (rs.next()) {
+          while (rs.next()) {
+            val datasetId = DatasetId(rs.getString("dataset_system_id"))
+            val copyNumber = rs.getLong("copy_number")
+            result += MinimalDatasetRecord(
+              new ResourceName(rs.getString("resource_name")),
+              datasetId,
+              rs.getString("locale"),
+              rs.getString("schema_hash"),
+              ColumnId(rs.getString("primary_key_column_id")),
+              fetchMinimalColumns(conn, datasetId, copyNumber),
+              rs.getLong("latest_version"),
+              Stage(rs.getString("lifecycle_stage")),
+              toDateTime(rs.getTimestamp("last_modified")),
+              toDateTimeOptional(rs.getTimestamp("deleted_at"))
+            )
+          }
+
+          result.result()
         }
-        result.result()
+        else {
+          Nil
+        }
       }
     }
   }
@@ -794,7 +795,6 @@ object PostgresStoreImpl {
        |       c.column_id,
        |       c.type_name,
        |       c.is_inconsistency_resolution_generated,
-       |       c.deleted_at,
        |       cs.computation_strategy_type,
        |       cs.recompute,
        |       cs.source_columns,

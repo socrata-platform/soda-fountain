@@ -8,23 +8,13 @@
         <preConditions onFail="WARN">
             <not>
                 <columnExists tableName="datasets" columnName="deleted_at"/>
-                <columnExists tableName="computations_strategies" columnName="deleted_at"/>
-                <columnExists tableName="columns" columnName="deleted_at"/>
             </not>
         </preConditions>
         <addColumn tableName="datasets">
             <column name = "deleted_at" type="timestamp with timezone" defaultValue = "NULL"/>
         </addColumn>
-        <addColumn tableName="columns">
-            <column name = "deleted_at" type="timestamp with timezone" defaultValue = "NULL"/>
-        </addColumn>
-        <addColumn tableName="computation_strategies">
-            <column name = "deleted_at" type="timestamp with timezone" defaultValue = "NULL"/>
-        </addColumn>
         <rollback>
             <dropColumn tableName="datasets" columnName="deleted_at" />
-            <dropColumn tableName="columns" columnName="deleted_at" />
-            <dropColumn tableName="computation_strategies" columnName="deleted_at" />
         </rollback>
     </changeSet>
 </databaseChangeLog>
