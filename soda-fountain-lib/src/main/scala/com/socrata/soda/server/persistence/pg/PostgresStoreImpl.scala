@@ -600,30 +600,23 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         lookup.setString(1, delay.toSeconds.toString())
         val rs = lookup.executeQuery()
         val result = List.newBuilder[MinimalDatasetRecord]
-
-        if (rs.next()) {
-          while (rs.next()) {
-            val datasetId = DatasetId(rs.getString("dataset_system_id"))
-            val copyNumber = rs.getLong("copy_number")
-            result += MinimalDatasetRecord(
-              new ResourceName(rs.getString("resource_name")),
-              datasetId,
-              rs.getString("locale"),
-              rs.getString("schema_hash"),
-              ColumnId(rs.getString("primary_key_column_id")),
-              fetchMinimalColumns(conn, datasetId, copyNumber),
-              rs.getLong("latest_version"),
-              Stage(rs.getString("lifecycle_stage")),
-              toDateTime(rs.getTimestamp("last_modified")),
-              toDateTimeOptional(rs.getTimestamp("deleted_at"))
-            )
-          }
-
-          result.result()
+        while (rs.next()) {
+          val datasetId = DatasetId(rs.getString("dataset_system_id"))
+          val copyNumber = rs.getLong("copy_number")
+          result += MinimalDatasetRecord(
+            new ResourceName(rs.getString("resource_name")),
+            datasetId,
+            rs.getString("locale"),
+            rs.getString("schema_hash"),
+            ColumnId(rs.getString("primary_key_column_id")),
+            fetchMinimalColumns(conn, datasetId, copyNumber),
+            rs.getLong("latest_version"),
+            Stage(rs.getString("lifecycle_stage")),
+            toDateTime(rs.getTimestamp("last_modified")),
+            toDateTimeOptional(rs.getTimestamp("deleted_at"))
+          )
         }
-        else {
-          Nil
-        }
+        result.result()
       }
     }
   }
