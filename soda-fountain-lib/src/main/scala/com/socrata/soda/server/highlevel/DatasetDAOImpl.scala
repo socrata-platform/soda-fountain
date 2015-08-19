@@ -367,7 +367,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
             store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
             RollupDropped
-          case DataCoordinatorClient.UpsertUserError("delete.rollup.does-not-exist", _) =>
+          case DataCoordinatorClient.NoSuchRollup(_) =>
             RollupNotFound(rollup)
           // TODO other cases have not been implemented
           case _@x =>

@@ -71,4 +71,5 @@ object RowDAO {
   case object SchemaOutOfSync extends UpsertResult
   case class ComputationHandlerNotFound(typ: ComputationStrategyType.Value) extends UpsertResult
   case class ComputedColumnNotWritable(columnName: ColumnName) extends UpsertResult
+  case class UnrefinedUpsertUserError(code: String, data: Map[String, JValue]) extends UpsertResult
 }

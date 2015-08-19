@@ -2,7 +2,8 @@ package com.socrata.soda.clients.datacoordinator
 
 import com.rojoma.json.v3.util._
 import com.rojoma.json.v3.ast._
-import com.socrata.soda.server.id.{SecondaryId, DatasetId}
+import com.socrata.soda.server.id._
+import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.http.server.util.{Precondition, EntityTag}
 import org.joda.time.DateTime
@@ -19,7 +20,11 @@ object DataCoordinatorClient {
   case object CannotDeleteRowId extends Result
   case object PreconditionFailed extends Result
   case class NotModified(etags: Seq[EntityTag]) extends Result
-  case class UpsertUserError(code: String, data: Map[String, JValue]) extends Result
+  case object DuplicateValuesInColumn extends Result
+  case class IncorrectLifecycleStage(actualStage: String, expectedStage: Set[String]) extends Result
+  case class NoSuchRollup(name: RollupName) extends Result
+  case class NoSuchRow(id: RowSpecifier) extends Result
+  case class UnrefinedUserError(code: String) extends Result // TODO: Refine user errors from DC
 
   sealed abstract class ReportItem
   case class UpsertReportItem(data: Iterator[JValue] /* Note: this MUST be completely consumed before calling hasNext/next on parent iterator! */) extends ReportItem
