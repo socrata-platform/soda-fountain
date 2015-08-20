@@ -13,7 +13,7 @@ import com.socrata.soda.server.computation.ComputedColumns
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
-import com.socrata.soda.server.persistence.{MinimalDatasetRecord, DataSourceFromConfig, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
 import com.socrata.soda.server.metrics.{BalboaMetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.util._
 import com.socrata.thirdparty.curator.{CuratorFromConfig, DiscoveryFromConfig}
@@ -24,8 +24,6 @@ import java.util.concurrent.{CountDownLatch, TimeUnit, Executors}
 import javax.sql.DataSource
 import org.apache.log4j.PropertyConfigurator
 import scala.collection.mutable
-import com.socrata.soda.server.resources._
-import scala.concurrent.duration.FiniteDuration
 
 /**
  * Manages the lifecycle of the routing table.  This means that
