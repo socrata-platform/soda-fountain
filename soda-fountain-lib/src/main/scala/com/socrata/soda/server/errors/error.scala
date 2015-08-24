@@ -174,3 +174,9 @@ case object DeleteWithoutPrimaryKey
 case class UpsertRowNotAnObject(obj: JValue)
   extends SodaError(SC_BAD_REQUEST, "soda.row.upsert-row-not-an-object",
     "value" -> obj)
+
+/**
+ * TODO: Refine errors and http status codes
+ */
+case class UnrefinedUserError(code: String, obj: Map[String, JValue])
+  extends SodaError(SC_BAD_REQUEST, "do-not-use." + code, obj)

@@ -24,8 +24,6 @@ import org.joda.time.format.ISODateTimeFormat
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
 
-  import RowDAOImpl._
-
   val log = org.slf4j.LoggerFactory.getLogger(classOf[RowDAOImpl])
 
   val dateTimeParser = ISODateTimeFormat.dateTimeParser
@@ -160,8 +158,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         // I guess we'll refresh our own schema and then toss an error to the user?
         store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
         f(SchemaOutOfSync)
-      case DataCoordinatorClient.UpsertUserError(code, data) =>
-        f(DataCoordinatorUserErrorCode(code, data))
+      case DataCoordinatorClient.NoSuchRow(id) =>
+        f(RowNotFound(id))
+      case DataCoordinatorClient.UnrefinedUserError(code) =>
+        f(UnrefinedUpsertUserError(code, Map.empty))
       // TODO other cases have not been implemented
       case _@x =>
         log.warn("case is NOT implemented")
@@ -191,20 +191,6 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           case None => f(MaltypedData(pkCol.fieldName, pkCol.typ, JString(rowId.underlying)))
         }
       case None => f(DatasetNotFound(resourceName))
-    }
-  }
-}
-
-object RowDAOImpl {
-
-  object DataCoordinatorUserErrorCode {
-    def apply(code: String, data: Map[String, JValue]): UpsertResult = {
-      code match {
-        case "update.row.no-such-id" =>
-          RowNotFound(RowSpecifier(data("value").asInstanceOf[JString].string))
-        case unhandled =>
-          throw new Exception(s"TODO: Handle error from data coordinator - $unhandled")
-      }
     }
   }
 }

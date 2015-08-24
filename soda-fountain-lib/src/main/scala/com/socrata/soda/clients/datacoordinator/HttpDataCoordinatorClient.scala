@@ -96,15 +96,9 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         None
       case HttpServletResponse.SC_NOT_MODIFIED =>
         Some(datacoordinator.NotModified())
-      case code if code >= 400 && code <= 499 =>
-        r.value[UserErrorReportedByDataCoordinatorError]() match {
-          case Right(dcErr) =>
-            Some(dcErr)
-          case Left(_) =>
-            throw new Exception("Response was JSON but not decodable as user error reported by data coordinator")
-        }
-      case _ =>
-        Some(r.value[PossiblyUnknownDataCoordinatorError]().right.toOption.getOrElse(throw new Exception("Response was JSON but not decodable as an error")))
+      case code =>
+        Some(r.value[PossiblyUnknownDataCoordinatorError]().right.toOption.getOrElse(
+          throw new Exception(s"Response was JSON but not decodable as an error - code $code")))
     }
 
   def expectStartOfArray(in: Iterator[JsonEvent]) {
@@ -172,10 +166,18 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
           err match {
             case SchemaMismatch(_, schema) =>
               f(Left(SchemaOutOfDate(schema)))
-            case UserErrorReportedByDataCoordinatorError(code, data) =>
-              f(Left(UpsertUserError(code, data)))
             case DeleteOnRowId() =>
               f(Left(CannotDeleteRowId))
+            case com.socrata.soda.clients.datacoordinator.DuplicateValuesInColumn(_, _) =>
+              f(Left(DuplicateValuesInColumn))
+            case com.socrata.soda.clients.datacoordinator.IncorrectLifecycleStage(_, actualStage, expectedStage) =>
+              f(Left(IncorrectLifecycleStage(actualStage, expectedStage)))
+            case com.socrata.soda.clients.datacoordinator.NoSuchRollup(name) =>
+              f(Left(NoSuchRollup(name)))
+            case com.socrata.soda.clients.datacoordinator.NoSuchRow(_, id) =>
+              f(Left(NoSuchRow(id)))
+            case dcError: DataCoordinatorError => // TODO: Refine ones that we want more details
+              f(Left(UnrefinedUserError(dcError.code)))
             case UnknownDataCoordinatorError(code, data) =>
               log.error("Unknown data coordinator error " + code)
               log.error("Aux info: " + data)
@@ -184,7 +186,6 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
             case _@x =>
               log.warn("case is NOT implemented")
               ???
-
           }
       }
     }
