@@ -42,7 +42,7 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
   val service = new RegionCoderService(discovery)
   service.start()
 
-  def urlPrefix = Option(service.provider.getInstance()).map { serv => serv.buildUriSpec() + "v1" }.
+  def urlPrefix = Option(service.provider.getInstance()).map { serv => serv.buildUriSpec() + "v2" }.
     getOrElse(throw new RuntimeException("Unable to get region-coder instance from Curator/ZK"))
 
   private val logger = LoggerFactory.getLogger(getClass)

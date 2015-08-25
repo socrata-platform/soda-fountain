@@ -52,10 +52,12 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
         ComputationStrategyType.GeoRegionMatchOnString,
         true,
         Some(Seq(sourceColumn)),
-        Some(JObject(Map("region" -> JString("sfo_zipcodes"), "column" -> JString("zip")))))))
+        Some(JObject(Map("region" -> JString("sfo_zipcodes"),
+                         "column" -> JString("zip"),
+                         "primary_key" -> JString("_feature_id")))))))
 
     val endpoint = handler.invokePrivate(genEndpoint(columnDef))
-    endpoint should be ("/regions/sfo_zipcodes/stringcode?column=zip")
+    endpoint should be ("/regions/sfo_zipcodes/stringcode?columnToMatch=zip&columnToReturn=_feature_id")
   }
 
   test("genEndpoint - parameters are missing") {
@@ -80,7 +82,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
         ComputationStrategyType.GeoRegionMatchOnString,
         true,
         Some(Seq(sourceColumn)),
-        Some(JObject(Map("column" -> JString("zip")))))))
+        Some(JObject(Map("column" -> JString("zip"), "primary_key" -> JString("_feature_id")))))))
 
     val ex = the [IllegalArgumentException] thrownBy {
       handler.invokePrivate(genEndpoint(columnDef)).size
@@ -95,12 +97,27 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
         ComputationStrategyType.GeoRegionMatchOnString,
         true,
         Some(Seq(sourceColumn)),
-        Some(JObject(Map("region" -> JString("sfo_zipcodes")))))))
+        Some(JObject(Map("region" -> JString("sfo_zipcodes"), "primary_key" -> JString("_feature_id")))))))
 
     val ex = the [IllegalArgumentException] thrownBy {
       handler.invokePrivate(genEndpoint(columnDef)).size
     }
     ex.getMessage should include ("parameters does not contain 'column'")
+  }
+
+  test("genEndpoint - primary_key is missing") {
+    val columnDef = mock[ColumnRecordLike]
+    when(columnDef.computationStrategy).thenReturn(Some(
+      ComputationStrategyRecord(
+        ComputationStrategyType.GeoRegionMatchOnString,
+        true,
+        Some(Seq(sourceColumn)),
+        Some(JObject(Map("region" -> JString("sfo_zipcodes"), "column" -> JString("zip")))))))
+
+    val ex = the [IllegalArgumentException] thrownBy {
+      handler.invokePrivate(genEndpoint(columnDef)).size
+    }
+    ex.getMessage should include ("parameters does not contain 'primary_key'")
   }
 
   test("extractSourceColumnValueFromRow - source column contains a string") {

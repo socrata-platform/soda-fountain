@@ -19,7 +19,7 @@ import org.apache.curator.x.discovery._
 import org.mockito.Matchers.{any, anyString}
 import org.mockito.Mockito.{verify, when}
 import org.mockserver.integration.ClientAndServer
-import org.mockserver.model.Header
+import org.mockserver.model.{Parameter, Header}
 import org.scalatest._
 import org.scalatest.mock.MockitoSugar
 
@@ -49,7 +49,7 @@ trait GeoregionMatchOnPointHandlerData {
 
   val computeStrategy = ComputationStrategyRecord(ComputationStrategyType.GeoRegionMatchOnPoint, false,
     Some(Seq(sourceColumn("geom-1234"))),
-    Some(JObject(Map("region" -> JString("wards")))))
+    Some(JObject(Map("region" -> JString("wards"), "primary_key" -> JString("_feature_id")))))
   val columnSpec = MinimalColumnRecord(ColumnId("ward-1234"), ColumnName("ward_id"), SoQLText, false,
     Some(computeStrategy))
 }
@@ -99,7 +99,8 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
 
   private def mockPointCodeRoute(bodyRegex: String, returnedBody: String, returnedCode: Int = 200) {
     server.when(request.withMethod("POST").
-      withPath("/v1/regions/wards/pointcode").
+      withPath("/v2/regions/wards/pointcode").
+      withQueryStringParameter(Parameter.param("columnToReturn", "_feature_id")).
       withBody(StringBody.regex(bodyRegex))).
       respond(response.withStatusCode(returnedCode).
         withHeader(new Header("Content-Type", "application/json; charset=utf-8")).

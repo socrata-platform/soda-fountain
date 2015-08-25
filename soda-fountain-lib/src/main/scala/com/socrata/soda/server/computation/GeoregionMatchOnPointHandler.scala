@@ -36,8 +36,10 @@ class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscover
     computedColumn.computationStrategy match {
       case Some(ComputationStrategyRecord(_, _, _, Some(JObject(map)))) =>
         require(map.contains("region"), "parameters does not contain 'region'")
+        require(map.contains("primary_key"), "parameters does not contain 'primary_key'")
         val JString(region) = map("region")
-        s"/regions/$region/pointcode"
+        val JString(primaryKey) = map("primary_key")
+        s"/regions/$region/pointcode?columnToReturn=$primaryKey"
       case x =>
         throw new IllegalArgumentException("Computation strategy parameters were invalid." +
           """Expected format: { "region" : "[REGION_RESOURCE_NAME]" }""")
