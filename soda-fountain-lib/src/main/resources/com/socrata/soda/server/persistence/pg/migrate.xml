@@ -10,5 +10,6 @@
     <include file="com/socrata/soda/server/persistence/pg/20140815-copy-number.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20141112-georegion-computation-strategy-rename.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20150501-add-missing-timezone.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20150825-georegion-backfill-primary-key-parameter.xml"/>
 
 </databaseChangeLog>
