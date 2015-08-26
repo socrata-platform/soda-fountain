@@ -47,11 +47,25 @@ trait GeoregionMatchOnPointHandlerData {
   val testRow = UpsertAsSoQL(
     Map("geom-1234" -> toSoQLPoint(point1), "date-1234" -> SoQLText("12/31/2013")))
 
-  val computeStrategy = ComputationStrategyRecord(ComputationStrategyType.GeoRegionMatchOnPoint, false,
-    Some(Seq(sourceColumn("geom-1234"))),
-    Some(JObject(Map("region" -> JString("wards"), "primary_key" -> JString("_feature_id")))))
-  val columnSpec = MinimalColumnRecord(ColumnId("ward-1234"), ColumnName("ward_id"), SoQLText, false,
-    Some(computeStrategy))
+  def strategyParams(explicitPrimaryKeyParam: Boolean) = if (explicitPrimaryKeyParam) {
+    Map("region" -> JString("wards"), "primary_key" -> JString("_feature_id"))
+  } else {
+    Map("region" -> JString("wards"))
+  }
+
+  def computeStrategy(explicitPrimaryKeyParam: Boolean) = {
+    ComputationStrategyRecord(ComputationStrategyType.GeoRegionMatchOnPoint, false,
+      Some(Seq(sourceColumn("geom-1234"))),
+      Some(JObject(strategyParams(explicitPrimaryKeyParam))))
+  }
+
+  def columnSpec(explicitPrimaryKeyParam: Boolean) = MinimalColumnRecord(
+    ColumnId("ward-1234"),
+    ColumnName("ward_id"),
+    SoQLText,
+    false,
+    Some(computeStrategy(explicitPrimaryKeyParam))
+  )
 }
 
 class GeoregionMatchOnPointHandlerTest extends FunSuite
@@ -122,7 +136,26 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
         }
       case d: DeleteAsCJson  => d
     }
-    val newRows = handler.compute("a-request-id", testRows.toIterator, columnSpec)
+    val newRows = handler.compute("a-request-id", testRows.toIterator, columnSpec(true))
+    newRows.toSeq must equal (expectedRows)
+  }
+
+  test("Region coding - no feature primary key specified") {
+    mockPointCodeRoute(".+122.+", """[1]""")
+    mockPointCodeRoute(".+121.+", """[2]""")
+    mockPointCodeRoute(".+120.+", """[null,5]""")
+    val expectedIds = Iterator(Some(1), Some(2), None, Some(5))
+    val expectedRows = testRows.map {
+      case UpsertAsSoQL(map) =>
+        val nextExpected = expectedIds.next()
+        if (nextExpected.isDefined) {
+          UpsertAsSoQL(map + ("ward-1234" -> SoQLNumber(new BD(nextExpected.get))))
+        } else {
+          UpsertAsSoQL(map)
+        }
+      case d: DeleteAsCJson  => d
+    }
+    val newRows = handler.compute("a-request-id", testRows.toIterator, columnSpec(false))
     newRows.toSeq must equal (expectedRows)
   }
 
@@ -137,7 +170,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     mockPointCodeRoute(".+122.+", """[1]""", 200)
     mockPointCodeRoute(".+122.+", "", 500)
 
-    val newRows = handler.compute("a-request-id", Iterator(testRow), columnSpec)
+    val newRows = handler.compute("a-request-id", Iterator(testRow), columnSpec(true))
     newRows.toSeq must equal (Stream(expectedRow))
   }
 
@@ -162,7 +195,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
       case d: DeleteAsCJson  => d
     }
 
-    val newRows = handler.compute("a-request-id", rows.toIterator, columnSpec)
+    val newRows = handler.compute("a-request-id", rows.toIterator, columnSpec(true))
     newRows.toSeq must equal (expectedRows)
   }
 
@@ -171,7 +204,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
       UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"))),
       UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015"))))
 
-    val newRows = handler.compute("a-request-id", rows.toIterator, columnSpec)
+    val newRows = handler.compute("a-request-id", rows.toIterator, columnSpec(true))
     newRows.toSeq must equal (rows)
   }
 
@@ -184,7 +217,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     // The way we verify this is a variant of above test.  Unless we call next(), errors in the input
     // will not result in an exception because processing hasn't started yet
     val rows = Seq(Map("date-1234" -> SoQLText("12/31/2013")))    // geom column missing
-    handler.compute("a-request-id", rows.map(UpsertAsSoQL(_)).toIterator, columnSpec)
+    handler.compute("a-request-id", rows.map(UpsertAsSoQL(_)).toIterator, columnSpec(true))
   }
 
   test("handler.close() closes provider") {
@@ -209,7 +242,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     // If not MultiLine
     intercept[MaltypedDataEx] {
       val rows = Seq(Map("geom-1234" -> converter(multiLine).get))
-      handler.compute("a-request-id", rows.map(UpsertAsSoQL).toIterator, columnSpec).next
+      handler.compute("a-request-id", rows.map(UpsertAsSoQL).toIterator, columnSpec(true)).next
     }
   }
 
@@ -231,7 +264,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
 
   test("Will throw ComputationEx if computing an unsupported row type") {
     val ex = the [ComputationEx] thrownBy {
-      handler.compute("a-request-id", Iterator(null), columnSpec).
+      handler.compute("a-request-id", Iterator(null), columnSpec(true)).
         foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
@@ -284,7 +317,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     mockPointCodeRoute(".+", "[]", 300)
 
     val ex = the [ComputationEx] thrownBy {
-      handler.compute("a-request-id", Iterator(testRow), columnSpec).
+      handler.compute("a-request-id", Iterator(testRow), columnSpec(true)).
         foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
@@ -299,7 +332,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     mockPointCodeRoute(".+", "null", 200)
 
     val ex = the [ComputationEx] thrownBy {
-      handler.compute("a-request-id", Iterator(testRow), columnSpec).
+      handler.compute("a-request-id", Iterator(testRow), columnSpec(true)).
         foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
@@ -315,7 +348,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     mockPointCodeRoute(".+", "", 200)
 
     val ex = the [ComputationEx] thrownBy {
-      handler.compute("a-request-id", Iterator(testRow), columnSpec).
+      handler.compute("a-request-id", Iterator(testRow), columnSpec(true)).
         foreach(Function.const(())) // Force evaluation of the iterator.
     }
 
