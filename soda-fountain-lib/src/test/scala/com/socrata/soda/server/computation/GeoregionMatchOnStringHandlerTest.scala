@@ -54,10 +54,10 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
         Some(Seq(sourceColumn)),
         Some(JObject(Map("region" -> JString("sfo_zipcodes"),
                          "column" -> JString("zip"),
-                         "primary_key" -> JString("_feature_id")))))))
+                         "primary_key" -> JString("user_defined_key")))))))
 
     val endpoint = handler.invokePrivate(genEndpoint(columnDef))
-    endpoint should be ("/regions/sfo_zipcodes/stringcode?columnToMatch=zip&columnToReturn=_feature_id")
+    endpoint should be ("/regions/sfo_zipcodes/stringcode?columnToMatch=zip&columnToReturn=user_defined_key")
   }
 
   test("genEndpoint - parameters are missing") {
@@ -105,7 +105,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     ex.getMessage should include ("parameters does not contain 'column'")
   }
 
-  test("genEndpoint - primary_key is missing") {
+  test("genEndpoint - primary_key is missing - default to _feature_id") {
     val columnDef = mock[ColumnRecordLike]
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
@@ -114,10 +114,8 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
         Some(Seq(sourceColumn)),
         Some(JObject(Map("region" -> JString("sfo_zipcodes"), "column" -> JString("zip")))))))
 
-    val ex = the [IllegalArgumentException] thrownBy {
-      handler.invokePrivate(genEndpoint(columnDef)).size
-    }
-    ex.getMessage should include ("parameters does not contain 'primary_key'")
+    val endpoint = handler.invokePrivate(genEndpoint(columnDef))
+    endpoint should be ("/regions/sfo_zipcodes/stringcode?columnToMatch=zip&columnToReturn=_feature_id")
   }
 
   test("extractSourceColumnValueFromRow - source column contains a string") {

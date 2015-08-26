@@ -30,6 +30,8 @@ import scalaj.http.{HttpOptions, Http}
 abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDiscovery[T]) extends ComputationHandler {
   import ComputationHandler._
 
+  val defaultRegionPrimaryKey = "_feature_id"
+
   // Get config values
   val serviceName    = config.getString("service-name")
   val batchSize      = config.getInt("batch-size")
