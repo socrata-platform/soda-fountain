@@ -34,11 +34,11 @@ class GeoregionMatchOnPointHandler[T](config: Config, discovery: ServiceDiscover
   protected def genEndpoint(computedColumn: ColumnRecordLike): String = {
     require(computedColumn.computationStrategy.isDefined, "No computation strategy found")
     computedColumn.computationStrategy match {
-      case Some(ComputationStrategyRecord(_, _, _, Some(JObject(map)))) =>
-        require(map.contains("region"), "parameters does not contain 'region'")
-        val JString(region) = map("region")
+      case Some(ComputationStrategyRecord(_, _, _, Some(JObject(params)))) =>
+        require(params.contains("region"), "parameters does not contain 'region'")
+        val JString(region) = params("region")
         // Falling back to a default primary_key so we don't break things
-        val JString(primaryKey) = map.getOrElse("primary_key", JString(defaultRegionPrimaryKey))
+        val JString(primaryKey) = params.getOrElse("primary_key", JString(defaultRegionPrimaryKey))
         s"/regions/$region/pointcode?columnToReturn=$primaryKey"
       case x =>
         throw new IllegalArgumentException("Computation strategy parameters were invalid." +
