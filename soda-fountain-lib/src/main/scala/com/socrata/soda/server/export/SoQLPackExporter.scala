@@ -30,7 +30,8 @@ object SoQLPackExporter extends Exporter {
              charset: AliasedCharset,
              schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]],
-             singleRow: Boolean = false) {
+             singleRow: Boolean = false,
+             options: Map[String, String] = Map()) {
     val mt = new MimeType(mimeTypeBase)
     resp.setContentType(mt.toString)
     for {

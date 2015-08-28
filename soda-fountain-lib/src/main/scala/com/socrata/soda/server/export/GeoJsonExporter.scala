@@ -13,6 +13,7 @@ import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
 import java.io.BufferedWriter
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
+import com.socrata.http.server.HttpRequest
 
 /**
  * Exports rows as GeoJSON
@@ -33,11 +34,19 @@ object GeoJsonExporter extends Exporter {
     schema.count(_.typ.isInstanceOf[SoQLGeometryLike[_]]) == 1
   }
 
+  override def pluckOptions(req: HttpRequest): Map[String, String] = {
+    req.queryParameter("crs") match {
+      case Some(crs) => Map("crs" -> crs)
+      case _ => Map()
+    }
+  }
+
   def export(resp: HttpServletResponse,
              charset: AliasedCharset,
              schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]],
-             singleRow: Boolean = false) {
+             singleRow: Boolean = false,
+             options: Map[String, String] = Map()) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
@@ -46,7 +55,7 @@ object GeoJsonExporter extends Exporter {
       rawWriter <- managed(resp.getWriter)
       w <- managed(new BufferedWriter(rawWriter, 65536))
     } yield {
-      val processor = new GeoJsonProcessor(w, schema, singleRow)
+      val processor = new GeoJsonProcessor(w, schema, singleRow, options)
       processor.go(rows)
     }
   }
@@ -55,12 +64,13 @@ object GeoJsonExporter extends Exporter {
 /**
  * Generates GeoJSON from a schema
  */
-class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, singleRow: Boolean) {
+class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, singleRow: Boolean, options: Map[String, String]) {
   import GeoJsonProcessor._
 
   val wgs84ProjectionInfo = """{ "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } }"""
   val featureCollectionPrefix = """{ "type": "FeatureCollection", "features": ["""
   val featureCollectionSuffix = s"""], "crs" : $wgs84ProjectionInfo }"""
+  val featureCollectionSuffixSansCrs = s"""]}"""
 
   val geoColumnIndex = getGeoColumnIndex(schema.schema)
   val propertyNames = schema.schema.map { ci => ci.fieldName.name }
@@ -92,6 +102,28 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
       case _                    => JNull
     }
 
+  private def getCrsPayload(): Option[String] = {
+    options.get("crs") match {
+      case Some(crs84) if crs84.toLowerCase().equals("crs84") => None
+      case None => Some("crs84")
+      case Some(invalidCrs) => throw UnsupportedCoordinateReferenceSystem
+    }
+  }
+
+  private def getGeoJsonCrs: Map[String, JValue] = {
+    getCrsPayload() match {
+      case Some(crs) => Map("crs" -> JsonReader.fromString(wgs84ProjectionInfo))
+      case None => Map()
+    }
+  }
+
+  private def getGeoJsonSuffix = {
+    getCrsPayload() match {
+      case Some(crs) => featureCollectionSuffix
+      case None => featureCollectionSuffixSansCrs
+    }
+  }
+
   private def writeGeoJsonRow(row: Array[SoQLValue]) {
     val properties = row.zipWithIndex.filterNot(_._2 == geoColumnIndex).map { case (value, index) =>
       propertyNames(index) -> propertyReps(index).toJValue(value)
@@ -100,7 +132,9 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
     val map = Map("type"       -> JString("Feature"),
                   "geometry"   -> getGeometryJson(row(geoColumnIndex)),
                   "properties" -> JObject(properties.toMap))
-    val finalMap = if (singleRow) map + ("crs" -> JsonReader.fromString(wgs84ProjectionInfo)) else map
+
+
+    val finalMap = if (singleRow) map ++ getGeoJsonCrs else map
 
     jsonWriter.write(JObject(finalMap))
   }
@@ -118,7 +152,7 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
       writeGeoJsonRow(rows.next())
     }
 
-    if(!singleRow) writer.write(featureCollectionSuffix)
+    if(!singleRow) writer.write(getGeoJsonSuffix)
   }
 }
 
@@ -127,4 +161,5 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
  */
 object GeoJsonProcessor {
   object InvalidGeoJsonSchema extends Exception
+  object UnsupportedCoordinateReferenceSystem extends Exception
 }

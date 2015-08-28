@@ -6,7 +6,7 @@ import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.conversions._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.DatasetsForTesting
-import com.socrata.soda.server.export.GeoJsonProcessor.InvalidGeoJsonSchema
+import com.socrata.soda.server.export.GeoJsonProcessor.{UnsupportedCoordinateReferenceSystem, InvalidGeoJsonSchema}
 import com.socrata.soda.server.highlevel.{ExportDAO, CJson}
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.ColumnId
@@ -28,79 +28,79 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
     "type" -> JString("name"),
     "properties" -> JObject(Map("name" -> JString("urn:ogc:def:crs:OGC:1.3:CRS84")))))
 
-  test("Multi row - dataset with single geo column") {
-    val columns = Seq(
-      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
-    )
+  val columns = Seq(
+    new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
+    new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
+  )
 
-    val rows = Seq[Array[SoQLValue]](
-      Array(SoQLText("Volunteer Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.314822 47.630269)").get)),
-      Array(SoQLText("Cal Anderson Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.319071 47.617296)").get)),
-      Array(SoQLText("Seward Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.252513 47.555530)").get))
-    )
+  val singleRows = Seq[Array[SoQLValue]](
+    Array(SoQLText("Volunteer Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.314822 47.630269)").get))
+  )
 
-    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, false)
+  val singleExpected = Map(
+    "type"     -> JString("Feature"),
+    "geometry" -> JObject(Map(
+      "type" -> JString("Point"),
+      "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.314822"),
+        JNumber.unsafeFromString("47.630269"))))),
+    "properties" -> JObject(Map("name" -> JString("Volunteer Park"))))
 
-    val expectedGeoJson =
+  val multiRows = Seq[Array[SoQLValue]](
+    Array(SoQLText("Volunteer Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.314822 47.630269)").get)),
+    Array(SoQLText("Cal Anderson Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.319071 47.617296)").get)),
+    Array(SoQLText("Seward Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.252513 47.555530)").get))
+  )
+
+  val multiExpected = Map(
+    "type"     -> JString("FeatureCollection"),
+    "features" -> JArray(Array(
       JObject(Map(
-        "type"     -> JString("FeatureCollection"),
-        "features" -> JArray(Array(
-          JObject(Map(
-            "type"     -> JString("Feature"),
-            "geometry" -> JObject(Map(
-              "type" -> JString("Point"),
-              "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.314822"),
-                JNumber.unsafeFromString("47.630269"))))),
-            "properties" -> JObject(Map("name" -> JString("Volunteer Park"))))),
-          JObject(Map(
-            "type"     -> JString("Feature"),
-            "geometry" -> JObject(Map(
-              "type" -> JString("Point"),
-              "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.319071"),
-                JNumber.unsafeFromString("47.617296"))))),
-            "properties" -> JObject(Map("name" -> JString("Cal Anderson Park"))))),
-          JObject(Map(
-            "type"     -> JString("Feature"),
-            "geometry" -> JObject(Map(
-              "type" -> JString("Point"),
-              "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.252513"),
-                JNumber.unsafeFromString("47.55553"))))), // in v3, we don't keep trailing 0s.  Was 47.555530
-            "properties" -> JObject(Map("name" -> JString("Seward Park")))))
-        )),
-        expectedProjection))
+        "type"     -> JString("Feature"),
+        "geometry" -> JObject(Map(
+          "type" -> JString("Point"),
+          "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.314822"),
+            JNumber.unsafeFromString("47.630269"))))),
+        "properties" -> JObject(Map("name" -> JString("Volunteer Park"))))),
+      JObject(Map(
+        "type"     -> JString("Feature"),
+        "geometry" -> JObject(Map(
+          "type" -> JString("Point"),
+          "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.319071"),
+            JNumber.unsafeFromString("47.617296"))))),
+        "properties" -> JObject(Map("name" -> JString("Cal Anderson Park"))))),
+      JObject(Map(
+        "type"     -> JString("Feature"),
+        "geometry" -> JObject(Map(
+          "type" -> JString("Point"),
+          "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.252513"),
+            JNumber.unsafeFromString("47.55553"))))),
+        "properties" -> JObject(Map("name" -> JString("Seward Park")))))
+    )))
 
+
+  test("Multi row - dataset with single geo column") {
+    val geoJson = getGeoJson(columns, "hym8-ivsj", multiRows, false)
+    val expectedGeoJson = JObject(multiExpected + expectedProjection)
     geoJson should be (expectedGeoJson)
   }
 
-  test("Single row - dataset with single geo column") {
-    val columns = Seq(
-      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
-    )
+  test("Multi row - dataset with single geo column and explicit CRS") {
+    val geoJson = getGeoJson(columns, "hym8-ivsj", multiRows, false, "crs84")
+    val expectedGeoJson = JObject(multiExpected)
+    geoJson should be (expectedGeoJson)
+  }
 
-    val rows = Seq[Array[SoQLValue]](
-      Array(SoQLText("Volunteer Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.314822 47.630269)").get))
-    )
+  test("Single row - with explicit CRS") {
+    val geoJson = getGeoJson(columns, "hym8-ivsj", singleRows, true, "crs84")
+    geoJson should be (JObject(singleExpected))
+  }
 
-    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, true)
-    geoJson should be (
-        JObject(Map(
-          "type"     -> JString("Feature"),
-          "geometry" -> JObject(Map(
-            "type" -> JString("Point"),
-            "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.314822"),
-              JNumber.unsafeFromString("47.630269"))))),
-          "properties" -> JObject(Map("name" -> JString("Volunteer Park"))),
-          expectedProjection)))
+  test("Single row - dataset with single geo column and default crs") {
+    val geoJson = getGeoJson(columns, "hym8-ivsj", singleRows, true)
+    geoJson should be (JObject(singleExpected + expectedProjection))
   }
 
   test("Single row - dataset with null geo column") {
-    val columns = Seq(
-      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
-    )
-
     val rows = Seq[Array[SoQLValue]](
       Array(SoQLText("Volunteer Park"), SoQLNull)
     )
@@ -116,18 +116,12 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
 
 
   test("Multi row - dataset with single geo column and some rows with empty geo value") {
-    val columns = Seq(
-      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
-    )
-
     val rows = Seq[Array[SoQLValue]](
       Array(SoQLText("Volunteer Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.314822 47.630269)").get)),
       Array(SoQLText("Cal Anderson Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.319071 47.617296)").get)),
       Array(SoQLText("Phantom Park"), null),
       Array(SoQLText("Seward Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.252513 47.555530)").get))
     )
-
     val geoJson = getGeoJson(columns, "hym8-ivsj", rows, false)
     geoJson should be (JObject(Map(
       "type"     -> JString("FeatureCollection"),
@@ -157,8 +151,7 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
             "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.252513"),
               JNumber.unsafeFromString("47.55553"))))),
           "properties" -> JObject(Map("name" -> JString("Seward Park")))))
-      )),
-      expectedProjection)))
+      ))) + expectedProjection))
   }
 
   test("Dataset with no geo column") {
@@ -192,17 +185,27 @@ class GeoJsonExporterTest  extends FunSuite with MockFactory with ProxyMockFacto
     a [InvalidGeoJsonSchema.type] should be thrownBy { getGeoJson(columns, "hym8-ivsj", rows, false) }
   }
 
+  test("Dataset with invalid explicit crs") {
+    a [UnsupportedCoordinateReferenceSystem.type] should be thrownBy { getGeoJson(columns, "hym8-ivsj", singleRows, true, "EPSG:4326") }
+  }
+
   private def getGeoJson(columns: Seq[ColumnRecord],
                          pk: String,
                          rows: Seq[Array[SoQLValue]],
-                         singleRow: Boolean): JValue = {
+                         singleRow: Boolean,
+                         crsCode: String = null): JValue = {
     for { out    <- managed(new StringWriter)
           writer <- managed(new PrintWriter(out)) } yield {
       val mockResponse = mock[HttpServletResponse]
       mockResponse.expects('setContentType)("application/vnd.geo+json; charset=UTF-8")
       mockResponse.expects('getWriter)().returning(writer)
 
-      GeoJsonExporter.export(mockResponse, charset, getDCSchema(columns, pk, rows), rows.iterator, singleRow)
+      val options: Map[String, String] = Option(crsCode) match {
+        case Some(crs) => Map("crs" -> crsCode)
+        case None => Map()
+      }
+
+      GeoJsonExporter.export(mockResponse, charset, getDCSchema(columns, pk, rows), rows.iterator, singleRow, options)
 
       JsonReader.fromString(out.toString)
     }
