@@ -3,6 +3,7 @@ package com.socrata.soda.server
 import com.mchange.v2.c3p0.DataSources
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import com.socrata.http.common.AuxiliaryData
+import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.handlers.{NewLoggingHandler, ThreadRenamingHandler}
 import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
@@ -19,7 +20,7 @@ import com.socrata.thirdparty.curator.{CuratorFromConfig, DiscoveryFromConfig}
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import java.io.Closeable
 import java.security.SecureRandom
-import java.util.concurrent.Executors
+import java.util.concurrent.{CountDownLatch, TimeUnit, Executors}
 import javax.sql.DataSource
 import org.apache.log4j.PropertyConfigurator
 import scala.collection.mutable
@@ -49,22 +50,23 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
             SodaUtils.internalError(req, e)
         }
 
-        { resp =>
-          try {
-            httpResponse(resp)
-          } catch {
-            case e: Throwable if !e.isInstanceOf[Error] =>
-              if(!resp.isCommitted) {
-                resp.reset()
-                SodaUtils.internalError(req, e)(resp)
-              } else {
-                log.warn("Caught exception but the response is already committed; just cutting the client off" +
-                         "\n" + e.getMessage, e)
-              }
-          }
+      { resp =>
+        try {
+          httpResponse(resp)
+        } catch {
+          case e: Throwable if !e.isInstanceOf[Error] =>
+            if (!resp.isCommitted) {
+              resp.reset()
+              SodaUtils.internalError(req, e)(resp)
+            } else {
+              log.warn("Caught exception but the response is already committed; just cutting the client off" +
+                "\n" + e.getMessage, e)
+            }
         }
       }
-    }
+      }
+      }
+
 
   // Below this line is all setup.
   // Note: all initialization that can possibly throw should
@@ -154,6 +156,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
 
+  val tableDropDelay = config.tableDropDelay
+  val dataCleanupInterval = config.dataCleanupInterval
   val router = i {
     import com.socrata.soda.server.resources._
 
@@ -187,6 +191,31 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       sampleResource = suggest.sampleService,
       suggestResource = suggest.service
     )
+  }
+
+  //For each of the datasets, call a delete function on each one of them
+  //Remove datasets from truth and secondary and sodafountain
+  val finished = new CountDownLatch(1)
+  val tableDropper = new Thread() {
+    setName("table dropper")
+
+    override def run() {
+      do {
+        log.info("Checking for datasets to drop...")
+        try {
+          val records = store.lookupDroppedDatasets(tableDropDelay)
+          records.foreach { rec =>
+            log.info(s"Dropping dataset ${rec.resourceName} (${rec.systemId}")
+            datasetDAO.removeDataset("", rec.resourceName, RequestId.generate())
+          }
+          //call data coordinator to remove datasets in truth
+        }
+        catch {
+          case e: Exception =>
+            log.error("Unexpected error while cleaning tables", e)
+        }
+      } while (!finished.await(dataCleanupInterval, TimeUnit.SECONDS))
+    }
   }
 
   def close() { // simulate a cascade of "finally" blocks

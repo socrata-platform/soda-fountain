@@ -102,7 +102,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.deleteDataset(user(req), resourceName, RequestId.getFromRequest(req)))
+      response(req, datasetDAO.markDatasetForDeletion(user(req), resourceName))
     }
   }
 

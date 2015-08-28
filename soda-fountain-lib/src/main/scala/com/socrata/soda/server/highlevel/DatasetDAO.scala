@@ -19,7 +19,8 @@ trait DatasetDAO {
                     dataset: ResourceName,
                     spec: UserProvidedDatasetSpec,
                     requestId: RequestId): Result
-  def deleteDataset(user: String, dataset: ResourceName, requestId: RequestId): Result
+  def markDatasetForDeletion(user: String, dataset: ResourceName): Result
+  def removeDataset(user: String, dataset: ResourceName, requestId: RequestId):Result
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
   def getCurrentCopyNum(dataset: ResourceName): Option[Long]

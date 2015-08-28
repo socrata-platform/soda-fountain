@@ -19,7 +19,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
     val foundRecord = store.translateResourceName(resourceName)
     foundRecord match {
-      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, cols, _, stage, _)) =>
+      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, cols, _, stage, _, _)) =>
         stage should equal (Some(Unpublished))
         rn should equal (resourceName)
         did should equal (datasetId)
@@ -59,7 +59,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
     val f = store.translateResourceName(resourceName)
     f match {
-      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, Seq(MinimalColumnRecord(col1, _, _, _, None), MinimalColumnRecord(col2, _, _, _, None)), _, _, _)) =>
+      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, Seq(MinimalColumnRecord(col1, _, _, _, None), MinimalColumnRecord(col2, _, _, _, None)), _, _, _, _)) =>
         col1 should equal (ColumnId("abc123"))
         col2 should equal (ColumnId("def456"))
       case None => fail("didn't find columns")
@@ -81,7 +81,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     val f = store.translateResourceName(resourceName)
     f match {
       case Some(MinimalDatasetRecord(rn, did, loc, sch, pky,
-        Seq(MinimalColumnRecord(columnId, columnName, _, _, _)), _, _, _)) =>
+        Seq(MinimalColumnRecord(columnId, columnName, _, _, _)), _, _, _, _)) =>
         columnId should be (ColumnId("one"))
         columnName should be (ColumnName("new_field_name"))
       case None => fail("didn't find columns")
@@ -270,6 +270,70 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     unpublishedCopy.get.columns.foreach(println)
     unpublishedCopy.get.columns should be (columns.filter(_.description != "deleted"))
   }
+
+  test ("dropping a dataset - check if metadata is updated - check if 'deleted-at' column is updated in metadata tables  datasets and dataset_copies") {
+
+    val columns = Seq[ColumnRecord](
+      new ColumnRecord(
+        ColumnId("abc123"),
+        ColumnName("a b c 1 2 3"),
+        SoQLText,
+        "column name human",
+        "column desc human",
+        false,
+        None),
+      new ColumnRecord(
+        ColumnId("def456"),
+        ColumnName("d e f 4 5 6"),
+        SoQLText,
+        "column name human",
+        "column desc human",
+        false,
+        None
+      )
+    )
+    val (resourceName, _) = createMockDataset(columns)
+    store.markResourceForDeletion(resourceName)
+    val f = store.translateResourceName(resourceName, isDeleted = true)
+    f match {
+      case Some(record) =>
+        record.deletedAt should be ('defined)
+      case None => fail("deleted_at column was not set in datasets")
+    }
+  }
+
+  test ("deleting a dataset - check if metadata is removed") {
+    val columns = Seq[ColumnRecord](
+      new ColumnRecord(
+        ColumnId("abc123"),
+        ColumnName("a b c 1 2 3"),
+        SoQLText,
+        "column name human",
+        "column desc human",
+        false,
+        None),
+      new ColumnRecord(
+        ColumnId("def456"),
+        ColumnName("d e f 4 5 6"),
+        SoQLText,
+        "column name human",
+        "column desc human",
+        false,
+        None
+      )
+    )
+    val (resourceName, _) = createMockDataset(columns)
+    store.markResourceForDeletion(resourceName)
+    store.removeResource(resourceName)
+    val f = store.translateResourceName(resourceName, isDeleted = true)
+    f match {
+      case Some (record) =>
+            fail ("metadata was not deleted")
+      case None =>
+        None
+      }
+
+    }
 
   private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetId) = {
     val dataset = generateDataset("PostgresStoreTest", columns)

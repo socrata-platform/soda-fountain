@@ -1,5 +1,7 @@
 package com.socrata.soda.server.highlevel
 
+import com.socrata.http.server.util.RequestId
+import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.{DropRollupInstruction, CreateOrUpdateRollupInstruction, SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
 import com.socrata.soda.server.id.{ColumnId, SecondaryId, ResourceName, RollupName}
@@ -17,6 +19,7 @@ import com.socrata.soql.environment.{DatasetContext, ColumnName}
 import com.socrata.soql.functions.SoQLFunctionInfo
 import com.socrata.soql.functions.SoQLTypeInfo
 import DatasetDAO._
+import scala.concurrent.duration.FiniteDuration
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Unpublished, Stage}
 
@@ -130,12 +133,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                     spec: UserProvidedDatasetSpec,
                     requestId: RequestId): Result = ???
 
-  def deleteDataset(user: String, dataset: ResourceName, requestId: RequestId): Result = {
+  def removeDataset (user: String, dataset: ResourceName, requestId: RequestId): Result = {
     retryable(limit = 5) {
-      store.translateResourceName(dataset) match {
+      store.translateResourceName(dataset, deleted = true) match {
         case Some(datasetRecord) =>
-          dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, user,
-                             traceHeaders(requestId, dataset)) {
+          dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, "",
+            traceHeaders(RequestId.generate(), dataset))
+          {
             case DataCoordinatorClient.Success(_, _, _, _, _) =>
               store.removeResource(dataset)
               Deleted
@@ -151,6 +155,16 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           NotFound(dataset)
       }
     }
+  }
+  def markDatasetForDeletion(user: String, dataset: ResourceName): Result = {
+    //TODO: Ask about retryable and give a return value
+      store.translateResourceName(dataset) match {
+        case Some(datasetRecord) =>
+          store.markResourceForDeletion(dataset)
+          Deleted
+        case None =>
+          NotFound(dataset)
+      }
   }
 
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result =
@@ -277,7 +291,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       case None =>
         NotFound(dataset)
     }
-
 
   /**
    * Maps a rollup definition column name to column id that can be used by lower layers

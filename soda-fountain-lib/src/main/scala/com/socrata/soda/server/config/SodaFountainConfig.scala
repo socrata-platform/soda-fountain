@@ -22,6 +22,8 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val suggest = getConfig("suggest", new SuggestConfig(_,_))
   val codaMetrics = getRawConfig("metrics")
   val threadpool = getRawConfig("threadpool")
+  val tableDropDelay = getDuration("tableDropDelay")
+  val dataCleanupInterval = getInt("dataCleanupInterval")
 }
 
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
