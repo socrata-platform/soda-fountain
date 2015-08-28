@@ -2,9 +2,10 @@ package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.ast.JValue
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.UnrefinedUserError
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.copy.Latest
-import com.socrata.soda.server.highlevel.ColumnDAO.Result
+import com.socrata.soda.server.highlevel.ColumnDAO.{NonUniqueRowId, Result}
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soda.server.SodaUtils
@@ -128,13 +129,10 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                   case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
                     retry()
-                  case DataCoordinatorClient.UpsertUserError(code, data) =>
-                    code match {
-                      case "update.row-identifier.duplicate-values" => ColumnDAO.NonUniqueRowId(columnRecord)
-                      case "update.dataset.invalid-state" => ColumnDAO.InvalidDatasetState(data)
-                      case otherCode => ColumnDAO.UserError(otherCode, data)
-
-                    }
+                  case DataCoordinatorClient.DuplicateValuesInColumn =>
+                    ColumnDAO.NonUniqueRowId(columnRecord)
+                  case UnrefinedUserError(code) =>
+                    ColumnDAO.UserError(code, Map.empty)
                   // TODO other cases have not been implemented
                   case _@x =>
                     log.warn("case is NOT implemented")

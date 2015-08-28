@@ -43,3 +43,12 @@ object ColumnId {
 case class SecondaryId(underlying: String) extends AbstractId
 
 case class RowSpecifier(underlying: String) extends AbstractId
+
+object RowSpecifier {
+  implicit val jCodec = new JsonEncode[RowSpecifier] with JsonDecode[RowSpecifier] {
+    def encode(x: RowSpecifier): JValue = JString(x.underlying)
+    def decode(x: JValue): DecodeResult[RowSpecifier] = x match {
+      case JString(s) => Right(RowSpecifier(s))
+      case u => Left(InvalidType(JString, u.jsonType))
+    }}
+}

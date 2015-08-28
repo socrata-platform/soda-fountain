@@ -60,6 +60,8 @@ object UpsertUtils {
         SodaUtils.errorResponse(request, SodaErrors.DatasetNotFound(dataset))(response)
       case RowDAO.SchemaOutOfSync =>
         SodaUtils.errorResponse(request, SodaErrors.SchemaInvalidForMimeType)(response)
+      case RowDAO.UnrefinedUpsertUserError(code, data) =>
+        SodaUtils.errorResponse(request, SodaErrors.UnrefinedUserError(code, data))(response)
     }
   }
 
