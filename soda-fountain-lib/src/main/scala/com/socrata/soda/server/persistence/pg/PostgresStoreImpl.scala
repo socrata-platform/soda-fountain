@@ -31,7 +31,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   def toTimestamp(time: DateTime): Timestamp = new Timestamp(time.getMillis)
   def toDateTime(time: Timestamp): DateTime = new DateTime(time.getTime)
   def toDateTimeOptional(time:Timestamp): Option[DateTime] =
-    Option(time).map {t=> new DateTime (t.getTime())}
+    Option(time).map { t => new DateTime(t.getTime()) }
 
 
   def latestCopyNumber(resourceName: ResourceName): Long = {
