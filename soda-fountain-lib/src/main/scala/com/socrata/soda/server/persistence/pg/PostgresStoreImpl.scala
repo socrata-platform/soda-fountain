@@ -124,8 +124,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   def lookupDataset(resourceName: ResourceName): Seq[DatasetRecord] = lookupDataset(resourceName, None)
 
   private def lookupDataset(resourceName: ResourceName, copyNumber: Option[Long]): Seq[DatasetRecord] = {
-
-
     val sql = fetchDatasetSql(resourceName = true,
                               copyNumber = {if (copyNumber.isDefined) true else false},
                               isDeleted = false)
@@ -805,7 +803,7 @@ object PostgresStoreImpl {
 
   def fetchDatasetSql (resourceName: Boolean, copyNumber: Boolean, isDeleted: Boolean) = {
     val resourceNameFilter = if (resourceName) "WHERE d.resource_name_casefolded = ?"  else ""
-    val deletedFilter = if (!isDeleted) "AND d.deleted_at is null" else "AND d.deleted_at < now() - (?::INTERVAL)"
+    val deletedFilter = if (!isDeleted) "AND d.deleted_at is null AND c.deleted_at is null" else "AND d.deleted_at < now() - (?::INTERVAL)"
     val copyNumberFilter = if (copyNumber) "And c.copy_number = ?" else ""
     s"""SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, c.schema_hash, d.last_modified, d.deleted_at,
     c.copy_number, c.primary_key_column_id, c.latest_version, c.lifecycle_stage, c.updated_at
