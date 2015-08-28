@@ -14,6 +14,7 @@ import com.typesafe.config.ConfigFactory
 object SodaFountainJetty extends App {
   val config = new SodaFountainConfig(ConfigFactory.load())
   val metricsOptions = MetricsOptions(config.codaMetrics)
+
   for {
     sodaFountain <- managed(new SodaFountain(config))
     discovery <- DiscoveryFromConfig(classOf[Void], sodaFountain.curator, config.discovery)
@@ -31,8 +32,13 @@ object SodaFountainJetty extends App {
           config.discovery.name,
           None)))
 
-    sodaFountain.tableDropper.start()
-    server.run()
+    try {
+      sodaFountain.tableDropper.start()
+      server.run()
+    } finally {
+      sodaFountain.finished.countDown()
+    }
 
+    sodaFountain.tableDropper.join()
   }
 }
