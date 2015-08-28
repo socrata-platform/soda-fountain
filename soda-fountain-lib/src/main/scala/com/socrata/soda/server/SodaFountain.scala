@@ -201,9 +201,11 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
     override def run() {
       do {
+        log.info("Checking for datasets to drop...")
         try {
           val records = store.lookupDroppedDatasets(tableDropDelay)
           records.foreach { rec =>
+            log.info(s"Dropping dataset ${rec.resourceName} (${rec.systemId}")
             datasetDAO.removeDataset("", rec.resourceName, RequestId.generate())
           }
           //call data coordinator to remove datasets in truth
