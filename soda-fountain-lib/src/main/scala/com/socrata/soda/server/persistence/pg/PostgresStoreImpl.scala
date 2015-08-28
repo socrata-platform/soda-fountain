@@ -548,8 +548,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       for(datasetId <- datasetIdOpt) {
         using(connection.prepareStatement(
           """
-            delete from columns where dataset_system_id = ?;
             delete from computation_strategies where dataset_system_id = ?;
+            delete from columns where dataset_system_id = ?;
             delete from dataset_copies where dataset_system_id = ?;
             delete from datasets where dataset_system_id = ?;
           """)) { deleter =>
