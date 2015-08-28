@@ -111,7 +111,8 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                 newTag.foreach { tag =>
                   ETag(prepareTag(tag))(resp)
                 }
-                exporter.export(resp, charset, schema, rows)
+                log.info(s"Exporting with options ${exporter.pluckOptions(req)}")
+                exporter.export(resp, charset, schema, rows, options = exporter.pluckOptions(req))
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
               case ExportDAO.NotModified(etags) =>

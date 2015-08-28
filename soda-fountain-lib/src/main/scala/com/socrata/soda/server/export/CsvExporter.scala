@@ -14,7 +14,13 @@ object CsvExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("csv")
 
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
+  def export(resp: HttpServletResponse,
+    charset: AliasedCharset,
+    schema: ExportDAO.CSchema,
+    rows: Iterator[Array[SoQLValue]],
+    singleRow: Boolean = false,
+    options: Map[String, String] = Map()
+  ) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
