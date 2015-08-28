@@ -12,6 +12,7 @@ import com.typesafe.config.ConfigFactory
 
 
 object SodaFountainJetty extends App {
+  val log = org.slf4j.LoggerFactory.getLogger(getClass)
   val config = new SodaFountainConfig(ConfigFactory.load())
   val metricsOptions = MetricsOptions(config.codaMetrics)
 
@@ -33,12 +34,16 @@ object SodaFountainJetty extends App {
           None)))
 
     try {
+      log.info("starting table dropper thread")
       sodaFountain.tableDropper.start()
+      log.info("starting soda fountain")
       server.run()
     } finally {
       sodaFountain.finished.countDown()
     }
 
+    log.info("soda fountain stopped... terminating table dropper")
     sodaFountain.tableDropper.join()
+    log.info("table dropper terminated")
   }
 }
