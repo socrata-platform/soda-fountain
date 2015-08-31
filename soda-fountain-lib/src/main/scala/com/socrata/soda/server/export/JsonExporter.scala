@@ -75,7 +75,7 @@ object JsonExporter extends Exporter {
             writer.write("\n,")
             writeJsonRow(rows.next())
           }
-          if(!singleRow) writer.write("\n]\n")
+          if(!singleRow) writer.write("]\n")
           else writer.write("\n")
         }
       }
