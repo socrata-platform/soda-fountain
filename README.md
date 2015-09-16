@@ -38,6 +38,9 @@ For test coverage reports, do `sbt coverage test`.  XML and HTML coverage report
 Using sbt:
 `sbt -Dconfig.file=/etc/soda2.conf "soda-fountain-jetty/run-main com.socrata.soda.server.MigrateSchema [command] [numberOfChanges]"`
 
+For example:
+`sbt -Dconfig.file=/etc/soda2.conf "soda-fountain-jetty/run-main com.socrata.soda.server.MigrateSchema migrate"`
+
 To build and run migrations from command line:
 `bin/run_migrations.sh`
 
