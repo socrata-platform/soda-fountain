@@ -35,6 +35,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
       case Some(ds) =>
         getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup, requestId, resourceScope)
       case None =>
+        log.info("dataset not found {}", resourceName.name)
         DatasetNotFound(resourceName)
     }
   }
