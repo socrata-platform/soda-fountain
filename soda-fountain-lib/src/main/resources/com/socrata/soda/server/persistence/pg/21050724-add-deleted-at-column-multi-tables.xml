@@ -5,7 +5,7 @@
                    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
     <changeSet author="Nathalie Kaligirwa" id="21050724-add-deleted-at-column-multi-tables">
 
-        <preConditions onFail="WARN">
+        <preConditions onFail="MARK_RAN">
             <not>
                 <columnExists tableName="datasets" columnName="deleted_at"/>
             </not>
