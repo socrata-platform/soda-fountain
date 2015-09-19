@@ -31,9 +31,6 @@ class RowDataTranslatorTest extends FunSuite with Matchers with DatasetsForTesti
   test("transformClientRowsForUpsert - upsert contains value for computed column") {
     val rows = Iterator(JObject(Map("source"    -> JString("foo"),
                                     ":computed" -> JString("bar"))))
-
-    a [ComputedColumnNotWritableEx] should be thrownBy
-      translator.transformClientRowsForUpsert(TestComputedColumns, rows).next()
   }
 
   test("transformClientRowsForUpsert - upsert contains wrong data type") {

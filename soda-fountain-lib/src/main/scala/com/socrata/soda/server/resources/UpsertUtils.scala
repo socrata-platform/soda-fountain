@@ -29,8 +29,6 @@ object UpsertUtils {
         handleResponse(RowDAO.DeleteWithoutPrimaryKey)
       case NotAnObjectOrSingleElementArrayEx(obj)    =>
         handleResponse(RowDAO.RowNotAnObject(obj))
-      case ComputedColumnNotWritableEx(columnName)   =>
-        handleResponse(RowDAO.ComputedColumnNotWritable(columnName))
       case ComputationHandlerNotFoundEx(typ)         =>
         handleResponse(RowDAO.ComputationHandlerNotFound(typ))
     }
@@ -50,8 +48,6 @@ object UpsertUtils {
         SodaUtils.errorResponse(request, SodaErrors.RowColumnNotFound(columnName))(response)
       case RowDAO.ComputationHandlerNotFound(typ) =>
         SodaUtils.errorResponse(request, SodaErrors.ComputationHandlerNotFound(typ))(response)
-      case RowDAO.ComputedColumnNotWritable(columnName) =>
-        SodaUtils.errorResponse(request, SodaErrors.ComputedColumnNotWritable(columnName))(response)
       case RowDAO.DeleteWithoutPrimaryKey =>
         SodaUtils.errorResponse(request, SodaErrors.DeleteWithoutPrimaryKey)(response)
       case RowDAO.RowNotAnObject(obj) =>
