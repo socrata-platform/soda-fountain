@@ -103,9 +103,6 @@ class RowDataTranslator(requestId: RequestId,
       val rowWithSoQLValues = map.flatMap { case (uKey, uVal) =>
         columnNameCache.get(uKey) match {
           case ColumnInfo(cr, rRep, wRep) =>
-            if (cr.computationStrategy.isDefined) {
-              throw ComputedColumnNotWritableEx(cr.fieldName)
-            }
             rRep.fromJValue(uVal) match {
               case Some(v) => (cr.id.underlying -> v) :: Nil
               case None => throw MaltypedDataEx(cr.fieldName, rRep.representedType, uVal)
@@ -166,6 +163,5 @@ object RowDataTranslator {
   case class UnknownColumnEx(col: ColumnName) extends Exception(s"Unrecognized column $col")
   case object DeleteNoPKEx extends Exception
   case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends Exception(s"Inappropriate JValue $obj")
-  case class ComputedColumnNotWritableEx(column: ColumnName) extends Exception(s"Column $column is not writable")
   case class ComputationHandlerNotFoundEx(typ: ComputationStrategyType.Value) extends Exception(s"Computation strategy $typ was not found")
 }

@@ -160,10 +160,6 @@ case class ComputationHandlerNotFound(typ: ComputationStrategyType.Value)
   extends SodaError(SC_BAD_REQUEST, "soda.column.computation-handler-not-found",
     "computation-strategy" -> JString(typ.toString))
 
-case class ComputedColumnNotWritable(value: ColumnName)
-  extends SodaError(SC_BAD_REQUEST, "soda.row.computed-column-not-writable",
-    "value" -> JString(value.name))
-
 case class NotAComputedColumn(value: ColumnName)
   extends SodaError(SC_BAD_REQUEST, "soda.column.not-a-computed-column",
     "value" -> JString(value.name))
