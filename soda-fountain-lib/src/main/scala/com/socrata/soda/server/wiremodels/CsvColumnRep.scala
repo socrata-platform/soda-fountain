@@ -102,6 +102,12 @@ object CsvColumnRep {
       else repType.asInstanceOf[SoQLGeometryLike[T]].WktRep(geometry(value))
   }
 
+  object BlobRep extends CsvColumnRep {
+    def toString(value: SoQLValue) =
+      if(SoQLNull == value) null
+      else value.asInstanceOf[SoQLBlob].value
+  }
+
   val forType: Map[SoQLType, CsvColumnRep] = Map(
     SoQLText -> TextRep,
     SoQLFixedTimestamp -> FixedTimestampRep,
@@ -122,6 +128,7 @@ object CsvColumnRep {
     SoQLMultiPolygon -> new GeometryLikeRep[MultiPolygon](SoQLMultiPolygon, _.asInstanceOf[SoQLMultiPolygon].value),
     SoQLLine -> new GeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value),
     SoQLMultiPoint -> new GeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value),
-    SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value)
+    SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value),
+    SoQLBlob -> BlobRep
   )
 }

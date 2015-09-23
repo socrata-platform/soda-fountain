@@ -6,7 +6,7 @@ import com.rojoma.simplearm.util._
 import com.socrata.http.server.SocrataServerJetty
 import com.socrata.http.server.curator.CuratorBroker
 import com.socrata.soda.server.config.SodaFountainConfig
-import com.socrata.thirdparty.curator.DiscoveryFromConfig
+import com.socrata.curator.DiscoveryFromConfig
 import com.socrata.thirdparty.metrics.{SocrataHttpSupport, MetricsOptions, MetricsReporter}
 import com.typesafe.config.ConfigFactory
 

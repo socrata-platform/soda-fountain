@@ -78,6 +78,7 @@ object StringColumnRep {
       SoQLBoolean -> BooleanRep
       //SoQLObject -> ObjectRep,
       //SoQLArray -> ArrayRep,
-      //SoQLJson -> JValueRep
+      //SoQLJson -> JValueRep,
+      //SoQLBlob -> BlobRep
     )
 }

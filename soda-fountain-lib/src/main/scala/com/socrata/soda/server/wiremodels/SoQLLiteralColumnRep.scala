@@ -67,6 +67,12 @@ object SoQLLiteralColumnRep {
       JString(SoQLFloatingTimestamp.StringRep(value.asInstanceOf[SoQLFloatingTimestamp].value)).toString
   }
 
+  object BlobRep extends SoQLLiteralColumnRep {
+    val representedType = SoQLBlob
+    def toRawSoQLLiteral(value: SoQLValue) =
+      JString(value.asInstanceOf[SoQLBlob].value).toString
+  }
+
   val forType: Map[SoQLType, SoQLLiteralColumnRep] =
     Map(
       SoQLText -> TextRep,
@@ -79,9 +85,10 @@ object SoQLLiteralColumnRep {
       SoQLNumber -> NumberRep,
       SoQLMoney -> MoneyRep,
       //SoQLDouble -> DoubleRep,
-      SoQLBoolean -> BooleanRep
+      SoQLBoolean -> BooleanRep,
       //SoQLObject -> ObjectRep,
       //SoQLArray -> ArrayRep,
-      //SoQLJson -> JValueRep
+      //SoQLJson -> JValueRep,
+      SoQLBlob -> BlobRep
     )
 }

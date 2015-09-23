@@ -3,7 +3,7 @@ package com.socrata.soda.clients.regioncoder
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.soda.clients.regioncoder.RegionCoderClient._
 import com.socrata.soda.server.config.RegionCoderClientConfig
-import com.socrata.thirdparty.curator.CuratorServiceBase
+import com.socrata.curator.CuratorServiceBase
 import org.apache.curator.x.discovery.ServiceDiscovery
 import scalaj.http.{HttpOptions, Http}
 import java.net.ConnectException
