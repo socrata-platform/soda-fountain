@@ -10,11 +10,12 @@ object SodaFountainExternal {
         apacheCuratorDiscovery exclude("org.slf4j", "slf4j-log4j12") exclude("log4j", "log4j"),
         rojomaJson,
         rojomaSimpleArm,
+        socrataCuratorUtils,
         socrataHttpClient,
         socrataThirdPartyUtils,
         typesafeConfig,
         Test.apacheCurator,
-        Test.socrataThirdPartyUtils,
+        Test.socrataCuratorUtils,
         Test.wiremock
       ))
 }

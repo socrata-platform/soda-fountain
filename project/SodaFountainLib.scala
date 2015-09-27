@@ -25,6 +25,7 @@ object SodaFountainLib {
       rojomaSimpleArm,
       rojomaSimpleArmV2,
       scalajHttp,
+      socrataCuratorUtils,
       socrataHttpClient,
       socrataHttpServer,
       socrataThirdPartyUtils,
@@ -40,7 +41,7 @@ object SodaFountainLib {
       Test.mockServer exclude("ch.qos.logback", "logback-classic"),
       Test.scalaCheck,
       Test.scalaMock,
-      Test.socrataThirdPartyUtils,
+      Test.socrataCuratorUtils,
       Test.springTest,
       Test.wiremock
     ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))

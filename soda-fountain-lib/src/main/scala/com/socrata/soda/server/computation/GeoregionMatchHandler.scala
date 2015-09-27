@@ -12,7 +12,7 @@ import com.socrata.soda.server.metrics.MetricCounter
 import com.socrata.soda.server.persistence.ColumnRecordLike
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLNumber
-import com.socrata.thirdparty.curator.CuratorServiceBase
+import com.socrata.curator.CuratorServiceBase
 import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
 import org.slf4j.LoggerFactory
