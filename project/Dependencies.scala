@@ -21,10 +21,11 @@ object Dependencies {
     val rojomaSimpleArm   = "1.2.0"
     val rojomaSimpleArmV2 = "2.1.0"
     val scalaj            = "0.3.15"
+    val socrataCuratorUtils = "1.0.3"
     val socrataHttp       = "3.3.3"
-    val soqlBrita         = "1.3.0"
-    val soqlReference     = "0.6.0"
-    val thirdPartyUtils   = "3.1.2"
+    val soqlBrita         = "1.4.0"
+    val soqlReference     = "0.8.1"
+    val thirdPartyUtils   = "4.0.1"
     val typesafeConfig    = "1.0.2"
 
     // Test
@@ -77,6 +78,7 @@ object Dependencies {
   val socrataHttpJetty         = "com.socrata"     %% "socrata-http-jetty"          % versions.socrataHttp
   val socrataHttpServer        = "com.socrata"     %% "socrata-http-server"         % versions.socrataHttp
 
+  val socrataCuratorUtils      = "com.socrata"     %% "socrata-curator-utils"       % versions.socrataCuratorUtils
   val socrataThirdPartyUtils   = "com.socrata"     %% "socrata-thirdparty-utils"    % versions.thirdPartyUtils
 
   val soqlBrita                = "com.socrata"     %% "soql-brita"                  % versions.soqlBrita
@@ -95,7 +97,7 @@ object Dependencies {
     val mockServer             = "org.mock-server"        % "mockserver-netty"      % versions.mockServer      % "test"
     val scalaCheck             = "org.scalacheck"        %% "scalacheck"            % versions.scalaCheck      % "test,it"
     val scalaMock              = "org.scalamock"         %% "scalamock-scalatest-support" % versions.scalaMock % "test"
-    val socrataThirdPartyUtils = "com.socrata"           %% "socrata-thirdparty-test-utils" % versions.thirdPartyUtils % "test"
+    val socrataCuratorUtils    = "com.socrata"           %% "socrata-curator-test-utils" % versions.socrataCuratorUtils % "test"
     val springTest             = "org.springframework"    % "spring-test"           % versions.springTest      % "test"
     val wiremock               = "com.github.tomakehurst" % "wiremock"              % versions.wiremock        % "test"
   }

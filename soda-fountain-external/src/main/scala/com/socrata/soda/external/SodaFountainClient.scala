@@ -5,8 +5,8 @@ import com.rojoma.json.v3.io._
 import com.rojoma.simplearm.util._
 import com.socrata.http.client._
 import com.socrata.http.common.AuxiliaryData
-import com.socrata.thirdparty.curator.{CuratorServerProvider, CuratorServiceBase}
-import com.socrata.thirdparty.curator.ServerProvider._
+import com.socrata.curator.{CuratorServerProvider, CuratorServiceBase}
+import com.socrata.curator.ServerProvider._
 import org.apache.curator.x.discovery.ServiceDiscovery
 import org.slf4j.LoggerFactory
 import scala.concurrent.duration.FiniteDuration

@@ -1,6 +1,7 @@
 import sbt._
 import Keys._
 import Dependencies._
+import Dependencies.Test
 
 import com.socrata.sbtplugins.CoreSettingsPlugin.SocrataSbtKeys.dependenciesSnippet
 
@@ -11,8 +12,10 @@ object SodaFountainJetty {
       codahaleMetricsGraphite exclude("com.codahale.metrics", "metrics-core"),
       //dropWizardMetricsGraphite
       dropWizardMetricsJetty,
+      socrataCuratorUtils,
       socrataHttpCuratorBroker,
-      socrataHttpJetty
+      socrataHttpJetty,
+      Test.socrataCuratorUtils
     ),
     dependenciesSnippet :=
       <xml.group>

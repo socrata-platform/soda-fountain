@@ -7,8 +7,8 @@ import com.github.tomakehurst.wiremock.client.{WireMock => WM, MappingBuilder, U
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
 import com.socrata.http.client.exceptions.ConnectFailed
 import com.socrata.soda.external.SodaFountainClient._
-import com.socrata.thirdparty.curator.{CuratorBroker, CuratorServiceIntegration}
-import com.socrata.thirdparty.curator.ServerProvider._
+import com.socrata.curator.{CuratorBroker, CuratorServiceIntegration}
+import com.socrata.curator.ServerProvider._
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FunSuite, Matchers, BeforeAndAfterAll}
 

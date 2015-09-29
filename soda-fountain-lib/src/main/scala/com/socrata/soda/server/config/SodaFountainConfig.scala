@@ -1,7 +1,7 @@
 package com.socrata.soda.server.config
 
 import com.typesafe.config.Config
-import com.socrata.thirdparty.curator.{CuratorConfig, DiscoveryConfig}
+import com.socrata.curator.{CuratorConfig, DiscoveryConfig}
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
 
 class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(config), "com.socrata.soda-fountain") {

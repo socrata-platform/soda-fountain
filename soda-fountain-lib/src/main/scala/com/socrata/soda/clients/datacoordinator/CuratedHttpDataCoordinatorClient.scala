@@ -2,7 +2,7 @@ package com.socrata.soda.clients.datacoordinator
 
 import com.socrata.http.client.{RequestBuilder, HttpClient}
 import com.socrata.http.common.AuxiliaryData
-import com.socrata.thirdparty.curator.ProviderCache
+import com.socrata.curator.ProviderCache
 import java.io.Closeable
 import org.apache.curator.x.discovery.{strategies => providerStrategies, ServiceDiscovery}
 import scala.concurrent.duration.FiniteDuration
