@@ -1,7 +1,7 @@
 package com.socrata.soda.clients.querycoordinator
 
 import com.socrata.http.client.{RequestBuilder, HttpClient}
-import com.socrata.thirdparty.curator.CuratorServiceBase
+import com.socrata.curator.CuratorServiceBase
 import org.apache.curator.x.discovery.ServiceDiscovery
 import scala.concurrent.duration.FiniteDuration
 import com.socrata.http.common.AuxiliaryData

@@ -16,7 +16,7 @@ import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
 import com.socrata.soda.server.metrics.{BalboaMetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.util._
-import com.socrata.thirdparty.curator.{CuratorFromConfig, DiscoveryFromConfig}
+import com.socrata.curator.{CuratorFromConfig, DiscoveryFromConfig}
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import java.io.Closeable
 import java.security.SecureRandom

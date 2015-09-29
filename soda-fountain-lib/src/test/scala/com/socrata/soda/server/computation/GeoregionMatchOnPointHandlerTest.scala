@@ -13,7 +13,7 @@ import com.socrata.soda.server.persistence.{ColumnRecordLike, ComputationStrateg
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
-import com.socrata.thirdparty.curator.{CuratorBroker, CuratorServiceIntegration}
+import com.socrata.curator.{CuratorBroker, CuratorServiceIntegration}
 import com.typesafe.config.ConfigFactory
 import org.apache.curator.x.discovery._
 import org.mockito.Matchers.{any, anyString}

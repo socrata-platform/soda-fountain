@@ -28,6 +28,7 @@ object SodaFountainLib {
       socrataHttpClient,
       socrataHttpServer,
       socrataThirdPartyUtils,
+      socrataCuratorUtils,
       soqlAnalyzer,
       soqlBrita,
       soqlPack,
@@ -41,6 +42,7 @@ object SodaFountainLib {
       Test.scalaCheck,
       Test.scalaMock,
       Test.socrataThirdPartyUtils,
+      Test.socrataCuratorUtils,
       Test.springTest,
       Test.wiremock
     ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
