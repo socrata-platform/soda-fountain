@@ -26,4 +26,5 @@ fi
 
 COMMAND=${1:-migrate}
 echo Running soda.server.MigrateSchema "$COMMAND" "$2"...
-java -Dconfig.file="$CONFIG" -cp "$JARFILE" com.socrata.soda.server.MigrateSchema "$COMMAND" "$2"
+ARGS=($COMMAND $2)
+java -Dconfig.file="$CONFIG" -cp "$JARFILE" com.socrata.soda.server.MigrateSchema "${ARGS[@]}"
