@@ -9,9 +9,16 @@ import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
 
 trait Exporter {
+
+  type ArrayLike[T] = {
+    def apply(i: Int): T
+
+    def length: Int
+  }
+
   val mimeType: MimeType
   val extension: Option[String]
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false)
+  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[ArrayLike[SoQLValue]], singleRow: Boolean = false)
   def validForSchema(schema: Seq[ColumnRecordLike]): Boolean = true
 }
 
