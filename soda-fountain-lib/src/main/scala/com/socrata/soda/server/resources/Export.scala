@@ -10,7 +10,8 @@ import com.socrata.http.server.util.{Precondition, EntityTag, RequestId}
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.errors._
 import com.socrata.soda.server.export.Exporter
-import com.socrata.soda.server.highlevel.ExportDAO
+import com.socrata.soda.server.highlevel.ExportDAO.CSchema
+import com.socrata.soda.server.highlevel.{ColumnSpecUtils, ExportDAO}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
 import java.nio.charset.StandardCharsets
@@ -78,6 +79,16 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       }
     }
 
+    val includeSystemColumns = Option(req.getParameter("include_system_columns")).map { paramStr =>
+      try {
+        paramStr.toBoolean
+      } catch {
+        case e: Exception =>
+          SodaUtils.errorResponse(req, BadParameter("include_system_columns", paramStr))(resp)
+          return
+      }
+    }.getOrElse(false)
+
     val ifModifiedSince = req.dateTimeHeader("If-Modified-Since")
 
     val sorted = Option(req.getParameter("sorted")).map {
@@ -102,15 +113,24 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                              ifModifiedSince,
                              limit,
                              offset,
+                             includeSystemColumns,
                              copy,
                              sorted = sorted,
                              requestId = RequestId.getFromRequest(req)) {
-              case ExportDAO.Success(schema, newTag, rows) =>
+              case ExportDAO.Success(fullSchema, newTag, fullRows) =>
                 resp.setStatus(HttpServletResponse.SC_OK)
                 resp.setHeader("Vary", ContentNegotiation.headers.mkString(","))
                 newTag.foreach { tag =>
                   ETag(prepareTag(tag))(resp)
                 }
+                // DC export always includes system columns
+                // Because system columns always appear in the front,
+                // We can drop them if we do not want them.
+                val offset = if (includeSystemColumns) 0
+                             else fullSchema.schema.filter(col => ColumnSpecUtils.isSystemColumn(col.fieldName)).size
+                val (schema: CSchema, rows) =
+                  if (offset == 0) (fullSchema, fullRows)
+                  else (fullSchema.copy(schema = fullSchema.schema.seq.drop(offset)), fullRows.map(_.drop(offset)))
                 exporter.export(resp, charset, schema, rows)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)

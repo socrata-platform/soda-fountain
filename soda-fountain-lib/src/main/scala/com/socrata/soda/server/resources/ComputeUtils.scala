@@ -78,6 +78,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
           None,
           None,
           None,
+          false,
           "latest",
           sorted = false,
           requestId) {

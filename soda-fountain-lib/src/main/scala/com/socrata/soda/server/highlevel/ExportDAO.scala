@@ -15,6 +15,7 @@ trait ExportDAO {
                 ifModifiedSince: Option[DateTime],
                 limit: Option[Long],
                 offset: Option[Long],
+                includeSystemColumns: Boolean,
                 copy: String,
                 sorted: Boolean,
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T
