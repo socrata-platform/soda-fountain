@@ -22,7 +22,7 @@ object JsonExporter extends Exporter {
   val xhDeprecation = "X-SODA2-Warning"
   val xhLimit = 5000 // We have a 6k header size limit
 
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
+  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[ArrayLike[SoQLValue]], singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
@@ -47,7 +47,7 @@ object JsonExporter extends Exporter {
         val names: Array[String] = schema.schema.map { ci => JString(ci.fieldName.name).toString }.toArray
         val reps: Array[JsonColumnWriteRep] = schema.schema.map { ci => JsonColumnRep.forClientType(ci.typ) }.toArray
 
-        def writeJsonRow(row: Array[SoQLValue]) {
+        def writeJsonRow(row: ArrayLike[SoQLValue]) {
           writer.write('{')
           var didOne = false
           var i = 0
@@ -65,7 +65,7 @@ object JsonExporter extends Exporter {
           writer.write('}')
         }
 
-        def go(rows: Iterator[Array[SoQLValue]]) {
+        def go(rows: Iterator[ArrayLike[SoQLValue]]) {
           if(!singleRow) writer.write('[')
           if(rows.hasNext) {
             writeJsonRow(rows.next())
