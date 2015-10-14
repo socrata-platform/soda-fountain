@@ -6,8 +6,34 @@ import com.socrata.soda.server.persistence.ColumnRecordLike
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
+import org.joda.time.format.ISODateTimeFormat
+
+import scala.util.control.ControlThrowable
 
 trait ExportDAO {
+  class Retry extends ControlThrowable
+
+  val dateTimeParser = ISODateTimeFormat.dateTimeParser
+
+  def retryable[T](limit: Int /* does not include the initial try */)(f: => T): T = {
+    var count = 0
+    var done = false
+    var result: T = null.asInstanceOf[T]
+    do {
+      try {
+        result = f
+        done = true
+      } catch {
+        case _: Retry =>
+          count += 1
+          if(count > limit) throw new Exception("Retried too many times")
+      }
+    } while(!done)
+    result
+  }
+  def retry() = throw new Retry
+
+
   def export[T](dataset: ResourceName,
                 schemaCheck: Seq[ColumnRecordLike] => Boolean,
                 onlyColumns: Seq[ColumnRecordLike],
@@ -25,9 +51,17 @@ object ExportDAO {
   case class CSchema(approximateRowCount: Option[Long], dataVersion: Option[Long], lastModified: Option[DateTime], locale: String, pk: Option[ColumnName], rowCount: Option[Long], schema: Seq[ColumnInfo])
 
   sealed abstract class Result
-  case class Success(schema: CSchema, entityTag: Option[EntityTag], rows: Iterator[Array[SoQLValue]]) extends Result
-  case object PreconditionFailed extends Result
-  case class NotModified(etag: Seq[EntityTag]) extends Result
-  case class NotFound(resourceName: ResourceName) extends Result
-  case object SchemaInvalidForMimeType extends Result
+  sealed abstract class SuccessResult extends Result
+  sealed abstract class FailResult extends Result
+
+  // SUCCESS
+  case class Success(schema: CSchema, entityTag: Option[EntityTag], rows: Iterator[Array[SoQLValue]]) extends SuccessResult
+
+  // FAIL CASES: DataCoordinator
+  case object SchemaInvalidForMimeType extends FailResult
+  case class NotModified(etag: Seq[EntityTag]) extends FailResult
+  case object PreconditionFailed extends FailResult
+  case class NotFound(resourceName: ResourceName) extends FailResult
+  case class InternalServerError(code: String, tag: String, data: String) extends FailResult
+
 }

@@ -1,4 +1,6 @@
 package com.socrata.soda.server.resources
+
+import com.rojoma.json.v3.ast.JString
 import com.socrata.http.common.util.ContentNegotiation
 
 import com.socrata.soda.server._
@@ -138,9 +140,18 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
               case ExportDAO.NotModified(etags) =>
-                SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(resp)
-              case ExportDAO.SchemaInvalidForMimeType => SodaUtils.errorResponse(req, SchemaInvalidForMimeType)(resp)
-              case ExportDAO.NotFound(x) => SodaUtils.errorResponse(req, GeneralNotFoundError(x.toString()))(resp)
+                SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag),
+                  Some(ContentNegotiation.headers.mkString(","))
+                ))(resp)
+              case ExportDAO.SchemaInvalidForMimeType =>
+                SodaUtils.errorResponse(req, SchemaInvalidForMimeType)(resp)
+              case ExportDAO.NotFound(x) =>
+                SodaUtils.errorResponse(req, GeneralNotFoundError(x.toString()))(resp)
+              case ExportDAO.InternalServerError(code, tag, data) =>
+                SodaUtils.errorResponse(req, InternalError(tag,
+                  "code"  -> JString(code),
+                  "data" -> JString(data)
+                ))(resp)
             }
           case None =>
             // TODO better error

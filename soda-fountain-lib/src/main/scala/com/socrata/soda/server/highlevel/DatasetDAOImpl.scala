@@ -40,23 +40,25 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       Left(UnsupportedUpdateOperation("Soda Fountain does not yet support the following patch request: " + spec))
   }
 
-  def freezeForCreation(spec: UserProvidedDatasetSpec): Either[Result, DatasetSpec] = spec match {
-    case UserProvidedDatasetSpec(Some(resourceName), Some(name), description, rowIdentifier, locale, columns) =>
-      val trueDesc = description.getOrElse(defaultDescription)
-      val trueRID = rowIdentifier.getOrElse(defaultPrimaryKey)
-      val trueLocale = locale.flatten.getOrElse(defaultLocale)
-      val trueColumns = columns.getOrElse(Seq.empty).foldLeft(Map.empty[ColumnName, ColumnSpec]) { (acc, userColumnSpec) =>
-        columnSpecUtils.freezeForCreation(acc.mapValues(_.id), userColumnSpec) match {
-          case ColumnSpecUtils.Success(cSpec) => acc + (cSpec.fieldName -> cSpec)
-          // TODO: not-success case
-          // TODO other cases have not been implemented
-          case _@x =>
-            log.warn("case is NOT implemented")
-            ???
+  def freezeForCreation(spec: UserProvidedDatasetSpec): Either[Result, DatasetSpec] = {
+    spec match {
+      case UserProvidedDatasetSpec(Some(resourceName), Some(name), description, rowIdentifier, locale, columns) =>
+        val trueDesc = description.getOrElse(defaultDescription)
+        val trueRID = rowIdentifier.getOrElse(defaultPrimaryKey)
+        val trueLocale = locale.flatten.getOrElse(defaultLocale)
+        val trueColumns = columns.getOrElse(Seq.empty).foldLeft(Map.empty[ColumnName, ColumnSpec]) { (acc, userColumnSpec) =>
+          columnSpecUtils.freezeForCreation(acc.mapValues(_.id), userColumnSpec) match {
+            case ColumnSpecUtils.Success(cSpec) => acc + (cSpec.fieldName -> cSpec)
+            // TODO: not-success case
+            // TODO other cases have not been implemented
+            case _@x =>
+              log.warn("case is NOT implemented")
+              ???
+          }
+          Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, None, trueColumns))
+          // TODO: Not-success case
         }
-      }
-      Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, None, trueColumns))
-    // TODO: Not-success case
+    }
   }
 
   def createDataset(user: String, spec: UserProvidedDatasetSpec, requestId: RequestId): Result =
@@ -71,7 +73,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       case None =>
         // sid col is a little painful; if it's ":id" we want to do NOTHING.
         // If it's a system column OTHER THAN :id we want to add the set-row-id instruction but NOT look it up in the spec
-        // If it's anythign else we want to ensure it's in the spec AND issue the set-row-id-instruction
+        // If it's anything else we want to ensure it's in the spec AND issue the set-row-id-instruction
         val ridFieldName = spec.rowIdentifier
         val addRidInstruction =
           if(ridFieldName == defaultPrimaryKey) {
@@ -79,7 +81,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           } else if(columnSpecUtils.systemColumns.contains(ridFieldName)) {
             List(new SetRowIdColumnInstruction(columnSpecUtils.systemColumns(ridFieldName).id))
           } else {
-            if(!spec.columns.contains(ridFieldName)) return NonexistantColumn(ridFieldName)
+            if(!spec.columns.contains(ridFieldName)) return NonExistentColumn(spec.resourceName, ridFieldName)
             List(new SetRowIdColumnInstruction(spec.columns(ridFieldName).id))
           }
         // ok cool.  First send it upstream, then if that works stick it in the store.
@@ -119,7 +121,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       case Some(datasetRecord) =>
         freezeForCreation(spec) match {
           case Right(frozenSpec) =>
-            if(datasetRecord.locale != frozenSpec.locale) return LocaleChanged
+            if(datasetRecord.locale != frozenSpec.locale) return LocaleChanged(frozenSpec.locale)
             // ok.  What we need to do now is turn this into a list of operations to hand
             // off to the data coordinator and/or our database.  This will include:
             //  1. getting the current schema from the D.C. or cache
@@ -134,7 +136,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
             result
         }
       case None =>
-        NotFound(dataset)
+        DatasetNotFound(dataset)
     }
 
   def updateDataset(user: String,
@@ -180,19 +182,25 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, "",
             traceHeaders(RequestId.generate(), dataset))
           {
-            case DataCoordinatorClient.Success(_, _, _, _, _) =>
+            case DataCoordinatorClient.NonCreateScriptResult(_, _, _, _, _) =>
               store.removeResource(dataset)
               Deleted
-            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+            case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
-            // TODO other cases have not been implemented
-            case _@x =>
-              log.warn("case is NOT implemented")
-              ???
+              // should only have two error case for this path.
+            case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+              DatasetNotFound(dataset)
+            case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
+              CannotAcquireDatasetWriteLock(dataset)
+            case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+              InternalServerError(code, tag, data)
+            case x =>
+              log.warn("case is NOT implemented %s".format(x.toString))
+              InternalServerError("unknown", tag, x.toString)
           }
         case None =>
-          NotFound(dataset)
+          DatasetNotFound(dataset)
       }
     }
   }
@@ -203,7 +211,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           store.markResourceForDeletion(dataset)
           Deleted
         case None =>
-          NotFound(dataset)
+          DatasetNotFound(dataset)
       }
   }
 
@@ -215,7 +223,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                                             traceHeaders(requestId, dataset))
         DatasetVersion(vr)
       case None =>
-        NotFound(dataset)
+        DatasetNotFound(dataset)
     }
 
   def getCurrentCopyNum(dataset: ResourceName): Option[Long] =
@@ -226,8 +234,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result =
     store.lookupDataset(dataset, stage) match {
-      case Some(datasetRecord) => Found(datasetRecord)
-      case None                => NotFound(dataset)
+      case Some(datasetRecord) =>
+        Found(datasetRecord)
+      case None =>
+        DatasetNotFound(dataset)
     }
 
   class Retry extends ControlThrowable
@@ -256,19 +266,24 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         case Some(datasetRecord) =>
           dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user,
                   extraHeaders = traceHeaders(requestId, dataset)) {
-            case DataCoordinatorClient.Success(_, _, newCopyNumber, newVersion, lastModified) =>
+            case DataCoordinatorClient.NonCreateScriptResult(_, _, newCopyNumber, newVersion, lastModified) =>
               store.makeCopy(datasetRecord.systemId, newCopyNumber, newVersion)
               WorkingCopyCreated
-            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+            case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
-            // TODO other cases have not been implemented
-            case _@x =>
-              log.warn("case is NOT implemented")
-              ???
+            case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+              DatasetNotFound(dataset)
+            case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
+              CannotAcquireDatasetWriteLock(dataset)
+            case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+              InternalServerError(code, tag, data)
+            case x =>
+              log.warn("case is NOT implemented %s".format(x.toString))
+              InternalServerError("unknown", tag, x.toString)
           }
         case None =>
-          NotFound(dataset)
+          DatasetNotFound(dataset)
       }
     }
 
@@ -281,22 +296,27 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
             case Some(unpublishCopyNumber) =>
               dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user,
                           extraHeaders = traceHeaders(requestId, dataset)) {
-                case DataCoordinatorClient.Success(_, _, _, newVersion, lastModified) =>
+                case DataCoordinatorClient.NonCreateScriptResult(_, _, _, newVersion, lastModified) =>
                   store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber, None)
                   WorkingCopyDropped
-                case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+                case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
                   retry()
-                // TODO other cases have not been implemented
-                case _@x =>
-                  log.warn("case is NOT implemented")
-                  ???
+                case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+                  DatasetNotFound(dataset)
+                case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
+                  CannotAcquireDatasetWriteLock(dataset)
+                case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+                  InternalServerError(code, tag, data)
+                case x =>
+                  log.warn("case is NOT implemented %s".format(x.toString))
+                  InternalServerError("unknown", tag, x.toString)
               }
             case None =>
-              NotFound(dataset)
+              DatasetNotFound(dataset)
           }
         case None =>
-          NotFound(dataset)
+          DatasetNotFound(dataset)
       }
     }
 
@@ -306,19 +326,24 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         case Some(datasetRecord) =>
           dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user,
                      extraHeaders = traceHeaders(requestId, dataset)) {
-            case DataCoordinatorClient.Success(_, _, copyNumber, newVersion, lastModified) =>
+            case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
               store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, snapshotLimit)
               WorkingCopyPublished
-            case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+            case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
-            // TODO other cases have not been implemented
-            case _@x =>
-              log.warn("case is NOT implemented")
-              ???
+            case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+              DatasetNotFound(dataset)
+            case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
+              CannotAcquireDatasetWriteLock(dataset)
+            case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+              InternalServerError(code, tag, data)
+            case x =>
+              log.warn("case is NOT implemented %s".format(x.toString))
+              InternalServerError("unknown", tag, x.toString)
           }
         case None =>
-          NotFound(dataset)
+          DatasetNotFound(dataset)
       }
     }
 
@@ -329,7 +354,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                                 traceHeaders(requestId, dataset))
         PropagatedToSecondary
       case None =>
-        NotFound(dataset)
+        DatasetNotFound(dataset)
     }
 
   /**
@@ -370,21 +395,27 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                   val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQuery.toString())
                   dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
                             Iterator.single(instruction), traceHeaders(requestId, dataset)) {
-                    // TODO better support for error handling in various failure cases
-                    case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
+                    case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
                       store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                       RollupCreatedOrUpdated
-                    // TODO other cases have not been implemented
-                    case _@x =>
-                      log.warn("case is NOT implemented")
-                      ???
+                    case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
+                      RollupNotFound(rollup)
+                    case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+                      DatasetNotFound(dataset)
+                    case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
+                      CannotAcquireDatasetWriteLock(dataset)
+                    case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+                      InternalServerError(code, tag, data)
+                    case x =>
+                      log.warn("case is NOT implemented %s".format(x.toString))
+                      InternalServerError("unknown", tag, x.toString)
                   }
               }
             case None =>
               RollupError("soql field missing")
           }
         case None =>
-          NotFound(dataset)
+          DatasetNotFound(dataset)
       }
 
   private def analyzeQuery(ds: MinimalDatasetRecord, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLAnalysisType]] = {
@@ -416,19 +447,30 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
         dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
                   Iterator.single(instruction), traceHeaders(requestId, dataset)) {
-          // TODO better support for error handling in various failure cases
-          case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
+          case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
             store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
             RollupDropped
-          case DataCoordinatorClient.NoSuchRollup(_) =>
+          case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
             RollupNotFound(rollup)
-          // TODO other cases have not been implemented
-          case _@x =>
-            log.warn("case is NOT implemented")
-            ???
+          case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+            DatasetNotFound(dataset)
+          case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
+            CannotAcquireDatasetWriteLock(dataset)
+          case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+            InternalServerError(code, tag, data)
+          case x =>
+            log.warn("case is NOT implemented %s".format(x.toString))
+            InternalServerError("unknown", tag, x.toString)
         }
       case None =>
-        NotFound(dataset)
+        DatasetNotFound(dataset)
     }
   }
+
+  private def tag: String = {
+    val uuid = java.util.UUID.randomUUID().toString
+    log.info("internal error; tag = " + uuid)
+    uuid
+  }
+
 }

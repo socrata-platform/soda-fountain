@@ -39,7 +39,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   def datasetId(resourceName: ResourceName): Option[String] = {
     datasetDao.getDataset(resourceName, None) match {
       case DatasetDAO.Found(d) => Some(d.systemId.underlying)
-      case DatasetDAO.NotFound(d) => None
+      case DatasetDAO.DatasetNotFound(d) => None
       case x: DatasetDAO.Result =>
         log.error(s"dataset not found $resourceName ${x.getClass.getName}")
         throw new MatchError(x)

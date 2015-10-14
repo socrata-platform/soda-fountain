@@ -49,7 +49,7 @@ trait QueryMetricTestBase extends FunSuite with MockFactory {
     )
   }
 
-  test("Querying a nonexistant dataset records a user error") {
+  test("Querying a nonexistent dataset records a user error") {
     mockDatasetQuery(
       MissingDataset,
       mockMetricProvider(testDomainId, Seq(QueryErrorUser)),
@@ -220,8 +220,8 @@ private object TestDatasets {
   // Datasets for multi row tests
   case object MultiRowSuccess extends TestDataset("multi-rows-dataset", querySuccess)
   case object MultiRowCacheMiss extends TestDataset("multi-row-cache-miss", querySuccess)
-  case object InvalidUserRequest extends TestDataset("invalid-user-request-dataset", RowDAO.InvalidRequest(400, JString("you goofed")))
-  case object InvalidInternalRequest extends TestDataset("invalid-internal-request-dataset", RowDAO.InvalidRequest(500, JString("we goofed")))
+  case object InvalidUserRequest extends TestDataset("invalid-user-request-dataset", RowDAO.InvalidRequest("testClient", 400, JString("you goofed")))
+  case object InvalidInternalRequest extends TestDataset("invalid-internal-request-dataset", RowDAO.InvalidRequest("testClient",500, JString("we goofed")))
 
   def datasets: Set[TestDataset] = Set(
     MultiRowSuccess,

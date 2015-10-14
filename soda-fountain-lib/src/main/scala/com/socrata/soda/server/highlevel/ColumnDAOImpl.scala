@@ -2,19 +2,19 @@ package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.ast.JValue
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.UnrefinedUserError
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.copy.Latest
-import com.socrata.soda.server.highlevel.ColumnDAO.{NonUniqueRowId, Result}
+import com.socrata.soda.server.highlevel.ColumnDAO.Result
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.types.{SoQLText, SoQLType}
 import scala.util.control.ControlThrowable
 
 // TODO: This shouldn't be referenced here.
 import com.socrata.http.server.util.Precondition
-import com.socrata.soda.server.persistence.{MinimalColumnRecord, DatasetRecord, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{ColumnRecord, MinimalColumnRecord, DatasetRecord, NameAndSchemaStore}
 
 class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils) extends ColumnDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnDAOImpl])
@@ -32,6 +32,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
         datasetRecord.columnsByName.get(column) match {
           case Some(columnRecord) =>
             log.warn("TODO: updating existing columns not supported yet")
+            // TODO updating existing columns not supported yet
             ???
           case None =>
             createColumn(user, datasetRecord, precondition, column, spec, requestId)
@@ -49,7 +50,8 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                    requestId: RequestId): ColumnDAO.Result = {
     columnSpecUtils.freezeForCreation(datasetRecord.columnsByName.mapValues(_.id), userProvidedSpec) match {
       case ColumnSpecUtils.Success(spec) =>
-        if(spec.fieldName != column) ??? // TODO: Inconsistent url/fieldname combo
+        if(spec.fieldName != column) return ColumnDAO.InvalidColumnName(column)
+
         precondition.check(None, sideEffectFree = true) match {
           case Precondition.Passed =>
             val extraHeaders = Map(ReqIdHeader -> requestId,
@@ -57,16 +59,29 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
             val addColumn = AddColumnInstruction(spec.datatype, spec.fieldName.name, Some(spec.id))
             dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
                       Iterator.single(addColumn), extraHeaders) {
-              case DataCoordinatorClient.Success(report, etag, copyNumber, newVersion, lastModified) =>
+              case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
                 // TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here
                 store.addColumn(datasetRecord.systemId, copyNumber, spec)
                 store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                 log.info("column created {} {} {}", datasetRecord.systemId.toString, copyNumber.toString, column.name)
                 ColumnDAO.Created(spec.asRecord, etag)
-              // TODO other cases have not been implemented
-              case err@x =>
-                log.warn(s"case is NOT implemented ${err.getClass.getName}")
-                ???
+              case DataCoordinatorClient.ColumnExistsAlreadyResult(datasetId, columnId, _) =>
+                ColumnDAO.ColumnAlreadyExists(column)
+              case DataCoordinatorClient.IllegalColumnIdResult(_, _) =>
+                ColumnDAO.IllegalColumnId(column)
+              case DataCoordinatorClient.InvalidSystemColumnOperationResult(_, _, _) =>
+                ColumnDAO.InvalidSystemColumnOperation(column)
+              case DataCoordinatorClient.ColumnNotFoundResult(_, _, _) =>
+                ColumnDAO.ColumnNotFound(column)
+              case DataCoordinatorClient.DuplicateValuesInColumnResult(_, columnId, _) =>
+                 ColumnDAO.DuplicateValuesInColumn(spec.asRecord)
+              case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+                ColumnDAO.DatasetNotFound(datasetRecord.resourceName)
+              case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+                ColumnDAO.InternalServerError(code, tag, data)
+              case x =>
+                log.warn("case is NOT implemented %s".format(x.toString))
+                ColumnDAO.InternalServerError("unknown", tag, x.toString)
             }
           case f: Precondition.Failure =>
             ColumnDAO.PreconditionFailed(f)
@@ -122,21 +137,30 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                                        SodaUtils.ResourceHeader -> resource.name)
                 dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator,
                           extraHeaders) {
-                  case DataCoordinatorClient.Success(_, _, copyNumber, newVersion, lastModified) =>
+                  case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
                     store.setPrimaryKey(datasetRecord.systemId, columnRecord.id, copyNumber)
                     store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                     ColumnDAO.Updated(columnRecord, None)
-                  case DataCoordinatorClient.SchemaOutOfDate(newSchema) =>
+                  case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
                     retry()
-                  case DataCoordinatorClient.DuplicateValuesInColumn =>
-                    ColumnDAO.NonUniqueRowId(columnRecord)
-                  case UnrefinedUserError(code) =>
-                    ColumnDAO.UserError(code, Map.empty)
-                  // TODO other cases have not been implemented
-                  case _@x =>
-                    log.warn("case is NOT implemented")
-                    ???
+                  case DataCoordinatorClient.DuplicateValuesInColumnResult(_, _, _) =>
+                    ColumnDAO.DuplicateValuesInColumn(columnRecord)
+                  case DataCoordinatorClient.ColumnExistsAlreadyResult(_, _, _) =>
+                    ColumnDAO.ColumnAlreadyExists(column)
+                  case DataCoordinatorClient.IllegalColumnIdResult(_, _) =>
+                    ColumnDAO.IllegalColumnId(column)
+                  case DataCoordinatorClient.InvalidSystemColumnOperationResult(_, _, _) =>
+                    ColumnDAO.InvalidSystemColumnOperation(column)
+                  case DataCoordinatorClient.ColumnNotFoundResult(_, _, _) =>
+                    ColumnDAO.ColumnNotFound(column)
+                  case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+                    ColumnDAO.DatasetNotFound(resource)
+                  case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+                    ColumnDAO.InternalServerError(code, tag, data)
+                  case x =>
+                    log.warn("case is NOT implemented %s".format(x.toString))
+                    ColumnDAO.InternalServerError("unknown", tag, x.toString)
                 }
               }
             case None =>
@@ -206,7 +230,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                           user,
                           Iterator.single(DropColumnInstruction(columnRef.id)),
                           extraHeaders) {
-                  case DataCoordinatorClient.Success(_, etag, copyNumber, newVersion, lastModified) =>
+                  case DataCoordinatorClient.NonCreateScriptResult(_, etag, copyNumber, newVersion, lastModified) =>
                     store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber)
                     store.updateVersionInfo(datasetRecord.systemId,
                                             newVersion,
@@ -215,15 +239,28 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                                             copyNumber,
                                             None)
                     ColumnDAO.Deleted(columnRef, etag)
-                  case DataCoordinatorClient.SchemaOutOfDate(realSchema) =>
+                  case DataCoordinatorClient.SchemaOutOfDateResult(realSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)
                     retry()
-                  case DataCoordinatorClient.CannotDeleteRowId =>
-                    ColumnDAO.InvalidRowIdOperation(columnRef, "DELETE")
-                  // TODO other cases have not been implemented
-                  case _@x =>
-                    log.warn("case is NOT implemented")
-                    ???
+                  case DataCoordinatorClient.DuplicateValuesInColumnResult(_, _, _) =>
+                    ColumnDAO.DuplicateValuesInColumn(columnRef)
+                  case DataCoordinatorClient.ColumnExistsAlreadyResult(_, _, _) =>
+                    ColumnDAO.ColumnAlreadyExists(column)
+                  case DataCoordinatorClient.IllegalColumnIdResult(_, _) =>
+                    ColumnDAO.IllegalColumnId(column)
+                  case DataCoordinatorClient.InvalidSystemColumnOperationResult(_, _, _) =>
+                    ColumnDAO.InvalidSystemColumnOperation(column)
+                  case DataCoordinatorClient.ColumnNotFoundResult(_, _, _) =>
+                    ColumnDAO.ColumnNotFound(column)
+                  case DataCoordinatorClient.CannotDeleteRowIdResult(_) =>
+                    ColumnDAO.CannotDeleteRowId(columnRef, "DELETE")
+                  case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+                    ColumnDAO.DatasetNotFound(dataset)
+                  case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+                    ColumnDAO.InternalServerError(code, tag, data)
+                  case x =>
+                    log.warn("case is NOT implemented %s".format(x.toString))
+                    ColumnDAO.InternalServerError("unknown", tag, x.toString)
                 }
               }
             case None =>
@@ -248,4 +285,11 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
         ColumnDAO.DatasetNotFound(dataset)
     }
   }
+
+  private def tag: String = {
+    val uuid = java.util.UUID.randomUUID().toString
+    log.info("internal error; tag = " + uuid)
+    uuid
+  }
+
 }

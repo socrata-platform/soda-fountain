@@ -1,6 +1,6 @@
 package com.socrata.soda.clients.datacoordinator
 
-import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
 import com.rojoma.json.v3.util.JsonArrayIterator
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
@@ -8,7 +8,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
 import com.socrata.soda.clients.datacoordinator
-import com.socrata.soda.server.id.{DatasetId, SecondaryId}
+import com.socrata.soda.server.id.{ColumnId, RowSpecifier, DatasetId, SecondaryId}
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
 import org.joda.time.DateTime
@@ -45,12 +45,10 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                            secondaryId: SecondaryId,
                            extraHeaders: Map[String, String] = Map.empty): Unit =
     withHost(datasetId) { host =>
-      val r = secondaryUrl(host, secondaryId, datasetId).
-                method(HttpMethods.POST).
-                addHeaders(extraHeaders).get // ick
+      val r = secondaryUrl(host, secondaryId, datasetId).addHeaders(extraHeaders).jsonBody(JNull)
       httpClient.execute(r).run { response =>
         response.resultCode match {
-          case 200 => // ok
+          case HttpServletResponse.SC_OK => // ok
           case _ => throw new Exception(s"could not propagate to secondary ${secondaryId}")
         }
       }
@@ -60,42 +58,35 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     def precondition(p: Precondition): RequestBuilder = r.addHeaders(PreconditionRenderer(p))
   }
 
-  def headerExists(header: String, resp: Response) =
-    resp.headerNames.contains(header.toLowerCase)
+  def headerExists(header: String, resp: Response) = resp.headerNames.contains(header.toLowerCase)
 
-  def getHeader(header: String, resp: Response) =
-    resp.headers(header)(0)
+  def getHeader(header: String, resp: Response) = resp.headers(header)(0)
 
-  def getSchema(datasetId: DatasetId): Option[SchemaSpec] =
+  def getSchema(datasetId: DatasetId): Option[SchemaSpec] = {
     withHost(datasetId) { host =>
       val request = schemaUrl(host, datasetId).get
       httpClient.execute(request).run { response =>
-        if(response.resultCode == 200) {
-          val result = response.value[SchemaSpec]()
-          result match {
-            case Right(jv) => Some(jv)
-            case Left(_) =>  throw new Exception("Unable to interpret data coordinator's response for " + datasetId + " as a schemaspec?")
+        response.resultCode match {
+          case HttpServletResponse.SC_OK => {
+            response.value[SchemaSpec]() match {
+              case Right(jv) => Some(jv)
+              case Left(_) => throw new Exception("Unable to interpret data coordinator's response for " + datasetId + " as a schemaspec?")
+            }
           }
-        } else if(response.resultCode == 404) {
-          None
-        } else {
-          throw new Exception("Unexpected result from server: " + response.resultCode)
+          case HttpServletResponse.SC_NOT_FOUND => None
+          case _ => throw new Exception("Unexpected result from server: " + response.resultCode)
         }
       }
     }
-
-  // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-  // TODO                                                                  TODO
-  // TODO :: ALL THESE NEED TO HANDLE ERRORS FROM THE DATA COORDINATOR! :: TODO
-  // TODO                                                                  TODO
-  // TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+  }
 
   def errorFrom[T](r: Response): Option[PossiblyUnknownDataCoordinatorError] =
     r.resultCode match {
       case HttpServletResponse.SC_OK =>
         None
+        // unclear why this is a special case.
       case HttpServletResponse.SC_NOT_MODIFIED =>
-        Some(datacoordinator.NotModified())
+        Some(NotModified())
       case code =>
         Some(r.value[PossiblyUnknownDataCoordinatorError]().right.toOption.getOrElse(
           throw new Exception(s"Response was JSON but not decodable as an error - code $code")))
@@ -151,6 +142,14 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
+  /**
+   * For cases where we will be running mutations in D.C. Creates an http-post request if method has not yet been defined.
+   * @param rb
+   * @param script
+   * @param f
+   * @tparam T
+   * @return
+   */
   protected def sendScript[T](rb: RequestBuilder, script: MutationScript)(f: Either[Result, Response] => T): T = {
     val request = rb.json(script.it)
     httpClient.execute(request).run { r =>
@@ -164,37 +163,123 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
           }
         case Some(err) =>
           err match {
-            case SchemaMismatch(_, schema) =>
-              f(Left(SchemaOutOfDate(schema)))
-            case DeleteOnRowId() =>
-              f(Left(CannotDeleteRowId))
-            case com.socrata.soda.clients.datacoordinator.DuplicateValuesInColumn(_, _) =>
-              f(Left(DuplicateValuesInColumn))
-            case com.socrata.soda.clients.datacoordinator.IncorrectLifecycleStage(_, actualStage, expectedStage) =>
-              f(Left(IncorrectLifecycleStage(actualStage, expectedStage)))
-            case com.socrata.soda.clients.datacoordinator.NoSuchRollup(name) =>
-              f(Left(NoSuchRollup(name)))
-            case com.socrata.soda.clients.datacoordinator.NoSuchRow(_, id) =>
-              f(Left(NoSuchRow(id)))
-            case dcError: DataCoordinatorError => // TODO: Refine ones that we want more details
-              f(Left(UnrefinedUserError(dcError.code)))
+            case(reqError: DCRequestError) => reqError match {
+                case ContentTypeBadRequest(contentErrorType) =>
+                  f(Left(InternalServerErrorResult(reqError.code, tag, contentErrorType)))
+                case PreconditionFailed() =>
+                  f(Left(PreconditionFailedResult))
+                case ContentTypeMissing() =>
+                  f(Left(InternalServerErrorResult(reqError.code, tag, "")))
+                case ContentTypeUnparsable(contentType) =>
+                  f(Left(InternalServerErrorResult(reqError.code, tag, contentType)))
+                case ContentTypeNotJson(contentType) =>
+                  f(Left(InternalServerErrorResult(reqError.code, tag, contentType)))
+                case ContentTypeUnknownCharset(contentType) =>
+                  f(Left(InternalServerErrorResult(reqError.code, tag, contentType)))
+                case SchemaMismatchForExport(dataset, schema) =>
+                  f(Left(SchemaOutOfDateResult(schema)))
+                case RequestEntityTooLarge(bytes) =>
+                  f(Left(InternalServerErrorResult(reqError.code, tag, bytes.toString)))
+                case BodyMalformedJson(row, column) =>
+                  f(Left(InternalServerErrorResult(reqError.code, tag, s"row $row; column $column")))
+                case BodyNotJsonArray() =>
+                  f(Left(InternalServerErrorResult(reqError.code, tag, "")))
+                case SchemaMismatch(dataset, schema, commandIndex) =>
+                  f(Left(SchemaOutOfDateResult(schema)))
+                case EmptyCommandStream(commandIndex) =>
+                  f(Left(InternalServerErrorResult(reqError.code, tag, s"commandIndex: $commandIndex" )))
+                case CommandIsNotAnObject(value, commandIndex) =>
+                  f(Left(InternalServerErrorResult( reqError.code, tag, s"value: $value, commandIndex: $commandIndex")))
+                case MissingCommandField(obj, field, commandIndex) =>
+                  f(Left(InternalServerErrorResult( reqError.code, tag, s"obj: $obj, field: $field, commandIndex: $commandIndex" )))
+                case InvalidCommandFieldValue(obj, field, value, commandIndex) =>
+                  f(Left(InternalServerErrorResult( reqError.code, tag, s"obj: $obj, field: $field, value: $value, commandIndex: $commandIndex")))
+            }
+            case (rowError: DCRowUpdateError) => rowError match {
+              case RowPrimaryKeyNonexistentOrNull(dataset, commandIndex) =>
+                f(Left(RowPrimaryKeyNonexistentOrNullResult(RowSpecifier(""), commandIndex)))
+              case NoSuchRow(_, id, commandIndex) =>
+                f(Left(NoSuchRowResult(id, commandIndex)))
+              case UnparsableRowValue(_, column, tp, value, commandIndex, commandSubIndex) =>
+                f(Left(UnparsableRowValueResult(column, tp, value, commandIndex, commandSubIndex)))
+              case RowNoSuchColumn(dataset, column, commandIndex, commandSubIndex) =>
+                f(Left(RowNoSuchColumnResult(column, commandIndex, commandSubIndex)))
+            }
+            case (columnError: DCColumnUpdateError) => columnError match {
+              case ColumnAlreadyExists(dataset, column, commandIndex) =>
+                f(Left(ColumnExistsAlreadyResult(dataset, column, commandIndex)))
+              case IllegalColumnId(id, commandIndex) =>
+                f(Left(IllegalColumnIdResult(ColumnId(id), commandIndex)))
+              case InvalidSystemColumnOperation(dataset, column, commandIndex) =>
+                f(Left(InvalidSystemColumnOperationResult(dataset, column, commandIndex)))
+              case ColumnNotFound(dataset, column, commandIndex) =>
+                f(Left(ColumnNotFoundResult(dataset, column, commandIndex)))
+            }
+            case (datasetError: DCDatasetUpdateError) => datasetError match {
+              case NoSuchDataset(dataset) =>
+                f(Left(DatasetNotFoundResult(dataset)))
+              case CannotAcquireDatasetWriteLock(dataset) =>
+                f(Left(CannotAcquireDatasetWriteLockResult(dataset)))
+              case IncorrectLifecycleStage(dataset, actualStage, expectedStage) =>
+                f(Left(IncorrectLifecycleStageResult(actualStage, expectedStage)))
+              case InitialCopyDrop(dataset, commandIndex) =>
+                f(Left(InitialCopyDropResult(dataset, commandIndex)))
+              case OperationAfterDrop(dataset, commandIndex) =>
+                f(Left(OperationAfterDropResult(dataset, commandIndex)))
+            }
+            case (updateError: DCUpdateError) => updateError match {
+              case SystemInReadOnlyMode(commandIndex) =>
+                f(Left(InternalServerErrorResult(updateError.code, tag, s"commandIndex: $commandIndex")))
+              case NoSuchType(tp, commandIndex) =>
+                f(Left(NoSuchTypeResult(tp, commandIndex)))
+              case RowVersionMismatch(dataset, value, commandIndex, expected, actual) =>
+                f(Left(RowVersionMismatchResult(dataset, value, commandIndex, expected, actual)))
+              case VersionOnNewRow(dataset, commandIndex) =>
+                f(Left(VersionOnNewRowResult(dataset, commandIndex)))
+              case ScriptRowDataInvalidValue(dataset, value, commandIndex, commandSubIndex) =>
+                f(Left(ScriptRowDataInvalidValueResult(dataset, value, commandIndex, commandSubIndex)))
+              case PrimaryKeyAlreadyExists(dataset, column, existingColumn, commandIndex) =>
+                f(Left(PrimaryKeyAlreadyExistsResult(dataset, column, existingColumn, commandIndex)))
+              case InvalidTypeForPrimaryKey(dataset, column, tp, commandIndex) =>
+                f(Left(InvalidTypeForPrimaryKeyResult(dataset, column, tp, commandIndex)))
+              case DuplicateValuesInColumn(dataset, column, commandIndex) =>
+                f(Left(DuplicateValuesInColumnResult(dataset, column, commandIndex)))
+              case NullsInColumn(dataset, column, commandIndex) =>
+                f(Left(NullsInColumnResult(dataset, column, commandIndex)))
+              case NotPrimaryKey(dataset, column, commandIndex) =>
+                f(Left(NotPrimaryKeyResult(dataset, column, commandIndex)))
+              case DeleteOnRowId(dataset, column, commandIndex) =>
+                f(Left(CannotDeleteRowIdResult(commandIndex)))  // commandIndex available
+            }
+            case (dcError: DataCoordinatorError) => dcError match {
+              case ThreadsMutationError() =>
+                f(Left(InternalServerErrorResult(dcError.code, tag, "")))
+              case InvalidLocale(locale, commandIndex) =>
+                f(Left(InvalidLocaleResult(locale, commandIndex)))
+              case NoSuchRollup(name, commandIndex) =>
+                f(Left(NoSuchRollupResult(name, commandIndex)))
+              case NotModified() =>
+                f(Left(NotModifiedResult(etagsSeq(r))))
+            }
             case UnknownDataCoordinatorError(code, data) =>
-              log.error("Unknown data coordinator error " + code)
-              log.error("Aux info: " + data)
-              throw new Exception("Unknown data coordinator error " + code)
-            // TODO other cases have not been implemented
-            case _@x =>
-              log.warn("case is NOT implemented")
-              ???
+              log.error("Unknown data coordinator error: code %s, Aux info: %s".format(code, data))
+              f(Left(InternalServerErrorResult(code, tag, data.mkString(","))))
           }
       }
     }
   }
 
+
+  private def tag: String = {
+    val uuid = java.util.UUID.randomUUID().toString
+    log.info("internal error; tag = " + uuid)
+    uuid
+  }
+
   def sendNonCreateScript[T](rb: RequestBuilder, script: MutationScript)(f: Result => T): T =
     sendScript(rb, script) {
       case Right(r) =>
-        f(Success(
+        f(NonCreateScriptResult(
             arrayOfResults(r.jsonEvents().buffered),
             None,
             getHeader(xhCopyNumber, r).toLong,
@@ -290,9 +375,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     // TODO: deleteAllCopies should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val deleteScript = new MutationScript(user, DropDataset(schemaHash), Iterator.empty)
-      sendNonCreateScript(mutateUrl(host, datasetId).
-                            method(HttpMethods.DELETE).
-                            addHeaders(extraHeaders), deleteScript)(f)
+      val req = mutateUrl(host, datasetId).method(HttpMethods.DELETE).addHeaders(extraHeaders)
+      sendNonCreateScript(req, deleteScript)(f)
     }
   }
 
@@ -305,11 +389,15 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         .addHeaders(extraHeaders)
         .get
       httpClient.execute(request).run { response =>
-        // TODO: Handle errors from the data-coordinator
-        val oVer = response.value[VersionReport]()
-        oVer match {
-          case Right(ver) => ver
-          case Left(_) => throw new Exception("version not found")
+        response.resultCode match {
+          case HttpServletResponse.SC_OK =>
+            val oVer = response.value[VersionReport]()
+            oVer match {
+              case Right(ver) => ver
+              case Left(_) => throw new Exception("version not found")
+            }
+          case HttpServletResponse. SC_NOT_FOUND => throw new Exception("version not found")
+          case _ => throw new Exception("unexpected error code, version not found")
         }
       }
     }
@@ -342,22 +430,39 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None =>
-            f(Export(r.array[JValue](), r.headers("ETag").headOption.map(EntityTagParser.parse(_))))
+            f(ExportResult(r.array[JValue](), r.headers("ETag").headOption.map(EntityTagParser.parse(_))))
           case Some(err) =>
             err match {
               case SchemaMismatchForExport(_, newSchema) =>
-                f(SchemaOutOfDate(newSchema))
-              case datacoordinator.NotModified() =>
-                f(NotModified(r.headers("etag").map(EntityTagParser.parse(_ : String))))
-              case datacoordinator.PreconditionFailed() =>
-                f(DataCoordinatorClient.PreconditionFailed)
-              // TODO other cases have not been implemented
-              case _@x =>
-                log.warn("case is NOT implemented")
-                ???
+                f(SchemaOutOfDateResult(newSchema))
+              case NotModified() =>
+                f(NotModifiedResult(etagsSeq(r)))
+              case PreconditionFailed() =>
+                f(PreconditionFailedResult)
+              case NoSuchDataset(dataset) =>
+                f(DatasetNotFoundResult(dataset))
+              case cbr: ContentTypeBadRequest =>
+                f(InternalServerErrorResult(cbr.code, tag, cbr.contentTypeError))
+              case x: DataCoordinatorError =>
+                f(InternalServerErrorResult(x.code, tag, ""))
+              case UnknownDataCoordinatorError(code, data) =>
+                log.error("Unknown data coordinator error: code %s, Aux info: %s".format(code, data))
+                f(InternalServerErrorResult(code, tag, data.mkString(",")))
+              case x =>
+                log.warn("case is NOT implemented %s".format(x.toString))
+                f(InternalServerErrorResult("unknown", tag, x.toString))
             }
         }
       }
     }
+  }
+
+  /**
+   * EntityTag Seq from response object
+   * @param r
+   * @return
+   */
+  def etagsSeq(r: Response): Seq[EntityTag] = {
+    r.headers("etag").map(EntityTagParser.parse(_ : String))
   }
 }

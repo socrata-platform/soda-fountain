@@ -14,6 +14,12 @@ import com.socrata.soda.server.wiremodels.InputUtils._
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soql.environment.ColumnName
 
+
+case class DatasetSpecSubSet(resourceName: ResourceName)
+object DatasetSpecSubSet{
+  implicit val jsonCodec = AutomaticJsonCodecBuilder[DatasetSpecSubSet]
+}
+
 @JsonKeyStrategy(Strategy.Underscore)
 case class DatasetSpec(resourceName: ResourceName,
                        name:String,

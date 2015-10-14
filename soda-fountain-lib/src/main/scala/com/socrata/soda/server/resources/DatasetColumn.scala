@@ -1,6 +1,6 @@
 package com.socrata.soda.server.resources
 
-import com.rojoma.json.v3.ast.{JString => JStringV3}
+import com.rojoma.json.v3.ast.JString
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -37,20 +37,35 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     result match {
       case ColumnDAO.Created(column, etagOpt) =>
         etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> Json(column.asSpec)
-      case ColumnDAO.Updated(column, etag) => OK ~> Json(column.asSpec)
-      case ColumnDAO.Found(ds, column, etag) => OK ~> Json(column.asSpec)
-      case ColumnDAO.Deleted(column, etag) => OK ~> Json(column.asSpec)
-      case ColumnDAO.ColumnNotFound(column) => NotFound /* TODO: content */
-      case ColumnDAO.DatasetNotFound(dataset) => NotFound /* TODO: content */
-      case ColumnDAO.InvalidColumnName(column) => BadRequest /* TODO: content */
+      case ColumnDAO.Updated(column, etag) =>
+        OK ~> Json(column.asSpec)
+      case ColumnDAO.Found(ds, column, etag) =>
+        OK ~> Json(column.asSpec)
+      case ColumnDAO.Deleted(column, etag) =>
+        OK ~> Json(column.asSpec)
+      case ColumnDAO.ColumnAlreadyExists(columnName) =>
+        Conflict ~> Json(ColumnSpecSubSet(None, Some(columnName)))
+      case ColumnDAO.IllegalColumnId(columnName) =>
+        BadRequest ~> Json(ColumnSpecSubSet(None, Some(columnName)))
+      case ColumnDAO.ColumnNotFound(columnName) =>
+        NotFound ~> Json(ColumnSpecSubSet(None, Some(columnName)))
+      case ColumnDAO.DatasetNotFound(dataset) =>
+        NotFound ~> Json(DatasetSpecSubSet(dataset))
+      case ColumnDAO.InvalidColumnName(columnName) =>
+        BadRequest ~> Json(ColumnSpecSubSet(None, Some(columnName)))
+      case ColumnDAO.InvalidSystemColumnOperation(columnName) =>
+        BadRequest ~> Json(ColumnSpecSubSet(None, Some(columnName)))
       case ColumnDAO.ColumnHasDependencies(col, deps) =>
         SodaUtils.errorResponse(req, ColumnHasDependencies(col, deps))
-      case ColumnDAO.InvalidRowIdOperation(column, method) =>
+      case ColumnDAO.CannotDeleteRowId(column, method) =>
         SodaUtils.errorResponse(req, HttpMethodNotAllowed(method, Seq("GET", "PATCH")))
-      case ColumnDAO.NonUniqueRowId(column) =>
+      case ColumnDAO.DuplicateValuesInColumn(column) =>
         SodaUtils.errorResponse(req, NonUniqueRowId(column.name))
-      case ColumnDAO.InvalidDatasetState(data) => BadRequest ~> Json(data - "dataset")
-      case ColumnDAO.UserError(code, data) => BadRequest ~> Json(data + ("code" -> JStringV3(code)))
+      case ColumnDAO.InternalServerError(code, tag, data) =>
+        SodaUtils.errorResponse(req, InternalError(tag,
+          "code"  -> JString(code),
+          "data" -> JString(data)
+        ))
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
         if(isGet) {
           // TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified
@@ -92,7 +107,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
         checkPrecondition(req) { precondition =>
           columnDAO.replaceOrCreateColumn(user(req), resourceName, precondition, columnName,
                                           spec, RequestId.getFromRequest(req)) match {
-            case success: ColumnDAO.CreateUpdateSuccess =>
+            case success: ColumnDAO.UpdateSuccessResult =>
               if (spec.computationStrategy.isDefined &&
                   // optionally break apart rows computation into separate call.
                   "false" != req.getParameter("compute")) {
