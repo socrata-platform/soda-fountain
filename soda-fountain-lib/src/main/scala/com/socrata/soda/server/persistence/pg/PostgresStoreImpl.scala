@@ -75,19 +75,24 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   //TODO: Same issue as fetchMinimalColumn, setting the default isDeleteAt to false might not be such a good idea.I am sure there is a more elegant way to do this
   //than duplicating the functions
   def translateResourceName(resourceName: ResourceName, stage: Option[Stage] = None, isDeleted: Boolean = false): Option[MinimalDatasetRecord] = {
-    using(dataSource.getConnection()){ connection =>
-      val dcDeletedFilter = if (!isDeleted) " AND deleted_at is null" else " AND deleted_at is not null"
+    using(dataSource.getConnection) { connection =>
       val dDeletedFilter = if (!isDeleted) " AND d.deleted_at is null" else " AND d.deleted_at is not null"
+      val latestCopyDeletedFilter = if (!isDeleted) "AND latest_dc.deleted_at is null" else "AND latest_dc.deleted_at is not null"
+      val lifecycleStageFilter = stage.fold("")(_ => "AND lifecycle_stage = ?")
       using(connection.prepareStatement(
         s"""
         SELECT d.resource_name, d.dataset_system_id, d.locale, dc.schema_hash, dc.primary_key_column_id,
                d.latest_version, d.last_modified, dc.copy_number, dc.lifecycle_stage, dc.deleted_at
           FROM datasets d
-          Join dataset_copies dc On dc.dataset_system_id = d.dataset_system_id
+          JOIN dataset_copies dc ON dc.dataset_system_id = d.dataset_system_id
          WHERE d.resource_name_casefolded = ?
-           And dc.id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id %s $dcDeletedFilter ORDER By copy_number DESC LIMIT 1)
-          $dDeletedFilter
-        """.format(stage.map(_ => " And lifecycle_stage = ?").getOrElse(""))
+           AND dc.id = (SELECT id FROM dataset_copies latest_dc
+                        WHERE latest_dc.dataset_system_id = d.dataset_system_id
+                        $lifecycleStageFilter
+                        $latestCopyDeletedFilter
+                        ORDER BY copy_number DESC
+                        LIMIT 1)
+          $dDeletedFilter"""
       )){ translator =>
         translator.setString(1, resourceName.caseFolded)
         stage.foreach(s => translator.setString(2, s.name))
