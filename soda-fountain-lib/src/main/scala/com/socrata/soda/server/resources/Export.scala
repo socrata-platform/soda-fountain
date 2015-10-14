@@ -14,6 +14,7 @@ import com.socrata.soda.server.highlevel.ExportDAO.{ColumnInfo, CSchema}
 import com.socrata.soda.server.highlevel.{ColumnSpecUtils, ExportDAO}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
+import com.socrata.soql.types.SoQLValue
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
@@ -130,10 +131,12 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                   if (!excludeSystemFields) 0
                   else fullSchema.schema.filter(col => ColumnSpecUtils.isSystemColumn(col.fieldName)).size
                 val systemColumnsStart = fullSchema.schema.indexWhere(isSystemColumn(_))
-                val (schema: CSchema, rows) =
-                  if (systemColumnsSize == 0) (fullSchema, fullRows)
-                  else (fullSchema.copy(schema = fullSchema.schema.seq.filterNot(isSystemColumn(_))),
-                        fullRows.map(row => row.take(systemColumnsStart) ++ row.drop(systemColumnsStart + systemColumnsSize)))
+                val schema =
+                  if (systemColumnsSize == 0) fullSchema
+                  else fullSchema.copy(schema = fullSchema.schema.seq.filterNot(isSystemColumn(_)))
+                val rows: Iterator[Exporter#ArrayLike[SoQLValue]] =
+                  if (systemColumnsSize == 0) fullRows
+                  else fullRows.map(row => new PartialArray(row, systemColumnsStart, systemColumnsSize))
                 exporter.export(resp, charset, schema, rows)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
