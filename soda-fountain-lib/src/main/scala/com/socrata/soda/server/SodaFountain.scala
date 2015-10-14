@@ -201,7 +201,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
     override def run() {
       do {
-        log.info("Checking for datasets to drop...")
         try {
           val records = store.lookupDroppedDatasets(tableDropDelay)
           records.foreach { rec =>
