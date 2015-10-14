@@ -76,7 +76,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   //than duplicating the functions
   def translateResourceName(resourceName: ResourceName, stage: Option[Stage] = None, isDeleted: Boolean = false): Option[MinimalDatasetRecord] = {
     using(dataSource.getConnection()){ connection =>
-      val dcDeletedFilter = if (!isDeleted) " AND dc.deleted_at is null" else " AND dc.deleted_at is not null"
+      val dcDeletedFilter = if (!isDeleted) " AND deleted_at is null" else " AND deleted_at is not null"
       val dDeletedFilter = if (!isDeleted) " AND d.deleted_at is null" else " AND d.deleted_at is not null"
       using(connection.prepareStatement(
         s"""
