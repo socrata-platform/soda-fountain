@@ -10,7 +10,7 @@ import com.socrata.http.server.util.{Precondition, EntityTag, RequestId}
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.errors._
 import com.socrata.soda.server.export.Exporter
-import com.socrata.soda.server.highlevel.ExportDAO.CSchema
+import com.socrata.soda.server.highlevel.ExportDAO.{ColumnInfo, CSchema}
 import com.socrata.soda.server.highlevel.{ColumnSpecUtils, ExportDAO}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
@@ -124,13 +124,17 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                   ETag(prepareTag(tag))(resp)
                 }
                 // DC export always includes system columns
-                // Because system columns always appear in the front,
+                // Because system columns always are always next to each other,
                 // We can drop them if we do not want them.
-                val offset = if (includeSystemColumns) 0
-                             else fullSchema.schema.filter(col => ColumnSpecUtils.isSystemColumn(col.fieldName)).size
+                val isSystemColumn = (ci: ColumnInfo) => ColumnSpecUtils.isSystemColumn(ci.fieldName)
+                val systemColumnsSize =
+                  if (includeSystemColumns) 0
+                  else fullSchema.schema.filter(col => ColumnSpecUtils.isSystemColumn(col.fieldName)).size
+                val systemColumnsStart = fullSchema.schema.indexWhere(isSystemColumn(_))
                 val (schema: CSchema, rows) =
-                  if (offset == 0) (fullSchema, fullRows)
-                  else (fullSchema.copy(schema = fullSchema.schema.seq.drop(offset)), fullRows.map(_.drop(offset)))
+                  if (systemColumnsSize == 0) (fullSchema, fullRows)
+                  else (fullSchema.copy(schema = fullSchema.schema.seq.filterNot(isSystemColumn(_))),
+                        fullRows.map(row => row.take(systemColumnsStart) ++ row.drop(systemColumnsStart + systemColumnsSize)))
                 exporter.export(resp, charset, schema, rows)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
