@@ -14,6 +14,7 @@ object BuildSettings {
         styleCheck in Test := {},
         styleCheck in Compile := {},
         scalaVersion := "2.10.4",
+        scalacOptions += "-language:reflectiveCalls",
 
         resolvers += "velvia maven" at "http://dl.bintray.com/velvia/maven"
       )

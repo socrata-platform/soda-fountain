@@ -125,4 +125,6 @@ object ColumnSpecUtils {
   case object UnknownComputationStrategySourceColumn extends CreateResult
   case object ComputationStrategyNoStrategyType extends CreateResult
   case object ComputationStrategyNoRecompute extends CreateResult
+
+  def isSystemColumn(columnName: ColumnName): Boolean = columnName.name.startsWith(":")
 }
