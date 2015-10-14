@@ -106,7 +106,6 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 ifModifiedSince: Option[DateTime],
                 limit: Option[Long],
                 offset: Option[Long],
-                includeSystemColumns: Boolean,
                 copy: String,
                 sorted: Boolean,
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T =

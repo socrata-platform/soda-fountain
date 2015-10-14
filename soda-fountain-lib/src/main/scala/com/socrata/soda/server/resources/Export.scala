@@ -79,15 +79,15 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       }
     }
 
-    val includeSystemColumns = Option(req.getParameter("include_system_columns")).map { paramStr =>
+    val excludeSystemFields = Option(req.getParameter("exclude_system_fields")).map { paramStr =>
       try {
         paramStr.toBoolean
       } catch {
         case e: Exception =>
-          SodaUtils.errorResponse(req, BadParameter("include_system_columns", paramStr))(resp)
+          SodaUtils.errorResponse(req, BadParameter("exclude_system_fields", paramStr))(resp)
           return
       }
-    }.getOrElse(false)
+    }.getOrElse(true)
 
     val ifModifiedSince = req.dateTimeHeader("If-Modified-Since")
 
@@ -113,7 +113,6 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                              ifModifiedSince,
                              limit,
                              offset,
-                             includeSystemColumns,
                              copy,
                              sorted = sorted,
                              requestId = RequestId.getFromRequest(req)) {
@@ -128,7 +127,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                 // We can drop them if we do not want them.
                 val isSystemColumn = (ci: ColumnInfo) => ColumnSpecUtils.isSystemColumn(ci.fieldName)
                 val systemColumnsSize =
-                  if (includeSystemColumns) 0
+                  if (!excludeSystemFields) 0
                   else fullSchema.schema.filter(col => ColumnSpecUtils.isSystemColumn(col.fieldName)).size
                 val systemColumnsStart = fullSchema.schema.indexWhere(isSystemColumn(_))
                 val (schema: CSchema, rows) =
