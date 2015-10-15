@@ -14,7 +14,7 @@ object CsvExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("csv")
 
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
+  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[ArrayLike[SoQLValue]], singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
@@ -59,7 +59,7 @@ object CsvExporter extends Exporter {
           writer.write('\n')
         }
 
-        def convertInto(out: Array[String], row: Array[SoQLValue]) {
+        def convertInto(out: Array[String], row: ArrayLike[SoQLValue]) {
           var i = 0
           while(i != out.length) {
             out(i) = reps(i).toString(row(i))
@@ -67,7 +67,7 @@ object CsvExporter extends Exporter {
           }
         }
 
-        def go(rows: Iterator[Array[SoQLValue]]) {
+        def go(rows: Iterator[ArrayLike[SoQLValue]]) {
           val array = schema.schema.map(_.humanName).toArray
           writeCSVRow(array)
           while(rows.hasNext) {

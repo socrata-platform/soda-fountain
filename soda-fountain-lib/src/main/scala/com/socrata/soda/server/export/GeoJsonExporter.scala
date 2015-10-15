@@ -36,7 +36,7 @@ object GeoJsonExporter extends Exporter {
   def export(resp: HttpServletResponse,
              charset: AliasedCharset,
              schema: ExportDAO.CSchema,
-             rows: Iterator[Array[SoQLValue]],
+             rows: Iterator[ArrayLike[SoQLValue]],
              singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
@@ -92,9 +92,10 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
       case _                    => JNull
     }
 
-  private def writeGeoJsonRow(row: Array[SoQLValue]) {
-    val properties = row.zipWithIndex.filterNot(_._2 == geoColumnIndex).map { case (value, index) =>
-      propertyNames(index) -> propertyReps(index).toJValue(value)
+  private def writeGeoJsonRow(row: Exporter#ArrayLike[SoQLValue]) {
+    val properties = (0 until row.length).foldLeft(Map.empty[String, JValue]) { (acc, index) =>
+      if (index == geoColumnIndex) acc
+      else acc + (propertyNames(index) -> propertyReps(index).toJValue(row(index)))
     }
 
     val map = Map("type"       -> JString("Feature"),
@@ -105,7 +106,7 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
     jsonWriter.write(JObject(finalMap))
   }
 
-  def go(rows: Iterator[Array[SoQLValue]]) {
+  def go(rows: Iterator[Exporter#ArrayLike[SoQLValue]]) {
     if (!singleRow) writer.write(featureCollectionPrefix)
 
     if(rows.hasNext) {
