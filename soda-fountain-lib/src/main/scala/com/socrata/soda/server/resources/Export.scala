@@ -126,6 +126,8 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                 // DC export always includes system columns
                 // Because system columns always are always next to each other,
                 // We can drop them if we do not want them.
+                // TODO: When DC has the option to exclude system columns,
+                // move the work downstream to avoid PartialArray.
                 val isSystemColumn = (ci: ColumnInfo) => ColumnSpecUtils.isSystemColumn(ci.fieldName)
                 val systemColumnsSize =
                   if (!excludeSystemFields) 0

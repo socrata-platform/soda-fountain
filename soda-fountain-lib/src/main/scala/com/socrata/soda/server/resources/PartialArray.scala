@@ -12,18 +12,21 @@ package com.socrata.soda.server.resources
  *
  * [1, 6, 7]
  * @param underlying
- * @param a - beginning index (0 base) of the range to skip
- * @param b - size of the range to skip
+ * @param skipStartIndex - beginning index (0 base) of the range to skip
+ * @param skipLength - size of the range to skip
  * @tparam T
  */
-class PartialArray[T](underlying: Array[T], a: Int, b: Int) {
+class PartialArray[T](underlying: Array[T], skipStartIndex: Int, skipLength: Int) {
 
-  private val offset = a + b - 1
+  assert(skipStartIndex >= 0)
+  assert(skipLength > 0 && skipStartIndex + skipLength <= underlying.length)
 
-  def length: scala.Int = underlying.length - b
+  private val offset = skipStartIndex + skipLength - 1
+
+  def length: scala.Int = underlying.length - skipLength
 
   def apply(i : scala.Int) : T = {
-    val realI = if (i < a) i else offset + i
+    val realI = if (i < skipStartIndex) i else offset + i
     underlying(realI)
   }
 }
