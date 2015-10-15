@@ -3,12 +3,8 @@ package com.socrata.soda.server.export
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.highlevel.ExportDAO
-import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
-import com.socrata.soda.server.util.AdditionalJsonCodecs._
-import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.SoQLPackWriter
 import com.socrata.soql.types._
-import java.io.DataOutputStream
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
 
@@ -29,7 +25,7 @@ object SoQLPackExporter extends Exporter {
   def export(resp: HttpServletResponse,
              charset: AliasedCharset,
              schema: ExportDAO.CSchema,
-             rows: Iterator[Array[SoQLValue]],
+             rows: Iterator[ArrayLike[SoQLValue]],
              singleRow: Boolean = false) {
     val mt = new MimeType(mimeTypeBase)
     resp.setContentType(mt.toString)
