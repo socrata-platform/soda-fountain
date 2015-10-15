@@ -124,19 +124,16 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                   ETag(prepareTag(tag))(resp)
                 }
                 // TODO: DC export always includes system columns
-                // Because system columns always are always next to each other,
-                // We can drop them if we do not want them.
+                // Because system columns are always next to each other, we can drop them if we do not want them.
                 // When DC has the option to exclude system columns,
                 // move the work downstream to avoid tempering the row array.
                 val isSystemColumn = (ci: ColumnInfo) => ColumnSpecUtils.isSystemColumn(ci.fieldName)
-                val sysColsSize =
-                  if (!excludeSystemFields) 0
-                  else fullSchema.schema.filter(col => ColumnSpecUtils.isSystemColumn(col.fieldName)).size
+                val (sysColumns, userColumns) = fullSchema.schema.partition(isSystemColumn)
                 val sysColsStart = fullSchema.schema.indexWhere(isSystemColumn(_))
                 val (schema: CSchema, rows) =
-                  if (sysColsSize == 0) (fullSchema, fullRows)
-                  else (fullSchema.copy(schema = fullSchema.schema.seq.filterNot(isSystemColumn(_))),
-                        fullRows.map(row => row.take(sysColsStart) ++ row.drop(sysColsStart + sysColsSize)))
+                  if (!excludeSystemFields || sysColumns.size == 0) (fullSchema, fullRows)
+                  else (fullSchema.copy(schema = userColumns),
+                        fullRows.map(row => row.take(sysColsStart) ++ row.drop(sysColsStart + sysColumns.size)))
                 exporter.export(resp, charset, schema, rows)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
