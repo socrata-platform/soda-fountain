@@ -98,6 +98,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
                   case (res, report) => response(req, success)(resp)
                 }
               }
+              else response(req, success)(resp)
             case other => response(req, other)(resp)
           }
         }
