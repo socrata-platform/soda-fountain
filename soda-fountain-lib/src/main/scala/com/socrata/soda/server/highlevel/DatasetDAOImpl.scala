@@ -37,7 +37,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       Right(resourceName)
     case other =>
       log.warn("Soda Fountain does not yet support the following patch request: " + spec)
-      Left(UnsupportedOperation("Soda Fountain does not yet support the following patch request: " + spec))
+      Left(UnsupportedUpdateOperation("Soda Fountain does not yet support the following patch request: " + spec))
   }
 
   def freezeForCreation(spec: UserProvidedDatasetSpec): Either[Result, DatasetSpec] = spec match {

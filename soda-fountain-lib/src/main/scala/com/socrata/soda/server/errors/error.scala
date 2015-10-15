@@ -176,3 +176,7 @@ case class UpsertRowNotAnObject(obj: JValue)
  */
 case class UnrefinedUserError(code: String, obj: Map[String, JValue])
   extends SodaError(SC_BAD_REQUEST, "do-not-use." + code, obj)
+
+case class UnsupportedUpdateOperation(message: String)
+  extends SodaError(SC_BAD_REQUEST, "soda.unsupported-update-operation",
+    "message" -> JString(message))
