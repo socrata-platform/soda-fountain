@@ -593,6 +593,25 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 }
     }
 
+  // WARNING: this method is only suitable for things that are safe to update
+  // with no downstream repercussions for data coordinator (eg. name, resource_name)
+  def patchResource(toPatch: ResourceName, newResourceName: ResourceName): Unit = {
+    val sql =
+      """UPDATE datasets
+        | SET resource_name = ?,
+        |     resource_name_casefolded = ?
+        | WHERE resource_name = ?
+      """.stripMargin
+
+    using(dataSource.getConnection) { connection =>
+      using(connection.prepareStatement(sql)) { update =>
+        update.setString(1, newResourceName.name)
+        update.setString(2, newResourceName.caseFolded)
+        update.setString(3, toPatch.name)
+        update.execute()
+      }
+    }
+  }
 
   def lookupDroppedDatasets(delay: FiniteDuration): List[MinimalDatasetRecord]= {
     val sql = fetchDatasetSql(resourceName = false, copyNumber = false,isDeleted = true)

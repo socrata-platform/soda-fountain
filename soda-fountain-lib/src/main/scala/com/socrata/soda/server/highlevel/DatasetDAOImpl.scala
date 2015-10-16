@@ -31,6 +31,15 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
   def validResourceName(rn: ResourceName) = IdentifierFilter(rn.name) == rn.name
 
+  // We only support updating the resource name right now. The rest is left as a TODO.
+  def freezeForUpdate(spec: UserProvidedDatasetSpec): Either[Result, ResourceName] = spec match {
+    case UserProvidedDatasetSpec(Some(resourceName), None, None, None, None, None) =>
+      Right(resourceName)
+    case other =>
+      log.warn("Soda Fountain does not yet support the following patch request: " + spec)
+      Left(UnsupportedUpdateOperation("Soda Fountain does not yet support the following patch request: " + spec))
+  }
+
   def freezeForCreation(spec: UserProvidedDatasetSpec): Either[Result, DatasetSpec] = spec match {
     case UserProvidedDatasetSpec(Some(resourceName), Some(name), description, rowIdentifier, locale, columns) =>
       val trueDesc = description.getOrElse(defaultDescription)
@@ -131,7 +140,38 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
   def updateDataset(user: String,
                     dataset: ResourceName,
                     spec: UserProvidedDatasetSpec,
-                    requestId: RequestId): Result = ???
+                    requestId: RequestId): Result = {
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        freezeForUpdate(spec) match {
+          case Right(resourceName) =>
+            // Ensure the new resource name is valid
+            if(!validResourceName(resourceName))
+              return InvalidDatasetName(resourceName)
+
+            // Ensure the new resource name doesn't collide with another dataset
+            store.translateResourceName(resourceName) match {
+              case Some(existing) =>
+                DatasetAlreadyExists(resourceName)
+              case None =>
+                // Make the changes
+                store.patchResource(datasetRecord.resourceName, resourceName)
+
+                // Retrieve the updated record to send back in the response
+                store.lookupDataset(resourceName).headOption match {
+                  case Some(updated) =>
+                    Updated(updated)
+                  // The below should never happen... #lastwords
+                  case None =>
+                    throw new Exception("Could not find renamed dataset in metasoda")
+                }
+            }
+          case Left(result) => result
+        }
+      case None =>
+        NotFound(dataset)
+    }
+  }
 
   def removeDataset (user: String, dataset: ResourceName, requestId: RequestId): Result = {
     retryable(limit = 5) {

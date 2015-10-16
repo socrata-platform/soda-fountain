@@ -61,4 +61,5 @@ object DatasetDAO {
   case class RollupError(message: String) extends Result
   case class RollupColumnNotFound(column: ColumnName) extends Result
   case class RollupNotFound(name: RollupName) extends Result
+  case class UnsupportedUpdateOperation(message: String) extends Result
 }
