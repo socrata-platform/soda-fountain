@@ -93,7 +93,9 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
           columnDAO.replaceOrCreateColumn(user(req), resourceName, precondition, columnName,
                                           spec, RequestId.getFromRequest(req)) match {
             case success: ColumnDAO.CreateUpdateSuccess =>
-              if (spec.computationStrategy.isDefined) {
+              if (spec.computationStrategy.isDefined &&
+                  // optionally break apart rows computation into separate call.
+                  "false" != req.getParameter("compute")) {
                 computeUtils.compute(req, resp, resourceName, columnName, user(req)) {
                   case (res, report) => response(req, success)(resp)
                 }
