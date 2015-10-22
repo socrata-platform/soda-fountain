@@ -51,13 +51,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
             case ColumnSpecUtils.Success(cSpec) => acc + (cSpec.fieldName -> cSpec)
             // TODO: not-success case
             // TODO other cases have not been implemented
-            case _@x =>
-              log.warn("case is NOT implemented")
+            case x =>
+              log.warn("case is NOT implemented: %s".format(x.toString))
               ???
           }
-          Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, None, trueColumns))
-          // TODO: Not-success case
         }
+        Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, None, trueColumns))
+      // TODO: Not-success case
     }
   }
 
@@ -171,7 +171,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           case Left(result) => result
         }
       case None =>
-        NotFound(dataset)
+        DatasetNotFound(dataset)
     }
   }
 

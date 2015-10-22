@@ -71,9 +71,5 @@ object DatasetDAO {
   case class LocaleChanged(locale: String) extends FailResult
   case class RollupError(message: String) extends FailResult
   case class RollupColumnNotFound(column: ColumnName) extends FailResult
-
-  // FAILURES: Unknown Usage
-  case class InvalidColumnName(name: ColumnName) extends FailResult
-  case class UnsupportedUpdateOperation(message: String) extends Result
-
+  case class UnsupportedUpdateOperation(message: String) extends FailResult
 }

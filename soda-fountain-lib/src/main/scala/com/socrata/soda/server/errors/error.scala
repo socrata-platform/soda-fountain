@@ -234,6 +234,7 @@ case class LocaleChangedError(locale: String)
     s"Dataset locale is different from the default locale of $locale",
     "locale" -> JString(locale))
 
-case class UnsupportedUpdateOperation(message: String)
+case class UnsupportedUpdateOperation(errMessage: String)
   extends SodaError(SC_BAD_REQUEST, "soda.unsupported-update-operation",
-    "message" -> JString(message))
+    s"Requested Update Operation is not supported.",
+    "message" -> JString(errMessage))
