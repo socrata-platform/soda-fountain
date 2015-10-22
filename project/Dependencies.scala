@@ -27,7 +27,6 @@ object Dependencies {
     val thirdPartyUtils   = "3.1.2"
     val curatorUtils      = "1.0.3"
     val typesafeConfig    = "1.0.2"
-    val dataCoordinator   = "0.7.20-SNAPSHOT"
 
     // Test
     val mockito           = "1.10.7"
@@ -78,9 +77,6 @@ object Dependencies {
   val socrataHttpCuratorBroker = "com.socrata"     %% "socrata-http-curator-broker" % versions.socrataHttp exclude("org.slf4j", "slf4j-simple")
   val socrataHttpJetty         = "com.socrata"     %% "socrata-http-jetty"          % versions.socrataHttp
   val socrataHttpServer        = "com.socrata"     %% "socrata-http-server"         % versions.socrataHttp
-
-//  val coordinatorExternal   = "com.socrata"     %% "coordinator-external"        % versions.dataCoordinator
-
 
   val socrataThirdPartyUtils   = "com.socrata"     %% "socrata-thirdparty-utils"    % versions.thirdPartyUtils
   val socrataCuratorUtils      = "com.socrata"     %% "socrata-curator-utils"       % versions.curatorUtils

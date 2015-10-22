@@ -36,7 +36,6 @@ object SodaFountainLib {
       soqlStdLib exclude ("javax.media", "jai_core"),
       soqlTypes exclude ("javax.media", "jai_core"),
       typesafeConfig,
-//      coordinatorExternal,
       Test.apacheCurator,
       Test.mockito,
       Test.mockServer exclude("ch.qos.logback", "logback-classic"),
