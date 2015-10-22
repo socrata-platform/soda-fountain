@@ -71,6 +71,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
       case Some(strategy) =>
         val columns = columnsToExport(RequestId.getFromRequest(req), dataset, strategy)
         val requestId = RequestId.getFromRequest(req)
+        log.info("export dataset {} for column compute", dataset.resourceName.name)
         exportDAO.export(dataset.resourceName,
           JsonExporter.validForSchema,
           columns,
@@ -82,6 +83,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
           sorted = false,
           requestId) {
           case ExportDAO.Success(schema, newTag, rows) =>
+            log.info("exported dataset {} for column compute", dataset.resourceName.name)
             val transformer = new RowDataTranslator(
               RequestId.getFromRequest(req), dataset, false)
             val upsertRows = transformer.transformDcRowsForUpsert(computedColumns, Seq(column), schema, rows)

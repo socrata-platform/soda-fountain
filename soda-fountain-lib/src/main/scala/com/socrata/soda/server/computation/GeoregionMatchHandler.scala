@@ -91,7 +91,10 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
     val sourceColumnId = extractSourceColumnId(column)
 
     val batches = sourceIt.grouped(batchSize)
+    var batchIndex = 0
     val computedBatches = batches.map { batch =>
+      batchIndex += 1
+      logger.info("compute batch {}", batchIndex)
       val rowsWithIndex = batch.zipWithIndex.toSeq
 
       // Grab just the upserts and get the source column values for mapping to feature ID
