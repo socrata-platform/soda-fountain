@@ -74,9 +74,9 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
       case DatasetDAO.RollupDropped =>
         NoContent
       // fail cases
-      case DatasetAlreadyExists(dataset) =>
+      case DatasetDAO.DatasetAlreadyExists(dataset) =>
         SodaUtils.errorResponse(req, DatasetAlreadyExistsSodaErr(dataset))
-      case NonExistentColumn(dataset, column) =>
+      case DatasetDAO.NonExistentColumn(dataset, column) =>
         SodaUtils.errorResponse(req, ColumnNotFound(dataset, column))
       case DatasetDAO.LocaleChanged(locale) =>
         SodaUtils.errorResponse(req, LocaleChangedError(locale))
@@ -92,13 +92,10 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         SodaUtils.errorResponse(req, RollupColumnNotFound(column))
       case DatasetDAO.CannotAcquireDatasetWriteLock(dataset) =>
         SodaUtils.errorResponse(req, DatasetWriteLockError(dataset))
-      case DatasetDAO.InternalServerError(code, tag, data) =>
-        SodaUtils.errorResponse(req, InternalError(tag,
-          "code"  -> JString(code),
-          "data" -> JString(data)
-        ))
       case DatasetDAO.UnsupportedUpdateOperation(message) =>
-        BadRequest ~> SodaUtils.errorResponse(req, UnsupportedUpdateOperation(message))
+        SodaUtils.errorResponse(req, UnsupportedUpdateOperation(message))
+      case DatasetDAO.InternalServerError(code, tag, data) =>
+        SodaUtils.errorResponse(req, InternalError(tag, "code"  -> JString(code), "data" -> JString(data)))
     }
   }
 
