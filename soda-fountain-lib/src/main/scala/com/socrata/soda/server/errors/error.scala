@@ -55,9 +55,9 @@ case class HttpMethodNotAllowed(method: String, allowed: TraversableOnce[String]
 
 case object NoContentType extends SodaError("req.content-type.missing", "No content-type is set on the request")
 
-
+// TODO change description to not use getOrElse when we make it non-optional
 case class ErrorReportedByQueryCoordinator(code: Int, value: QueryCoordinatorError)
-  extends SodaError(code, value.errorCode, s"Query coordinator error: ${value.errorCode}; ${value.description}", value.data)
+  extends SodaError(code, value.errorCode, s"Query coordinator error: ${value.errorCode}; ${value.description.getOrElse(value.errorCode)}", value.data)
 
 case class UnparsableContentType(contentType: String)
   extends SodaError("req.content-type.unparsable", s"The content-type set on the request ($contentType) is unparseable",
