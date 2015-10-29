@@ -38,7 +38,7 @@ object SodaUtils {
   def errorResponse(req: HttpServletRequest, error: SodaError, logTags: LogTag*): HttpResponse = {
     import com.rojoma.json.v3.ast._
 
-    errorLog.info(s"${logTags.mkString(" ")} responding with error ${error.errorCode}")
+    errorLog.info(s"${logTags.mkString(" ")} responding with error ${error.errorCode}: ${error.humanReadableMessage}")
     val header = error.vary.foldLeft(error.etags.foldLeft(Status(error.httpResponseCode)) { (h, et) =>
       h ~> ETag(et)
     }) { (h, vary) =>

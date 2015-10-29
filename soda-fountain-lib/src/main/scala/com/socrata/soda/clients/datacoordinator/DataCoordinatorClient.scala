@@ -9,29 +9,80 @@ import com.socrata.http.server.util.{Precondition, EntityTag}
 import org.joda.time.DateTime
 
 object DataCoordinatorClient {
+
+  val client = "DC"
+
+
+  case class VersionReport(val version: Long)
   object VersionReport{
     implicit val codec = SimpleJsonCodecBuilder[VersionReport].build("version", _.version)
   }
-  case class VersionReport(val version: Long)
-  case class ReportMetaData(val datasetId: DatasetId, val version: Long, val lastModified: DateTime)
 
-  sealed abstract class Result
-  case class SchemaOutOfDate(newSchema: SchemaSpec) extends Result
-  case object CannotDeleteRowId extends Result
-  case object PreconditionFailed extends Result
-  case class NotModified(etags: Seq[EntityTag]) extends Result
-  case object DuplicateValuesInColumn extends Result
-  case class IncorrectLifecycleStage(actualStage: String, expectedStage: Set[String]) extends Result
-  case class NoSuchRollup(name: RollupName) extends Result
-  case class NoSuchRow(id: RowSpecifier) extends Result
-  case class UnrefinedUserError(code: String) extends Result // TODO: Refine user errors from DC
+  case class ReportMetaData(val datasetId: DatasetId, val version: Long, val lastModified: DateTime)
 
   sealed abstract class ReportItem
   case class UpsertReportItem(data: Iterator[JValue] /* Note: this MUST be completely consumed before calling hasNext/next on parent iterator! */) extends ReportItem
   case object OtherReportItem extends ReportItem
 
-  case class Success(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, lastModified: DateTime) extends Result
-  case class Export(json: Iterator[JValue], etag: Option[EntityTag]) extends Result
+
+  sealed abstract class Result
+  sealed class FailResult extends Result
+  sealed class SuccessResult extends Result
+
+  // SUCCESS CASES
+  case class NonCreateScriptResult(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, lastModified: DateTime) extends SuccessResult
+  case class ExportResult(json: Iterator[JValue], etag: Option[EntityTag]) extends SuccessResult
+
+
+
+  // FAIL CASES
+  case class SchemaOutOfDateResult(newSchema: SchemaSpec) extends FailResult
+  case class NotModifiedResult(etags: Seq[EntityTag]) extends FailResult
+  case class IncorrectLifecycleStageResult(actualStage: String, expectedStage: Set[String]) extends FailResult
+  case class NoSuchRollupResult(name: RollupName, commandIndex: Long) extends FailResult
+  case object PreconditionFailedResult extends FailResult
+  case class InternalServerErrorResult(code: String, tag: String, data: String) extends FailResult
+  case class InvalidLocaleResult(locale: String, commandIndex: Long) extends FailResult
+
+
+
+  // FAIL CASES: Rows
+  case class NoSuchRowResult(id: RowSpecifier, commandIndex: Long) extends FailResult
+  case class RowPrimaryKeyNonexistentOrNullResult(id: RowSpecifier, commandIndex: Long) extends FailResult
+  case class UnparsableRowValueResult(columnId: ColumnId,tp: String ,value: JValue, commandIndex: Long, commandSubIndex: Long) extends FailResult
+  case class RowNoSuchColumnResult(columnId: ColumnId, commandIndex: Long, commandSubIndex: Long) extends FailResult
+  case class CannotDeleteRowIdResult(commandIndex: Long) extends FailResult
+
+
+  // FAIL CASES: Columns
+  case class DuplicateValuesInColumnResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult
+  case class ColumnExistsAlreadyResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult
+  case class IllegalColumnIdResult(columnId: ColumnId, commandIndex: Long) extends FailResult
+  case class InvalidSystemColumnOperationResult(datasetId: DatasetId, column: ColumnId, commandIndex: Long) extends FailResult
+  case class ColumnNotFoundResult(datasetId: DatasetId, column: ColumnId, commandIndex: Long) extends FailResult
+
+  // FAIL CASES: Datasets
+  case class DatasetNotFoundResult(datasetId: DatasetId) extends FailResult
+  case class CannotAcquireDatasetWriteLockResult(datasetId: DatasetId) extends FailResult
+  case class InitialCopyDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
+  case class OperationAfterDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
+
+  // FAIL CASES: Updates
+  case class NotPrimaryKeyResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult
+  case class NullsInColumnResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult
+  case class InvalidTypeForPrimaryKeyResult(datasetId: DatasetId, columnId: ColumnId,
+                                            tp: String, commandIndex: Long) extends FailResult
+  case class PrimaryKeyAlreadyExistsResult(datasetId: DatasetId, columnId: ColumnId,
+                                           existing: ColumnId, commandIndex: Long) extends FailResult
+  case class NoSuchTypeResult(tp: String, commandIndex: Long) extends FailResult
+  case class RowVersionMismatchResult(dataset: DatasetId,
+                                      value: JValue,
+                                      commandIndex: Long,
+                                      expected: Option[JValue],
+                                      actual: Option[JValue]) extends FailResult
+  case class VersionOnNewRowResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
+  case class ScriptRowDataInvalidValueResult(datasetId: DatasetId, value: JValue,
+                                             commandIndex: Long, commandSubIndex: Long) extends FailResult
 }
 
 trait DataCoordinatorClient {

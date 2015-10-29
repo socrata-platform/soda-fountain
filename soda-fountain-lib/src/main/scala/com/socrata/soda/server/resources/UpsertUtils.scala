@@ -1,5 +1,6 @@
 package com.socrata.soda.server.resources
 
+import com.rojoma.json.v3.ast.{JNumber, JString}
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
@@ -26,7 +27,7 @@ object UpsertUtils {
       case UnknownColumnEx(columnName)               =>
         handleResponse(RowDAO.UnknownColumn(columnName))
       case DeleteNoPKEx                              =>
-        handleResponse(RowDAO.DeleteWithoutPrimaryKey)
+        handleResponse(RowDAO.CannotDeletePrimaryKey)
       case NotAnObjectOrSingleElementArrayEx(obj)    =>
         handleResponse(RowDAO.RowNotAnObject(obj))
       case ComputationHandlerNotFoundEx(typ)         =>
@@ -44,20 +45,31 @@ object UpsertUtils {
         SodaUtils.errorResponse(request, new SodaErrors.ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
       case RowDAO.RowNotFound(rowSpecifier) =>
         SodaUtils.errorResponse(request, SodaErrors.RowNotFound(rowSpecifier))(response)
+      case RowDAO.RowPrimaryKeyIsNonexistentOrNull(rowSpecifier) =>
+        SodaUtils.errorResponse(request, SodaErrors.RowPrimaryKeyNonexistentOrNull(rowSpecifier))(response)
       case RowDAO.UnknownColumn(columnName) =>
         SodaUtils.errorResponse(request, SodaErrors.RowColumnNotFound(columnName))(response)
       case RowDAO.ComputationHandlerNotFound(typ) =>
         SodaUtils.errorResponse(request, SodaErrors.ComputationHandlerNotFound(typ))(response)
-      case RowDAO.DeleteWithoutPrimaryKey =>
-        SodaUtils.errorResponse(request, SodaErrors.DeleteWithoutPrimaryKey)(response)
+      case RowDAO.CannotDeletePrimaryKey =>
+        SodaUtils.errorResponse(request, SodaErrors.CannotDeletePrimaryKey)(response)
       case RowDAO.RowNotAnObject(obj) =>
         SodaUtils.errorResponse(request, SodaErrors.UpsertRowNotAnObject(obj))(response)
       case RowDAO.DatasetNotFound(dataset) =>
         SodaUtils.errorResponse(request, SodaErrors.DatasetNotFound(dataset))(response)
       case RowDAO.SchemaOutOfSync =>
         SodaUtils.errorResponse(request, SodaErrors.SchemaInvalidForMimeType)(response)
-      case RowDAO.UnrefinedUpsertUserError(code, data) =>
-        SodaUtils.errorResponse(request, SodaErrors.UnrefinedUserError(code, data))(response)
+      case RowDAO.InvalidRequest(client, status, body) =>
+        SodaUtils.errorResponse(request, SodaErrors.InternalError(s"Error from $client:", "code"  -> JNumber(status),
+          "data" -> body))(response)
+      case RowDAO.QCError(status, qcErr) =>
+        SodaUtils.errorResponse(request, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))(response)
+      case RowDAO.InternalServerError(status, client, code, tag, data) =>
+        SodaUtils.errorResponse(request, SodaErrors.InternalError(s"Error from $client:",
+          "status" -> JNumber(status),
+          "code"  -> JString(code),
+          "data" -> JString(data),
+          "tag"->JString(tag)))(response)
     }
   }
 

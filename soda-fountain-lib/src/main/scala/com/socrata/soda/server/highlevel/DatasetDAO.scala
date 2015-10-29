@@ -1,5 +1,6 @@
 package com.socrata.soda.server.highlevel
 
+import com.rojoma.json.v3.ast.JValue
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.VersionReport
 import com.socrata.soda.server.copy.Stage
@@ -41,25 +42,34 @@ trait DatasetDAO {
 
 object DatasetDAO {
   sealed abstract class Result
-  case class Created(dataset: DatasetRecord) extends Result
-  case class Updated(dataset: DatasetRecord) extends Result
-  case class Found(dataset: DatasetRecord) extends Result
-  case class DatasetVersion(version: VersionReport) extends Result
-  case object Deleted extends Result
-  case class NotFound(name: ResourceName) extends Result
-  case class InvalidDatasetName(name: ResourceName) extends Result
-  case class NonexistantColumn(name: ColumnName) extends Result
-  case class InvalidColumnName(name: ColumnName) extends Result
-  case class DatasetAlreadyExists(name: ResourceName) extends Result
-  case object LocaleChanged extends Result
-  case object WorkingCopyCreated extends Result
-  case object WorkingCopyDropped extends Result
-  case object WorkingCopyPublished extends Result
-  case object PropagatedToSecondary extends Result
-  case object RollupCreatedOrUpdated extends Result
-  case object RollupDropped extends Result
-  case class RollupError(message: String) extends Result
-  case class RollupColumnNotFound(column: ColumnName) extends Result
-  case class RollupNotFound(name: RollupName) extends Result
-  case class UnsupportedUpdateOperation(message: String) extends Result
+  sealed abstract class SuccessResult extends Result
+  sealed abstract class FailResult extends Result
+
+  // SUCCESS
+  case class Created(dataset: DatasetRecord) extends SuccessResult
+  case class Updated(dataset: DatasetRecord) extends SuccessResult
+  case class Found(dataset: DatasetRecord) extends SuccessResult
+  case class DatasetVersion(version: VersionReport) extends SuccessResult
+  case object Deleted extends SuccessResult
+  case object WorkingCopyCreated extends SuccessResult
+  case object WorkingCopyDropped extends SuccessResult
+  case object WorkingCopyPublished extends SuccessResult
+  case object PropagatedToSecondary extends SuccessResult
+  case object RollupCreatedOrUpdated extends SuccessResult
+  case object RollupDropped extends SuccessResult
+
+  // FAILURES: DataCoordinator
+  case class RollupNotFound(name: RollupName) extends FailResult
+  case class DatasetNotFound(name: ResourceName) extends FailResult
+  case class CannotAcquireDatasetWriteLock(name: ResourceName) extends FailResult
+  case class InternalServerError(code: String, tag: String, data: String) extends FailResult
+
+  // FAILURES: Internally consumed
+  case class InvalidDatasetName(name: ResourceName) extends FailResult
+  case class NonExistentColumn(dataset: ResourceName, name: ColumnName) extends FailResult
+  case class DatasetAlreadyExists(name: ResourceName) extends FailResult
+  case class LocaleChanged(locale: String) extends FailResult
+  case class RollupError(message: String) extends FailResult
+  case class RollupColumnNotFound(column: ColumnName) extends FailResult
+  case class UnsupportedUpdateOperation(message: String) extends FailResult
 }

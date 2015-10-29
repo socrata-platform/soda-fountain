@@ -1,5 +1,6 @@
 package com.socrata.soda.server.resources
 
+import com.rojoma.json.v3.ast.JString
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -7,12 +8,12 @@ import com.socrata.http.server.util.RequestId
 import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.errors._
+import com.socrata.soda.server.highlevel.DatasetDAO.{NonExistentColumn, DatasetAlreadyExists}
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
 import com.socrata.soda.server.wiremodels.{UserProvidedSpec, Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
 import com.socrata.soda.server.wiremodels.{RequestProblem, IOProblem}
-import com.socrata.soda.server.{SodaUtils, LogTag}
 import javax.servlet.http.HttpServletRequest
 
 /**
@@ -49,29 +50,52 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     // TODO: Negotiate content type
     log.debug(s"sending response, result: ${result}")
     result match {
-      case DatasetDAO.Created(record) => Created ~> Json(record.asSpec)
-      case DatasetDAO.Updated(record) => OK ~> Json(record.asSpec)
-      case DatasetDAO.Found(record) => OK ~> Json(record.asSpec)
-      case DatasetDAO.DatasetVersion(vr) => OK ~> Json(vr)
-      case DatasetDAO.Deleted => NoContent
-      case DatasetDAO.NotFound(dataset) => NotFound /* TODO: content */
-      case DatasetDAO.InvalidDatasetName(name) => BadRequest /* TODO: content */
-      case DatasetDAO.InvalidColumnName(name) => BadRequest /* TODO: content */
-      case DatasetDAO.WorkingCopyCreated => Created /* TODO: content */
-      case DatasetDAO.PropagatedToSecondary => Created /* TODO: content */
-      case DatasetDAO.WorkingCopyDropped => NoContent
-      case DatasetDAO.WorkingCopyPublished => NoContent
-      case DatasetDAO.RollupCreatedOrUpdated => NoContent
-      case DatasetDAO.RollupNotFound(name) => SodaUtils.errorResponse(req, RollupNotFound(name))
-      case DatasetDAO.RollupDropped => NoContent
-      case DatasetDAO.RollupError(reason) =>  SodaUtils.errorResponse(req, RollupCreationFailed(reason))
-      case DatasetDAO.RollupColumnNotFound(column) => SodaUtils.errorResponse(req, RollupColumnNotFound(column))
+      // success cases
+      case DatasetDAO.Updated(record) =>
+        OK ~> Json(record.asSpec)
+      case DatasetDAO.Found(record) =>
+        OK ~> Json(record.asSpec)
+      case DatasetDAO.DatasetVersion(vr) =>
+        OK ~> Json(vr)
+      case DatasetDAO.Created(record) =>
+        Created ~> Json(record.asSpec)
+      case DatasetDAO.WorkingCopyCreated =>
+        Created
+      case DatasetDAO.PropagatedToSecondary =>
+        Created
+      case DatasetDAO.WorkingCopyDropped =>
+        NoContent
+      case DatasetDAO.WorkingCopyPublished =>
+        NoContent
+      case DatasetDAO.RollupCreatedOrUpdated =>
+        NoContent
+      case DatasetDAO.Deleted =>
+        NoContent
+      case DatasetDAO.RollupDropped =>
+        NoContent
+      // fail cases
+      case DatasetDAO.DatasetAlreadyExists(dataset) =>
+        SodaUtils.errorResponse(req, DatasetAlreadyExistsSodaErr(dataset))
+      case DatasetDAO.NonExistentColumn(dataset, column) =>
+        SodaUtils.errorResponse(req, ColumnNotFound(dataset, column))
+      case DatasetDAO.LocaleChanged(locale) =>
+        SodaUtils.errorResponse(req, LocaleChangedError(locale))
+      case DatasetDAO.DatasetNotFound(dataset) =>
+        SodaUtils.errorResponse(req, DatasetNotFound(dataset))
+      case DatasetDAO.InvalidDatasetName(name) =>
+        SodaUtils.errorResponse(req, DatasetNameInvalidNameSodaErr(name))
+      case DatasetDAO.RollupNotFound(name) =>
+        SodaUtils.errorResponse(req, RollupNotFound(name))
+      case DatasetDAO.RollupError(reason) =>
+        SodaUtils.errorResponse(req, RollupCreationFailed(reason))
+      case DatasetDAO.RollupColumnNotFound(column) =>
+        SodaUtils.errorResponse(req, RollupColumnNotFound(column))
+      case DatasetDAO.CannotAcquireDatasetWriteLock(dataset) =>
+        SodaUtils.errorResponse(req, DatasetWriteLockError(dataset))
       case DatasetDAO.UnsupportedUpdateOperation(message) =>
-        BadRequest ~> SodaUtils.errorResponse(req, UnsupportedUpdateOperation(message))
-      // TODO other cases have not been implemented
-      case _@x =>
-        log.warn(s"case $x is NOT implemented")
-        ???
+        SodaUtils.errorResponse(req, UnsupportedUpdateOperation(message))
+      case DatasetDAO.InternalServerError(code, tag, data) =>
+        SodaUtils.errorResponse(req, InternalError(tag, "code"  -> JString(code), "data" -> JString(data)))
     }
   }
 

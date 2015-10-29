@@ -6,7 +6,7 @@ import java.security.MessageDigest
 import scala.collection.JavaConverters._
 import scala.language.existentials
 
-import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.ast.{JNumber, JString, JValue}
 import com.rojoma.simplearm.util._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.common.util.ContentNegotiation
@@ -67,6 +67,8 @@ case class Resource(rowDAO: RowDAO,
     hash.digest()
   }
 
+
+  // TODO this method doesnt seem to have a use? determine and delete if we can.
   def response(result: RowDAO.Result): HttpResponse = {
     // TODO: Negotiate content-type
     result match {
@@ -86,10 +88,36 @@ case class Resource(rowDAO: RowDAO,
         Status(code) ~> Json(value)
       case RowDAO.RowNotFound(value) =>
         SodaUtils.errorResponse(req, SodaErrors.RowNotFound(value))
-      // TODO other cases have not been implemented
-      case _@x =>
+      case RowDAO.RowPrimaryKeyIsNonexistentOrNull(value) =>
+        SodaUtils.errorResponse(req, SodaErrors.RowPrimaryKeyNonexistentOrNull(value))
+      case RowDAO.UnknownColumn(columnName) =>
+        SodaUtils.errorResponse(req, SodaErrors.RowColumnNotFound(columnName))
+      case RowDAO.ComputationHandlerNotFound(typ) =>
+        SodaUtils.errorResponse(req, SodaErrors.ComputationHandlerNotFound(typ))
+      case RowDAO.CannotDeletePrimaryKey =>
+        SodaUtils.errorResponse(req, SodaErrors.CannotDeletePrimaryKey)
+      case RowDAO.RowNotAnObject(obj) =>
+        SodaUtils.errorResponse(req, SodaErrors.UpsertRowNotAnObject(obj))
+      case RowDAO.DatasetNotFound(dataset) =>
+        SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(dataset))
+      case RowDAO.SchemaOutOfSync =>
+        SodaUtils.errorResponse(req, SodaErrors.SchemaInvalidForMimeType)
+      case RowDAO.InvalidRequest(client, status, body) =>
+        SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:", "code"  -> JNumber(status),
+          "data" -> body))
+      case RowDAO.QCError(status, qcErr) =>
+        SodaUtils.errorResponse(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
+      case RowDAO.InternalServerError(status, client, code, tag, data) =>
+        SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
+          "code"  -> JString(code),
+          "data" -> JString(data),
+          "tag"->JString(tag)))
+      case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
+        SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
+      case x =>
         log.warn("case is NOT implemented")
-        ???
+        SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error",
+          "error" -> JString(x.toString)))
     }
   }
 
@@ -106,12 +134,13 @@ case class Resource(rowDAO: RowDAO,
         val transformer = new RowDataTranslator(requestId, datasetRecord, false)
         val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
-      case DatasetDAO.NotFound(dataset) =>
+      case DatasetDAO.DatasetNotFound(dataset) =>
         SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
-      // TODO other cases have not been implemented
-      case _@x =>
+        // No other cases have to be implimented
+      case x =>
         log.warn("case is NOT implemented")
-        ???
+        SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error",
+          "error" -> JString(x.toString)))
     }
   }
 
@@ -133,6 +162,11 @@ case class Resource(rowDAO: RowDAO,
     override def get = { req: HttpRequest => response: HttpServletResponse =>
       val domainId = req.header(domainIdHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
+      def metricByStatus(status: Int) = {
+        if (status >= 400 && status < 500) metric(QueryErrorUser)
+        else if (status >= 500 && status < 600) metric(QueryErrorInternal)
+      }
+
       val start = System.currentTimeMillis
       try {
         val qpQuery = "$query" // Query parameter query
@@ -188,17 +222,22 @@ case class Resource(rowDAO: RowDAO,
                     case RowDAO.DatasetNotFound(resourceName) =>
                       metric(QueryErrorUser)
                       SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
-                    case RowDAO.InvalidRequest(code, body) =>
-                      if (code >= 400 && code < 500) metric(QueryErrorUser)
-                      else if (code >= 500 && code < 600) metric(QueryErrorInternal)
+                    case RowDAO.QCError(status, qcErr) =>
+                      metricByStatus(status)
+                      SodaUtils.errorResponse(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))(response)
+                    case RowDAO.InvalidRequest(client, status, body) =>
+                      metricByStatus(status)
+                      SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
+                        "code"  -> JNumber(status),
+                        "data" -> body))(response)
+                    case RowDAO.InternalServerError(status, client, code, tag, data) =>
+                      metricByStatus(status)
+                      SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
+                        "status" -> JNumber(status),
+                        "code"  -> JString(code),
+                        "data" -> JString(data),
+                        "tag" -> JString(tag)))(response)
 
-                      SodaError.QueryCoordinatorErrorCodec.decode(body) match {
-                        case Right(qcError) =>
-                          val err = SodaErrors.ErrorReportedByQueryCoordinator(code, qcError)
-                          SodaUtils.errorResponse(req, err)(response)
-                        case Left(_) =>
-                          SodaUtils.errorResponse(req, SodaErrors.InternalError("Cannot parse error from QC"))(response)
-                      }
                   }
                 }
               case None =>
@@ -216,6 +255,7 @@ case class Resource(rowDAO: RowDAO,
           throw e
       }
     }
+
 
     override def post = { req => response =>
       val requestId = RequestId.getFromRequest(req)
@@ -290,6 +330,9 @@ case class Resource(rowDAO: RowDAO,
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
                       SodaUtils.errorResponse(req, SodaErrors.RowNotFound(row))(response)
+                    case RowDAO.RowPrimaryKeyIsNonexistentOrNull(row) =>
+                      metric(QueryErrorUser)
+                      SodaUtils.errorResponse(req, SodaErrors.RowPrimaryKeyNonexistentOrNull(row))(response)
                     case RowDAO.DatasetNotFound(resourceName) =>
                       metric(QueryErrorUser)
                       SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)

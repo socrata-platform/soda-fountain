@@ -1,29 +1,16 @@
 package com.socrata.soda.server.export
 
 import com.rojoma.simplearm.util._
-import com.rojoma.json.v3.ast._
-import com.rojoma.json.v3.io.JsonReader
-import com.socrata.http.common.util.AliasedCharset
-import com.socrata.soda.server.DatasetsForTesting
-import com.socrata.soda.server.highlevel.{ExportDAO, CJson}
-import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.persistence.ColumnRecord
-import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.soql.SoQLPackIterator
 import java.io.{ByteArrayOutputStream, ByteArrayInputStream, DataInputStream}
-import java.nio.charset.StandardCharsets
 import javax.servlet.ServletOutputStream
 import javax.servlet.http.HttpServletResponse
-import org.joda.time.format.ISODateTimeFormat
-import org.scalamock.proxy.ProxyMockFactory
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FunSuite, Matchers}
 
-class SoQLPackExporterTest  extends FunSuite with MockFactory with ProxyMockFactory with Matchers with DatasetsForTesting {
-  val charset = AliasedCharset(StandardCharsets.UTF_8, StandardCharsets.UTF_8.name)
+class SoQLPackExporterTest  extends ExporterTest {
 
   val points = Seq(
     SoQLPoint.WktRep.unapply("POINT (-122.314822 47.630269)").get,
@@ -101,51 +88,11 @@ class SoQLPackExporterTest  extends FunSuite with MockFactory with ProxyMockFact
       mockResponse.expects('setContentType)("application/octet-stream")
       mockResponse.expects('getOutputStream)().returning(stream)
 
-      SoQLPackExporter.export(mockResponse, charset, getDCSchema(columns, pk, rows), rows.iterator, singleRow)
+      SoQLPackExporter.export(mockResponse, charset, getDCSchema("SoQLPackExporterTest", columns, pk, rows), rows.iterator, singleRow)
 
       val dis = new DataInputStream(new ByteArrayInputStream(baos.toByteArray))
       val iter = new SoQLPackIterator(dis)
       (iter.schema, iter.geomIndex, iter.toList)
     }
   }
-
-  // TODO: extract these functions and the ones in GeoJsonExporterTest into common ExporterTest trait
-  private def getDCSchema(columns: Seq[ColumnRecord], pk: String, rows: Seq[Array[SoQLValue]]): ExportDAO.CSchema = {
-    val dcInfo = Iterator.single[JValue](getDCSummary(columns, pk, rows.size)) ++ getDCRows(rows)
-    val decoded: CJson.Schema = CJson.decode(dcInfo) match {
-      case CJson.Decoded(schema, rows) => schema
-      case _ => fail("Something got messed up here")
-    }
-
-    val dataset = generateDataset("GeoJsonExporterTest", columns)
-
-    ExportDAO.CSchema(decoded.approximateRowCount,
-      decoded.dataVersion,
-      decoded.lastModified.map(time => ISODateTimeFormat.dateTimeParser.parseDateTime(time)),
-      decoded.locale,
-      decoded.pk.map(dataset.columnsById(_).fieldName),
-      decoded.rowCount,
-      decoded.schema.map {
-        f => ColumnInfo(dataset.columnsById(f.c).id, dataset.columnsById(f.c).fieldName, dataset.columnsById(f.c).name, f.t)
-      })
-  }
-
-  private def getDCRows(rows: Seq[Array[SoQLValue]]) = {
-    val jValues = rows.map(_.map { cell =>
-      JsonColumnRep.forDataCoordinatorType(cell.typ).toJValue(cell)
-    })
-    jValues.map(JArray(_))
-  }
-
-  private def getDCSummary(columns: Seq[ColumnRecord], pk: String, rowCount: Int) = {
-    val dcRowSchema = columns.map { column =>
-      JObject(Map("c" -> JString(column.id.underlying), "t" -> JString(getHumanReadableTypeName(column.typ))))
-    }
-    JObject(Map("approximate_row_count" -> JNumber(rowCount),
-                "locale"                -> JString("en_US"),
-                "pk"                    -> JString(pk),
-                "schema"                -> JArray(dcRowSchema)))
-  }
-
-  private def getHumanReadableTypeName(typ: SoQLType) = SoQLType.typesByName.map(_.swap).get(typ).get.name
 }

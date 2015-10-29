@@ -1,6 +1,6 @@
 package com.socrata.soda.server.resources
 
-import com.rojoma.json.ast._
+import com.rojoma.json.v3.ast._
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.http.server.HttpRequest
@@ -88,12 +88,22 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
               RequestId.getFromRequest(req), dataset, false)
             val upsertRows = transformer.transformDcRowsForUpsert(computedColumns, Seq(column), schema, rows)
             rowDAO.upsert(user, dataset, upsertRows, requestId)(UpsertUtils.handleUpsertErrors(req, response)(successHandler))
-          case ExportDAO.PreconditionFailed => SodaUtils.errorResponse(req, SodaError.EtagPreconditionFailed)(response)
-          case ExportDAO.NotModified(etags) => SodaUtils.errorResponse(req, SodaError.ResourceNotModified(Nil, None))(response)
-          case ExportDAO.NotFound(resourceName) => SodaUtils.errorResponse(req, SodaError.DatasetNotFound(resourceName))(response)
-          case ExportDAO.SchemaInvalidForMimeType => SodaUtils.errorResponse(req, SodaError.SchemaInvalidForMimeType)(response)
+          case ExportDAO.SchemaInvalidForMimeType =>
+            SodaUtils.errorResponse(req, SodaError.SchemaInvalidForMimeType)(response)
+          case ExportDAO.NotModified(etags) =>
+            SodaUtils.errorResponse(req, SodaError.ResourceNotModified(Nil, None))(response)
+          case ExportDAO.PreconditionFailed =>
+            SodaUtils.errorResponse(req, SodaError.EtagPreconditionFailed)(response)
+          case ExportDAO.NotFound(resourceName) =>
+            SodaUtils.errorResponse(req, SodaError.DatasetNotFound(resourceName))(response)
+          case ExportDAO.InternalServerError(code, tag, data) =>
+            SodaUtils.errorResponse(req, SodaError.InternalError(tag,
+              "code"  -> JString(code),
+              "data" -> JString(data)
+            ))(response)
         }
-      case None => SodaUtils.errorResponse(req, SodaError.NotAComputedColumn(column.fieldName))(response)
+      case None =>
+        SodaUtils.errorResponse(req, SodaError.NotAComputedColumn(column.fieldName))(response)
     }
 
   def writeComputeResponse(resourceName: ResourceName,
@@ -101,6 +111,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
                            responseCode: Int,
                            response: HttpServletResponse,
                            report: Iterator[ReportItem]) {
+    import com.rojoma.json.ast._
     response.setStatus(responseCode)
     response.setContentType(SodaUtils.jsonContentTypeUtf8) // TODO: negotiate charset too
     using(response.getWriter) { w =>
@@ -118,9 +129,10 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
           case OtherReportItem => // nothing; probably shouldn't have occurred!
         }
       }
-      jw.write(JObject(Map("resource_name" -> JString(resourceName.name),
-                           "column_name"   -> JString(columnName.name),
-                           "rows_computed" -> JNumber(rowsComputed))))
+      // TODO use .ast.v3 instead
+      jw.write(com.rojoma.json.ast.JObject(Map("resource_name" -> com.rojoma.json.ast.JString(resourceName.name),
+                           "column_name"   -> com.rojoma.json.ast.JString(columnName.name),
+                           "rows_computed" -> com.rojoma.json.ast.JNumber(rowsComputed))))
       w.write("\n")
     }
   }

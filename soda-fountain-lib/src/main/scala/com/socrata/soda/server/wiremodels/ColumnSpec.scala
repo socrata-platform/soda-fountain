@@ -23,6 +23,12 @@ object ColumnSpec {
   implicit val jsonCodec = AutomaticJsonCodecBuilder[ColumnSpec]
 }
 
+case class ColumnSpecSubSet(id: Option[ColumnId], fieldName: Option[ColumnName])
+object ColumnSpecSubSet {
+  implicit val jsonCodec = AutomaticJsonCodecBuilder[ColumnSpecSubSet]
+}
+
+
 // A user provided column spec doesn't necessarily have an ID.
 // If it does, it's because it's updating an existing column -- that is,
 // users cannot select their own column IDs.

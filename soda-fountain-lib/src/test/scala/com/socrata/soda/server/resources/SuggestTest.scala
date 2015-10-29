@@ -138,7 +138,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
   }
   test("translate dataset name to id - not found") {
     val d = mock[DatasetDAO]
-    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.NotFound(resourceName))
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.DatasetNotFound(resourceName))
 
     mockSuggest(datasetDao = d).datasetId(resourceName) should be(None)
   }
@@ -200,7 +200,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
   }
   test("make internal context - dataset not found") {
     val d = mock[DatasetDAO]
-    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.NotFound(resourceName))
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.DatasetNotFound(resourceName))
 
     val suggest = mockSuggest(datasetDao = d)
 
@@ -252,7 +252,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
   }
   test("service suggestions - dataset not found") {
     val d = mock[DatasetDAO]
-    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.NotFound(resourceName))
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.DatasetNotFound(resourceName))
 
     val suggest = mockSuggest(datasetDao = d)
 
@@ -289,7 +289,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
   }
   test("service samples - dataset not found") {
     val d = mock[DatasetDAO]
-    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.NotFound(resourceName))
+    d.expects('getDataset)(resourceName, None).returning(DatasetDAO.DatasetNotFound(resourceName))
 
     val suggest = mockSuggest(datasetDao = d)
 
