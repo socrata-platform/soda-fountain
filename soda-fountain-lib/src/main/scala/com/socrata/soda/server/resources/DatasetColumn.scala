@@ -13,21 +13,21 @@ import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
-import javax.servlet.http.HttpServletRequest
+import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 
 case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, computedColumns: ComputedColumnsLike, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetColumn])
   val computeUtils = new ComputeUtils(columnDAO, exportDAO, rowDAO, computedColumns)
   val defaultSuffix = Array[Byte]('+')
 
-  def withColumnSpec(request: HttpRequest, logTags: LogTag*)(f: UserProvidedColumnSpec => Unit): Unit = {
+  def withColumnSpec(request: HttpRequest, response: HttpServletResponse, logTags: LogTag*)(f: UserProvidedColumnSpec => Unit): Unit = {
     UserProvidedColumnSpec.fromRequest(request, maxDatumSize) match {
       case Extracted(datasetSpec) =>
         f(datasetSpec)
       case RequestProblem(err) =>
-        SodaUtils.errorResponse(request, err, logTags : _*)
+        SodaUtils.errorResponse(request, err, logTags : _*)(response)
       case IOProblem(err) =>
-        SodaUtils.internalError(request, err)
+        SodaUtils.internalError(request, err)(response)
     }
   }
 
@@ -103,7 +103,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     }
 
     override def put = { req => resp =>
-      withColumnSpec(req, resourceName, columnName) { spec =>
+      withColumnSpec(req, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
           columnDAO.replaceOrCreateColumn(user(req), resourceName, precondition, columnName,
                                           spec, RequestId.getFromRequest(req)) match {
@@ -123,7 +123,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     }
 
     override def patch = { req => resp =>
-      withColumnSpec(req, resourceName, columnName) { spec =>
+      withColumnSpec(req, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
           response(req, columnDAO.updateColumn(user(req), resourceName, columnName, spec))(resp)
         }
