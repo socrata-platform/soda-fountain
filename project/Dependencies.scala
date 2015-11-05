@@ -78,7 +78,7 @@ object Dependencies {
   val socrataHttpJetty         = "com.socrata"     %% "socrata-http-jetty"          % versions.socrataHttp
   val socrataHttpServer        = "com.socrata"     %% "socrata-http-server"         % versions.socrataHttp
 
-  val socrataThirdPartyUtils   = "com.socrata"     %% "socrata-thirdparty-utils"    % versions.thirdPartyUtils
+  val socrataThirdPartyUtils   = "com.socrata"     %% "socrata-thirdparty-utils"    % "4.0.5"
   val socrataCuratorUtils      = "com.socrata"     %% "socrata-curator-utils"       % versions.curatorUtils
 
   val soqlBrita                = "com.socrata"     %% "soql-brita"                  % versions.soqlBrita
