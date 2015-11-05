@@ -12,9 +12,10 @@ object SodaFountainExternal {
         rojomaSimpleArm,
         socrataHttpClient,
         socrataThirdPartyUtils,
+        socrataCuratorUtils,
         typesafeConfig,
         Test.apacheCurator,
-        Test.socrataThirdPartyUtils,
+        Test.socrataCuratorUtils,
         Test.wiremock
       ))
 }
