@@ -41,7 +41,6 @@ object SodaFountainLib {
       Test.mockServer exclude("ch.qos.logback", "logback-classic"),
       Test.scalaCheck,
       Test.scalaMock,
-      Test.socrataThirdPartyUtils,
       Test.socrataCuratorUtils,
       Test.springTest,
       Test.wiremock
