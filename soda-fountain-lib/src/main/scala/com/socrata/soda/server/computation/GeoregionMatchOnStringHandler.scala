@@ -2,6 +2,7 @@ package com.socrata.soda.server.computation
 
 import com.rojoma.json.v3.ast._
 import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
+import com.socrata.soda.server.metrics.Metrics.{GeoregionStringHandlerMetric, Metric}
 import com.socrata.soda.server.persistence.{ComputationStrategyRecord, ColumnRecordLike}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNull, SoQLNumber, SoQLText}
@@ -17,8 +18,15 @@ import org.apache.curator.x.discovery.ServiceDiscovery
  * @param discovery ServiceDiscovery instance used for discovering other services using ZK/Curator
  * @tparam T        ServiceDiscovery payload type
  */
-class GeoregionMatchOnStringHandler[T](config: Config, discovery: ServiceDiscovery[T])
+class GeoregionMatchOnStringHandler[T](config: Config, discovery: ServiceDiscovery[T], metricProvider: (Metric => Unit))
   extends GeoregionMatchHandler[T, String](config, discovery){
+
+  override def close(): Unit = {
+    metricProvider(GeoregionStringHandlerMetric.totalCount(totalRowsCodedCounter.get()))
+    metricProvider(GeoregionStringHandlerMetric.failureCount(noMatchRowsCounter.get()))
+    metricProvider(GeoregionStringHandlerMetric.milliseconds(timeCounter.get()))
+    super.close()
+  }
 
   /**
    * Constructs the region-coder endpoint. Format is:

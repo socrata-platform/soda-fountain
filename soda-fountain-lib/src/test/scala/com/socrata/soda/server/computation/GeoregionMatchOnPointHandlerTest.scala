@@ -9,6 +9,7 @@ import com.rojoma.json.v3.io.JsonReader
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.id.ColumnId
+import com.socrata.soda.server.metrics.Metrics.Metric
 import com.socrata.soda.server.persistence.{ColumnRecordLike, ComputationStrategyRecord, MinimalColumnRecord}
 import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep}
 import com.socrata.soql.environment.ColumnName
@@ -93,7 +94,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     "read-timeout"    -> "5s"
   ).asJava)
 
-  lazy val handler = new GeoregionMatchOnPointHandler(testConfig, discovery)
+  lazy val handler = new GeoregionMatchOnPointHandler(testConfig, discovery, { _: Metric => })
 
   override def beforeAll() {
     startServices()
@@ -230,7 +231,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     when(mockBuilder.serviceName(anyString)).thenReturn(mockBuilder)
     when(mockBuilder.build()).thenReturn(mockProvider)
 
-    val handler = new GeoregionMatchOnPointHandler(testConfig, mockDiscovery)
+    val handler = new GeoregionMatchOnPointHandler(testConfig, mockDiscovery, { _: Metric => })
     handler.close()
 
     verify(mockProvider).close()
@@ -256,7 +257,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     when(mockBuilder.serviceName(anyString)).thenReturn(mockBuilder)
     when(mockBuilder.build()).thenReturn(mockProvider)
 
-    val handler = new GeoregionMatchOnPointHandler(testConfig, mockDiscovery)
+    val handler = new GeoregionMatchOnPointHandler(testConfig, mockDiscovery, { _: Metric => })
     the [RuntimeException] thrownBy {
       handler.urlPrefix
     } must have message "Unable to get region-coder instance from Curator/ZK"

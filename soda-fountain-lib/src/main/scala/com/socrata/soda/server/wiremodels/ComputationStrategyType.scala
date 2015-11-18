@@ -10,6 +10,7 @@ object ComputationStrategyType extends Enumeration {
 
   val GeoRegionMatchOnPoint = Value("georegion_match_on_point")
   val GeoRegionMatchOnString = Value("georegion_match_on_string")
+  val GeoCoding = Value("geocoding")
   val Test      = Value("test")
 
   // For backwards compatibility. Superceded by georegion_match_on_point

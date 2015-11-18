@@ -27,7 +27,9 @@ abstract class SodaError(val httpResponseCode: Int, val errorCode: String, val m
 
   def humanReadableMessage: String = SodaError.translate(errorCode, message, sanitizedData)
 
-  def sanitizedData: Map[String, JValue] = data - "stackTrace" - "errorClass"
+  def sanitizedData: Map[String, JValue] = data -- excludedFields
+
+  def excludedFields: Set[String] = Set.empty
 }
 
 object SodaError {

@@ -20,7 +20,6 @@ import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.{errors => SodaErrors, _}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.errors.SodaError
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{DatasetDAO, RowDAO, RowDataTranslator}
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
@@ -39,7 +38,7 @@ case class Resource(rowDAO: RowDAO,
                     datasetDAO: DatasetDAO,
                     etagObfuscator: ETagObfuscator,
                     maxRowSize: Long,
-                    cc: ComputedColumnsLike,
+                    cc: ((Metric => Unit) => ComputedColumnsLike),
                     metricProvider: MetricProvider) extends Metrics {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
 
@@ -123,7 +122,17 @@ case class Resource(rowDAO: RowDAO,
 
   type rowDaoFunc = (DatasetRecordLike, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
 
-  def upsertishFlow(req: HttpServletRequest,
+  def metrizer(domainId: Option[String]): (Metric => Unit) = { metric: Metric =>
+    metricProvider.add(domainId, metric)(domainMissingHandler)
+  }
+
+  def domainMissingHandler(lostMetric: Metric) = {
+    if (!metricProvider.isInstanceOf[NoopMetricProvider]) {
+      log.warn(s"Domain ID not provided in request. Dropping metric - metricID: '${lostMetric.id}'")
+    }
+  }
+
+  def upsertishFlow(req: HttpRequest,
                     response: HttpServletResponse,
                     requestId: RequestId.RequestId,
                     resourceName: ResourceName,
@@ -132,7 +141,8 @@ case class Resource(rowDAO: RowDAO,
     datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
         val transformer = new RowDataTranslator(requestId, datasetRecord, false)
-        val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
+        val domainId = req.header(domainIdHeader)
+        val transformedRows = transformer.transformClientRowsForUpsert(cc(metrizer(domainId)), rows)
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
       case DatasetDAO.DatasetNotFound(dataset) =>
         SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
@@ -152,16 +162,10 @@ case class Resource(rowDAO: RowDAO,
     req.header("If-None-Match").isDefined || req.dateTimeHeader("If-Modified-Since").isDefined
   }
 
-  def domainMissingHandler(lostMetric: Metric) = {
-    if (!metricProvider.isInstanceOf[NoopMetricProvider]) {
-      log.warn(s"Domain ID not provided in request. Dropping metric - metricID: '${lostMetric.id}'")
-    }
-  }
-
   case class service(resourceName: OptionallyTypedPathComponent[ResourceName]) extends SodaResource {
     override def get = { req: HttpRequest => response: HttpServletResponse =>
       val domainId = req.header(domainIdHeader)
-      def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
+      def metric(metric: Metric) = metrizer(domainId)(metric)
       def metricByStatus(status: Int) = {
         if (status >= 400 && status < 500) metric(QueryErrorUser)
         else if (status >= 500 && status < 600) metric(QueryErrorInternal)
@@ -286,7 +290,7 @@ case class Resource(rowDAO: RowDAO,
 
     override def get = { req: HttpRequest => response: HttpServletResponse =>
       val domainId = req.header(domainIdHeader)
-      def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
+      def metric(metric: Metric) = metrizer(domainId)(metric)
       try {
         val suffix = headerHash(req)
         val qpCopy = "$$copy"

@@ -31,12 +31,14 @@ case class InternalError(tag: String, additionalData: (String, JValue)*)
 
 case class InternalException(th: Throwable, tag: String)
   extends SodaError(SC_INTERNAL_SERVER_ERROR, "internal-error",
-    s"Internal error: $tag; ${th.getClass.getCanonicalName}: ${Option(th.getMessage).getOrElse("")}",
+    s"Internal error: please include code $tag if you report the error",
     "tag"          -> JString(tag),
     "errorMessage" -> JString(Option(th.getMessage).getOrElse("")),
     "errorClass"   -> JString(th.getClass.getCanonicalName),
     "stackTrace"   -> JArray(th.getStackTrace.map(x => JString(x.toString)))
-  )
+  ) {
+  override def excludedFields = Set("errorMessage", "errorClass", "stackTrace")
+}
 
 case class HttpClientException(th: Throwable, msg: String, tag: String)
   extends SodaError(SC_INTERNAL_SERVER_ERROR, "http-client-exception",
