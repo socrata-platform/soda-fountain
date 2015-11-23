@@ -41,6 +41,8 @@ case class Resource(rowDAO: RowDAO,
                     maxRowSize: Long,
                     cc: ComputedColumnsLike,
                     metricProvider: MetricProvider) extends Metrics {
+  import Resource._
+
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
 
   // Unlike the global dispatch latency, these are for measuring only successful Query requests
@@ -169,11 +171,6 @@ case class Resource(rowDAO: RowDAO,
 
       val start = System.currentTimeMillis
       try {
-        val qpQuery = "$query" // Query parameter query
-        val qpRowCount = "$$row_count" // Query parameter row count
-        val qpCopy = "$$copy" // Query parameter for copy.  Optional, "latest", "published", "unpublished"
-        val qpSecondary = "$$store"
-        val qpNoRollup = "$$no_rollup"
         val suffix = headerHash(req)
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
         def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
@@ -182,16 +179,18 @@ case class Resource(rowDAO: RowDAO,
             req.negotiateContent match {
               case Some((mimeType, charset, language)) =>
                 val exporter = Exporter.exportForMimeType(mimeType)
+                val obfuscateId = reqObfuscateId(req)
                 using(new ResourceScope()) { resourceScope =>
                   rowDAO.query(
                     resourceName.value,
                     newPrecondition.map(_.dropRight(suffix.length)),
                     req.dateTimeHeader("If-Modified-Since"),
-                    Option(req.getParameter(qpQuery)).getOrElse("select *"),
+                    Option(req.getParameter(qpQuery)).getOrElse(qpQueryDefault),
                     Option(req.getParameter(qpRowCount)),
                     Stage(req.getParameter(qpCopy)),
                     Option(req.getParameter(qpSecondary)),
                     Option(req.getParameter(qpNoRollup)).isDefined,
+                    obfuscateId,
                     RequestId.getFromRequest(req),
                     resourceScope) match {
                     case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
@@ -212,7 +211,7 @@ case class Resource(rowDAO: RowDAO,
                           optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
                           Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader(response)
-                      exporter.export(response, charset, schema, rows)
+                      exporter.export(response, charset, schema, rows, singleRow = false, obfuscateId)
                     case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
                       metric(QueryCacheHit)
                       SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
@@ -289,9 +288,6 @@ case class Resource(rowDAO: RowDAO,
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       try {
         val suffix = headerHash(req)
-        val qpCopy = "$$copy"
-        val qpSecondary = "$$store"
-        val qpNoRollup = "$$no_rollup"
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
         def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
         precondition.filter(_.endsWith(suffix)) match {
@@ -300,6 +296,7 @@ case class Resource(rowDAO: RowDAO,
             contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
               case Some((mimeType, charset, language)) =>
                 val exporter = Exporter.exportForMimeType(mimeType)
+                val obfuscateId = reqObfuscateId(req)
                 using(new ResourceScope) { resourceScope =>
                   rowDAO.getRow(
                     resourceName,
@@ -310,6 +307,7 @@ case class Resource(rowDAO: RowDAO,
                     Stage(req.getParameter(qpCopy)),
                     Option(req.getParameter(qpSecondary)),
                     Option(req.getParameter(qpNoRollup)).isDefined,
+                    obfuscateId,
                     RequestId.getFromRequest(req),
                     resourceScope) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
@@ -326,7 +324,7 @@ case class Resource(rowDAO: RowDAO,
                         optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader(response)
-                      exporter.export(response, charset, schema, Iterator.single(row), singleRow = true)
+                      exporter.export(response, charset, schema, Iterator.single(row), singleRow = true, obfuscateId)
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
                       SodaUtils.errorResponse(req, SodaErrors.RowNotFound(row))(response)
@@ -379,4 +377,20 @@ case class Resource(rowDAO: RowDAO,
                        UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
     }
   }
+
+  private def reqObfuscateId(req: HttpRequest): Boolean =
+    !Option(req.getParameter(qpObfuscateId)).exists(_ == "false")
+}
+
+object Resource {
+
+  // Query Parameters
+  val qpQuery = "$query"
+  val qpRowCount = "$$row_count"
+  val qpCopy = "$$copy" // Query parameter for copy.  Optional, "latest", "published", "unpublished"
+  val qpSecondary = "$$store"
+  val qpNoRollup = "$$no_rollup"
+  val qpObfuscateId = "$$obfuscate_id" // for OBE compatibility - use false
+
+  val qpQueryDefault = "select *"
 }

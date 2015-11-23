@@ -72,6 +72,12 @@ object CsvColumnRep {
       else JsonColumnRep.IdStringRep(value.asInstanceOf[SoQLID])
   }
 
+  object ClearIDRep extends CsvColumnRep {
+    def toString(value: SoQLValue) =
+      if(SoQLNull == value) null
+      else JsonColumnRep.IdClearNumberRep(value.asInstanceOf[SoQLID])
+  }
+
   object VersionRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
@@ -131,4 +137,7 @@ object CsvColumnRep {
     SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value),
     SoQLBlob -> BlobRep
   )
+
+  val forTypeClearId: Map[SoQLType, CsvColumnRep] =
+    (forType - SoQLID) + (SoQLID -> ClearIDRep)
 }

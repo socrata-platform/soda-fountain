@@ -37,7 +37,9 @@ object GeoJsonExporter extends Exporter {
              charset: AliasedCharset,
              schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]],
-             singleRow: Boolean = false) {
+             singleRow: Boolean = false,
+             obfuscateId: Boolean = true)
+  {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
@@ -46,7 +48,7 @@ object GeoJsonExporter extends Exporter {
       rawWriter <- managed(resp.getWriter)
       w <- managed(new BufferedWriter(rawWriter, 65536))
     } yield {
-      val processor = new GeoJsonProcessor(w, schema, singleRow)
+      val processor = new GeoJsonProcessor(w, schema, singleRow, obfuscateId)
       processor.go(rows)
     }
   }
@@ -55,16 +57,18 @@ object GeoJsonExporter extends Exporter {
 /**
  * Generates GeoJSON from a schema
  */
-class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, singleRow: Boolean) {
+class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, singleRow: Boolean, obfuscateId: Boolean) {
   import GeoJsonProcessor._
 
   val wgs84ProjectionInfo = """{ "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } }"""
   val featureCollectionPrefix = """{ "type": "FeatureCollection", "features": ["""
   val featureCollectionSuffix = s"""], "crs" : $wgs84ProjectionInfo }"""
 
+  val jsonColumnReps = if (obfuscateId) JsonColumnRep.forClientType
+                       else JsonColumnRep.forClientTypeClearId
   val geoColumnIndex = getGeoColumnIndex(schema.schema)
   val propertyNames = schema.schema.map { ci => ci.fieldName.name }
-  val propertyReps = schema.schema.map { ci => JsonColumnRep.forClientType(ci.typ) }
+  val propertyReps = schema.schema.map { ci => jsonColumnReps(ci.typ) }
 
   val jsonWriter = new CompactJsonWriter(writer)
 

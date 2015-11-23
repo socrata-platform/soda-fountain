@@ -27,6 +27,7 @@ trait RowDAO {
             stage: Option[Stage],
             secondaryInstance: Option[String],
             noRollup: Boolean,
+            obfuscateId: Boolean,
             requestId: RequestId,
             resourceScope: ResourceScope): Result
 
@@ -38,6 +39,7 @@ trait RowDAO {
              stage: Option[Stage],
              secondaryInstance:Option[String],
              noRollup: Boolean,
+             obfuscateId: Boolean,
              requestId: RequestId,
              resourceScope: ResourceScope): Result
 

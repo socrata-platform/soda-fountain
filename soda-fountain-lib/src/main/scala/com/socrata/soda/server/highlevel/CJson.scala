@@ -20,14 +20,14 @@ object CJson {
   case class Schema(approximateRowCount: Option[Long], dataVersion: Option[Long], lastModified: Option[String], locale: String, pk: Option[ColumnId], rowCount: Option[Long], schema: Seq[Field])
   private implicit val schemaCodec = AutomaticJsonCodecBuilder[Schema]
 
-  def decode(data: Iterator[JValue]): Decoded = {
+  def decode(data: Iterator[JValue], jsonColumnReps: Map[SoQLType, JsonColumnRep]): Decoded = {
     if(!data.hasNext) throw NoSchemaPresent
 
     val schemaish = data.next()
     JsonDecode.fromJValue[Schema](schemaish) match {
       case Right(schema) =>
         class Processor extends AbstractFunction1[JValue, Array[SoQLValue]] {
-          val reps = schema.schema.map { f => JsonColumnRep.forDataCoordinatorType(f.t) : JsonColumnReadRep }
+          val reps = schema.schema.map { f => jsonColumnReps(f.t) : JsonColumnReadRep }
           val width = reps.length
           def apply(row: JValue) = row match {
             case JArray(elems) =>

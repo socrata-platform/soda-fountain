@@ -43,6 +43,8 @@ object JsonColumnRep {
   // It would be better to not care about the decrypted values at all, but alas
   // that is not how SoQLID and SoQLVersion work.
   private[this] val cryptProvider = new CryptProvider(Array[Byte](0))
+
+  val IdClearNumberRep =  new SoQLID.ClearNumberRep(cryptProvider)
   val IdStringRep = new SoQLID.StringRep(cryptProvider)
   val VersionStringRep = new SoQLVersion.StringRep(cryptProvider)
 
@@ -179,6 +181,20 @@ object JsonColumnRep {
     val representedType: SoQLType = SoQLID
   }
 
+  object ClearIDRep extends JsonColumnRep {
+    def fromJValue(input: JValue): Option[SoQLValue] = input match {
+      case JString(IdClearNumberRep(id)) => Some(id)
+      case JNull => Some(SoQLNull)
+      case _ => None
+    }
+
+    def toJValue(value: SoQLValue): JValue =
+      if(SoQLNull == value) JNull
+      else JString(IdClearNumberRep(value.asInstanceOf[SoQLID]))
+
+    val representedType: SoQLType = SoQLID
+  }
+
   object VersionRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JString(VersionStringRep(id)) => Some(id)
@@ -285,4 +301,10 @@ object JsonColumnRep {
       SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_)),
       SoQLBlob -> BlobRep
     )
+
+  val forClientTypeClearId: Map[SoQLType, JsonColumnRep] =
+    (forClientType - SoQLID) + (SoQLID -> ClearIDRep)
+
+  val forDataCoordinatorTypeClearId: Map[SoQLType, JsonColumnRep] =
+    (forDataCoordinatorType - SoQLID) + (SoQLID -> ClearIDRep)
 }

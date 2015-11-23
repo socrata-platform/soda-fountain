@@ -37,11 +37,12 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             copy: Option[Stage],
             secondaryInstance:Option[String],
             noRollup: Boolean,
+            obfuscateId: Boolean,
             requestId: RequestId,
             resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(ds) =>
-        getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup,
+        getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup, obfuscateId,
           requestId, resourceScope)
       case None =>
         log.info("dataset not found {}", resourceName.name)
@@ -57,6 +58,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
              copy: Option[Stage],
              secondaryInstance:Option[String],
              noRollup: Boolean,
+             obfuscateId: Boolean,
              requestId: RequestId,
              resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
@@ -70,7 +72,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
               val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
               val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
               getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance,
-                      noRollup, requestId, resourceScope) match {
+                      noRollup, obfuscateId, requestId, resourceScope) match {
                 case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
                   val version = ColumnName(":version")
                   val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
@@ -115,6 +117,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                       copy: Option[Stage],
                       secondaryInstance:Option[String],
                       noRollup: Boolean,
+                      obfuscateId: Boolean,
                       requestId: RequestId,
                       resourceScope: ResourceScope): Result = {
     val extraHeaders = Map(ReqIdHeader              -> requestId,
@@ -122,9 +125,11 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                            "X-SODA2-DataVersion"    -> ds.truthVersion.toString,
                            "X-SODA2-LastModified"   -> ds.lastModified.toHttpDate)
     qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount,
-             copy, secondaryInstance, noRollup, extraHeaders, resourceScope) {
+             copy, secondaryInstance, noRollup, obfuscateId, extraHeaders, resourceScope) {
       case QueryCoordinatorClient.Success(etags, rollup, response) =>
-        val decodedResult = CJson.decode(response)
+        val jsonColumnReps = if (obfuscateId) JsonColumnRep.forDataCoordinatorType
+                             else JsonColumnRep.forDataCoordinatorTypeClearId
+        val decodedResult = CJson.decode(response, jsonColumnReps)
         val schema = decodedResult.schema
         schema.pk.map(ds.columnsById(_).fieldName)
         val simpleSchema = ExportDAO.CSchema(
