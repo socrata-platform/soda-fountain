@@ -3,7 +3,7 @@ package com.socrata.soda.server.export
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.highlevel.ExportDAO
-import com.socrata.soda.server.wiremodels.{CsvColumnRep, CsvColumnWriteRep}
+import com.socrata.soda.server.wiremodels.{JsonColumnRep, CsvColumnRep, CsvColumnWriteRep}
 import com.socrata.soql.types.SoQLValue
 import java.io.BufferedWriter
 import javax.activation.MimeType
@@ -14,7 +14,10 @@ object CsvExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("csv")
 
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
+  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema,
+             rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
+             obfuscateId: Boolean = true)
+  {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
@@ -22,9 +25,11 @@ object CsvExporter extends Exporter {
       rawWriter <- managed(resp.getWriter)
       w <- managed(new BufferedWriter(rawWriter, 65536))
     } yield {
+      val csvColumnReps = if (obfuscateId) CsvColumnRep.forType
+                          else CsvColumnRep.forTypeClearId
       class Processor {
         val writer = w
-        val reps: Array[CsvColumnWriteRep] = schema.schema.map { f => CsvColumnRep.forType(f.typ) }.toArray
+        val reps: Array[CsvColumnWriteRep] = schema.schema.map { f => csvColumnReps(f.typ) }.toArray
         val sb = new java.lang.StringBuilder
 
         // somewhat surprisingly, writing cells into a stringbuilder and then

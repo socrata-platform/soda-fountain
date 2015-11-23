@@ -74,6 +74,7 @@ trait QueryCoordinatorClient {
                copy: Option[Stage],
                secondaryInstance: Option[String],
                noRollup: Boolean,
+               obfuscateId: Boolean,
                extraHeaders: Map[String, String],
                rs: ResourceScope)(f: Result => T): T
 

@@ -29,19 +29,26 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   private val qpCopy = "copy"
   private val secondaryStoreOverride = "store"
   private val qpNoRollup = "no_rollup"
+  private val qpIdAppearance = "idAppearance"
 
   def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
     columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String],
-    copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean, extraHeaders: Map[String, String],
+    copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
+    obfuscateId: Boolean,
+    extraHeaders: Map[String, String],
     rs: ResourceScope)(f: Result => T): T = {
 
     qchost match {
       case Some(host) =>
         val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
-        val params = List(qpDataset -> datasetId.underlying, qpQuery -> query, qpIdMap -> jsonizedColumnIdMap) ++
+        val params = List(
+            qpDataset -> datasetId.underlying,
+            qpQuery -> query,
+            qpIdMap -> jsonizedColumnIdMap) ++
           copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
           rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
           (if (noRollup) List(qpNoRollup -> "y") else Nil) ++
+          (if (!obfuscateId) List(qpIdAppearance -> "clear") else Nil) ++
           secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)
         log.debug("Query Coordinator request parameters: " + params)
         val request = host.addHeaders(PreconditionRenderer(precondition) ++

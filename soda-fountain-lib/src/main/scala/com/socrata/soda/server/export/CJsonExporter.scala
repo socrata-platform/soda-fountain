@@ -19,7 +19,9 @@ object CJsonExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("cjson")
 
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
+  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema,
+             rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
+             obfuscateId: Boolean = true) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
@@ -55,8 +57,9 @@ object CJsonExporter extends Exporter {
       w.write("]\n }\n")
 
       // end of header
-
-      val reps: Array[JsonColumnWriteRep] = schema.schema.map { ci => JsonColumnRep.forClientType(ci.typ) }.toArray
+      val jsonColumnReps = if (obfuscateId) JsonColumnRep.forClientType
+                           else JsonColumnRep.forClientTypeClearId
+      val reps: Array[JsonColumnWriteRep] = schema.schema.map { ci => jsonColumnReps(ci.typ) }.toArray
       for(row <- rows) {
         w.write(",[")
         if(row.length > 0) {

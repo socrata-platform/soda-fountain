@@ -7,7 +7,7 @@ import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
-import com.socrata.soql.types.SoQLValue
+import com.socrata.soql.types.{SoQLType, SoQLValue}
 import java.io.BufferedWriter
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
@@ -22,7 +22,9 @@ object JsonExporter extends Exporter {
   val xhDeprecation = "X-SODA2-Warning"
   val xhLimit = 5000 // We have a 6k header size limit
 
-  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false) {
+  def export(resp: HttpServletResponse, charset: AliasedCharset, schema: ExportDAO.CSchema,
+             rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
+             obfuscateId: Boolean = true) {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     resp.setContentType(mt.toString)
@@ -45,7 +47,9 @@ object JsonExporter extends Exporter {
         val writer = w
         val jsonWriter = new CompactJsonWriter(writer)
         val names: Array[String] = schema.schema.map { ci => JString(ci.fieldName.name).toString }.toArray
-        val reps: Array[JsonColumnWriteRep] = schema.schema.map { ci => JsonColumnRep.forClientType(ci.typ) }.toArray
+        val jsonColumnReps = if (obfuscateId) JsonColumnRep.forClientType
+                             else JsonColumnRep.forClientTypeClearId
+        val reps: Array[JsonColumnWriteRep] = schema.schema.map { ci => jsonColumnReps(ci.typ) }.toArray
 
         def writeJsonRow(row: Array[SoQLValue]) {
           writer.write('{')

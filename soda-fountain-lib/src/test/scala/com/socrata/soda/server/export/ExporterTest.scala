@@ -24,7 +24,7 @@ trait ExporterTest extends FunSuite with MockFactory with ProxyMockFactory with 
     val dcInfo = Iterator.single[JValue](getDCSummary(columns, pk, rows.size)) ++ getDCRows(rows)
 
     try{
-      val decoded: CJson.Schema = CJson.decode(dcInfo).schema
+      val decoded: CJson.Schema = CJson.decode(dcInfo, JsonColumnRep.forDataCoordinatorType).schema
       val dataset = generateDataset(humanReadableTestIdentifier, columns)
 
       ExportDAO.CSchema(decoded.approximateRowCount,
