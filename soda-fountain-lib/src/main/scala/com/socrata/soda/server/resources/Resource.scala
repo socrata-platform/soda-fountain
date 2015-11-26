@@ -179,7 +179,7 @@ case class Resource(rowDAO: RowDAO,
             req.negotiateContent match {
               case Some((mimeType, charset, language)) =>
                 val exporter = Exporter.exportForMimeType(mimeType)
-                val obfuscateId = !Option(req.getParameter(qpIdAppearance)).exists(_ == qpIdAppearanceClear)
+                val obfuscateId = reqObfuscateId(req)
                 using(new ResourceScope()) { resourceScope =>
                   rowDAO.query(
                     resourceName.value,
@@ -296,7 +296,7 @@ case class Resource(rowDAO: RowDAO,
             contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
               case Some((mimeType, charset, language)) =>
                 val exporter = Exporter.exportForMimeType(mimeType)
-                val obfuscateId = !Option(req.getParameter(qpIdAppearance)).exists(_ == qpIdAppearanceClear)
+                val obfuscateId = reqObfuscateId(req)
                 using(new ResourceScope) { resourceScope =>
                   rowDAO.getRow(
                     resourceName,
@@ -377,6 +377,9 @@ case class Resource(rowDAO: RowDAO,
                        UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
     }
   }
+
+  private def reqObfuscateId(req: HttpRequest): Boolean =
+    !Option(req.getParameter(qpObfuscateId)).exists(_ == "false")
 }
 
 object Resource {
@@ -387,8 +390,7 @@ object Resource {
   val qpCopy = "$$copy" // Query parameter for copy.  Optional, "latest", "published", "unpublished"
   val qpSecondary = "$$store"
   val qpNoRollup = "$$no_rollup"
-  val qpIdAppearance = "$$id_appearance" // for OBE compatibility - clear
+  val qpObfuscateId = "$$obfuscate_id" // for OBE compatibility - use false
 
   val qpQueryDefault = "select *"
-  val qpIdAppearanceClear = "clear"
 }
