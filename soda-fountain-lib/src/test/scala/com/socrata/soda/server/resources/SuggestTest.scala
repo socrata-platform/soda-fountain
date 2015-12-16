@@ -328,7 +328,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     }
   }
 
-  test("spandex connect failed - send error message in response") {
+  test("spandex connect failed - check response status") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
 
@@ -358,9 +358,8 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
     response.getContentType should include("application/json")
     response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
-    response.getContentAsString should include("Spandex connect failed")
   }
-  test("spandex connect timeout - send error message in response") {
+  test("spandex connect timeout - check response status") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
 
@@ -390,9 +389,8 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
     response.getContentType should include("application/json")
     response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
-    response.getContentAsString should include("Spandex connect timeout")
   }
-  test("spandex receive timeout - send error message in response") {
+  test("spandex receive timeout - check response status") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
 
@@ -414,6 +412,5 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
     response.getContentType should include("application/json")
     response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
-    response.getContentAsString should include("Spandex receive timeout")
   }
 }
