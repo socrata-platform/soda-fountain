@@ -40,15 +40,6 @@ case class InternalException(th: Throwable, tag: String)
   override def excludedFields = Set("errorMessage", "errorClass", "stackTrace")
 }
 
-case class HttpClientException(th: Throwable, msg: String, tag: String)
-  extends SodaError(SC_INTERNAL_SERVER_ERROR, "http-client-exception",
-    s"HTTP client exception: $tag; ${th.getClass.getCanonicalName}: $msg",
-    "tag"          -> JString(tag),
-    "errorMessage" -> JString(msg),
-    "errorClass"   -> JString(th.getClass.getCanonicalName),
-    "stackTrace"   -> JArray(th.getStackTrace.map(x => JString(x.toString)))
-  )
-
 case class HttpMethodNotAllowed(method: String, allowed: TraversableOnce[String])
   extends SodaError(SC_METHOD_NOT_ALLOWED, "method-not-allowed",
     s"HTTP method $method is not allowed for this request",

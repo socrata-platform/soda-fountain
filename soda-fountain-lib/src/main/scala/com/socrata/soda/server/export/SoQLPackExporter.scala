@@ -30,7 +30,8 @@ object SoQLPackExporter extends Exporter {
              charset: AliasedCharset,
              schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]],
-             singleRow: Boolean = false) {
+             singleRow: Boolean = false,
+             obfuscateId: Boolean = true) { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
     val mt = new MimeType(mimeTypeBase)
     resp.setContentType(mt.toString)
     for {

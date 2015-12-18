@@ -1,6 +1,7 @@
 package com.socrata.soda.server.resources
 
 import java.net.URI
+import java.util.UUID
 import javax.servlet.http.HttpServletResponse
 
 import com.rojoma.json.v3.ast._
@@ -60,8 +61,10 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   def suggest(req: HttpRequest, resp: HttpServletResponse,
          resourceName: ResourceName, columnName: ColumnName, text: String,
          f: (String, Stage, String, String) => URI): Unit = {
-    def err(e: Throwable, msg: String): HttpResponse = {
-      errorResponse(com.socrata.soda.server.toServletHttpRequest(req), SodaError.HttpClientException(e, msg, "Suggest"))
+    def err(e: Throwable): HttpResponse = {
+      val tag = UUID.randomUUID().toString
+      log.error("Unexpected error talking to spandex, tag {}", tag: Any, e)
+      errorResponse(com.socrata.soda.server.toServletHttpRequest(req), SodaError.InternalException(e, tag))
     }
     internalContext(resourceName, columnName) match {
       case None => NotFound(resp)
@@ -70,9 +73,9 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
           val (code: Int, body: JValue) = getSpandexResponse(f(ds, stage, col, text), req.queryParameters)
           (Status(code) ~> Json(body))(resp)
         } catch {
-          case rt: ReceiveTimeout => err(rt, "Spandex receive timeout")(resp)
-          case ct: ConnectTimeout => err(ct, "Spandex connect timeout")(resp)
-          case cf: ConnectFailed => err(cf, "Spandex connect failed")(resp)
+          case rt: ReceiveTimeout => err(rt)(resp)
+          case ct: ConnectTimeout => err(ct)(resp)
+          case cf: ConnectFailed => err(cf)(resp)
         }
     }
   }

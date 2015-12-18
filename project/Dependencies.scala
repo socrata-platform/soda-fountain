@@ -25,7 +25,7 @@ object Dependencies {
     val socrataGeocoders  = "1.0.6"
     val socrataHttp       = "3.3.3"
     val soqlBrita         = "1.3.0"
-    val soqlReference     = "0.8.9"
+    val soqlReference     = "0.8.10"
     val thirdPartyUtils   = "4.0.10"
     val curatorUtils      = "1.0.3"
     val typesafeConfig    = "1.0.2"

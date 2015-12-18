@@ -7,6 +7,7 @@ import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence.{ColumnRecordLike, NameAndSchemaStore}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.SodaUtils.traceHeaders
+import com.socrata.soda.server.wiremodels.JsonColumnRep
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import scala.util.control.ControlThrowable
@@ -39,7 +40,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
             dc.export(ds.systemId, schemaHash, dcColumnIds, precondition, ifModifiedSince, limit, offset,
                       copy, sorted = sorted, extraHeaders = traceHeaders(requestId, dataset)) {
               case DataCoordinatorClient.ExportResult(jvalues, etag) =>
-                val decodedSchema = CJson.decode(jvalues)
+                val decodedSchema = CJson.decode(jvalues, JsonColumnRep.forDataCoordinatorType)
                 val schema = decodedSchema.schema
                 val simpleSchema = ExportDAO.CSchema(
                   schema.approximateRowCount,
