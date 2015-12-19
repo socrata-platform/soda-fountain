@@ -1,6 +1,10 @@
 package com.socrata.soda.server
 
 import com.mchange.v2.c3p0.DataSources
+import com.netflix.astyanax.AstyanaxContext
+import com.rojoma.simplearm.v2.{Resource => SAResource, ResourceScope}
+import com.socrata.geocoders._
+import com.socrata.geocoders.caching.{NoopCacheClient, CassandraCacheClient}
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import com.socrata.http.common.AuxiliaryData
 import com.socrata.http.server.util.RequestId
@@ -10,20 +14,21 @@ import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClien
 import com.socrata.soda.clients.regioncoder.CuratedRegionCoderClient
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import com.socrata.soda.server.computation.ComputedColumns
-import com.socrata.soda.server.config.SodaFountainConfig
+import com.socrata.soda.server.config.{GeocodingConfig, SodaFountainConfig}
 import com.socrata.soda.server.highlevel._
+import com.socrata.soda.server.metrics.Metrics.{Metric, GeocodeMetric, MapQuestGeocodeMetric}
 import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
 import com.socrata.soda.server.metrics.{BalboaMetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.util._
 import com.socrata.curator.{CuratorFromConfig, DiscoveryFromConfig}
+import com.socrata.thirdparty.astyanax.AstyanaxFromConfig
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import java.io.Closeable
 import java.security.SecureRandom
 import java.util.concurrent.{CountDownLatch, TimeUnit, Executors}
 import javax.sql.DataSource
 import org.apache.log4j.PropertyConfigurator
-import scala.collection.mutable
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -31,7 +36,7 @@ import scala.collection.mutable
  * of the server for the use of services, knows the routing table,
  * and cleans up the resources on shutdown.
  */
-class SodaFountain(config: SodaFountainConfig) extends Closeable {
+class SodaFountain(config: SodaFountainConfig, parentResourceScope: ResourceScope) extends Closeable {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[SodaFountain])
 
   PropertyConfigurator.configure(Propertizer("log4j", config.log4j))
@@ -77,19 +82,16 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val rng = new scala.util.Random(new SecureRandom())
   val columnSpecUtils = new ColumnSpecUtils(rng)
 
-  private val cleanup = new mutable.Stack[Closeable]
+  // If something in this constructor throws an exception, it'll be closed by this
+  // ResourceScope, which is managed over in "main".  It's not _quite_ prompt closure
+  // (the resources won't be closed before the exception leaves the constructor) but it's
+  // close enough.
+  private val resourceScope = parentResourceScope.open(new ResourceScope("soda-fountain"))
 
-  private def i[T](thing: => T): T = {
+  private def i[T : SAResource](thing: => T): T = {
     var done = false
     try {
-      val result = thing
-      result match {
-        case closeable: Closeable => cleanup.push(closeable)
-        case dataSource: DataSource => cleanup.push(new Closeable {
-          def close() { DataSources.destroy(dataSource) } // this is a no-op if the data source is not a c3p0 data source
-        })
-        case _ => // ok
-      }
+      val result = resourceScope.open(thing)
       done = true
       result
     } finally {
@@ -98,7 +100,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   }
 
   private type Startable = { def start(): Unit }
-  private def si[T <: Closeable with Startable](thing: => T): T = {
+  private def si[T <: Startable : SAResource](thing: => T): T = {
     import scala.language.reflectiveCalls
     val res = i(thing)
     var done = false
@@ -141,33 +143,100 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val regionCoder = si(new CuratedRegionCoderClient(discovery, config.regionCoderClient))
 
+  val metricProvider = config.metrics.map( balboaConfig => si(new BalboaMetricProvider(balboaConfig)) ).getOrElse(new NoopMetricProvider)
+
+  private implicit def astyanaxResource[T] = new SAResource[AstyanaxContext[T]] {
+    def close(k: AstyanaxContext[T]) = k.shutdown()
+  }
+  val astyanax = config.cassandra.map { cassCfg => si(AstyanaxFromConfig.unmanaged(cassCfg)) }
+
+  def geocoder: ((Metric => Unit) => Geocoder) = locally { metrizer: (Metric => Unit) =>
+    val geoConfig = config.geocodingProvider
+
+    def countMetric: (Long => Unit) = { count: Long =>
+      metrizer(GeocodeMetric.count(count.toInt))
+    }
+
+    def cachedMetric: (Long => Unit) = { count: Long =>
+      metrizer(GeocodeMetric.cached(count.toInt))
+    }
+
+    def mapQuestMetric: ((GeocodingResult, Long) => Unit) = { (result: GeocodingResult, count: Long) =>
+      result match {
+        case SuccessResult => metrizer(MapQuestGeocodeMetric.success(count.toInt))
+        case InsufficientlyPreciseResult => metrizer(MapQuestGeocodeMetric.insufficientlyPreciseResult(count.toInt))
+        case UninterpretableResult => metrizer(MapQuestGeocodeMetric.uninterpretableResult(count.toInt))
+      }
+    }
+
+    def geocoderProvider: Geocoder = {
+      val geocoder = geoConfig match {
+        case Some(geoCfg) =>
+          val base = baseGeocoderProvider(geoCfg)
+          cachingGeocoderProvider(geoCfg, base)
+        case None =>
+          log.info("No geocoder-provider configuration provided; using NoopGeocoder.")
+          NoopGeocoder
+      }
+      new GeocoderMetricizer(countMetric, geocoder)
+    }
+
+    def baseGeocoderProvider(config: GeocodingConfig): Geocoder = config.mapQuest match {
+      case Some(e) =>
+        new MapQuestGeocoder(httpClient, e.appToken, mapQuestMetric, e.retryCount)
+      case None =>
+        log.info("No MapQuest configuration provided; using NoopGeocoder.")
+        NoopGeocoder
+    }
+
+    def cachingGeocoderProvider(config: GeocodingConfig, base: Geocoder): Geocoder = {
+      val cache = config.cache match {
+        case Some(cacheConfig) =>
+          astyanax match {
+            case Some(ast) =>
+              new CassandraCacheClient (ast.getClient, cacheConfig.columnFamily, cacheConfig.ttl)
+            case None =>
+              log.info("No Cassandra configuration provided; using NoopCacheClient for geocoding.")
+              NoopCacheClient
+          }
+        case None =>
+          log.info("No Cassandra cache client configuration provided; using NoopCacheClient for geocoding.")
+          NoopCacheClient
+      }
+      new CachingGeocoderAdapter(cache, base, cachedMetric, config.filterMultipier)
+    }
+
+    geocoderProvider
+  }
+
+  implicit def dsResource = new SAResource[DataSource] {
+    def close(ds: DataSource) = DataSources.destroy(ds)
+  }
   val dataSource = i(DataSourceFromConfig(config.database))
 
-  val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
+  val store: NameAndSchemaStore = new PostgresStoreImpl(dataSource)
 
-  val computedColumns = new ComputedColumns(config.handlers, discovery)
+  def computedColumns(metrizer: (Metric => Unit)) = new ComputedColumns(config.handlers, discovery, geocoder(metrizer), metrizer)
 
-  val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
-  val columnDAO = i(new ColumnDAOImpl(dc, store, columnSpecUtils))
-  val rowDAO = i(new RowDAOImpl(store, dc, qc))
-  val exportDAO = i(new ExportDAOImpl(store, dc))
+  val datasetDAO = new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance)
+  val columnDAO = new ColumnDAOImpl(dc, store, columnSpecUtils)
+  val rowDAO = new RowDAOImpl(store, dc, qc)
+  val exportDAO = new ExportDAOImpl(store, dc)
 
-  val metricProvider = config.metrics.map( balboaConfig => si(new BalboaMetricProvider(balboaConfig)) ).getOrElse( i(new NoopMetricProvider) )
-
-  val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
+  val etagObfuscator = config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) }
 
   val tableDropDelay = config.tableDropDelay
   val dataCleanupInterval = config.dataCleanupInterval
-  val router = i {
+  val router = locally {
     import com.socrata.soda.server.resources._
 
     val healthZ = HealthZ(regionCoder)
     // TODO: this should probably be a different max size value
     val resource = Resource(rowDAO, datasetDAO, etagObfuscator, config.maxDatumSize, computedColumns, metricProvider)
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
-    val column = DatasetColumn(columnDAO, exportDAO, rowDAO, computedColumns, etagObfuscator, config.maxDatumSize)
+    val column = DatasetColumn(columnDAO, exportDAO, rowDAO, computedColumns, metricProvider, etagObfuscator, config.maxDatumSize)
     val export = Export(exportDAO, etagObfuscator)
-    val compute = Compute(columnDAO, exportDAO, rowDAO, computedColumns, etagObfuscator)
+    val compute = Compute(columnDAO, exportDAO, rowDAO, computedColumns, metricProvider, etagObfuscator)
     val suggest = Suggest(datasetDAO, columnDAO, httpClient, config.suggest)
 
     new SodaRouter(
@@ -217,15 +286,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     }
   }
 
-  def close() { // simulate a cascade of "finally" blocks
-    var pendingException: Throwable = null
-    while(cleanup.nonEmpty) {
-      try { cleanup.pop().close() }
-      catch { case t: Throwable =>
-        if(pendingException != null) pendingException.addSuppressed(t)
-        else pendingException = t
-      }
-    }
-    if(pendingException != null) throw pendingException
+  def close() {
+    parentResourceScope.close(resourceScope)
   }
 }

@@ -49,9 +49,9 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
 
   private val logger = LoggerFactory.getLogger(getClass)
 
-  private val totalRowsCodedCounter = new MetricCounter()
-  private val noMatchRowsCounter = new MetricCounter()
-  private val timeCounter = new MetricCounter()
+  protected val totalRowsCodedCounter = new MetricCounter()
+  protected val noMatchRowsCounter = new MetricCounter()
+  protected val timeCounter = new MetricCounter()
 
   /**
    * Constructs the region-coder endpoint
@@ -131,8 +131,8 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
     computedBatches.flatten
   }
 
+  // Override method in subclasses to capture values in metric
   def close() {
-    // TODO : Hook this up to Balboa
     // $COVERAGE-OFF$ This is only logging, we don't need to test it.
     logger.info(s"${totalRowsCodedCounter.get()} row(s) georegion coded in ${timeCounter.get()} milliseconds")
     if (noMatchRowsCounter.get() > 0) {

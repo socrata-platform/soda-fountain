@@ -4,6 +4,8 @@ import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.highlevel.{ColumnDAO, RowDAO, ExportDAO}
 import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.metrics.MetricProvider
+import com.socrata.soda.server.metrics.Metrics.Metric
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletResponse
@@ -11,9 +13,10 @@ import javax.servlet.http.HttpServletResponse
 case class Compute(columnDAO: ColumnDAO,
                       exportDAO: ExportDAO,
                       rowDAO: RowDAO,
-                      computedColumns: ComputedColumnsLike,
+                      computedColumns: ((Metric => Unit) => ComputedColumnsLike),
+                      metricProvider: MetricProvider,
                       etagObfuscator: ETagObfuscator) {
-  val computeUtils = new ComputeUtils(columnDAO, exportDAO, rowDAO, computedColumns)
+  val computeUtils = new ComputeUtils(columnDAO, exportDAO, rowDAO, computedColumns, metricProvider)
 
   case class service(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def post = { req => resp =>

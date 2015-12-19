@@ -7,6 +7,8 @@ import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.util.{NoPrecondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
 import com.socrata.soda.server.errors.GeneralNotFoundError
+import com.socrata.soda.server.metrics.Metrics.Metric
+import com.socrata.soda.server.metrics.{MetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.{errors => SodaError, _}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.export.JsonExporter
@@ -16,9 +18,10 @@ import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletResponse
 
-class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, computedColumns: ComputedColumnsLike) {
+class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, computedColumns: ((Metric => Unit) => ComputedColumnsLike), metricProvider: MetricProvider) {
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ComputeUtils])
+  val domainIdHeader = "X-SODA2-Domain-Id"
 
   private def columnsToExport(requestId: RequestId.RequestId,
                               dataset: DatasetRecordLike,
@@ -86,7 +89,8 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
             log.info("exported dataset {} for column compute", dataset.resourceName.name)
             val transformer = new RowDataTranslator(
               RequestId.getFromRequest(req), dataset, false)
-            val upsertRows = transformer.transformDcRowsForUpsert(computedColumns, Seq(column), schema, rows)
+            val domainId = req.header(domainIdHeader)
+            val upsertRows = transformer.transformDcRowsForUpsert(computedColumns(metrizer(domainId)), Seq(column), schema, rows)
             rowDAO.upsert(user, dataset, upsertRows, requestId)(UpsertUtils.handleUpsertErrors(req, response)(successHandler))
           case ExportDAO.SchemaInvalidForMimeType =>
             SodaUtils.errorResponse(req, SodaError.SchemaInvalidForMimeType)(response)
@@ -105,6 +109,16 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
       case None =>
         SodaUtils.errorResponse(req, SodaError.NotAComputedColumn(column.fieldName))(response)
     }
+
+  def metrizer(domainId: Option[String]): (Metric => Unit) = { metric: Metric =>
+    metricProvider.add(domainId, metric)(domainMissingHandler)
+  }
+
+  def domainMissingHandler(lostMetric: Metric) = {
+    if (!metricProvider.isInstanceOf[NoopMetricProvider]) {
+      log.warn(s"Domain ID not provided in request. Dropping metric - metricID: '${lostMetric.id}'")
+    }
+  }
 
   def writeComputeResponse(resourceName: ResourceName,
                            columnName: ColumnName,

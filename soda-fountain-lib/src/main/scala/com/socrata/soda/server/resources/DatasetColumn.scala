@@ -10,14 +10,16 @@ import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.errors._
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.metrics.MetricProvider
+import com.socrata.soda.server.metrics.Metrics.Metric
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 
-case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, computedColumns: ComputedColumnsLike, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
+case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, computedColumns: ((Metric => Unit) => ComputedColumnsLike), metricProvider: MetricProvider, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetColumn])
-  val computeUtils = new ComputeUtils(columnDAO, exportDAO, rowDAO, computedColumns)
+  val computeUtils = new ComputeUtils(columnDAO, exportDAO, rowDAO, computedColumns, metricProvider)
   val defaultSuffix = Array[Byte]('+')
 
   def withColumnSpec(request: HttpRequest, response: HttpServletResponse, logTags: LogTag*)(f: UserProvidedColumnSpec => Unit): Unit = {

@@ -3,6 +3,7 @@ package com.socrata.soda.server
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
 import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.SocrataServerJetty
 import com.socrata.http.server.curator.CuratorBroker
 import com.socrata.soda.server.config.SodaFountainConfig
@@ -17,7 +18,8 @@ object SodaFountainJetty extends App {
   val metricsOptions = MetricsOptions(config.codaMetrics)
 
   for {
-    sodaFountain <- managed(new SodaFountain(config))
+    resourceScope <- managed(new ResourceScope)
+    sodaFountain <- managed(new SodaFountain(config, resourceScope))
     discovery <- DiscoveryFromConfig(classOf[Void], sodaFountain.curator, config.discovery)
     reporter <- MetricsReporter.managed(metricsOptions)
   } {
