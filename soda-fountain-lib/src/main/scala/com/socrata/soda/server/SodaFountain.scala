@@ -82,6 +82,10 @@ class SodaFountain(config: SodaFountainConfig, parentResourceScope: ResourceScop
   val rng = new scala.util.Random(new SecureRandom())
   val columnSpecUtils = new ColumnSpecUtils(rng)
 
+  // If something in this constructor throws an exception, it'll be closed by this
+  // ResourceScope, which is managed over in "main".  It's not _quite_ prompt closure
+  // (the resources won't be closed before the exception leaves the constructor) but it's
+  // close enough.
   private val resourceScope = parentResourceScope.open(new ResourceScope("soda-fountain"))
 
   private def i[T : SAResource](thing: => T): T = {
@@ -187,18 +191,18 @@ class SodaFountain(config: SodaFountainConfig, parentResourceScope: ResourceScop
 
     def cachingGeocoderProvider(config: GeocodingConfig, base: Geocoder): Geocoder = {
       val cache = config.cache match {
-      case Some(cacheConfig) =>
-        astyanax match {
-          case Some(ast) =>
-            new CassandraCacheClient (ast.getClient, cacheConfig.columnFamily, cacheConfig.ttl)
-          case None =>
-                log.info("No Cassandra configuration provided; using NoopCacheClient for geocoding.")
-                NoopCacheClient
-            }
-          case None =>
-            log.info("No Cassandra cache client configuration provided; using NoopCacheClient for geocoding.")
-            NoopCacheClient
-        }
+        case Some(cacheConfig) =>
+          astyanax match {
+            case Some(ast) =>
+              new CassandraCacheClient (ast.getClient, cacheConfig.columnFamily, cacheConfig.ttl)
+            case None =>
+              log.info("No Cassandra configuration provided; using NoopCacheClient for geocoding.")
+              NoopCacheClient
+          }
+        case None =>
+          log.info("No Cassandra cache client configuration provided; using NoopCacheClient for geocoding.")
+          NoopCacheClient
+      }
       new CachingGeocoderAdapter(cache, base, cachedMetric, config.filterMultipier)
     }
 

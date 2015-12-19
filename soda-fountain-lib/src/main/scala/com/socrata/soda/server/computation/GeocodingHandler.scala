@@ -116,7 +116,7 @@ class GeocodingHandler(config: Config, geocoder: Geocoder, metricProvider: (Metr
       case Some(ComputationStrategyRecord(_, _, Some(sourceColumns), _)) =>
         fieldNames.mapValues {
           case Some(name) =>
-            sourceColumns.find(column => column.fieldName.equals(name)) match {
+            sourceColumns.find(_.fieldName == name) match {
               case Some(column) => Some(column.id)
               case None => logger.info(s"Source column $name not defined in computation strategy"); None
             }
@@ -188,12 +188,7 @@ class GeocodingHandler(config: Config, geocoder: Geocoder, metricProvider: (Metr
    */
   private def geocode(requestId: RequestId, addresses: Seq[Address]): Seq[Option[Point]] = {
     try {
-      print(addresses)
-      print(geocoder.getClass)
-      geocoder.geocode(addresses).map({latLon =>
-        print(latLon)
-        toPoint(latLon)
-      })
+      geocoder.geocode(addresses).map(toPoint)
     } catch {
       case e : Throwable =>
         logger.error(s"Geocoding failed: ${e.getMessage}")
