@@ -1,6 +1,9 @@
 package com.socrata.soda.server.wiremodels
 
+import com.rojoma.json.v3.ast.{JString, JObject}
+import com.rojoma.json.v3.codec.{JsonEncode, JsonDecode}
 import com.rojoma.json.v3.io.CompactJsonWriter
+import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.soql.types._
 import com.vividsolutions.jts.geom._
 
@@ -114,6 +117,46 @@ object CsvColumnRep {
       else value.asInstanceOf[SoQLBlob].value
   }
 
+  object LocationRep extends CsvColumnRep {
+
+    /**
+     * The format is designed to look like OBE location format so that
+     * csv file can be sent directly to caller w/o going through core.
+     * address,
+     * city, state zip
+     */
+    def toString(value: SoQLValue) = {
+      value match {
+        case SoQLNull => null
+        case SoQLLocation(lat, lng, address) =>
+          val sb = new StringBuilder
+          address.foreach { (a: String) =>
+            JsonUtil.parseJson[JObject](a) match {
+              case Right(o@JObject(_)) => addressToCsv(sb, o)
+              case _ =>
+            }
+          }
+          (lat, lng) match {
+            case (Some(y), Some(x)) =>
+              if (sb.nonEmpty) { sb.append("\n") }
+              sb.append(s"($y, $x)")
+            case _ => null
+          }
+          if (sb.nonEmpty) sb.toString() else null
+        case _ => null
+      }
+    }
+
+    def addressToCsv(sb: StringBuilder, o: JObject): Unit = {
+      Seq(("address", "\n"), ("city", ", "), ("state", " "), ("zip", "")).map { case (field, sep) =>
+        o.get(field) match {
+          case Some(JString(x)) => sb.append(x); sb.append(sep)
+          case _ =>
+        }
+      }
+    }
+  }
+
   val forType: Map[SoQLType, CsvColumnRep] = Map(
     SoQLText -> TextRep,
     SoQLFixedTimestamp -> FixedTimestampRep,
@@ -135,7 +178,8 @@ object CsvColumnRep {
     SoQLLine -> new GeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value),
     SoQLMultiPoint -> new GeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value),
     SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value),
-    SoQLBlob -> BlobRep
+    SoQLBlob -> BlobRep,
+    SoQLLocation -> LocationRep
   )
 
   val forTypeClearId: Map[SoQLType, CsvColumnRep] =
