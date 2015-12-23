@@ -1,5 +1,6 @@
 package com.socrata.soda.server.metrics
 
+import com.blist.metrics.impl.queue.MetricJmsQueueNotSingleton
 import com.socrata.metrics.Fluff
 import com.socrata.metrics.impl.AsyncActiveMQQueue
 

@@ -2,8 +2,6 @@ package com.socrata.soda.server.resources
 
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
-import com.socrata.soda.server.metrics.Metrics.Metric
-import com.socrata.soda.server.metrics.NoopMetricProvider
 import com.socrata.soda.server.{TestComputedColumns, DatasetsForTesting}
 import com.socrata.soda.server.highlevel.{ColumnDAO, RowDAO, ExportDAO}
 import com.socrata.soda.server.id.ResourceName
@@ -55,7 +53,7 @@ class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsF
     val rowDAO = mock[RowDAO]
     val request = new MockHttpServletRequest()
     val response = new MockHttpServletResponse()
-    val resource = new Compute(columnDAO, exportDAO, rowDAO, {metric: (Metric => Unit) => TestComputedColumns}, new NoopMetricProvider,  NoopEtagObfuscator)
+    val resource = new Compute(columnDAO, exportDAO, rowDAO, TestComputedColumns, NoopEtagObfuscator)
 
     val httpReq = mock[HttpRequest]
     val augReq = new AugmentedHttpServletRequest(request)

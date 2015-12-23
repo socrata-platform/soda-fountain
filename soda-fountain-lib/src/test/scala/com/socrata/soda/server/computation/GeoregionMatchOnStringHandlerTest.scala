@@ -4,7 +4,6 @@ import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.conversions._
 import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 import com.socrata.soda.server.id.ColumnId
-import com.socrata.soda.server.metrics.Metrics.Metric
 import com.socrata.soda.server.persistence.{MinimalColumnRecord, ComputationStrategyRecord, ColumnRecordLike}
 import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.ColumnName
@@ -38,7 +37,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     "read-timeout"    -> "5s"
   ).asJava)
 
-  val handler = new GeoregionMatchOnStringHandler(testConfig, discovery, { _: Metric => })
+  val handler = new GeoregionMatchOnStringHandler(testConfig, discovery)
 
   val genEndpoint         = PrivateMethod[String]('genEndpoint)
   val extractSourceColumn = PrivateMethod[Option[String]]('extractSourceColumnValueFromRow)

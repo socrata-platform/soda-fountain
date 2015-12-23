@@ -14,8 +14,6 @@ object SodaFountainLib {
     resourceGenerators in Compile <+= (resourceManaged in Compile, name in Compile, version in Compile, scalaVersion in Compile) map genVersion,
     libraryDependencies ++= Seq(
       apacheCuratorDiscovery,
-      astyanaxCassandra,
-      astyanaxThrift,
       balboaClient,
       c3po,
       javaxServletApi,
@@ -31,7 +29,6 @@ object SodaFountainLib {
       socrataHttpServer,
       socrataThirdPartyUtils,
       socrataCuratorUtils,
-      socrataGeocoders,
       soqlAnalyzer,
       soqlBrita,
       soqlPack,
