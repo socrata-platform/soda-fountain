@@ -428,7 +428,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       val schema = OrderedMap(columnIdMap.mapValues(rawSchema).toSeq.sortBy(_._1) : _*)
     }
     try {
-      val analysis = analyzer.analyzeFullQuery(query)(dsCtx)
+      val analysis = analyzer.analyzeUnchainedQuery(query)(dsCtx)
       log.debug(s"Rollup analysis successful: ${analysis}")
       Right(analysis)
     } catch {

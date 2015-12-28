@@ -59,6 +59,25 @@ object JsonColumnRep {
   // Note: top-level `null's will be treated as SoQL nulls, not JSON nulls.  I think this is OK?
   object JValueRep extends CodecBasedJsonColumnRep[JValue](SoQLJson, _.asInstanceOf[SoQLJson].value, SoQLJson(_))
 
+  object LocationRep extends JsonColumnRep {
+    val representedType = SoQLLocation
+
+    def fromJValue(input: JValue): Option[SoQLValue] = {
+      JsonDecode[SoQLLocation].decode(input) match {
+        case Right(loc: SoQLLocation) => Some(loc)
+        case _ => Some(SoQLNull)
+      }
+    }
+
+    def toJValue(input: SoQLValue): JValue = {
+      input match {
+        case loc: SoQLLocation => JsonEncode.toJValue(loc)
+        case SoQLNull => JNull
+        case _ => stdBadValue
+      }
+    }
+  }
+
   object FixedTimestampRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JString(SoQLFixedTimestamp.StringRep(t)) => Some(SoQLFixedTimestamp(t))
@@ -274,7 +293,8 @@ object JsonColumnRep {
       SoQLLine -> new ClientGeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value, SoQLLine(_)),
       SoQLMultiPoint -> new ClientGeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value, SoQLMultiPoint(_)),
       SoQLPolygon -> new ClientGeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_)),
-      SoQLBlob -> BlobRep
+      SoQLBlob -> BlobRep,
+      SoQLLocation -> LocationRep
     )
 
   val forDataCoordinatorType: Map[SoQLType, JsonColumnRep] =
@@ -299,7 +319,8 @@ object JsonColumnRep {
       SoQLLine -> new GeometryLikeRep[LineString](SoQLLine, _.asInstanceOf[SoQLLine].value, SoQLLine(_)),
       SoQLMultiPoint -> new GeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value, SoQLMultiPoint(_)),
       SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_)),
-      SoQLBlob -> BlobRep
+      SoQLBlob -> BlobRep,
+      SoQLLocation -> LocationRep
     )
 
   val forClientTypeClearId: Map[SoQLType, JsonColumnRep] =
