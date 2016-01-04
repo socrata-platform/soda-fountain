@@ -170,7 +170,7 @@ object JsonColumnRep {
         case jo@JObject(_) =>
           val map: Map[String, JValue] = jo.map {
             case (key, JString(s)) if (key == "latitude" || key == "longitude") =>
-              (key, try {JNumber.unsafeFromString(s) } catch { case e: NumberFormatException => JNull })
+              (key, try { JNumber(new java.math.BigDecimal(s)) } catch { case e: NumberFormatException => JNull })
             case x => x
           }(collection.breakOut)
           JObject(map)
