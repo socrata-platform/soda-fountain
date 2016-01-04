@@ -164,6 +164,40 @@ object JsonColumnRep {
     val representedType: SoQLType = SoQLMoney
   }
 
+  object ClientLocationRep extends JsonColumnRep {
+    def fromJValue(input: JValue): Option[SoQLValue] = {
+      val jv = input match {
+        case jo@JObject(_) =>
+          val map: Map[String, JValue] = jo.map {
+            case (key, JString(s)) if (key == "latitude" || key == "longitude") =>
+              (key, try { JNumber(new java.math.BigDecimal(s)) } catch { case e: NumberFormatException => JNull })
+            case x => x
+          }(collection.breakOut)
+          JObject(map)
+        case x => x
+      }
+      LocationRep.fromJValue(jv)
+    }
+
+    def toJValue(input: SoQLValue): JValue = { input match {
+        case loc: SoQLLocation =>
+          JsonEncode.toJValue(loc) match {
+            case jo@JObject(_) =>
+              val map: Map[String, JValue] = jo.map {
+                case (key, n: JNumber) =>
+                  (key, JString(n.toString))
+                case x => x
+              }(collection.breakOut)
+              JObject(map)
+            case x => LocationRep.toJValue(loc)
+          }
+        case x => LocationRep.toJValue(x)
+      }
+    }
+
+    val representedType: SoQLType = SoQLLocation
+  }
+
   // Doubles are unquoted when we generate them, but we accept either quoted or unquoted for consistency.
   // Also NaN and the Infinites are represented as Strings.
   // We'll use this for both client and server doubles.  The servers will just never generate quoted ones.
@@ -294,7 +328,7 @@ object JsonColumnRep {
       SoQLMultiPoint -> new ClientGeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value, SoQLMultiPoint(_)),
       SoQLPolygon -> new ClientGeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_)),
       SoQLBlob -> BlobRep,
-      SoQLLocation -> LocationRep
+      SoQLLocation -> ClientLocationRep
     )
 
   val forDataCoordinatorType: Map[SoQLType, JsonColumnRep] =
