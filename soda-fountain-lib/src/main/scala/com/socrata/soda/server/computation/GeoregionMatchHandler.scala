@@ -11,7 +11,7 @@ import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soda.server.metrics.MetricCounter
 import com.socrata.soda.server.persistence.ColumnRecordLike
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.{SoQLNull, SoQLNumber}
+import com.socrata.soql.types.SoQLNumber
 import com.socrata.curator.CuratorServiceBase
 import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
@@ -115,11 +115,11 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
       rowsWithIndex.map {
         case (upsert: UpsertAsSoQL, i) =>
           totalRowsCodedCounter.increment()
-          val featureId = featureIdsWithIndex.get(i).getOrElse(None) match {
-            case Some(fid) => SoQLNumber(java.math.BigDecimal.valueOf(fid))
-            case None      => SoQLNull
-          }
-          UpsertAsSoQL(upsert.rowData + (column.id.underlying -> featureId))
+          featureIdsWithIndex.get(i).flatMap { maybeFeatureId =>
+            maybeFeatureId.map { featureId =>
+              UpsertAsSoQL(upsert.rowData + (column.id.underlying -> SoQLNumber(java.math.BigDecimal.valueOf(featureId))))
+            }
+          }.getOrElse(upsert)
         case (delete: DeleteAsCJson, i) => delete
         case _                     =>
           val message = s"Unsupported row update type passed into ${getClass.getSimpleName}"
