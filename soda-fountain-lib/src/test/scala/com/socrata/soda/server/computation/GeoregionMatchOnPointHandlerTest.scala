@@ -132,7 +132,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
         if (nextExpected.isDefined) {
           UpsertAsSoQL(map + ("ward-1234" -> SoQLNumber(new BD(nextExpected.get))))
         } else {
-          UpsertAsSoQL(map)
+          UpsertAsSoQL(map + ("ward-1234" -> SoQLNull))
         }
       case d: DeleteAsCJson  => d
     }
@@ -151,7 +151,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
         if (nextExpected.isDefined) {
           UpsertAsSoQL(map + ("ward-1234" -> SoQLNumber(new BD(nextExpected.get))))
         } else {
-          UpsertAsSoQL(map)
+          UpsertAsSoQL(map + ("ward-1234" -> SoQLNull))
         }
       case d: DeleteAsCJson  => d
     }
@@ -190,7 +190,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
         if (nextExpected.isDefined) {
           UpsertAsSoQL(map + ("ward-1234" -> SoQLNumber(new BD(nextExpected.get))))
         } else {
-          UpsertAsSoQL(map)
+          UpsertAsSoQL(map + ("ward-1234" -> SoQLNull))
         }
       case d: DeleteAsCJson  => d
     }
@@ -200,9 +200,9 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
   }
 
   test("Will return empty featureIds if source column missing for all rows") {
-    val rows = Seq(UpsertAsSoQL(Map("date" -> SoQLText("12/31/2013"))),
-      UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"))),
-      UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015"))))
+    val rows = Seq(UpsertAsSoQL(Map("date" -> SoQLText("12/31/2013"), "ward-1234" -> SoQLNull)),
+      UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2014"), "ward-1234" -> SoQLNull)),
+      UpsertAsSoQL(Map("date-1234" -> SoQLText("12/31/2015"), "ward-1234" -> SoQLNull)))
 
     val newRows = handler.compute("a-request-id", rows.toIterator, columnSpec(true))
     newRows.toSeq must equal (rows)
