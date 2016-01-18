@@ -157,6 +157,22 @@ object CsvColumnRep {
     }
   }
 
+  object PhoneRep extends CsvColumnRep {
+    /**
+     * phoneType: phoneNumber
+     * phoneNumber (if phoneType is null)
+     * phoneType (if phoneNumber is null)
+     */
+    def toString(value: SoQLValue) = {
+      value match {
+        case SoQLNull => null
+        case SoQLPhone(phoneNumber, phoneType) =>
+          Seq(phoneType, phoneNumber).flatten.mkString(": ")
+        case _ => null
+      }
+    }
+  }
+
   val forType: Map[SoQLType, CsvColumnRep] = Map(
     SoQLText -> TextRep,
     SoQLFixedTimestamp -> FixedTimestampRep,
@@ -179,6 +195,7 @@ object CsvColumnRep {
     SoQLMultiPoint -> new GeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value),
     SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value),
     SoQLBlob -> BlobRep,
+    SoQLPhone -> PhoneRep,
     SoQLLocation -> LocationRep
   )
 
