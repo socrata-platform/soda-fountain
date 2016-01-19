@@ -58,6 +58,7 @@ class LivenessClientConfig(config: Config, root: String) extends ConfigClass(con
   val interval = getDuration("interval")
   val range = getDuration("range")
   val missable = getInt("missable")
+  val port = getInt("port")
 }
 
 class DataSourceConfig(config: Config, root: String) extends ConfigClass(config, root) {
