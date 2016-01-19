@@ -39,7 +39,7 @@ object SodaUtils {
     import com.rojoma.json.v3.ast._
 
     errorLog.info(s"${logTags.mkString(" ")} responding with error ${error.errorCode}: ${error.humanReadableMessage}")
-    val header = error.vary.foldLeft(error.etags.foldLeft(Status(error.httpResponseCode)) { (h, et) =>
+    val header = error.vary.foldLeft(error.etags.foldLeft(Status(error.httpResponseCode): HttpResponse) { (h, et) =>
       h ~> ETag(et)
     }) { (h, vary) =>
       h ~> Header("Vary", vary)

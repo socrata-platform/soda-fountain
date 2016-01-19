@@ -36,7 +36,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     def prepareETag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(etagSuffix))
     result match {
       case ColumnDAO.Created(column, etagOpt) =>
-        etagOpt.foldLeft(Created) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> Json(column.asSpec)
+        etagOpt.foldLeft(Created: HttpResponse) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> Json(column.asSpec)
       case ColumnDAO.Updated(column, etag) =>
         OK ~> Json(column.asSpec)
       case ColumnDAO.Found(ds, column, etag) =>
