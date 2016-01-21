@@ -388,27 +388,34 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                   val columnNameMap = datasetRecord.columnsByName.mapValues(col => rollupColumnNameToIdMapping(col.id))
 
                   val parsedQuery = new StandaloneParser().selectStatement(soql)
-                  val mappedQuery = new ColumnNameMapper(columnNameMap).mapSelect(parsedQuery)
-                  log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
-                  log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
+                  val mappedQueries = new ColumnNameMapper(columnNameMap).mapSelect(parsedQuery)
+                  mappedQueries.size match {
+                    case 1 =>
+                      val mappedQuery = mappedQueries.head
+                      log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
+                      log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
 
-                  val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQuery.toString())
-                  dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
-                            Iterator.single(instruction), traceHeaders(requestId, dataset)) {
-                    case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
-                      store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
-                      RollupCreatedOrUpdated
-                    case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
-                      RollupNotFound(rollup)
-                    case DataCoordinatorClient.DatasetNotFoundResult(_) =>
-                      DatasetNotFound(dataset)
-                    case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
-                      CannotAcquireDatasetWriteLock(dataset)
-                    case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
-                      InternalServerError(code, tag, data)
-                    case x =>
-                      log.warn("case is NOT implemented %s".format(x.toString))
-                      InternalServerError("unknown", tag, x.toString)
+                      val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQuery.toString())
+                      dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
+                        Iterator.single(instruction), traceHeaders(requestId, dataset)) {
+                        case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
+                          store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+                          RollupCreatedOrUpdated
+                        case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
+                          RollupNotFound(rollup)
+                        case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+                          DatasetNotFound(dataset)
+                        case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
+                          CannotAcquireDatasetWriteLock(dataset)
+                        case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+                          InternalServerError(code, tag, data)
+                        case x =>
+                          log.warn("case is NOT implemented %s".format(x.toString))
+                          InternalServerError("unknown", tag, x.toString)
+                      }
+                    case _ =>
+                      // It cannot get here because it is prevented by analyzeQuery which does not take chained soql.
+                      RollupError("rollup soql cannot be chained")
                   }
               }
             case None =>
