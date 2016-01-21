@@ -23,7 +23,7 @@ object Dependencies {
     val scalaj            = "0.3.15"
     val socrataHttp       = "3.6.2"
     val soqlBrita         = "1.3.0"
-    val soqlReference     = "1.0.5"
+    val soqlReference     = "1.0.7"
     val thirdPartyUtils   = "4.0.5"
     val curatorUtils      = "1.0.3"
     val typesafeConfig    = "1.0.2"

@@ -78,6 +78,25 @@ object JsonColumnRep {
     }
   }
 
+  object PhoneRep extends JsonColumnRep {
+    val representedType = SoQLPhone
+
+    def fromJValue(input: JValue): Option[SoQLValue] = {
+      JsonDecode[SoQLPhone].decode(input) match {
+        case Right(phone: SoQLPhone) => Some(phone)
+        case _ => Some(SoQLNull)
+      }
+    }
+
+    def toJValue(input: SoQLValue): JValue = {
+      input match {
+        case phone: SoQLPhone => JsonEncode.toJValue(phone)
+        case SoQLNull => JNull
+        case _ => stdBadValue
+      }
+    }
+  }
+
   object FixedTimestampRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JString(SoQLFixedTimestamp.StringRep(t)) => Some(SoQLFixedTimestamp(t))
@@ -328,6 +347,7 @@ object JsonColumnRep {
       SoQLMultiPoint -> new ClientGeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value, SoQLMultiPoint(_)),
       SoQLPolygon -> new ClientGeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_)),
       SoQLBlob -> BlobRep,
+      SoQLPhone -> PhoneRep,
       SoQLLocation -> ClientLocationRep
     )
 
@@ -354,6 +374,7 @@ object JsonColumnRep {
       SoQLMultiPoint -> new GeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value, SoQLMultiPoint(_)),
       SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_)),
       SoQLBlob -> BlobRep,
+      SoQLPhone -> PhoneRep,
       SoQLLocation -> LocationRep
     )
 
