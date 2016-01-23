@@ -238,8 +238,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
 
     val suggest = mockSuggest(datasetDao = d, columnDao = c)
 
-    val servReq = mock[HttpServletRequest]
-    servReq.expects('getQueryString)()
+    val servReq = mockHttpServletRequest()
     val augReq = new AugmentedHttpServletRequest(servReq)
     val httpReq = mock[HttpRequest]
     httpReq.expects('servletRequest)().returning(augReq)
@@ -275,8 +274,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
 
     val suggest = mockSuggest(datasetDao = d, columnDao = c)
 
-    val servReq = mock[HttpServletRequest]
-    servReq.expects('getQueryString)()
+    val servReq = mockHttpServletRequest()
     val augReq = new AugmentedHttpServletRequest(servReq)
     val httpReq = mock[HttpRequest]
     httpReq.expects('servletRequest)().returning(augReq)
@@ -348,8 +346,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
         |  }
       """.stripMargin), "suggest"))
 
-    val servReq = mock[HttpServletRequest]
-    servReq.expects('getQueryString)()
+    val servReq = mockHttpServletRequest()
     val augReq = new AugmentedHttpServletRequest(servReq)
     val httpReq = mock[HttpRequest]
     httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
@@ -379,8 +376,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
           |  }
         """.stripMargin), "suggest"))
 
-    val servReq = mock[HttpServletRequest]
-    servReq.expects('getQueryString)()
+    val servReq = mockHttpServletRequest()
     val augReq = new AugmentedHttpServletRequest(servReq)
     val httpReq = mock[HttpRequest]
     httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
@@ -402,8 +398,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
 
     val suggest = mockSuggest(datasetDao = d, columnDao = c)
 
-    val servReq = mock[HttpServletRequest]
-    servReq.expects('getQueryString)()
+    val servReq = mockHttpServletRequest()
     val augReq = new AugmentedHttpServletRequest(servReq)
     val httpReq = mock[HttpRequest]
     httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
@@ -412,5 +407,12 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
     response.getContentType should include("application/json")
     response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+  }
+
+  private def mockHttpServletRequest() = {
+    val servReq = mock[HttpServletRequest]
+    servReq.expects('getQueryString)()
+    servReq.expects('getHeader)("X-Socrata-RequestId").returning(null)
+    servReq
   }
 }
