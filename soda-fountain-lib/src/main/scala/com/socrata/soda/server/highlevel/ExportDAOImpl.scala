@@ -4,7 +4,7 @@ import com.socrata.http.server.util.{Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.ResourceName
-import com.socrata.soda.server.persistence.{ColumnRecordLike, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord, ColumnRecordLike, NameAndSchemaStore}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.SodaUtils.traceHeaders
 import com.socrata.soda.server.wiremodels.JsonColumnRep
@@ -17,6 +17,14 @@ import com.socrata.soda.server.copy.Stage
 class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extends ExportDAO {
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ExportDAOImpl])
+
+
+  def lookupColumns(resourceName: ResourceName, copy: Option[Stage]): Option[Seq[ColumnRecord]] = {
+    store.lookupDataset(resourceName, copy) match {
+      case Some(ds) => Some(ds.columns)
+      case None => None
+    }
+  }
 
   def export[T](dataset: ResourceName,
                 schemaCheck: Seq[ColumnRecordLike] => Boolean,

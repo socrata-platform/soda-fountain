@@ -9,14 +9,14 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag, RequestId}
-import com.socrata.soda.server.SodaUtils
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.errors._
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.ExportDAO.{ColumnInfo, CSchema}
 import com.socrata.soda.server.highlevel.{ColumnSpecUtils, ExportDAO}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
-import com.socrata.soql.types.SoQLValue
+import com.socrata.soql.types.{SoQLID, SoQLValue}
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
@@ -82,6 +82,34 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       }
     }
 
+    // get only these columns, we expect these to be fieldnames comma separated items.
+    val columnsOnly = Option(req.getParameter("columns")).map {
+      paramStr =>
+        try {
+          val columnFields = paramStr.toLowerCase.split(",").toSeq.map(x => x.trim)
+          val columns = exportDAO.lookupColumns(resourceName, Stage(copy)).getOrElse(Seq.empty)
+          // need to have the row-identifier included otherwise dc will fail
+          // this may seem long winded but helps avoid double counting in case one of requested
+          // columns is the row-identifier
+          val rowIdColumn = columns.filter{c => c.typ == SoQLID}.map{c => c.fieldName.name}
+          val columnFieldsWithRowIdSet = (columnFields ++ rowIdColumn).toSet
+
+          val filtered = columns.filter{c => columnFieldsWithRowIdSet.contains(c.fieldName.name)}
+          if( filtered.length != columnFieldsWithRowIdSet.size ) {
+            SodaUtils.errorResponse(req, BadParameter("could not find all columns in parameter given.", paramStr))(resp)
+            return
+          }
+
+          filtered
+        } catch {
+          case e: Exception =>
+            SodaUtils.errorResponse(req, BadParameter("columns", paramStr))(resp)
+            return
+        }
+    }.getOrElse(Seq.empty)
+
+    log.info("columns found : "+columnsOnly.mkString(","))
+
     val excludeSystemFields = Option(req.getParameter("exclude_system_fields")).map { paramStr =>
       try {
         paramStr.toBoolean
@@ -111,7 +139,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
             val exporter = Exporter.exportForMimeType(mimeType)
             exportDAO.export(resourceName,
                              exporter.validForSchema,
-                             Seq.empty,
+                             columnsOnly,
                              passOnPrecondition,
                              ifModifiedSince,
                              limit,
@@ -161,6 +189,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
         SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
     }
   }
+
 
   case class publishedService(resourceAndExt: OptionallyTypedPathComponent[ResourceName]) extends SodaResource {
     override def get = export(resourceAndExt.value, resourceAndExt.extension.map(Exporter.canonicalizeExtension))
