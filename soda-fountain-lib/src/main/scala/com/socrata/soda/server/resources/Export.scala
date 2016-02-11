@@ -93,8 +93,8 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
           // columns is the row-identifier
           val rowIdColumn = columns.filter{c => c.typ == SoQLID}.map{c => c.fieldName.name}
           val columnFieldsWithRowIdSet = (columnFields ++ rowIdColumn).toSet
-
           val filtered = columns.filter{c => columnFieldsWithRowIdSet.contains(c.fieldName.name)}
+
           if( filtered.length != columnFieldsWithRowIdSet.size ) {
             SodaUtils.errorResponse(req, BadParameter("could not find all columns in parameter given.", paramStr))(resp)
             return
@@ -107,8 +107,6 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
             return
         }
     }.getOrElse(Seq.empty)
-
-    log.info("columns found : "+columnsOnly.mkString(","))
 
     val excludeSystemFields = Option(req.getParameter("exclude_system_fields")).map { paramStr =>
       try {
