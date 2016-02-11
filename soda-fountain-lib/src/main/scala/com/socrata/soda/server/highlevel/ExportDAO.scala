@@ -46,7 +46,7 @@ trait ExportDAO {
                 sorted: Boolean,
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T
 
-  def lookupColumns(resourceName: ResourceName, copy: Option[Stage]): Option[Seq[ColumnRecord]]
+  def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord]
 }
 
 object ExportDAO {

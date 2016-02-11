@@ -18,12 +18,8 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ExportDAOImpl])
 
-
-  def lookupColumns(resourceName: ResourceName, copy: Option[Stage]): Option[Seq[ColumnRecord]] = {
-    store.lookupDataset(resourceName, copy) match {
-      case Some(ds) => Some(ds.columns)
-      case None => None
-    }
+  def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
+    store.lookupDataset(resourceName, copy)
   }
 
   def export[T](dataset: ResourceName,
@@ -37,7 +33,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 sorted: Boolean,
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T =
     retryable(limit = 5) {
-      store.lookupDataset(dataset, Stage(copy)) match {
+      lookupDataset(dataset, Stage(copy)) match {
         case Some(ds) =>
           if (schemaCheck(ds.columns)) {
             val schemaHash = onlyColumns match {

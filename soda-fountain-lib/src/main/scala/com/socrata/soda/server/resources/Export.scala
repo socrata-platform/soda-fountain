@@ -87,23 +87,29 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       paramStr =>
         try {
           val columnFields = paramStr.toLowerCase.split(",").toSeq.map(x => x.trim)
-          val columns = exportDAO.lookupColumns(resourceName, Stage(copy)).getOrElse(Seq.empty)
-          // need to have the row-identifier included otherwise dc will fail
-          // this may seem long winded but helps avoid double counting in case one of requested
-          // columns is the row-identifier
-          val rowIdColumn = columns.filter{c => c.typ == SoQLID}.map{c => c.fieldName.name}
-          val columnFieldsWithRowIdSet = (columnFields ++ rowIdColumn).toSet
-          val filtered = columns.filter{c => columnFieldsWithRowIdSet.contains(c.fieldName.name)}
+          exportDAO.lookupDataset(resourceName, Stage(copy)) match {
+            case Some(ds) => {
+              val pkColumnId = ds.primaryKey
+              val columns = ds.columns
+              // need to have the row-identifier included otherwise dc will fail
+              // this may seem long winded but helps avoid double counting in case one of requested
+              // columns is the row-identifier
+              val pkColumn = columns.filter{c => c.id.underlying == pkColumnId.underlying}.map{c => c.fieldName.name}
+              val columnFieldsWithRowIdSet = (columnFields ++ pkColumn).toSet
+              val filtered = columns.filter{c => columnFieldsWithRowIdSet.contains(c.fieldName.name)}
 
-          if( filtered.length != columnFieldsWithRowIdSet.size ) {
-            SodaUtils.errorResponse(req, BadParameter("could not find all columns in parameter given.", paramStr))(resp)
-            return
+              if( filtered.length != columnFieldsWithRowIdSet.size ) {
+                SodaUtils.errorResponse(req, BadParameter("could not find columns requested.", paramStr))(resp)
+                return
+              }
+
+              filtered
+            }
+            case None => Seq.empty
           }
-
-          filtered
         } catch {
           case e: Exception =>
-            SodaUtils.errorResponse(req, BadParameter("columns", paramStr))(resp)
+            SodaUtils.errorResponse(req, BadParameter("error locating columns requested", paramStr))(resp)
             return
         }
     }.getOrElse(Seq.empty)
