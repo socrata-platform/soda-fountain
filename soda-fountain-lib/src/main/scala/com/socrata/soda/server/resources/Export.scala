@@ -105,7 +105,9 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
 
               filtered
             }
-            case None => Seq.empty
+            case None => 
+              SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(resp)
+              return
           }
         } catch {
           case e: Exception =>
