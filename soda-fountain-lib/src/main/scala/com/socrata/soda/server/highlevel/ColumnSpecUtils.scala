@@ -20,7 +20,7 @@ class ColumnSpecUtils(rng: Random) {
     // behave like system columns (not writable thru API, not returned in SELECT *).
     if (isComputed &&
         (!columnName.name.startsWith(":") ||
-         systemColumns.exists { sysCol => columnName.name.equalsIgnoreCase(sysCol._1.name) }))
+         systemColumns.exists(_._1 == columnName)))
       return false
 
     val cnamePart =
@@ -29,9 +29,9 @@ class ColumnSpecUtils(rng: Random) {
       else columnName
     IdentifierFilter(cnamePart.name) == cnamePart.name
   }
-  
+
   def duplicateColumnName(columnName: ColumnName, existingColumns: Map[ColumnName, ColumnId]): Boolean =
-    existingColumns.map(_._1).exists(_.name.equalsIgnoreCase(columnName.name))
+    existingColumns.exists(_._1 == columnName)
 
   def freezeForCreation(existingColumns: Map[ColumnName, ColumnId], ucs: UserProvidedColumnSpec): CreateResult =
     ucs match {
