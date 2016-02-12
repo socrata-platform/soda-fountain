@@ -1,8 +1,9 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.http.server.util.{Precondition, EntityTag, RequestId}
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
-import com.socrata.soda.server.persistence.ColumnRecordLike
+import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord, ColumnRecordLike}
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
@@ -44,6 +45,8 @@ trait ExportDAO {
                 copy: String,
                 sorted: Boolean,
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T
+
+  def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord]
 }
 
 object ExportDAO {

@@ -4,7 +4,7 @@ import com.socrata.http.server.util.{Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.ResourceName
-import com.socrata.soda.server.persistence.{ColumnRecordLike, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord, ColumnRecordLike, NameAndSchemaStore}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.SodaUtils.traceHeaders
 import com.socrata.soda.server.wiremodels.JsonColumnRep
@@ -18,6 +18,10 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ExportDAOImpl])
 
+  def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
+    store.lookupDataset(resourceName, copy)
+  }
+
   def export[T](dataset: ResourceName,
                 schemaCheck: Seq[ColumnRecordLike] => Boolean,
                 onlyColumns: Seq[ColumnRecordLike],
@@ -29,7 +33,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 sorted: Boolean,
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T =
     retryable(limit = 5) {
-      store.lookupDataset(dataset, Stage(copy)) match {
+      lookupDataset(dataset, Stage(copy)) match {
         case Some(ds) =>
           if (schemaCheck(ds.columns)) {
             val schemaHash = onlyColumns match {
