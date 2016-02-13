@@ -412,17 +412,19 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 offset: Option[Long],
                 copy: String,
                 sorted: Boolean,
+                rowId: Option[String],
                 extraHeaders: Map[String, String] = Map.empty)
                (f: Result => T): T = {
     withHost(datasetId) { host =>
       val limParam = limit.map { limLong => "limit" -> limLong.toString }
       val offParam = offset.map { offLong => "offset" -> offLong.toString }
       val columnsParam = if (columns.isEmpty) None else Some("c" -> columns.mkString(","))
+      val rowIdParam = if (rowId.isEmpty) None else rowId.map("row_id" -> _)
       val sortedParam = "sorted" -> sorted.toString
       val request = exportUrl(host, datasetId)
                     .q("schemaHash" -> schemaHash)
                     .addParameter("copy"->copy)
-                    .addParameters(limParam ++ offParam ++ columnsParam)
+                    .addParameters(limParam ++ offParam ++ columnsParam ++ rowIdParam)
                     .addParameter(sortedParam)
                     .addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate))
                     .addHeaders(extraHeaders)

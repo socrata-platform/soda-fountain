@@ -148,5 +148,6 @@ trait DataCoordinatorClient {
                 offset: Option[Long],
                 copy: String,
                 sorted: Boolean,
+                rowId: Option[String],
                 extraHeaders: Map[String, String])(f: Result => T): T
 }

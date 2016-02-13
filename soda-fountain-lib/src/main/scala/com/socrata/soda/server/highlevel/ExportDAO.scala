@@ -44,6 +44,7 @@ trait ExportDAO {
                 offset: Option[Long],
                 copy: String,
                 sorted: Boolean,
+                rowId: Option[String],
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T
 
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord]

@@ -81,6 +81,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
           None,
           "latest",
           sorted = false,
+          None,
           requestId) {
           case ExportDAO.Success(schema, newTag, rows) =>
             log.info("exported dataset {} for column compute", dataset.resourceName.name)

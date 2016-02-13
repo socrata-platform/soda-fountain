@@ -31,6 +31,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 offset: Option[Long],
                 copy: String,
                 sorted: Boolean,
+                rowId: Option[String],
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T =
     retryable(limit = 5) {
       lookupDataset(dataset, Stage(copy)) match {
@@ -42,7 +43,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
             }
             val dcColumnIds = onlyColumns.map(_.id.underlying)
             dc.export(ds.systemId, schemaHash, dcColumnIds, precondition, ifModifiedSince, limit, offset,
-                      copy, sorted = sorted, extraHeaders = traceHeaders(requestId, dataset)) {
+                      copy, sorted = sorted, rowId, extraHeaders = traceHeaders(requestId, dataset)) {
               case DataCoordinatorClient.ExportResult(jvalues, etag) =>
                 val decodedSchema = CJson.decode(jvalues, JsonColumnRep.forDataCoordinatorType)
                 val schema = decodedSchema.schema
