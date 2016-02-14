@@ -46,6 +46,9 @@ case class ContentTypeUnknownCharset(`content-type`: String) extends DCRequestEr
 @Tag("req.export.mismatched-schema")
 case class SchemaMismatchForExport(dataset: DatasetId, schema: SchemaSpec) extends DCRequestError
 
+@Tag("req.export.invalid-row-id")
+case class InvalidRowId() extends DataCoordinatorError
+
 // Request Errors: Body
 
 @Tag("req.body.command-too-large")

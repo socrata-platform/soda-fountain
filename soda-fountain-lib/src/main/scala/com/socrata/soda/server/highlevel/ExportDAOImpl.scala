@@ -68,6 +68,8 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 f(ExportDAO.PreconditionFailed)
               case DataCoordinatorClient.DatasetNotFoundResult(_) =>
                 f(ExportDAO.NotFound(dataset))
+              case DataCoordinatorClient.InvalidRowIdResult =>
+                f(ExportDAO.InvalidRowId)
               case DataCoordinatorClient.InternalServerErrorResult(code, tag, msg) =>
                 f(ExportDAO.InternalServerError(code, tag, msg))
               case x =>

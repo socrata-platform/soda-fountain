@@ -43,6 +43,7 @@ object DataCoordinatorClient {
   case object PreconditionFailedResult extends FailResult
   case class InternalServerErrorResult(code: String, tag: String, data: String) extends FailResult
   case class InvalidLocaleResult(locale: String, commandIndex: Long) extends FailResult
+  case object InvalidRowIdResult extends FailResult
 
 
 

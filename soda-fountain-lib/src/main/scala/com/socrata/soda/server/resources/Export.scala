@@ -184,6 +184,8 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                 SodaUtils.errorResponse(req, SchemaInvalidForMimeType)(resp)
               case ExportDAO.NotFound(x) =>
                 SodaUtils.errorResponse(req, GeneralNotFoundError(x.toString()))(resp)
+              case ExportDAO.InvalidRowId =>
+                SodaUtils.errorResponse(req, InvalidRowId)(resp)
               case ExportDAO.InternalServerError(code, tag, data) =>
                 SodaUtils.errorResponse(req, InternalError(tag,
                   "code"  -> JString(code),

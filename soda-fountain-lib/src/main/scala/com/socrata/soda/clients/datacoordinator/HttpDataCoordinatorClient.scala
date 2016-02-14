@@ -260,6 +260,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 f(Left(NoSuchRollupResult(name, commandIndex)))
               case NotModified() =>
                 f(Left(NotModifiedResult(etagsSeq(r))))
+              case InvalidRowId() =>
+                f(Left(InvalidRowIdResult))
             }
             case UnknownDataCoordinatorError(code, data) =>
               log.error("Unknown data coordinator error: code %s, Aux info: %s".format(code, data))
@@ -445,6 +447,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 f(DatasetNotFoundResult(dataset))
               case cbr: ContentTypeBadRequest =>
                 f(InternalServerErrorResult(cbr.code, tag, cbr.contentTypeError))
+              case InvalidRowId() =>
+                f(InvalidRowIdResult)
               case x: DataCoordinatorError =>
                 f(InternalServerErrorResult(x.code, tag, ""))
               case UnknownDataCoordinatorError(code, data) =>
