@@ -81,6 +81,11 @@ case class ContentNotSingleObject(value: JValue)
     s"The json content of the request contains an unreadable object ($value)",
     "value" -> value)
 
+case class InvalidJsonContent(expected: String)
+  extends SodaError("req.content.json.invalid",
+    s"The json content of the request is not an array or object",
+    "expected" -> JString(expected))
+
 case class DatasetSpecMaltyped(field: String, expected: String, got: JValue)
   extends SodaError("soda.dataset.maltyped",
     s"Dataset is maltyped; for field '$field' we expected '$expected' but got '$got'",
