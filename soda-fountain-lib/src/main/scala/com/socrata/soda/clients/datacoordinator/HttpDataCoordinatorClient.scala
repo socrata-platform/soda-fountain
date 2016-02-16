@@ -194,6 +194,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                   f(Left(InternalServerErrorResult( reqError.code, tag, s"obj: $obj, field: $field, commandIndex: $commandIndex" )))
                 case InvalidCommandFieldValue(obj, field, value, commandIndex) =>
                   f(Left(InternalServerErrorResult( reqError.code, tag, s"obj: $obj, field: $field, value: $value, commandIndex: $commandIndex")))
+                case InvalidRowId() =>
+                  f(Left(InvalidRowIdResult))
             }
             case (rowError: DCRowUpdateError) => rowError match {
               case RowPrimaryKeyNonexistentOrNull(dataset, commandIndex) =>
@@ -260,8 +262,6 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 f(Left(NoSuchRollupResult(name, commandIndex)))
               case NotModified() =>
                 f(Left(NotModifiedResult(etagsSeq(r))))
-              case InvalidRowId() =>
-                f(Left(InvalidRowIdResult))
             }
             case UnknownDataCoordinatorError(code, data) =>
               log.error("Unknown data coordinator error: code %s, Aux info: %s".format(code, data))
