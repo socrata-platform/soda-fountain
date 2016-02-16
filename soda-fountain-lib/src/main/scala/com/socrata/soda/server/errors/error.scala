@@ -236,3 +236,7 @@ case class UnsupportedUpdateOperation(errMessage: String)
   extends SodaError(SC_BAD_REQUEST, "soda.unsupported-update-operation",
     s"Requested Update Operation is not supported.",
     "message" -> JString(errMessage))
+
+case object InvalidRowId
+  extends SodaError(SC_BAD_REQUEST, "soda.invalid-row-identifier",
+    s"Row-identifier is invalid")

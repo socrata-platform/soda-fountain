@@ -44,6 +44,7 @@ trait ExportDAO {
                 offset: Option[Long],
                 copy: String,
                 sorted: Boolean,
+                rowId: Option[String],
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T
 
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord]
@@ -65,6 +66,7 @@ object ExportDAO {
   case class NotModified(etag: Seq[EntityTag]) extends FailResult
   case object PreconditionFailed extends FailResult
   case class NotFound(resourceName: ResourceName) extends FailResult
+  case object InvalidRowId extends FailResult
   case class InternalServerError(code: String, tag: String, data: String) extends FailResult
 
 }

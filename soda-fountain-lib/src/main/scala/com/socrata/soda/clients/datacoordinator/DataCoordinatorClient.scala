@@ -43,6 +43,7 @@ object DataCoordinatorClient {
   case object PreconditionFailedResult extends FailResult
   case class InternalServerErrorResult(code: String, tag: String, data: String) extends FailResult
   case class InvalidLocaleResult(locale: String, commandIndex: Long) extends FailResult
+  case object InvalidRowIdResult extends FailResult
 
 
 
@@ -148,5 +149,6 @@ trait DataCoordinatorClient {
                 offset: Option[Long],
                 copy: String,
                 sorted: Boolean,
+                rowId: Option[String],
                 extraHeaders: Map[String, String])(f: Result => T): T
 }
