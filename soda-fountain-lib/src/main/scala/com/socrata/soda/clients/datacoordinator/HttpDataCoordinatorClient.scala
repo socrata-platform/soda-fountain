@@ -194,6 +194,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                   f(Left(InternalServerErrorResult( reqError.code, tag, s"obj: $obj, field: $field, commandIndex: $commandIndex" )))
                 case InvalidCommandFieldValue(obj, field, value, commandIndex) =>
                   f(Left(InternalServerErrorResult( reqError.code, tag, s"obj: $obj, field: $field, value: $value, commandIndex: $commandIndex")))
+                case InvalidRowId() =>
+                  f(Left(InvalidRowIdResult))
             }
             case (rowError: DCRowUpdateError) => rowError match {
               case RowPrimaryKeyNonexistentOrNull(dataset, commandIndex) =>
@@ -412,17 +414,19 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 offset: Option[Long],
                 copy: String,
                 sorted: Boolean,
+                rowId: Option[String],
                 extraHeaders: Map[String, String] = Map.empty)
                (f: Result => T): T = {
     withHost(datasetId) { host =>
       val limParam = limit.map { limLong => "limit" -> limLong.toString }
       val offParam = offset.map { offLong => "offset" -> offLong.toString }
       val columnsParam = if (columns.isEmpty) None else Some("c" -> columns.mkString(","))
+      val rowIdParam = if (rowId.isEmpty) None else rowId.map("row_id" -> _)
       val sortedParam = "sorted" -> sorted.toString
       val request = exportUrl(host, datasetId)
                     .q("schemaHash" -> schemaHash)
                     .addParameter("copy"->copy)
-                    .addParameters(limParam ++ offParam ++ columnsParam)
+                    .addParameters(limParam ++ offParam ++ columnsParam ++ rowIdParam)
                     .addParameter(sortedParam)
                     .addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate))
                     .addHeaders(extraHeaders)
@@ -443,6 +447,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 f(DatasetNotFoundResult(dataset))
               case cbr: ContentTypeBadRequest =>
                 f(InternalServerErrorResult(cbr.code, tag, cbr.contentTypeError))
+              case InvalidRowId() =>
+                f(InvalidRowIdResult)
               case x: DataCoordinatorError =>
                 f(InternalServerErrorResult(x.code, tag, ""))
               case UnknownDataCoordinatorError(code, data) =>

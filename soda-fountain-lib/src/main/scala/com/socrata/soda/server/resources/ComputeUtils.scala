@@ -81,6 +81,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
           None,
           "latest",
           sorted = false,
+          None,
           requestId) {
           case ExportDAO.Success(schema, newTag, rows) =>
             log.info("exported dataset {} for column compute", dataset.resourceName.name)
@@ -96,6 +97,8 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
             SodaUtils.errorResponse(req, SodaError.EtagPreconditionFailed)(response)
           case ExportDAO.NotFound(resourceName) =>
             SodaUtils.errorResponse(req, SodaError.DatasetNotFound(resourceName))(response)
+          case ExportDAO.InvalidRowId =>
+            SodaUtils.errorResponse(req, SodaError.InvalidRowId)(response)
           case ExportDAO.InternalServerError(code, tag, data) =>
             SodaUtils.errorResponse(req, SodaError.InternalError(tag,
               "code"  -> JString(code),

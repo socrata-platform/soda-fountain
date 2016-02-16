@@ -134,6 +134,8 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       case other => return SodaUtils.errorResponse(req, BadParameter("sorted", other))(resp)
     }.getOrElse(true)
 
+    val rowId = Option(req.getParameter("row_id"))
+
     val suffix = headerHash(req)
     val precondition = req.precondition.map(etagObfuscator.deobfuscate)
     def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
@@ -152,6 +154,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                              offset,
                              copy,
                              sorted = sorted,
+                             rowId,
                              requestId = RequestId.getFromRequest(req)) {
               case ExportDAO.Success(fullSchema, newTag, fullRows) =>
                 resp.setStatus(HttpServletResponse.SC_OK)
@@ -181,6 +184,8 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                 SodaUtils.errorResponse(req, SchemaInvalidForMimeType)(resp)
               case ExportDAO.NotFound(x) =>
                 SodaUtils.errorResponse(req, GeneralNotFoundError(x.toString()))(resp)
+              case ExportDAO.InvalidRowId =>
+                SodaUtils.errorResponse(req, InvalidRowId)(resp)
               case ExportDAO.InternalServerError(code, tag, data) =>
                 SodaUtils.errorResponse(req, InternalError(tag,
                   "code"  -> JString(code),
