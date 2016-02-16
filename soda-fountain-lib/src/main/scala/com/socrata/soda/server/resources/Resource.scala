@@ -258,19 +258,20 @@ case class Resource(rowDAO: RowDAO,
 
     override def post = { req => response =>
       val requestId = RequestId.getFromRequest(req)
-      upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId))
+      upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId), allowSingleItem = true)
     }
 
     override def put = { req => response =>
       val requestId = RequestId.getFromRequest(req)
-      upsertMany(req, response, requestId, rowDAO.replace(user(req), _, _, requestId))
+      upsertMany(req, response, requestId, rowDAO.replace(user(req), _, _, requestId), allowSingleItem = false)
     }
 
     private def upsertMany(req: HttpRequest,
                            response: HttpServletResponse,
                            requestId: RequestId.RequestId,
-                           f: rowDaoFunc) {
-      InputUtils.jsonArrayValuesStream(req, maxRowSize) match {
+                           f: rowDaoFunc,
+                           allowSingleItem: Boolean) {
+      InputUtils.jsonArrayValuesStream(req, maxRowSize, allowSingleItem) match {
         case Right(boundedIt) =>
           upsertishFlow(req, response, requestId, resourceName.value, boundedIt, f)
         case Left(err) =>

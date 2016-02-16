@@ -57,7 +57,8 @@ object InputUtils {
    * @note The iterator can throw a `TooMuchDataWithoutAcknowledgement` exception if the user
    *       sends an element which cannot be read within `approximateMaxDatumBound` bytes.
    */
-  def jsonArrayValuesStream(req: HttpRequest, approximateMaxDatumBound: Long): Either[SodaError, Iterator[JValue]] = {
+  def jsonArrayValuesStream(req: HttpRequest, approximateMaxDatumBound: Long, allowSingleItem: Boolean)
+    : Either[SodaError, Iterator[JValue]] = {
     streamJson(req, approximateMaxDatumBound) match {
       case Right(boundedReader) =>
         def boundIt[T](it: Iterator[T]) = it.map { ev => boundedReader.acknowledge(); ev }
@@ -66,10 +67,10 @@ object InputUtils {
         fbJsonEventIt.head match {
           case StartOfArrayEvent() =>
             Right(boundIt(JsonArrayIterator[JValue](jsonEventIt)))
-          case StartOfObjectEvent() =>
+          case StartOfObjectEvent() if allowSingleItem =>
             Right(boundIt(Iterator.single(JsonReader.fromEvents(jsonEventIt))))
           case _ =>
-            Left(InvalidJsonContent("array, object"))
+            Left(InvalidJsonContent("array" + (if (allowSingleItem) ", object" else "")))
         }
       case Left(e) => Left(e)
     }
