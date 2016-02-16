@@ -54,7 +54,7 @@ trait GeoregionMatchOnPointHandlerData {
   }
 
   def computeStrategy(explicitPrimaryKeyParam: Boolean) = {
-    ComputationStrategyRecord(ComputationStrategyType.GeoRegionMatchOnPoint, false,
+    ComputationStrategyRecord(ComputationStrategyType.GeoRegionMatchOnPoint,
       Some(Seq(sourceColumn("geom-1234"))),
       Some(JObject(strategyParams(explicitPrimaryKeyParam))))
   }
@@ -287,7 +287,6 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     when(badColumnSpec.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnPoint,
-        false,
         Some(Seq(sourceColumn(""))),
         Some(JObject(Map())))))
 
@@ -302,7 +301,6 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     when(badColumnSpec.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnPoint,
-        false,
         Some(Seq()),
         null)))
 

@@ -1,10 +1,9 @@
 package com.socrata.soda.server.persistence.pg
 
-import java.sql.{Connection, ResultSet, Timestamp, Types}
+import java.sql.{Connection, ResultSet, Timestamp, Types, BatchUpdateException}
 
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Try}
 
 import com.rojoma.json.v3.ast.JObject
 import com.rojoma.json.v3.io.{JsonReaderException, JsonReader}
@@ -371,7 +370,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         |       c.description,
         |       c.is_inconsistency_resolution_generated,
         |       cs.computation_strategy_type,
-        |       cs.recompute,
         |       cs.source_columns,
         |       cs.parameters
         | FROM columns c
@@ -445,9 +443,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     for {
       typ       <- strategyType
       params    <- Option(parameters)
-      recompute <- Option(rs.getBoolean("recompute"))
       source    <- Option(sourceColumns)
-    } yield ComputationStrategyRecord(typ, recompute, source, params)
+    } yield ComputationStrategyRecord(typ, source, params)
   }
 
   def addColumns(connection: Connection, datasetId: DatasetId, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
@@ -493,19 +490,18 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           csAdder.setString(1, datasetId.underlying)
           csAdder.setString(2, crec.id.underlying)
           csAdder.setString(3, cs.strategyType.toString)
-          csAdder.setBoolean(4, cs.recompute)
           cs.sourceColumns match {
-            case Some(seq) => csAdder.setString(5, seq.mkString(","))
-            case None      => csAdder.setNull(5, Types.ARRAY)
+            case Some(seq) => csAdder.setString(4, seq.mkString(","))
+            case None      => csAdder.setNull(4, Types.ARRAY)
           }
-          csAdder.setString(6, datasetId.underlying)
-          csAdder.setLong(7, copyNumber)
+          csAdder.setString(5, datasetId.underlying)
+          csAdder.setLong(6, copyNumber)
           cs.parameters match {
-            case Some(jObj) => csAdder.setString(8, jObj.toString)
-            case None       => csAdder.setNull(8, Types.VARCHAR)
+            case Some(jObj) => csAdder.setString(7, jObj.toString)
+            case None       => csAdder.setNull(7, Types.VARCHAR)
           }
-          csAdder.setString(9, datasetId.underlying)
-          csAdder.setLong(10, copyNumber)
+          csAdder.setString(8, datasetId.underlying)
+          csAdder.setLong(9, copyNumber)
           csAdder.addBatch
         }
 
@@ -746,14 +742,12 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           |    dataset_system_id,
           |    column_id,
           |    computation_strategy_type,
-          |    recompute,
           |    source_columns,
           |    parameters,
           |    copy_id)
           |    SELECT dataset_system_id,
           |           column_id,
           |           computation_strategy_type,
-          |           recompute,
           |           source_columns,
           |           parameters,
           |           (SELECT id FROM dataset_copies WHERE dataset_system_id = ? And copy_number = ?)
@@ -811,7 +805,6 @@ object PostgresStoreImpl {
        |       c.type_name,
        |       c.is_inconsistency_resolution_generated,
        |       cs.computation_strategy_type,
-       |       cs.recompute,
        |       cs.source_columns,
        |       cs.parameters
        | FROM columns c
@@ -860,12 +853,10 @@ object PostgresStoreImpl {
         (dataset_system_id,
          column_id,
          computation_strategy_type,
-         recompute,
          source_columns,
          parameters,
          copy_id)
          SELECT ?,
-                ?,
                 ?,
                 ?,
                 $compStrategySourceColumnPartialSql,

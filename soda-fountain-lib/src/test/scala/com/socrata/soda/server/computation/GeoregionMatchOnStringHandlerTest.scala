@@ -50,7 +50,6 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnString,
-        true,
         Some(Seq(sourceColumn)),
         Some(JObject(Map("region" -> JString("sfo_zipcodes"),
                          "column" -> JString("zip"),
@@ -65,7 +64,6 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnString,
-        true,
         Some(Seq(sourceColumn)),
         None)))
 
@@ -80,7 +78,6 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnString,
-        true,
         Some(Seq(sourceColumn)),
         Some(JObject(Map("column" -> JString("zip"), "primary_key" -> JString("_feature_id")))))))
 
@@ -95,7 +92,6 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnString,
-        true,
         Some(Seq(sourceColumn)),
         Some(JObject(Map("region" -> JString("sfo_zipcodes"), "primary_key" -> JString("_feature_id")))))))
 
@@ -110,7 +106,6 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
         ComputationStrategyType.GeoRegionMatchOnString,
-        true,
         Some(Seq(sourceColumn)),
         Some(JObject(Map("region" -> JString("sfo_zipcodes"), "column" -> JString("zip")))))))
 

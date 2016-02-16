@@ -107,7 +107,6 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         false,
         Some(ComputationStrategyRecord(
           ComputationStrategyType.GeoRegionMatchOnPoint,
-          true,
           Some(Seq(MinimalColumnRecord(ColumnId("abcd-1234"), ColumnName("location"), SoQLPoint, false, None))),
           Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))
         ))
@@ -127,14 +126,13 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
                         displayName,
                         description,
                         isInconsistencyResolutionGenerated,
-                        Some(ComputationStrategyRecord(strategy, recompute, Some(sourceColumns), Some(params)))) =>
+                        Some(ComputationStrategyRecord(strategy, Some(sourceColumns), Some(params)))) =>
         id should equal (columns(1).id)
         fieldName should equal (columns(1).fieldName)
         displayName should equal (columns(1).name)
         description should equal (columns(1).description)
         isInconsistencyResolutionGenerated should equal (columns(1).isInconsistencyResolutionGenerated)
         strategy should equal (columns(1).computationStrategy.get.strategyType)
-        recompute should equal (columns(1).computationStrategy.get.recompute)
         sourceColumns should equal (columns(1).computationStrategy.get.sourceColumns.get)
         params should equal (columns(1).computationStrategy.get.parameters.get)
     }

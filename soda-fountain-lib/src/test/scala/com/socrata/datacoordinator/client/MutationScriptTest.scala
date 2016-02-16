@@ -1,8 +1,10 @@
 package com.socrata.datacoordinator.client
 import java.io._
-import com.rojoma.json.v3.ast.JString
+import com.rojoma.json.v3.ast.{JObject, JString}
+import com.rojoma.json.v3.io.JsonReader
+import com.socrata.soda.server.wiremodels.{SourceColumnSpec, ComputationStrategyType, ComputationStrategySpec}
 import com.socrata.soql.types.SoQLType
-import com.socrata.soql.environment.TypeName
+import com.socrata.soql.environment.{ColumnName, TypeName}
 import com.socrata.soda.server.id.{RollupName, ColumnId}
 import com.socrata.soda.clients.datacoordinator._
 
@@ -11,13 +13,18 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   val schemaString = "fake_schema_hash"
   val numberType = SoQLType.typesByName(TypeName("number"))
   val columnId = Some(ColumnId("a column id"))
-  val hint = "a hint"
+  val fieldName= ColumnName("field_name")
   val user = "Daniel the tester"
+  val computationStrategy = ComputationStrategySpec(
+    ComputationStrategyType.Test,
+    Some(Seq(SourceColumnSpec(ColumnId("source column id"), ColumnName("source_column")))),
+    Some(JObject(Map("param" -> JString("some value"))))
+  )
 
   def testCompare(mc: MutationScript, expected: String) {
     val sw = new StringWriter()
     mc.streamJson(sw)
-    sw.toString must equal (normalizeWhitespace(expected))
+    JsonReader.fromString(sw.toString) must equal (JsonReader.fromString(expected))
   }
 
   test("Mutation Script compiles and runs"){
@@ -27,7 +34,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a column mutation"){
-    val cm = new AddColumnInstruction(numberType, hint, columnId)
+    val cm = new AddColumnInstruction(numberType, fieldName, columnId, None)
     val mc = new MutationScript(
       user,
       UpdateDataset(schemaString),
@@ -35,7 +42,25 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'add column', hint:'a hint', type:'number', id:'a column id'}
+        | {c:'add column', field_name:'field_name', type:'number', id:'a column id'}
+        |]""".stripMargin
+    testCompare(mc, expected)
+  }
+
+  test("Mutation Script encodes a column mutation with computation strategy"){
+    val cm = new AddColumnInstruction(numberType, fieldName, columnId, Some(computationStrategy))
+    val mc = new MutationScript(
+      user,
+      UpdateDataset(schemaString),
+      Array(cm).iterator)
+    val expected =
+      """[
+        | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
+        | {c:'add column', field_name:'field_name', type:'number', id:'a column id', computation_strategy:{
+        |  strategy_type:'test',
+        |  source_column_ids:['source column id'],
+        |  parameters:{param:'some value'}
+        | }}
         |]""".stripMargin
     testCompare(mc, expected)
   }
@@ -85,7 +110,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a both column mutation and row update"){
-    val cm = new AddColumnInstruction(numberType, hint, columnId)
+    val cm = new AddColumnInstruction(numberType, fieldName, columnId, None)
     val ru = new UpsertRow(Map("a" -> JString("aaa"), "b" -> JString("bbb")))
     val mc = new MutationScript(
       user,
@@ -94,7 +119,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'add column', hint:'a hint', type:'number', id:'a column id'},
+        | {c:'add column', field_name:'field_name', type:'number', id:'a column id'},
         | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
         | {a:'aaa', b:'bbb'}
         |]""".stripMargin
@@ -103,7 +128,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
 
   test("Mutation Script encodes a column mutation after a row update"){
     val ru = new UpsertRow(Map("a" -> JString("aaa")))
-    val cm = new AddColumnInstruction(numberType, hint, columnId)
+    val cm = new AddColumnInstruction(numberType, fieldName, columnId, None)
     val mc = new MutationScript(
       user,
       UpdateDataset(schemaString),
@@ -114,7 +139,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
         | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
         | {a:'aaa'},
         | null,
-        | {c:'add column', hint:'a hint', type:'number', id:'a column id'}
+        | {c:'add column', field_name:'field_name', type:'number', id:'a column id'}
         |]""".stripMargin
     testCompare(mc, expected)
   }
@@ -134,6 +159,28 @@ class MutationScriptTest extends DataCoordinatorClientTest {
         |]""".stripMargin
     testCompare(mc, expected)
   }
+
+  // ake_schema_hash"},
+  // {"[id":"a column id","c":"add column","type":"number","computation_strategy":
+  //
+  // {"strategy_type":"test"
+  // ,"source_column_ids":["source column id"]
+  // ,"parameters":{"param":"some value"}}
+  // ,"field_name":"field_name"
+  //
+  // ]}]
+  //
+  // " did not equal "...
+  // ake_schema_hash"},
+  // {"[c":"add column","field_name":"field_name","type":"number","id":"a column id","computation_strategy":
+  //
+  //
+  // {"strategy_type":"test"
+  // ,"source_column_ids":["source column id"]
+  // ,"parameters":{"param":"some value"}}
+  //
+  //
+  // ]}]"
 
   test("Mutation Script encodes a multiple row option changes and row update"){
     val roc1 = new RowUpdateOptionChange(true, false, false)

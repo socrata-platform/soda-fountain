@@ -85,7 +85,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
             List(new SetRowIdColumnInstruction(spec.columns(ridFieldName).id))
           }
         // ok cool.  First send it upstream, then if that works stick it in the store.
-        val columnInstructions = spec.columns.values.map { c => new AddColumnInstruction(c.datatype, c.fieldName.name, Some(c.id)) }
+        val columnInstructions = spec.columns.values.map { c => new AddColumnInstruction(c.datatype, c.fieldName, Some(c.id), c.computationStrategy) }
 
         val instructions = columnInstructions ++ addRidInstruction
 

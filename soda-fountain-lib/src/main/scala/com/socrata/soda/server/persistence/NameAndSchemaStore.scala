@@ -74,7 +74,6 @@ trait ColumnRecordLike {
 
 case class ComputationStrategyRecord(
    strategyType: ComputationStrategyType.Value,
-   recompute: Boolean,
    sourceColumns: Option[Seq[MinimalColumnRecord]],
    parameters: Option[JObject])
 

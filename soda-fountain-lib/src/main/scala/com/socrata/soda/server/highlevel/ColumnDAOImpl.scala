@@ -56,7 +56,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
           case Precondition.Passed =>
             val extraHeaders = Map(ReqIdHeader -> requestId,
                                    SodaUtils.ResourceHeader -> datasetRecord.resourceName.name)
-            val addColumn = AddColumnInstruction(spec.datatype, spec.fieldName.name, Some(spec.id))
+            val addColumn = AddColumnInstruction(spec.datatype, spec.fieldName, Some(spec.id), spec.computationStrategy)
             dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
                       Iterator.single(addColumn), extraHeaders) {
               case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>

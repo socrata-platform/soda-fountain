@@ -10,10 +10,16 @@ object ComputationStrategyType extends Enumeration {
 
   val GeoRegionMatchOnPoint = Value("georegion_match_on_point")
   val GeoRegionMatchOnString = Value("georegion_match_on_string")
+  val GeoCoding = Value("geocoding")
   val Test      = Value("test")
 
   // For backwards compatibility. Superceded by georegion_match_on_point
   val GeoRegion = Value("georegion")
+
+  def userColumnAllowed(v: Value) = v == GeoCoding
+
+  // true if strategy type has a ComputationHandler in soda-fountain
+  def computeSynchronously(v: Value) = v != GeoCoding
 }
 
 object ComputationStrategyTypeCodec extends JsonEncode[ComputationStrategyType.Value] with JsonDecode[ComputationStrategyType.Value] {

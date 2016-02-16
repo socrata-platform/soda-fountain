@@ -12,14 +12,12 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
   test("All fields populated") {
     val spec = extract("""{
                          |  type: "georegion_match_on_point",
-                         |  recompute: true,
                          |  source_columns: ["location"],
                          |  parameters: { georegion_uid:"abcd-1234" }
                          |}""".stripMargin)
     spec match {
       case Extracted(compStrategy) =>
         compStrategy.strategyType should be (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
-        compStrategy.recompute should equal (Some(true))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
 
@@ -29,14 +27,12 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
 
   test("No type") {
     val spec = extract("""{
-                         |  recompute: true,
                          |  source_columns: ["location"],
                          |  parameters: { georegion_uid:"abcd-1234" }
                          |}""".stripMargin)
     spec match {
       case Extracted(compStrategy) =>
         compStrategy.strategyType should be (None)
-        compStrategy.recompute should equal (Some(true))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
       case _ => fail("didn't extract")
@@ -46,7 +42,6 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
   test("Bad type") {
     val spec = extract("""{
                             type: "giraffe",
-                         |  recompute: true,
                          |  source_columns: ["location"],
                          |  parameters: { georegion_uid:"abcd-1234" }
                          |}""".stripMargin)
@@ -65,7 +60,6 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
     spec match {
       case Extracted(compStrategy) =>
         compStrategy.strategyType should be (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
-        compStrategy.recompute should be (None)
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
       case _ => fail("parsing should fail if recompute is missing")
@@ -75,13 +69,11 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
   test("No source columns") {
     val spec = extract("""{
                          |  type: "georegion_match_on_point",
-                         |  recompute: true,
                          |  parameters: { georegion_uid:"abcd-1234" }
                          |}""".stripMargin)
     spec match {
       case Extracted(compStrategy) =>
         compStrategy.strategyType should be (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
-        compStrategy.recompute should equal (Some(true))
         compStrategy.sourceColumns should be (None)
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
 
@@ -92,15 +84,30 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
   test("No parameters") {
     val spec = extract("""{
                          |  type: "georegion_match_on_point",
-                         |  recompute: true,
                          |  source_columns: ["location"]
                          |}""".stripMargin)
     spec match {
       case Extracted(compStrategy) =>
         compStrategy.strategyType should be (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
-        compStrategy.recompute should equal (Some(true))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (None)
+
+      case _ => fail("didn't extract")
+    }
+  }
+
+  test("Including depricated recompute field") {
+    val spec = extract("""{
+                         |  type: "georegion_match_on_point",
+                         |  recompute: true,
+                         |  source_columns: ["location"],
+                         |  parameters: { georegion_uid:"abcd-1234" }
+                         |}""".stripMargin)
+    spec match {
+      case Extracted(compStrategy) =>
+        compStrategy.strategyType should be (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
+        compStrategy.sourceColumns should be (Some(Seq("location")))
+        compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
 
       case _ => fail("didn't extract")
     }
