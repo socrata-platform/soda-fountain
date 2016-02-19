@@ -24,26 +24,28 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
 
   def export[T](dataset: ResourceName,
                 schemaCheck: Seq[ColumnRecordLike] => Boolean,
-                onlyColumns: Seq[ColumnRecordLike],
                 precondition: Precondition,
-                ifModifiedSince: Option[DateTime],
-                limit: Option[Long],
-                offset: Option[Long],
                 copy: String,
-                sorted: Boolean,
-                rowId: Option[String],
+                param: ExportParam,
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T =
     retryable(limit = 5) {
       lookupDataset(dataset, Stage(copy)) match {
         case Some(ds) =>
           if (schemaCheck(ds.columns)) {
-            val schemaHash = onlyColumns match {
+            val schemaHash = param.onlyColumns match {
               case Seq() => ds.schemaHash
-              case _     => SchemaHash.computeHash(ds.locale, ds.primaryKey, onlyColumns.map { col => (col.id, col.typ) })
+              case _     =>
+                SchemaHash.computeHash(ds.locale, ds.primaryKey, param.onlyColumns.map { col => (col.id, col.typ) })
             }
-            val dcColumnIds = onlyColumns.map(_.id.underlying)
-            dc.export(ds.systemId, schemaHash, dcColumnIds, precondition, ifModifiedSince, limit, offset,
-                      copy, sorted = sorted, rowId, extraHeaders = traceHeaders(requestId, dataset)) {
+            val dcColumnIds = param.onlyColumns.map(_.id.underlying)
+            dc.export(ds.systemId, schemaHash, dcColumnIds, precondition,
+                      param.ifModifiedSince,
+                      param.limit,
+                      param.offset,
+                      copy,
+                      sorted = param.sorted,
+                      param.rowId,
+                      extraHeaders = traceHeaders(requestId, dataset)) {
               case DataCoordinatorClient.ExportResult(jvalues, etag) =>
                 val decodedSchema = CJson.decode(jvalues, JsonColumnRep.forDataCoordinatorType)
                 val schema = decodedSchema.schema

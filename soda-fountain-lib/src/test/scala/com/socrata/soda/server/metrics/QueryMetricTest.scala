@@ -8,7 +8,7 @@ import com.socrata.http.server.util.Precondition
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.highlevel.{DummyExportDAO, DatasetDAO, RowDAO}
+import com.socrata.soda.server.highlevel.{ExportDAO, DatasetDAO, RowDAO}
 import com.socrata.soda.server.highlevel.ExportDAO.CSchema
 import com.socrata.soda.server.highlevel.RowDAO.{Result, UpsertResult}
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
@@ -117,7 +117,7 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
-    val export = new Export(DummyExportDAO, ETagObfuscator.noop)
+    val export = new Export(mock[ExportDAO], ETagObfuscator.noop)
     val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO],
                                     NoopEtagObfuscator, 1000, null, provider, export)
     val mockServReq = new MockHttpServletRequest()
@@ -181,7 +181,7 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
-    val export = new Export(DummyExportDAO, ETagObfuscator.noop)
+    val export = new Export(mock[ExportDAO], ETagObfuscator.noop)
     val mockServReq = new MockHttpServletRequest()
     val augReq = new AugmentedHttpServletRequest(mockServReq)
     mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}.json")

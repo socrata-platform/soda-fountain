@@ -11,6 +11,13 @@ import org.joda.time.format.ISODateTimeFormat
 
 import scala.util.control.ControlThrowable
 
+case class ExportParam(limit: Option[Long],
+                       offset: Option[Long],
+                       onlyColumns: Seq[ColumnRecordLike],
+                       ifModifiedSince: Option[DateTime],
+                       sorted: Boolean,
+                       rowId: Option[String])
+
 trait ExportDAO {
   class Retry extends ControlThrowable
 
@@ -34,17 +41,11 @@ trait ExportDAO {
   }
   def retry() = throw new Retry
 
-
   def export[T](dataset: ResourceName,
                 schemaCheck: Seq[ColumnRecordLike] => Boolean,
-                onlyColumns: Seq[ColumnRecordLike],
                 precondition: Precondition,
-                ifModifiedSince: Option[DateTime],
-                limit: Option[Long],
-                offset: Option[Long],
                 copy: String,
-                sorted: Boolean,
-                rowId: Option[String],
+                param: ExportParam,
                 requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T
 
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord]

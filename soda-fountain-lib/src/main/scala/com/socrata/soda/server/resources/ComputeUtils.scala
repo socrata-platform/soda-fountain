@@ -72,17 +72,13 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
         val columns = columnsToExport(RequestId.getFromRequest(req), dataset, strategy)
         val requestId = RequestId.getFromRequest(req)
         log.info("export dataset {} for column compute", dataset.resourceName.name)
+        val param = ExportParam(None, None, columns, None, sorted = false, rowId = None)
         exportDAO.export(dataset.resourceName,
-          JsonExporter.validForSchema,
-          columns,
-          NoPrecondition,
-          None,
-          None,
-          None,
-          "latest",
-          sorted = false,
-          None,
-          requestId) {
+                         JsonExporter.validForSchema,
+                         NoPrecondition,
+                         "latest",
+                         param,
+                         requestId) {
           case ExportDAO.Success(schema, newTag, rows) =>
             log.info("exported dataset {} for column compute", dataset.resourceName.name)
             val transformer = new RowDataTranslator(

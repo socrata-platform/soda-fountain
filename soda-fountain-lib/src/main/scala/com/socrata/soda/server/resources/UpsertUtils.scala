@@ -8,7 +8,7 @@ import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherRepo
 import com.socrata.soda.server.{errors => SodaErrors, _}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence.ColumnRecordLike
-import com.socrata.soda.server.highlevel.{RowDataTranslator, RowDAO}
+import com.socrata.soda.server.highlevel.{ExportParam, RowDataTranslator, RowDAO}
 import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 import scala.language.existentials
@@ -117,16 +117,13 @@ object UpsertUtils {
                 case JObject(rowInfo) =>
                   rowInfo("id") match {
                     case JString(rowId) =>
+                      val param = ExportParam(None, None, Seq.empty[ColumnRecordLike], None,
+                                              sorted = false, rowId = Some(rowId))
                       export.exportCopy(resourceName,
                                         "latest",
                                         Some("json"),
-                                        None,
-                                        None,
-                                        Seq.empty[ColumnRecordLike],
                                         excludeSystemFields = false,
-                                        ifModifiedSince = None,
-                                        sorted = false,
-                                        rowId = Some(rowId),
+                                        param,
                                         true)(req)(response)
                     case unknown =>
                       log.error("single row upsert error, malformed report-item-id {}", unknown)
