@@ -56,9 +56,11 @@ object InputUtils {
    * into an iterator with a single jvalue.  This allows processing of multiple rows and single row.
    * @note The iterator can throw a `TooMuchDataWithoutAcknowledgement` exception if the user
    *       sends an element which cannot be read within `approximateMaxDatumBound` bytes.
+   * @return Two items, jvalue iterator and a boolean indicating whether the input is
+   *         in brackets (true) or in braces (false)
    */
   def jsonArrayValuesStream(req: HttpRequest, approximateMaxDatumBound: Long, allowSingleItem: Boolean)
-    : Either[SodaError, Iterator[JValue]] = {
+    : Either[SodaError, Tuple2[Iterator[JValue], Boolean]] = {
     streamJson(req, approximateMaxDatumBound) match {
       case Right(boundedReader) =>
         def boundIt[T](it: Iterator[T]) = it.map { ev => boundedReader.acknowledge(); ev }
@@ -66,9 +68,9 @@ object InputUtils {
         val jsonEventIt = fbJsonEventIt.map(InputNormalizer.normalizeEvent)
         fbJsonEventIt.head match {
           case StartOfArrayEvent() =>
-            Right(boundIt(JsonArrayIterator[JValue](jsonEventIt)))
+            Right((boundIt(JsonArrayIterator[JValue](jsonEventIt)), true))
           case StartOfObjectEvent() if allowSingleItem =>
-            Right(boundIt(Iterator.single(JsonReader.fromEvents(jsonEventIt))))
+            Right((boundIt(Iterator.single(JsonReader.fromEvents(jsonEventIt))), false))
           case _ =>
             Left(InvalidJsonContent("array" + (if (allowSingleItem) ", object" else "")))
         }
