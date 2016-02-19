@@ -1,13 +1,17 @@
 package com.socrata.soda.server.resources
 
-import com.rojoma.json.v3.ast.{JNumber, JString}
+import com.rojoma.json.v3.ast.{JObject, JNumber, JString}
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
-import com.socrata.soda.server.{errors => SodaErrors, SodaUtils}
-import com.socrata.soda.server.highlevel.{RowDataTranslator, RowDAO}
+import com.socrata.http.server.HttpRequest
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem, ReportItem}
+import com.socrata.soda.server.{errors => SodaErrors, _}
+import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.persistence.ColumnRecordLike
+import com.socrata.soda.server.highlevel.{ExportParam, RowDataTranslator, RowDAO}
 import com.socrata.soda.server.highlevel.RowDAO.MaltypedData
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+import scala.language.existentials
 
 object UpsertUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
@@ -93,6 +97,51 @@ object UpsertUtils {
         }
       }
       w.write("]\n")
+    }
+  }
+
+  def writeSingleRowUpsertResponse(resourceName: ResourceName, export: Export, req: HttpRequest)
+                                  (response: HttpServletResponse, report: Iterator[ReportItem]): Unit = {
+    var wroteOne = false
+    while(report.hasNext) {
+      report.next() match {
+        case UpsertReportItem(items) =>
+          while(items.hasNext) {
+            val item = items.next()
+            if (wroteOne) {
+              // It is too late to alter response.  Just log an error.
+              log.error("single row upsert error, too many report-item-id {}", item)
+            } else {
+              wroteOne = true
+              item match {
+                case JObject(rowInfo) =>
+                  rowInfo("id") match {
+                    case JString(rowId) =>
+                      val param = ExportParam(None, None, Seq.empty[ColumnRecordLike], None,
+                                              sorted = false, rowId = Some(rowId))
+                      export.exportCopy(resourceName,
+                                        "latest",
+                                        Some("json"),
+                                        excludeSystemFields = false,
+                                        param,
+                                        true)(req)(response)
+                    case unknown =>
+                      log.error("single row upsert error, malformed report-item-id {}", unknown)
+                      SodaUtils.errorResponse(req,
+                        SodaErrors.InternalError("upsert-error-malformed-report-item-id"))(response)
+                  }
+                case unknown =>
+                  log.error("single row upsert error, malformed report-item {}", unknown)
+                  SodaUtils.errorResponse(req,
+                    SodaErrors.InternalError("upsert-error-malformed-report-item"))(response)
+              }
+            }
+          }
+        case OtherReportItem => // nothing; probably shouldn't have occurred!
+          log.error("single row upsert error, got other-report-item")
+          SodaUtils.errorResponse(req,
+            SodaErrors.InternalError("upsert-error-malformed-other-report-item"))(response)
+      }
     }
   }
 }

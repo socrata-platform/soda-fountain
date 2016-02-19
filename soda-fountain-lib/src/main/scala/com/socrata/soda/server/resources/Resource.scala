@@ -3,6 +3,8 @@ package com.socrata.soda.server.resources
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
+
 import scala.collection.JavaConverters._
 import scala.language.existentials
 
@@ -20,13 +22,12 @@ import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.{errors => SodaErrors, _}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.errors.SodaError
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{DatasetDAO, RowDAO, RowDataTranslator}
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.metrics.{MetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.metrics.Metrics.{QuerySuccess => QuerySuccessMetric, _}
-import com.socrata.soda.server.persistence.DatasetRecordLike
+import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike}
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
 import com.socrata.thirdparty.metrics.Metrics
@@ -40,7 +41,8 @@ case class Resource(rowDAO: RowDAO,
                     etagObfuscator: ETagObfuscator,
                     maxRowSize: Long,
                     cc: ComputedColumnsLike,
-                    metricProvider: MetricProvider) extends Metrics {
+                    metricProvider: MetricProvider,
+                    export: Export) extends Metrics {
   import Resource._
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -130,12 +132,13 @@ case class Resource(rowDAO: RowDAO,
                     requestId: RequestId.RequestId,
                     resourceName: ResourceName,
                     rows: Iterator[JValue],
-                    f: rowDaoFunc) = {
+                    f: rowDaoFunc,
+                    reportFunc: (HttpServletResponse, Iterator[ReportItem]) => Unit) = {
     datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
         val transformer = new RowDataTranslator(requestId, datasetRecord, false)
         val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
-        f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
+        f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(reportFunc))
       case DatasetDAO.DatasetNotFound(dataset) =>
         SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
         // No other cases have to be implimented
@@ -272,8 +275,11 @@ case class Resource(rowDAO: RowDAO,
                            f: rowDaoFunc,
                            allowSingleItem: Boolean) {
       InputUtils.jsonArrayValuesStream(req, maxRowSize, allowSingleItem) match {
-        case Right(boundedIt) =>
-          upsertishFlow(req, response, requestId, resourceName.value, boundedIt, f)
+        case Right((boundedIt, multiRows)) =>
+          val processUpsertReport =
+            if (multiRows) { UpsertUtils.writeUpsertResponse _ }
+            else { UpsertUtils.writeSingleRowUpsertResponse(resourceName.value, export, req) _ }
+          upsertishFlow(req, response, requestId, resourceName.value, boundedIt, f, processUpsertReport)
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName.value)(response)
       }
@@ -367,7 +373,7 @@ case class Resource(rowDAO: RowDAO,
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
         case Right(rowJVal) =>
           upsertishFlow(req, response, requestId, resourceName, Iterator.single(rowJVal),
-                        rowDAO.upsert(user(req), _, _, requestId))
+                        rowDAO.upsert(user(req), _, _, requestId), UpsertUtils.writeUpsertResponse)
         case Left(err) =>
           SodaUtils.errorResponse(req, err, resourceName)(response)
       }
