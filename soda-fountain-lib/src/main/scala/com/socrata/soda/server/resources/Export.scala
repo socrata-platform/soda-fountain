@@ -139,7 +139,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
     exportCopy(resourceName,
                copy,
                ext,
-               true,
+               excludeSystemFields,
                param,
                false)(req)(resp)
   }
