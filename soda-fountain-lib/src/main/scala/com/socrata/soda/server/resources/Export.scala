@@ -81,28 +81,44 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
       }
     }
 
+    val excludeSystemFields = Option(req.getParameter("exclude_system_fields")).map { paramStr =>
+      try {
+        paramStr.toBoolean
+      } catch {
+        case e: Exception =>
+          SodaUtils.errorResponse(req, BadParameter("exclude_system_fields", paramStr))(resp)
+          return
+      }
+    }.getOrElse(true)
+
+    // Excluding system columns is done by explicitly select all non-system columns.
+    val reqColumns = Option(req.getParameter("columns")).orElse(if (excludeSystemFields) Some("*") else None)
+
     // get only these columns, we expect these to be fieldnames comma separated items.
-    val columnsOnly = Option(req.getParameter("columns")).map {
+    val columnsOnly = reqColumns.map {
       paramStr =>
         try {
-          val columnFields = paramStr.toLowerCase.split(",").toSeq.map(x => x.trim)
           exportDAO.lookupDataset(resourceName, Stage(copy)) match {
             case Some(ds) => {
               val pkColumnId = ds.primaryKey
               val columns = ds.columns
-              // need to have the row-identifier included otherwise dc will fail
-              // this may seem long winded but helps avoid double counting in case one of requested
-              // columns is the row-identifier
-              val pkColumn = columns.filter{c => c.id.underlying == pkColumnId.underlying}.map{c => c.fieldName.name}
-              val columnFieldsWithRowIdSet = (columnFields ++ pkColumn).toSet
-              val filtered = columns.filter{c => columnFieldsWithRowIdSet.contains(c.fieldName.name)}
+              if (paramStr != "*") {
+                val columnFields = paramStr.toLowerCase.split(",").toSeq.map(x => x.trim)
+                // need to have the row-identifier included otherwise dc will fail
+                // this may seem long winded but helps avoid double counting in case one of requested
+                // columns is the row-identifier
+                val pkColumn = columns.filter { c => c.id.underlying == pkColumnId.underlying}.map { c => c.fieldName.name}
+                val columnFieldsWithRowIdSet = (columnFields ++ pkColumn).toSet
+                val filtered = columns.filter { c => columnFieldsWithRowIdSet.contains(c.fieldName.name)}
 
-              if( filtered.length != columnFieldsWithRowIdSet.size ) {
-                SodaUtils.errorResponse(req, BadParameter("could not find columns requested.", paramStr))(resp)
-                return
+                if (filtered.length != columnFieldsWithRowIdSet.size) {
+                  SodaUtils.errorResponse(req, BadParameter("could not find columns requested.", paramStr))(resp)
+                  return
+                }
+                filtered
+              } else {
+                columns.filter(c => !ColumnSpecUtils.isSystemColumn(c.fieldName) || c.id.underlying == pkColumnId.underlying)
               }
-
-              filtered
             }
             case None => 
               SodaUtils.errorResponse(req, DatasetNotFound(resourceName))(resp)
@@ -114,16 +130,6 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
             return
         }
     }.getOrElse(Seq.empty)
-
-    val excludeSystemFields = Option(req.getParameter("exclude_system_fields")).map { paramStr =>
-      try {
-        paramStr.toBoolean
-      } catch {
-        case e: Exception =>
-          SodaUtils.errorResponse(req, BadParameter("exclude_system_fields", paramStr))(resp)
-          return
-      }
-    }.getOrElse(true)
 
     val ifModifiedSince = req.dateTimeHeader("If-Modified-Since")
 
@@ -176,23 +182,12 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                              copy,
                              param,
                              requestId = RequestId.getFromRequest(req)) {
-              case ExportDAO.Success(fullSchema, newTag, fullRows) =>
+              case ExportDAO.Success(schema, newTag, rows) =>
                 resp.setStatus(HttpServletResponse.SC_OK)
                 resp.setHeader("Vary", ContentNegotiation.headers.mkString(","))
                 newTag.foreach { tag =>
                   ETag(prepareTag(tag))(resp)
                 }
-                // TODO: DC export always includes system columns
-                // Because system columns are always next to each other, we can drop them if we do not want them.
-                // When DC has the option to exclude system columns,
-                // move the work downstream to avoid tempering the row array.
-                val isSystemColumn = (ci: ColumnInfo) => ColumnSpecUtils.isSystemColumn(ci.fieldName)
-                val (sysColumns, userColumns) = fullSchema.schema.partition(isSystemColumn)
-                val sysColsStart = fullSchema.schema.indexWhere(isSystemColumn(_))
-                val (schema: CSchema, rows) =
-                  if (!excludeSystemFields || sysColumns.size == 0) (fullSchema, fullRows)
-                  else (fullSchema.copy(schema = userColumns),
-                        fullRows.map(row => row.take(sysColsStart) ++ row.drop(sysColsStart + sysColumns.size)))
                 exporter.export(resp, charset, schema, rows, singleRow)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
