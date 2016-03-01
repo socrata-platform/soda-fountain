@@ -24,11 +24,11 @@ trait ComputedColumnsLike {
    * Finds the synchronously (in soda-fountain) computed columns from the dataset schema.
    *
    * @param datasetRecord containing the schema of the dataset
-   * @return a Seq[ColumnRecord] containing all the columns described in the dataset with a synchronous computationStrategy
+   * @return a Seq[ColumnRecord] containing all the columns described in the dataset with a computationStrategy
    */
-  def findComputedColumns(datasetRecord: DatasetRecordLike): Seq[ColumnRecordLike] =
-    datasetRecord.columns.filter { col => col.computationStrategy.isDefined &&
-      ComputationStrategyType.computeSynchronously(col.computationStrategy.get.strategyType) }
+  def findComputedColumns(datasetRecord: DatasetRecordLike): Seq[ColumnRecordLike] = {
+    datasetRecord.columns.filter { col => col.computationStrategy.isDefined }
+  }
 
   /**
    * Performs the (hopefully lazy) computation of all computed columns, producing a new iterator with

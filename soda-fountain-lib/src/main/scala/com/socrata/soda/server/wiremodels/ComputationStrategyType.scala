@@ -16,10 +16,20 @@ object ComputationStrategyType extends Enumeration {
   // For backwards compatibility. Superceded by georegion_match_on_point
   val GeoRegion = Value("georegion")
 
-  def userColumnAllowed(v: Value) = v == GeoCoding
+  def userColumnAllowed(v: Value) = userColumnAllowedSet.contains(v)
+
+  private val userColumnAllowedSet = Set(
+    GeoCoding
+  )
 
   // true if strategy type has a ComputationHandler in soda-fountain
-  def computeSynchronously(v: Value) = v != GeoCoding
+  def computeSynchronously(v: Value) = computeSynchronouslySet.contains(v)
+
+  private val computeSynchronouslySet = Set(
+    GeoRegionMatchOnPoint,
+    GeoRegionMatchOnString,
+    Test
+  )
 }
 
 object ComputationStrategyTypeCodec extends JsonEncode[ComputationStrategyType.Value] with JsonDecode[ComputationStrategyType.Value] {
