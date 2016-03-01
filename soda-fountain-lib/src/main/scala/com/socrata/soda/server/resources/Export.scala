@@ -182,12 +182,22 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                              copy,
                              param,
                              requestId = RequestId.getFromRequest(req)) {
-              case ExportDAO.Success(schema, newTag, rows) =>
+              case ExportDAO.Success(fullSchema, newTag, fullRows) =>
                 resp.setStatus(HttpServletResponse.SC_OK)
                 resp.setHeader("Vary", ContentNegotiation.headers.mkString(","))
                 newTag.foreach { tag =>
                   ETag(prepareTag(tag))(resp)
                 }
+                // TODO: DC export always includes row id
+                // When DC has the option to exclude row id,
+                // move the work downstream to avoid tempering the row array.
+                val isSystemRowId = (ci: ColumnInfo) => ci.fieldName.name == ":id"
+                val (sysColumns, userColumns) = fullSchema.schema.partition(isSystemRowId)
+                val sysColsStart = fullSchema.schema.indexWhere(isSystemRowId(_))
+                val (schema: CSchema, rows) =
+                  if (!excludeSystemFields || sysColumns.size == 0) (fullSchema, fullRows)
+                  else (fullSchema.copy(schema = userColumns),
+                    fullRows.map(row => row.take(sysColsStart) ++ row.drop(sysColsStart + sysColumns.size)))
                 exporter.export(resp, charset, schema, rows, singleRow)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.errorResponse(req, EtagPreconditionFailed)(resp)
