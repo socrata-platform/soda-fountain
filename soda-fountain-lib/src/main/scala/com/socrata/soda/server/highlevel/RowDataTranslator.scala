@@ -77,7 +77,7 @@ class RowDataTranslator(requestId: RequestId,
       UpsertAsSoQL(fieldMap.toMap)
     }
 
-    transformRowsForUpsert(cc, toCompute, computableRows)
+    transformRowsForUpsert(cc, toCompute,computableRows)
   }
 
   private def transformRowsForUpsert(cc: ComputedColumnsLike,

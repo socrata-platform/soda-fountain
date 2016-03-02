@@ -33,7 +33,7 @@ class GeoregionMatchOnStringHandler[T](config: Config, discovery: ServiceDiscove
   protected def genEndpoint(computedColumn: ColumnRecordLike): String = {
     require(computedColumn.computationStrategy.isDefined, "No computation strategy found")
     computedColumn.computationStrategy match {
-      case Some(ComputationStrategyRecord(_, _, _, Some(JObject(params)))) =>
+      case Some(ComputationStrategyRecord(_, _, Some(JObject(params)))) =>
         require(params.contains("region"), "parameters does not contain 'region'")
         require(params.contains("column"), "parameters does not contain 'column'")
         val JString(region) = params("region")

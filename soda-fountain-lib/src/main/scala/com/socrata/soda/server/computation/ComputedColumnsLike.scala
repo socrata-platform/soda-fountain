@@ -39,21 +39,25 @@ trait ComputedColumnsLike {
    *                 For upserts, each row is a Map[String, SoQLValue], where the key is the
    *                 columnId and the value is a SoQLValue representation of source data.
    *                 Deletes contain only row PK and can be ignored.
-   * @param computedColumns the list of computed columns from [[findComputedColumns]]
+   * @param computedColumns the list of computed columns from [[findComputedColumns]] (not always true)
    */
   def addComputedColumns(requestId: RequestId,
                          sourceIt: Iterator[RowDataTranslator.Computable],
                          computedColumns: Seq[ColumnRecordLike]): ComputeResult = {
     var rowIterator = sourceIt
     for (computedColumn <- computedColumns) {
-      val tryGetHandler = handlers.get(computedColumn.computationStrategy.get.strategyType)
-      tryGetHandler match {
-        case Some(handlerCreator) =>
-          val handler = handlerCreator()
-          rowIterator = new ManagedIterator(handler.compute(
-            requestId, rowIterator, computedColumn), handler)
-        case None =>
-          return HandlerNotFound(computedColumn.computationStrategy.get.strategyType)
+      val strategyType = computedColumn.computationStrategy.get.strategyType
+      // only add computed columns that have synchronous computation strategies
+      if (ComputationStrategyType.computeSynchronously(strategyType)) {
+        val tryGetHandler = handlers.get(strategyType)
+        tryGetHandler match {
+          case Some(handlerCreator) =>
+            val handler = handlerCreator()
+            rowIterator = new ManagedIterator(handler.compute(
+              requestId, rowIterator, computedColumn), handler)
+          case None =>
+            return HandlerNotFound(strategyType)
+        }
       }
     }
     ComputeSuccess(rowIterator)

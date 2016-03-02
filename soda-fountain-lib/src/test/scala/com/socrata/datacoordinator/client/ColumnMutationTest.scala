@@ -8,10 +8,10 @@ class ColumnMutationTest extends DataCoordinatorClientTest {
 
   val numberType = SoQLType.typesByName(TypeName("number"))
   val id = ColumnId("a column id")
-  val hint = "a hint"
+  val fieldName = ColumnName("a_field_name")
   test("Add Column toString produces JSON") {
-    val ac = new AddColumnInstruction(numberType, hint, Some(id))
-    ac.toString must equal (normalizeWhitespace("{c:'add column', hint:'a hint', type:'number', id:'a column id'}"))
+    val ac = new AddColumnInstruction(numberType, fieldName, Some(id), None)
+    ac.toString must equal (normalizeWhitespace("{c:'add column', field_name:'a_field_name', type:'number', id:'a column id'}"))
   }
   test("Drop Column toString produces JSON") {
     val ac = new DropColumnInstruction(id)

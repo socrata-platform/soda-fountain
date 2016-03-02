@@ -29,14 +29,12 @@ object SourceColumnSpec {
 /**
  * Defines how the value for a computed column is derived
  * @param strategyType Strategy used to compute the column value
- * @param recompute Whether the value should be recomputed every time the source columns are updated
  * @param sourceColumns Other columns in the dataset needed to compute the column value
  * @param parameters Additional custom parameters (expected contents depend on strategy type)
  */
 @JsonKeyStrategy(Strategy.Underscore)
 case class ComputationStrategySpec(
   strategyType: ComputationStrategyType.Value,
-  recompute: Boolean,
   sourceColumns: Option[Seq[SourceColumnSpec]],
   parameters: Option[JObject])
 
@@ -46,7 +44,6 @@ object ComputationStrategySpec {
 
 
 case class UserProvidedComputationStrategySpec(strategyType: Option[ComputationStrategyType.Value],
-                                               recompute: Option[Boolean],
                                                sourceColumns: Option[Seq[String]],
                                                parameters: Option[JObject])
 
@@ -55,11 +52,10 @@ object UserProvidedComputationStrategySpec extends UserProvidedSpec[UserProvided
     val cex = new ComputationStrategyExtractor(obj.fields)
     for {
       strategyType <- cex.strategyType
-      recompute <- cex.recompute
       sourceColumns <- cex.sourceColumns
       parameters <- cex.parameters
     } yield {
-      UserProvidedComputationStrategySpec(strategyType, recompute, sourceColumns, parameters)
+      UserProvidedComputationStrategySpec(strategyType, sourceColumns, parameters)
     }
   }
 
@@ -79,7 +75,6 @@ object UserProvidedComputationStrategySpec extends UserProvidedSpec[UserProvided
       }
       case _ => Extracted(None)
     }
-    def recompute = e[Boolean]("recompute")
     def sourceColumns = e[Seq[String]]("source_columns")
     def parameters = e[JObject]("parameters")
   }

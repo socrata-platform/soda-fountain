@@ -91,7 +91,7 @@ object RowDAO {
   case object CannotDeletePrimaryKey extends UpsertFailResult
   case class InvalidRequest(client: String, status: Int, body: JValue) extends UpsertFailResult
   case class RowNotAnObject(value: JValue) extends UpsertFailResult
-  case class  InternalServerError(status: Int = 500, client: String = "QC", code: String, tag: String, data: String) extends UpsertFailResult
+  case class InternalServerError(status: Int = 500, client: String = "QC", code: String, tag: String, data: String) extends UpsertFailResult
 
   // UPSERT FAILURE: QueryCoordinator
   case class QCError(status: Int, error: QueryCoordinatorError) extends UpsertFailResult

@@ -72,7 +72,6 @@ class DatasetExtractorTest extends FunSuite with Matchers {
                          |    datatype: "number",
                          |    computation_strategy: {
                          |      type: "georegion_match_on_point",
-                         |      recompute: true,
                          |      source_columns: ["location"],
                          |      parameters: { georegion_uid:"abcd-1234" }
                          |    }}
@@ -92,7 +91,6 @@ class DatasetExtractorTest extends FunSuite with Matchers {
 
         val compStrategy = regionColumn.computationStrategy.get
         compStrategy.strategyType should be eq (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
-        compStrategy.recompute should equal (Some(true))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
 

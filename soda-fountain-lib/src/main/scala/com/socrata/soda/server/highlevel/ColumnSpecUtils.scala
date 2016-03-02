@@ -13,19 +13,23 @@ import ColumnSpecUtils._
 class ColumnSpecUtils(rng: Random) {
   private val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnSpecUtils])
 
-  def validColumnName(columnName: ColumnName, isComputed: Boolean): Boolean = {
+  def validColumnName(columnName: ColumnName, uCompStrategy: Option[UserProvidedComputationStrategySpec]): Boolean = {
     // Computed columns must start with : to prevent being returned in a SELECT * call.
     // In the future, we could enhance computed columns to have a more distinct identity from
     // system columns, but for now we decided to enforce this rule so that computed columns
     // behave like system columns (not writable thru API, not returned in SELECT *).
-    if (isComputed &&
-        (!columnName.name.startsWith(":") ||
+    val isComputedSystemLike = uCompStrategy match {
+      case Some(UserProvidedComputationStrategySpec(Some(typ), _, _)) => !ComputationStrategyType.userColumnAllowed(typ)
+      case _ => false // worry about no ComputationStrategyType later...
+    }
+    if (isComputedSystemLike &&
+         (!columnName.name.startsWith(":") ||
          systemColumns.exists { sysCol => columnName.name.equalsIgnoreCase(sysCol._1.name) }))
       return false
 
     val cnamePart =
       if (columnName.name.startsWith(":@")) ColumnName(columnName.name.substring(2))
-      else if (isComputed) ColumnName(columnName.name.substring(1))
+      else if (isComputedSystemLike) ColumnName(columnName.name.substring(1))
       else columnName
     IdentifierFilter(cnamePart.name) == cnamePart.name
   }
@@ -36,7 +40,7 @@ class ColumnSpecUtils(rng: Random) {
   def freezeForCreation(existingColumns: Map[ColumnName, ColumnId], ucs: UserProvidedColumnSpec): CreateResult =
     ucs match {
       case UserProvidedColumnSpec(None, Some(fieldName), Some(name), desc, Some(typ), None, uCompStrategy) =>
-        if (!validColumnName(fieldName, uCompStrategy.isDefined)) return InvalidFieldName(fieldName)
+        if (!validColumnName(fieldName, uCompStrategy)) return InvalidFieldName(fieldName)
         if (duplicateColumnName(fieldName, existingColumns)) return DuplicateColumnName(fieldName)
         val trueDesc = desc.getOrElse("")
         val id = selectId(existingColumns.values)
@@ -60,7 +64,7 @@ class ColumnSpecUtils(rng: Random) {
   def freezeForCreation(existingColumns: Map[ColumnName, ColumnId],
                         ucs: Option[UserProvidedComputationStrategySpec]): CreateResult =
     ucs match {
-      case Some(UserProvidedComputationStrategySpec(Some(typ), Some(recompute), sourceColumns, parameters)) =>
+      case Some(UserProvidedComputationStrategySpec(Some(typ), sourceColumns, parameters)) =>
         // The logic below assumes that the computed column is defined after the source column in the schema.
         // TODO : Validation should be independent of column ordering in the schema definition.
         val sourceColumnSpecs = sourceColumns.map(_.map(sourceColumnSpec(_, existingColumns)))
@@ -68,13 +72,12 @@ class ColumnSpecUtils(rng: Random) {
           case Some(specs: Seq[Option[SourceColumnSpec]]) =>
             if (specs.exists(_.isEmpty)) UnknownComputationStrategySourceColumn
             else {
-              ComputationStrategySuccess(Some(ComputationStrategySpec(typ, recompute, Some(specs.flatten), parameters)))
+              ComputationStrategySuccess(Some(ComputationStrategySpec(typ, Some(specs.flatten), parameters)))
             }
           case None =>
-            ComputationStrategySuccess(Some(ComputationStrategySpec(typ, recompute, None, parameters)))
+            ComputationStrategySuccess(Some(ComputationStrategySpec(typ, None, parameters)))
         }
-      case Some(UserProvidedComputationStrategySpec(None, _, _, _)) => ComputationStrategyNoStrategyType
-      case Some(UserProvidedComputationStrategySpec(_, None, _, _)) => ComputationStrategyNoRecompute
+      case Some(UserProvidedComputationStrategySpec(None, _, _)) => ComputationStrategyNoStrategyType
       case None => ComputationStrategySuccess(None)
     }
 
@@ -124,7 +127,6 @@ object ColumnSpecUtils {
   case object DeleteSet extends CreateResult
   case object UnknownComputationStrategySourceColumn extends CreateResult
   case object ComputationStrategyNoStrategyType extends CreateResult
-  case object ComputationStrategyNoRecompute extends CreateResult
 
   def isSystemColumn(columnName: ColumnName): Boolean = columnName.name.startsWith(":")
 }

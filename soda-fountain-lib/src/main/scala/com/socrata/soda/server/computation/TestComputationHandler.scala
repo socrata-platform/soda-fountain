@@ -33,7 +33,7 @@ class TestComputationHandler extends ComputationHandler {
 
   def parseStrategy(computationStrategy: ComputationStrategyRecord): (String, String) = {
     computationStrategy match {
-      case ComputationStrategyRecord(_, _, Some(Seq(sourceCol)), Some(JObject(map))) =>
+      case ComputationStrategyRecord(_, Some(Seq(sourceCol)), Some(JObject(map))) =>
         require(map.contains("concat_text"), "parameters does not contain 'concat_text'")
         val JString(concatText) = map("concat_text")
         (sourceCol.id.underlying, concatText)

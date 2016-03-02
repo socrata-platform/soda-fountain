@@ -38,7 +38,7 @@ package object highlevel {
         // Value of last 3 params is never used
         MinimalColumnRecord(col.id, col.fieldName, SoQLNull, false, None)
       })
-      ComputationStrategyRecord(css.strategyType, css.recompute, sourceColumns, css.parameters)
+      ComputationStrategyRecord(css.strategyType, sourceColumns, css.parameters)
     }
   }
 
@@ -47,7 +47,7 @@ package object highlevel {
       val sourceColumns = csr.sourceColumns.map(_.map { col =>
         SourceColumnSpec(col.id, col.fieldName)
       })
-      ComputationStrategySpec(csr.strategyType, csr.recompute, sourceColumns, csr.parameters)
+      ComputationStrategySpec(csr.strategyType, sourceColumns, csr.parameters)
     }
   }
 
