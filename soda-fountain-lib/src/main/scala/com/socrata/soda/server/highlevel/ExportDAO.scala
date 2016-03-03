@@ -1,5 +1,6 @@
 package com.socrata.soda.server.highlevel
 
+import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.{Precondition, EntityTag, RequestId}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
@@ -46,7 +47,8 @@ trait ExportDAO {
                 precondition: Precondition,
                 copy: String,
                 param: ExportParam,
-                requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T
+                requestId: RequestId.RequestId,
+                resourceScope: ResourceScope): ExportDAO.Result
 
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord]
 }

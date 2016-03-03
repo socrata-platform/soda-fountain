@@ -3,6 +3,7 @@ package com.socrata.soda.clients.datacoordinator
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
 import com.rojoma.json.v3.util.JsonArrayIterator
+import com.rojoma.simplearm.v2._
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.HttpMethods
@@ -405,18 +406,62 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
-  def export[T](datasetId: DatasetId,
-                schemaHash: String,
-                columns: Seq[String],
-                precondition: Precondition,
-                ifModifiedSince: Option[DateTime],
-                limit: Option[Long],
-                offset: Option[Long],
-                copy: String,
-                sorted: Boolean,
-                rowId: Option[String],
-                extraHeaders: Map[String, String] = Map.empty)
-               (f: Result => T): T = {
+  private def convertExportError(r: Response, err: PossiblyUnknownDataCoordinatorError): FailResult =
+    err match {
+      case SchemaMismatchForExport(_, newSchema) =>
+        SchemaOutOfDateResult(newSchema)
+      case NotModified() =>
+        NotModifiedResult(etagsSeq(r))
+      case PreconditionFailed() =>
+        PreconditionFailedResult
+      case NoSuchDataset(dataset) =>
+        DatasetNotFoundResult(dataset)
+      case cbr: ContentTypeBadRequest =>
+        InternalServerErrorResult(cbr.code, tag, cbr.contentTypeError)
+      case InvalidRowId() =>
+        InvalidRowIdResult
+      case x: DataCoordinatorError =>
+        InternalServerErrorResult(x.code, tag, "")
+      case UnknownDataCoordinatorError(code, data) =>
+        log.error("Unknown data coordinator error: code %s, Aux info: %s".format(code, data))
+        InternalServerErrorResult(code, tag, data.mkString(","))
+      case x =>
+        log.warn("case is NOT implemented %s".format(x.toString))
+        InternalServerErrorResult("unknown", tag, x.toString)
+    }
+
+  def exportSimple(datasetId: DatasetId, copy: String, resourceScope: ResourceScope) = {
+    withHost(datasetId) { host =>
+      val request = exportUrl(host, datasetId)
+        .addParameter("copy" -> copy)
+        .get
+      using(new ResourceScope()) { tmpScope =>
+        val r = httpClient.execute(request, tmpScope)
+        errorFrom(r) match {
+          case None =>
+            val etag = r.headers("ETag").headOption.map(EntityTagParser.parse(_))
+            tmpScope.transfer(r).to(resourceScope)
+            val array = resourceScope.openUnmanaged(r.array[JValue](), transitiveClose = List(r))
+            ExportResult(array, etag)
+          case Some(err) =>
+            convertExportError(r, err)
+        }
+      }
+    }
+  }
+
+  def export(datasetId: DatasetId,
+             schemaHash: String,
+             columns: Seq[String],
+             precondition: Precondition,
+             ifModifiedSince: Option[DateTime],
+             limit: Option[Long],
+             offset: Option[Long],
+             copy: String,
+             sorted: Boolean,
+             rowId: Option[String],
+             extraHeaders: Map[String, String],
+             resourceScope: ResourceScope): Result = {
     withHost(datasetId) { host =>
       val limParam = limit.map { limLong => "limit" -> limLong.toString }
       val offParam = offset.map { offLong => "offset" -> offLong.toString }
@@ -431,33 +476,16 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                     .addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate))
                     .addHeaders(extraHeaders)
                     .get
-      httpClient.execute(request).run { r =>
+      using(new ResourceScope()) { tmpScope =>
+        val r = httpClient.execute(request, tmpScope)
         errorFrom(r) match {
           case None =>
-            f(ExportResult(r.array[JValue](), r.headers("ETag").headOption.map(EntityTagParser.parse(_))))
+            val etag = r.headers("ETag").headOption.map(EntityTagParser.parse(_))
+            tmpScope.transfer(r).to(resourceScope)
+            val array = resourceScope.openUnmanaged(r.array[JValue](), transitiveClose = List(r))
+            ExportResult(array, etag)
           case Some(err) =>
-            err match {
-              case SchemaMismatchForExport(_, newSchema) =>
-                f(SchemaOutOfDateResult(newSchema))
-              case NotModified() =>
-                f(NotModifiedResult(etagsSeq(r)))
-              case PreconditionFailed() =>
-                f(PreconditionFailedResult)
-              case NoSuchDataset(dataset) =>
-                f(DatasetNotFoundResult(dataset))
-              case cbr: ContentTypeBadRequest =>
-                f(InternalServerErrorResult(cbr.code, tag, cbr.contentTypeError))
-              case InvalidRowId() =>
-                f(InvalidRowIdResult)
-              case x: DataCoordinatorError =>
-                f(InternalServerErrorResult(x.code, tag, ""))
-              case UnknownDataCoordinatorError(code, data) =>
-                log.error("Unknown data coordinator error: code %s, Aux info: %s".format(code, data))
-                f(InternalServerErrorResult(code, tag, data.mkString(",")))
-              case x =>
-                log.warn("case is NOT implemented %s".format(x.toString))
-                f(InternalServerErrorResult("unknown", tag, x.toString))
-            }
+            convertExportError(r, err)
         }
       }
     }

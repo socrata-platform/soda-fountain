@@ -2,6 +2,7 @@ package com.socrata.soda.clients.datacoordinator
 
 import com.rojoma.json.v3.util._
 import com.rojoma.json.v3.ast._
+import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soda.server.util.schema.SchemaSpec
@@ -140,15 +141,18 @@ trait DataCoordinatorClient {
                               secondaryId: SecondaryId,
                               extraHeaders: Map[String, String] = Map.empty): VersionReport
 
-  def export[T](datasetId: DatasetId,
-                schemaHash: String,
-                columns: Seq[String],
-                precondition: Precondition,
-                ifModifiedSince: Option[DateTime],
-                limit: Option[Long],
-                offset: Option[Long],
-                copy: String,
-                sorted: Boolean,
-                rowId: Option[String],
-                extraHeaders: Map[String, String])(f: Result => T): T
+  def exportSimple(datasetId: DatasetId, copy: String, resourceScope: ResourceScope): Result
+
+  def export(datasetId: DatasetId,
+             schemaHash: String,
+             columns: Seq[String],
+             precondition: Precondition,
+             ifModifiedSince: Option[DateTime],
+             limit: Option[Long],
+             offset: Option[Long],
+             copy: String,
+             sorted: Boolean,
+             rowId: Option[String],
+             extraHeaders: Map[String, String],
+             resourceScope: ResourceScope): Result
 }
