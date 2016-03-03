@@ -1,5 +1,6 @@
 package com.socrata.soda.server.highlevel
 
+import com.rojoma.simplearm.v2._
 import com.socrata.http.server.util.{Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
@@ -27,7 +28,8 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 precondition: Precondition,
                 copy: String,
                 param: ExportParam,
-                requestId: RequestId.RequestId)(f: ExportDAO.Result => T): T =
+                requestId: RequestId.RequestId,
+                resourceScope: ResourceScope): ExportDAO.Result =
     retryable(limit = 5) {
       lookupDataset(dataset, Stage(copy)) match {
         case Some(ds) =>
@@ -45,7 +47,8 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                       copy,
                       sorted = param.sorted,
                       param.rowId,
-                      extraHeaders = traceHeaders(requestId, dataset)) {
+                      traceHeaders(requestId, dataset),
+                      resourceScope) match {
               case DataCoordinatorClient.ExportResult(jvalues, etag) =>
                 val decodedSchema = CJson.decode(jvalues, JsonColumnRep.forDataCoordinatorType)
                 val schema = decodedSchema.schema
@@ -60,28 +63,28 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                     f => ColumnInfo(ds.columnsById(f.c).id, ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t)
                   }
                 )
-                f(ExportDAO.Success(simpleSchema, etag, decodedSchema.rows))
+                ExportDAO.Success(simpleSchema, etag, decodedSchema.rows)
               case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
                 store.resolveSchemaInconsistency(ds.systemId, newSchema)
                 retry()
               case DataCoordinatorClient.NotModifiedResult(etags) =>
-                f(ExportDAO.NotModified(etags))
+                ExportDAO.NotModified(etags)
               case DataCoordinatorClient.PreconditionFailedResult =>
-                f(ExportDAO.PreconditionFailed)
+                ExportDAO.PreconditionFailed
               case DataCoordinatorClient.DatasetNotFoundResult(_) =>
-                f(ExportDAO.NotFound(dataset))
+                ExportDAO.NotFound(dataset)
               case DataCoordinatorClient.InvalidRowIdResult =>
-                f(ExportDAO.InvalidRowId)
+                ExportDAO.InvalidRowId
               case DataCoordinatorClient.InternalServerErrorResult(code, tag, msg) =>
-                f(ExportDAO.InternalServerError(code, tag, msg))
+                ExportDAO.InternalServerError(code, tag, msg)
               case x =>
-                f(ExportDAO.InternalServerError("unknown", tag, x.toString))
+                ExportDAO.InternalServerError("unknown", tag, x.toString)
             }
           } else {
-            f(ExportDAO.SchemaInvalidForMimeType)
+            ExportDAO.SchemaInvalidForMimeType
           }
         case None =>
-          f(ExportDAO.NotFound(dataset))
+          ExportDAO.NotFound(dataset)
       }
     }
 

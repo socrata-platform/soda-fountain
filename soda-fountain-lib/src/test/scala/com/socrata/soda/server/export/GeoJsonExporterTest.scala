@@ -1,5 +1,7 @@
 package com.socrata.soda.server.export
 
+import javax.servlet.ServletOutputStream
+
 import com.rojoma.simplearm.util._
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
@@ -9,7 +11,7 @@ import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
-import java.io.{StringWriter, PrintWriter}
+import java.io.{OutputStream, ByteArrayOutputStream, StringWriter, PrintWriter}
 import javax.servlet.http.HttpServletResponse
 import org.joda.time.format.ISODateTimeFormat
 
@@ -182,19 +184,27 @@ class GeoJsonExporterTest  extends ExporterTest {
     a [InvalidGeoJsonSchema.type] should be thrownBy { getGeoJson(columns, "hym8-ivsj", rows, false) }
   }
 
+  private class FakeServletOutputStream(underlying: OutputStream) extends ServletOutputStream {
+    override def write(b: Int): Unit = underlying.write(b)
+    override def write(bs: Array[Byte]): Unit = underlying.write(bs)
+    override def write(bs: Array[Byte], offset: Int, length: Int): Unit = underlying.write(bs, offset, length)
+  }
+
   private def getGeoJson(columns: Seq[ColumnRecord],
                          pk: String,
                          rows: Seq[Array[SoQLValue]],
                          singleRow: Boolean): JValue = {
-    for { out    <- managed(new StringWriter)
-          writer <- managed(new PrintWriter(out)) } yield {
+    for {
+      out <- managed(new ByteArrayOutputStream)
+      wrapped <- managed(new FakeServletOutputStream(out))
+    } yield {
       val mockResponse = mock[HttpServletResponse]
       mockResponse.expects('setContentType)("application/vnd.geo+json; charset=UTF-8")
-      mockResponse.expects('getWriter)().returning(writer)
+      mockResponse.expects('getOutputStream)().returning(wrapped)
 
-      GeoJsonExporter.export(mockResponse, charset, getDCSchema("GeoJsonExporterTest", columns, pk, rows), rows.iterator, singleRow)
+      GeoJsonExporter.export(charset, getDCSchema("GeoJsonExporterTest", columns, pk, rows), rows.iterator, singleRow)(mockResponse)
 
-      JsonReader.fromString(out.toString)
+      JsonReader.fromString(new String(out.toByteArray, "UTF-8"))
     }
   }
 

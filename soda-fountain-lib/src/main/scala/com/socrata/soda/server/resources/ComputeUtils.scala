@@ -78,7 +78,8 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
                          NoPrecondition,
                          "latest",
                          param,
-                         requestId) {
+                         requestId,
+                         req.resourceScope) match {
           case ExportDAO.Success(schema, newTag, rows) =>
             log.info("exported dataset {} for column compute", dataset.resourceName.name)
             val transformer = new RowDataTranslator(

@@ -4,6 +4,7 @@ import com.rojoma.json.v3.ast.{JValue, JNull, JObject, JString}
 import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.AliasedCharset
+import com.socrata.http.server.HttpResponse
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.persistence.ColumnRecordLike
@@ -12,7 +13,8 @@ import com.socrata.soql.types._
 import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
 import java.io.BufferedWriter
 import javax.activation.MimeType
-import javax.servlet.http.HttpServletResponse
+import com.socrata.http.server.responses._
+import com.socrata.http.server.implicits._
 
 /**
  * Exports rows as GeoJSON
@@ -33,23 +35,18 @@ object GeoJsonExporter extends Exporter {
     schema.count(_.typ.isInstanceOf[SoQLGeometryLike[_]]) == 1
   }
 
-  def export(resp: HttpServletResponse,
-             charset: AliasedCharset,
+  def export(charset: AliasedCharset,
              schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]],
              singleRow: Boolean = false,
-             obfuscateId: Boolean = true)
-  {
+             obfuscateId: Boolean = true): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
-    resp.setContentType(mt.toString)
-
-    for {
-      rawWriter <- managed(resp.getWriter)
-      w <- managed(new BufferedWriter(rawWriter, 65536))
-    } yield {
-      val processor = new GeoJsonProcessor(w, schema, singleRow, obfuscateId)
-      processor.go(rows)
+    Write(mt) { rawWriter =>
+      using(new BufferedWriter(rawWriter, 65536)) { w =>
+        val processor = new GeoJsonProcessor(w, schema, singleRow, obfuscateId)
+        processor.go(rows)
+      }
     }
   }
 }

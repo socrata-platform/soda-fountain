@@ -164,7 +164,7 @@ case class Resource(rowDAO: RowDAO,
   }
 
   case class service(resourceName: OptionallyTypedPathComponent[ResourceName]) extends SodaResource {
-    override def get = { req: HttpRequest => response: HttpServletResponse =>
+    override def get = { req: HttpRequest =>
       val domainId = req.header(domainIdHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       def metricByStatus(status: Int) = {
@@ -213,43 +213,42 @@ case class Resource(rowDAO: RowDAO,
                           optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
                           optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
                           Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
-                      createHeader(response)
-                      exporter.export(response, charset, schema, rows, singleRow = false, obfuscateId)
+                      createHeader ~> exporter.export(charset, schema, rows, singleRow = false, obfuscateId)
                     case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
                       metric(QueryCacheHit)
-                      SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
+                      SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))
                     case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
+                      SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
                     case RowDAO.DatasetNotFound(resourceName) =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+                      SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))
                     case RowDAO.QCError(status, qcErr) =>
                       metricByStatus(status)
-                      SodaUtils.errorResponse(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))(response)
+                      SodaUtils.errorResponse(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
                     case RowDAO.InvalidRequest(client, status, body) =>
                       metricByStatus(status)
                       SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
                         "code"  -> JNumber(status),
-                        "data" -> body))(response)
+                        "data" -> body))
                     case RowDAO.InternalServerError(status, client, code, tag, data) =>
                       metricByStatus(status)
                       SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
                         "status" -> JNumber(status),
                         "code"  -> JString(code),
                         "data" -> JString(data),
-                        "tag" -> JString(tag)))(response)
+                        "tag" -> JString(tag)))
 
                   }
                 }
               case None =>
                 metric(QueryErrorUser)
                 // TODO better error
-                NotAcceptable(response)
+                NotAcceptable
             }
           case Left(Precondition.FailedBecauseNoMatch) =>
             metric(QueryErrorUser)
-            SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
+            SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
         }
       } catch {
         case e: Exception =>
@@ -290,7 +289,7 @@ case class Resource(rowDAO: RowDAO,
 
     implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
 
-    override def get = { req: HttpRequest => response: HttpServletResponse =>
+    override def get = { req: HttpRequest =>
       val domainId = req.header(domainIdHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       try {
@@ -330,23 +329,22 @@ case class Resource(rowDAO: RowDAO,
                         optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
-                      createHeader(response)
-                      exporter.export(response, charset, schema, Iterator.single(row), singleRow = true, obfuscateId)
+                      createHeader ~> exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId)
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.RowNotFound(row))(response)
+                      SodaUtils.errorResponse(req, SodaErrors.RowNotFound(row))
                     case RowDAO.RowPrimaryKeyIsNonexistentOrNull(row) =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.RowPrimaryKeyNonexistentOrNull(row))(response)
+                      SodaUtils.errorResponse(req, SodaErrors.RowPrimaryKeyNonexistentOrNull(row))
                     case RowDAO.DatasetNotFound(resourceName) =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+                      SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))
                     case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
                       metric(QueryCacheHit)
-                      SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))(response)
+                      SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))
                     case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
+                      SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
                     case RowDAO.SchemaInvalidForMimeType =>
                       metric(QueryErrorUser)
                       SodaUtils.errorResponse(req, SodaErrors.SchemaInvalidForMimeType)
@@ -355,11 +353,11 @@ case class Resource(rowDAO: RowDAO,
               case None =>
                 metric(QueryErrorUser)
                 // TODO better error
-                NotAcceptable(response)
+                NotAcceptable
             }
           case Left(Precondition.FailedBecauseNoMatch) =>
             metric(QueryErrorUser)
-            SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)(response)
+            SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
         }
       } catch {
         case e: Exception =>
