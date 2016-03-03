@@ -2,7 +2,7 @@ package com.socrata.soda.clients.datacoordinator
 
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
-import com.rojoma.json.v3.util.JsonArrayIterator
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonArrayIterator}
 import com.rojoma.simplearm.v2._
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
@@ -27,11 +27,15 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   val xhCopyNumber = "X-SODA2-Truth-Copy-Number"
 
   def hostO(instance: String): Option[RequestBuilder]
+  def instances(): Set[String]
   def createUrl(host: RequestBuilder) = host.p("dataset")
   def mutateUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
   def schemaUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "schema")
   def secondaryUrl(host: RequestBuilder, secondaryId: SecondaryId, datasetId: DatasetId) = host.p("secondary-manifest", secondaryId.underlying, datasetId.underlying)
   def exportUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
+  def snapshottedUrl(host: RequestBuilder) = host.p("snapshotted")
+  def snapshotsUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "snapshots")
+  def snapshotUrl(host: RequestBuilder, datasetId: DatasetId, num: Long) = host.p("dataset", datasetId.underlying, "snapshots", num.toString)
 
   def withHost[T](instance: String)(f: RequestBuilder => T): T =
     hostO(instance) match {
@@ -344,14 +348,14 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
 
   def publish[T](datasetId: DatasetId,
                  schemaHash: String,
-                 snapshotLimit:Option[Int],
+                 keepSnapshot:Option[Boolean],
                  user: String,
                  instructions: Iterator[DataCoordinatorInstruction],
                  extraHeaders: Map[String, String] = Map.empty)
                 (f: Result => T): T = {
     // TODO: publish should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
-      val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schemaHash), instructions)
+      val pubScript = new MutationScript(user, PublishDataset(keepSnapshot, schemaHash), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), pubScript)(f)
     }
   }
@@ -491,6 +495,62 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
+  def DO_NOT_MERGE_THIS_TO_MASTER = ???
+
+  private def datasetsWithSnapshotsOn(instance: String): Set[DatasetId] = {
+    hostO(instance).fold(Set.empty[DatasetId]) { host =>
+      val request = snapshottedUrl(host).get
+      httpClient.execute(request).run { r =>
+        errorFrom(r) match {
+          case None =>
+            r.value[Set[DatasetId]]() match {
+              case Right(ids) =>
+                ids
+              case Left(_) =>
+                DO_NOT_MERGE_THIS_TO_MASTER
+            }
+          case Some(err) =>
+            DO_NOT_MERGE_THIS_TO_MASTER
+        }
+      }
+    }
+  }
+
+  override def datasetsWithSnapshots(): Set[DatasetId] =
+    instances().par.flatMap(datasetsWithSnapshotsOn).seq
+
+  override def deleteSnapshot(datasetId: DatasetId, copy: Long): Boolean =
+    withHost(datasetId) { host =>
+      val request = snapshotUrl(host, datasetId, copy).delete
+      httpClient.execute(request).run { r =>
+        errorFrom(r) match {
+          case None =>
+            true
+          case Some(err) =>
+            DO_NOT_MERGE_THIS_TO_MASTER
+        }
+      }
+    }
+
+  override def listSnapshots(datasetId: DatasetId): Option[Seq[Long]] =
+    withHost(datasetId) { host =>
+      val request = snapshotsUrl(host, datasetId).get
+      httpClient.execute(request).run { r =>
+        errorFrom(r) match {
+          case None =>
+            case class Bit(num: Long)
+            implicit val bCodec = AutomaticJsonCodecBuilder[Bit]
+            r.value[Seq[Bit]]() match {
+              case Right(copies) =>
+                Some(copies.map(_.num))
+              case Left(err) =>
+                DO_NOT_MERGE_THIS_TO_MASTER
+            }
+          case Some(err) =>
+            DO_NOT_MERGE_THIS_TO_MASTER
+        }
+      }
+    }
   /**
    * EntityTag Seq from response object
    * @param r

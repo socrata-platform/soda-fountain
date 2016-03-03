@@ -1,9 +1,11 @@
 package com.socrata.soda.server.highlevel
 
+import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.{DropRollupInstruction, CreateOrUpdateRollupInstruction, SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
+import com.socrata.soda.server.highlevel.SnapshotDAO.{DeleteSnapshotResponse, ExportSnapshotResponse}
 import com.socrata.soda.server.id.{ColumnId, SecondaryId, ResourceName, RollupName}
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
@@ -320,14 +322,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       }
     }
 
-  def publish(user: String, dataset: ResourceName, snapshotLimit: Option[Int], requestId: RequestId): Result =
+  def publish(user: String, dataset: ResourceName, keepSnapshot: Option[Boolean], requestId: RequestId): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
-          dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, snapshotLimit, user,
+          dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, keepSnapshot, user,
                      extraHeaders = traceHeaders(requestId, dataset)) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
-              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, snapshotLimit)
+              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, Some(0))
               WorkingCopyPublished
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -479,5 +481,4 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
     log.info("internal error; tag = " + uuid)
     uuid
   }
-
 }

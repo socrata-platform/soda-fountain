@@ -4,11 +4,13 @@ import com.socrata.http.client.{RequestBuilder, HttpClient}
 import com.socrata.http.common.AuxiliaryData
 import com.socrata.curator.ProviderCache
 import java.io.Closeable
+import com.socrata.soda.server.id.DatasetId
 import org.apache.curator.x.discovery.{strategies => providerStrategies, ServiceDiscovery}
 import scala.concurrent.duration.FiniteDuration
 
 class CuratedHttpDataCoordinatorClient(httpClient: HttpClient,
                                        discovery: ServiceDiscovery[AuxiliaryData],
+                                       discoveredInstances: () => Set[String],
                                        serviceName: String,
                                        targetInstance: String,
                                        connectTimeout: FiniteDuration,
@@ -38,4 +40,6 @@ class CuratedHttpDataCoordinatorClient(httpClient: HttpClient,
       connectTimeoutMS(connectTimeoutMS).
       receiveTimeoutMS(receiveTimeoutMS)
   }
+
+  def instances() = discoveredInstances()
 }

@@ -118,7 +118,7 @@ trait DataCoordinatorClient {
 
   def publish[T](datasetId: DatasetId,
                  schemaHash: String,
-                 snapshotLimit:Option[Int],
+                 keepSnapshot:Option[Boolean],
                  user: String,
                  instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty,
                  extraHeaders: Map[String, String] = Map.empty)
@@ -140,6 +140,10 @@ trait DataCoordinatorClient {
   def checkVersionInSecondary(datasetId: DatasetId,
                               secondaryId: SecondaryId,
                               extraHeaders: Map[String, String] = Map.empty): VersionReport
+
+  def datasetsWithSnapshots(): Set[DatasetId]
+  def listSnapshots(datasetId: DatasetId): Option[Seq[Long]]
+  def deleteSnapshot(datasetId: DatasetId, copy: Long): Boolean
 
   def exportSimple(datasetId: DatasetId, copy: String, resourceScope: ResourceScope): Result
 
