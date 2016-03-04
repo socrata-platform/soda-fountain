@@ -25,7 +25,9 @@ object CJsonExporter extends Exporter {
   def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true): HttpResponse = {
-    Write(new MimeType(mimeTypeBase)) { rawWriter =>
+    val mt = new MimeType(mimeTypeBase)
+    mt.setParameter("charset", charset.alias)
+    Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
         val jw = new CompactJsonWriter(w)
         val schemaOrdering = schema.schema.zipWithIndex.sortBy(_._1.fieldName).map(_._2).toArray
