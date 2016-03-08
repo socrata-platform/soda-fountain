@@ -425,13 +425,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           DatasetNotFound(dataset)
       }
 
-  private def analyzeQuery(ds: MinimalDatasetRecord, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLAnalysisType]] = {
+  private def analyzeQuery(ds: MinimalDatasetRecord, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLType]] = {
     val columnIdMap: Map[ColumnName, String] = ds.columnsByName.mapValues(_.id.underlying)
     val rawSchema: Map[String, SoQLType] = ds.schemaSpec.schema.map { case (k, v) => (k.underlying, v) }
 
     val analyzer = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
 
-    val dsCtx = new DatasetContext[SoQLAnalysisType] {
+    val dsCtx = new DatasetContext[SoQLType] {
       val schema = OrderedMap(columnIdMap.mapValues(rawSchema).toSeq.sortBy(_._1) : _*)
     }
     try {
