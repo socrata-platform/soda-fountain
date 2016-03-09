@@ -5,6 +5,7 @@ import com.rojoma.json.v3.ast._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.persistence.ColumnRecord
+import com.socrata.soda.server.util.CopySpecifier
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.http.server.util.{Precondition, EntityTag}
 import org.joda.time.DateTime
@@ -65,6 +66,7 @@ object DataCoordinatorClient {
 
   // FAIL CASES: Datasets
   case class DatasetNotFoundResult(datasetId: DatasetId) extends FailResult
+  case class SnapshotNotFoundResult(datasetId: DatasetId, snapshot: CopySpecifier) extends FailResult
   case class CannotAcquireDatasetWriteLockResult(datasetId: DatasetId) extends FailResult
   case class InitialCopyDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
   case class OperationAfterDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult

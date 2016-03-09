@@ -225,6 +225,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
             case (datasetError: DCDatasetUpdateError) => datasetError match {
               case NoSuchDataset(dataset) =>
                 f(Left(DatasetNotFoundResult(dataset)))
+              case NoSuchSnapshot(dataset, snapshotNumber) =>
+                f(Left(SnapshotNotFoundResult(dataset, snapshotNumber)))
               case CannotAcquireDatasetWriteLock(dataset) =>
                 f(Left(CannotAcquireDatasetWriteLockResult(dataset)))
               case IncorrectLifecycleStage(dataset, actualStage, expectedStage) =>
