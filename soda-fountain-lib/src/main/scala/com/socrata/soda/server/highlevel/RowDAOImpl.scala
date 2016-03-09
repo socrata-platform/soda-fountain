@@ -51,7 +51,6 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   }
 
   def getRow(resourceName: ResourceName,
-             schemaCheck: Seq[ColumnRecord] => Boolean,
              precondition: Precondition,
              ifModifiedSince: Option[DateTime],
              rowId: RowSpecifier,
@@ -63,47 +62,45 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
              resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(datasetRecord) =>
-        if (schemaCheck(datasetRecord.columns)) {
-          val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
-          val stringRep = StringColumnRep.forType(pkCol.typ)
-          stringRep.fromString(rowId.underlying) match {
-            case Some(soqlValue) =>
-              val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
-              val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
-              val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
-              getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance,
-                      noRollup, obfuscateId, requestId, resourceScope) match {
-                case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
-                  val version = ColumnName(":version")
-                  val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
-                  val deVersionedSchema = simpleSchema.copy(schema = simpleSchema.schema.take(versionPos) ++ simpleSchema.schema.drop(versionPos + 1))
-                  val rowsStream = rows.toStream
-                  rowsStream.headOption match {
-                    case Some(rowWithVersion) if rowsStream.lengthCompare(1) == 0 =>
-                      val etag = StrongEntityTag(rowWithVersion(versionPos).toString.getBytes(StandardCharsets.UTF_8))
-                      val row = rowWithVersion.take(versionPos) ++ rowWithVersion.drop(versionPos + 1)
-                      precondition.check(Some(etag), sideEffectFree = true) match {
-                        case Precondition.Passed =>
-                          RowDAO.SingleRowQuerySuccess(Seq(etag), truthVersion, truthLastModified, deVersionedSchema, row)
-                        case f: Precondition.Failure =>
-                          RowDAO.PreconditionFailed(f)
-                      }
-                    case Some(rowWithVersion) =>
-                      TooManyRows
-                    case _ =>
-                      precondition.check(None, sideEffectFree = true) match {
-                        case Precondition.Passed =>
-                          RowDAO.RowNotFound(rowId)
-                        case f: Precondition.Failure =>
-                          RowDAO.PreconditionFailed(f)
-                      }
-                  }
-                case other =>
-                  other
-              }
-            case None => RowNotFound(rowId) // it's not a valid value and therefore trivially not found
-          }
-        } else SchemaInvalidForMimeType
+        val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
+        val stringRep = StringColumnRep.forType(pkCol.typ)
+        stringRep.fromString(rowId.underlying) match {
+          case Some(soqlValue) =>
+            val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
+            val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
+            val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
+            getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance,
+                    noRollup, obfuscateId, requestId, resourceScope) match {
+              case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
+                val version = ColumnName(":version")
+                val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
+                val deVersionedSchema = simpleSchema.copy(schema = simpleSchema.schema.take(versionPos) ++ simpleSchema.schema.drop(versionPos + 1))
+                val rowsStream = rows.toStream
+                rowsStream.headOption match {
+                  case Some(rowWithVersion) if rowsStream.lengthCompare(1) == 0 =>
+                    val etag = StrongEntityTag(rowWithVersion(versionPos).toString.getBytes(StandardCharsets.UTF_8))
+                    val row = rowWithVersion.take(versionPos) ++ rowWithVersion.drop(versionPos + 1)
+                    precondition.check(Some(etag), sideEffectFree = true) match {
+                      case Precondition.Passed =>
+                        RowDAO.SingleRowQuerySuccess(Seq(etag), truthVersion, truthLastModified, deVersionedSchema, row)
+                      case f: Precondition.Failure =>
+                        RowDAO.PreconditionFailed(f)
+                    }
+                  case Some(rowWithVersion) =>
+                    TooManyRows
+                  case _ =>
+                    precondition.check(None, sideEffectFree = true) match {
+                      case Precondition.Passed =>
+                        RowDAO.RowNotFound(rowId)
+                      case f: Precondition.Failure =>
+                        RowDAO.PreconditionFailed(f)
+                    }
+                }
+              case other =>
+                other
+            }
+          case None => RowNotFound(rowId) // it's not a valid value and therefore trivially not found
+        }
       case None =>
         DatasetNotFound(resourceName)
     }

@@ -32,7 +32,6 @@ trait RowDAO {
             resourceScope: ResourceScope): Result
 
   def getRow(dataset: ResourceName,
-             schemaCheck: Seq[ColumnRecord] => Boolean,
              precondition: Precondition,
              ifModifiedSince: Option[DateTime],
              rowId: RowSpecifier,

@@ -43,7 +43,6 @@ trait ExportDAO {
   def retry() = throw new Retry
 
   def export[T](dataset: ResourceName,
-                schemaCheck: Seq[ColumnRecordLike] => Boolean,
                 precondition: Precondition,
                 copy: String,
                 param: ExportParam,

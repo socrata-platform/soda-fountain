@@ -74,7 +74,6 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
         log.info("export dataset {} for column compute", dataset.resourceName.name)
         val param = ExportParam(None, None, columns, None, sorted = false, rowId = None)
         exportDAO.export(dataset.resourceName,
-                         JsonExporter.validForSchema,
                          NoPrecondition,
                          "latest",
                          param,

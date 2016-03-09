@@ -306,7 +306,6 @@ case class Resource(rowDAO: RowDAO,
                 using(new ResourceScope) { resourceScope =>
                   rowDAO.getRow(
                     resourceName,
-                    exporter.validForSchema,
                     newPrecondition.map(_.dropRight(suffix.length)),
                     req.dateTimeHeader("If-Modified-Since"),
                     rowId,
