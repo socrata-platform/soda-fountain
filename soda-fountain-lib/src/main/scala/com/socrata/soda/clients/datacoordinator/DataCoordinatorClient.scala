@@ -145,7 +145,7 @@ trait DataCoordinatorClient {
 
   def datasetsWithSnapshots(): Set[DatasetId]
   def listSnapshots(datasetId: DatasetId): Option[Seq[Long]]
-  def deleteSnapshot(datasetId: DatasetId, copy: Long): Boolean
+  def deleteSnapshot(datasetId: DatasetId, copy: Long): Either[FailResult, Unit]
 
   def exportSimple(datasetId: DatasetId, copy: String, resourceScope: ResourceScope): Result
 

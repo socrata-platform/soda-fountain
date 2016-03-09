@@ -32,8 +32,16 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
     store.lookupDataset(resourceName) match {
       case dss if dss.nonEmpty =>
         val ds = dss.head
-        if(!dc.deleteSnapshot(ds.systemId, snapshot)) SnapshotDAO.SnapshotNotFound
-        else SnapshotDAO.Deleted
+        dc.deleteSnapshot(ds.systemId, snapshot) match {
+          case Right(_) =>
+            SnapshotDAO.Deleted
+          case Left(DataCoordinatorClient.SnapshotNotFoundResult(_, _)) =>
+            SnapshotDAO.SnapshotNotFound
+          case Left(DataCoordinatorClient.DatasetNotFoundResult(_)) =>
+            SnapshotDAO.DatasetNotFound
+          case Left(other) =>
+            throw new Exception("Unexpected result from snapshot delete: " + other)
+        }
       case _ =>
         SnapshotDAO.DatasetNotFound
     }

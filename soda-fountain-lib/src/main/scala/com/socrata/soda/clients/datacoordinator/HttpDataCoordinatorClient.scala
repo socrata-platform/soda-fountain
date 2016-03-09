@@ -497,10 +497,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
-  def DO_NOT_MERGE_THIS_TO_MASTER = ???
-
   private def datasetsWithSnapshotsOn(instance: String): Set[DatasetId] = {
-    hostO(instance).fold(Set.empty[DatasetId]) { host =>
+    hostO(instance).fold(Set.empty[DatasetId]) { host => // there's nothing that can go wrong here that isn't an internal error
       val request = snapshottedUrl(host).get
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
@@ -508,11 +506,12 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
             r.value[Set[DatasetId]]() match {
               case Right(ids) =>
                 ids
-              case Left(_) =>
-                DO_NOT_MERGE_THIS_TO_MASTER
+              case Left(err) =>
+                // yep, this deserves an internal error
+                throw new Exception("Response from data-coordinator is not interpretable as a set of DatasetIds: " + err.english)
             }
-          case Some(err) =>
-            DO_NOT_MERGE_THIS_TO_MASTER
+          case Some(err) => // there's nothing that can go wrong with this that isn't an internal server error!
+            throw new Exception("Unexpected error from data-coordinator " + instance + " : " + err)
         }
       }
     }
@@ -521,15 +520,20 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   override def datasetsWithSnapshots(): Set[DatasetId] =
     instances().par.flatMap(datasetsWithSnapshotsOn).seq
 
-  override def deleteSnapshot(datasetId: DatasetId, copy: Long): Boolean =
+  override def deleteSnapshot(datasetId: DatasetId, copy: Long): Either[FailResult, Unit] =
     withHost(datasetId) { host =>
       val request = snapshotUrl(host, datasetId, copy).delete
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None =>
-            true
+            Right(())
+          case Some(NoSuchDataset(dsId)) =>
+            Left(DatasetNotFoundResult(dsId))
+          case Some(NoSuchSnapshot(dsId, snapshot)) =>
+            Left(SnapshotNotFoundResult(dsId, snapshot))
           case Some(err) =>
-            DO_NOT_MERGE_THIS_TO_MASTER
+            // ... and everything else is an internal error
+            throw new Exception("Unexpected error from data-coordinator deleting dataset copy " + datasetId + "/" + copy + ": " + err)
         }
       }
     }
@@ -546,10 +550,13 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
               case Right(copies) =>
                 Some(copies.map(_.num))
               case Left(err) =>
-                DO_NOT_MERGE_THIS_TO_MASTER
+                throw new Exception("Response from data-coordinator is not interpretable as a set of dataset descriptions: " + err.english)
             }
+          case Some(NoSuchDataset(_)) =>
+            None
           case Some(err) =>
-            DO_NOT_MERGE_THIS_TO_MASTER
+            // and everything else is an internal error
+            throw new Exception("Unexpected error from data-coordinator listing snapshots for dataset " + datasetId + ": " + err)
         }
       }
     }
