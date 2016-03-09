@@ -12,4 +12,5 @@
     <include file="com/socrata/soda/server/persistence/pg/20150501-add-missing-timezone.xml"/>
 
     <include file="com/socrata/soda/server/persistence/pg/21050724-add-deleted-at-column-multi-tables.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20160308-add-recompute-default-value.xml"/>
 </databaseChangeLog>
