@@ -24,15 +24,10 @@ object GeoJsonExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("geojson")
 
-  // For now, GeoJSON only works if you have exactly ONE geo column in the dataset.
+  // For now, GeoJSON only works if you have at least ONE geo column in the dataset.
   // Attempting to export a dataset with zero or more than one geo columns will return HTTP 406.
-  // For non-geo datasets the reason for this behavior is obvious.
-  // For datasets with >1 geo column, we don't currently have a way for the user to specify which
-  // column is the primary geo column that should be returned as the the top level "geometry" element
-  // (others would be relegated to "properties"). Until we have prioritize implementing a way to
-  // represent that in the store or pass it in the export request, we will error out.
   override def validForSchema(schema: Seq[ColumnRecordLike]): Boolean = {
-    schema.count(_.typ.isInstanceOf[SoQLGeometryLike[_]]) == 1
+    schema.count(_.typ.isInstanceOf[SoQLGeometryLike[_]]) > 0
   }
 
   def export(charset: AliasedCharset,
@@ -74,10 +69,13 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
       case (columnInfo, index) if columnInfo.typ.isInstanceOf[SoQLGeometryLike[_]] => index
     }
 
-    // We validate the dataset schema upfront and throw a 406 on datasets that don't
-    // contain exactly one geo column, so theoretically this should never happen :/
-    if (geoColumnIndices.size != 1) throw InvalidGeoJsonSchema
+    if (geoColumnIndices.size == 0) throw InvalidGeoJsonSchema
 
+    // As a first step to supporting geojson export on datasets with multiple geo columns,
+    // we'll pick the first geo column we happened to encounter as the primary feature geometry.
+    // Other geometry column values will be relegated to the attributes section of the feature.
+    // Ideally we'd allow the API caller to pass a parameter indicating which column should be
+    // the primary geometry, but that's a bigger refactor that we haven't prioritized yet.
     geoColumnIndices(0)
   }
 
