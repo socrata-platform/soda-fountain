@@ -24,12 +24,6 @@ object GeoJsonExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("geojson")
 
-  // For now, GeoJSON only works if you have at least ONE geo column in the dataset.
-  // Attempting to export a dataset with zero or more than one geo columns will return HTTP 406.
-  override def validForSchema(schema: Seq[ColumnRecordLike]): Boolean = {
-    schema.count(_.typ.isInstanceOf[SoQLGeometryLike[_]]) > 0
-  }
-
   def export(charset: AliasedCharset,
              schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]],
@@ -64,19 +58,22 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
 
   val jsonWriter = new CompactJsonWriter(writer)
 
-  private def getGeoColumnIndex(columns: Seq[ColumnInfo]): Int = {
+  private def getGeoColumnIndex(columns: Seq[ColumnInfo]): Option[Int] = {
     val geoColumnIndices = columns.zipWithIndex.collect {
       case (columnInfo, index) if columnInfo.typ.isInstanceOf[SoQLGeometryLike[_]] => index
     }
 
-    if (geoColumnIndices.size == 0) throw InvalidGeoJsonSchema
-
-    // As a first step to supporting geojson export on datasets with multiple geo columns,
-    // we'll pick the first geo column we happened to encounter as the primary feature geometry.
-    // Other geometry column values will be relegated to the attributes section of the feature.
-    // Ideally we'd allow the API caller to pass a parameter indicating which column should be
-    // the primary geometry, but that's a bigger refactor that we haven't prioritized yet.
-    geoColumnIndices(0)
+    if (geoColumnIndices.size == 0) {
+      // There are no geometry columns on this dataset.
+      None
+    } else {
+      // As a first step to supporting geojson export on datasets with multiple geo columns,
+      // we'll pick the first geo column we happened to encounter as the primary feature geometry.
+      // Other geometry column values will be relegated to the attributes section of the feature.
+      // Ideally we'd allow the API caller to pass a parameter indicating which column should be
+      // the primary geometry, but that's a bigger refactor that we haven't prioritized yet.
+      Some(geoColumnIndices(0))
+    }
   }
 
   private def getGeometryJson(soqlGeom: SoQLValue): JValue =
@@ -92,12 +89,17 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
     }
 
   private def writeGeoJsonRow(row: Array[SoQLValue]) {
-    val properties = row.zipWithIndex.filterNot(_._2 == geoColumnIndex).map { case (value, index) =>
+    val properties = row.zipWithIndex.filterNot(_._2 == geoColumnIndex.getOrElse(-1)).map { case (value, index) =>
       propertyNames(index) -> propertyReps(index).toJValue(value)
     }
 
+    val primaryGeometry = geoColumnIndex match {
+      case Some(idx) => getGeometryJson(row(idx))
+      case None      => JNull
+    }
+
     val map = Map("type"       -> JString("Feature"),
-                  "geometry"   -> getGeometryJson(row(geoColumnIndex)),
+                  "geometry"   -> primaryGeometry,
                   "properties" -> JObject(properties.toMap))
     val finalMap = if (singleRow) map + ("crs" -> JsonReader.fromString(wgs84ProjectionInfo)) else map
 
