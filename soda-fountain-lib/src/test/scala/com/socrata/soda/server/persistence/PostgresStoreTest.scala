@@ -5,7 +5,7 @@ import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.copy._
 import com.socrata.soda.server.highlevel.csrec
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
-import com.socrata.soda.server.wiremodels.{ColumnSpec, ComputationStrategyType}
+import com.socrata.soda.server.wiremodels.{SourceColumnSpec, ComputationStrategySpec, ColumnSpec, ComputationStrategyType}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText}
 import org.joda.time.DateTime
@@ -141,9 +141,73 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
   test("Two copies with different columns"){
     val columnSpecs = Seq(
       ColumnSpec(ColumnId("one"), ColumnName("one"), "one", "desc", SoQLText, None),
-      ColumnSpec(ColumnId("two"), ColumnName("two"), "two", "desc",SoQLText, None)
+      ColumnSpec(ColumnId("two"), ColumnName("two"), "two", "desc", SoQLText, None)
     )
     val columns = columnSpecs.map(columnSpecTocolumnRecord)
+    val (resourceName, datasetId) = createMockDataset(columns.take(1))
+    val unpublishedDataVersion = 100L
+    store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L, None)
+    store.makeCopy(datasetId, 2L, unpublishedDataVersion)
+    store.addColumn(datasetId, 2L, columnSpecs(1))
+
+    val publishedCopy = store.lookupDataset(resourceName, Some(Published))
+    publishedCopy should not be (None)
+
+    publishedCopy.get.truthVersion should be (1L)
+    publishedCopy.get.columns should be (columns.take(1))
+
+    val unpublishedCopy = store.lookupDataset(resourceName, Some(Unpublished))
+    unpublishedCopy should not be (None)
+    unpublishedCopy.get.truthVersion should be (unpublishedDataVersion)
+    unpublishedCopy.get.columns.foreach(println)
+    unpublishedCopy.get.columns should be (columns)
+  }
+
+  test("Make copy with a computed column") {
+    val columnSpecs = Seq(
+      ColumnSpec(
+        ColumnId("abcd-1234"),
+        ColumnName("location"),
+        "Location",
+        "Point representing location of the crime",
+        SoQLPoint,
+        None
+      ),
+      ColumnSpec(
+        ColumnId("defg-4567"),
+        ColumnName("ward"),
+        "Ward",
+        "Ward where the crime took place",
+        SoQLNumber,
+        Some(ComputationStrategySpec(ComputationStrategyType.GeoRegionMatchOnPoint,
+          Some(Seq(SourceColumnSpec(ColumnId("abcd-1234"), ColumnName("location")))),
+          Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))))
+      )
+    )
+
+    val columns = Seq[ColumnRecord](
+      new ColumnRecord(
+        ColumnId("abcd-1234"),
+        ColumnName("location"),
+        SoQLPoint,
+        "Location",
+        "Point representing location of the crime",
+        false,
+        None),
+      new ColumnRecord(
+        ColumnId("defg-4567"),
+        ColumnName("ward"),
+        SoQLNumber,
+        "Ward",
+        "Ward where the crime took place",
+        false,
+        Some(ComputationStrategyRecord(
+          ComputationStrategyType.GeoRegionMatchOnPoint,
+          Some(Seq(MinimalColumnRecord(ColumnId("abcd-1234"), ColumnName("location"), SoQLPoint, false, None))),
+          Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))
+        ))
+      )
+    )
     val (resourceName, datasetId) = createMockDataset(columns.take(1))
     val unpublishedDataVersion = 100L
     store.updateVersionInfo(datasetId, 1L, new DateTime(), Some(Published), 1L, None)

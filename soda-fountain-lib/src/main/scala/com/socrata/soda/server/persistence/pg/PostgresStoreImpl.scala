@@ -490,18 +490,19 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           csAdder.setString(1, datasetId.underlying)
           csAdder.setString(2, crec.id.underlying)
           csAdder.setString(3, cs.strategyType.toString)
+          csAdder.setBoolean(4, false)
           cs.sourceColumns match {
-            case Some(seq) => csAdder.setString(4, seq.mkString(","))
-            case None      => csAdder.setNull(4, Types.ARRAY)
+            case Some(seq) => csAdder.setString(5, seq.mkString(","))
+            case None      => csAdder.setNull(5, Types.ARRAY)
           }
-          csAdder.setString(5, datasetId.underlying)
-          csAdder.setLong(6, copyNumber)
+          csAdder.setString(6, datasetId.underlying)
+          csAdder.setLong(7, copyNumber)
           cs.parameters match {
-            case Some(jObj) => csAdder.setString(7, jObj.toString)
-            case None       => csAdder.setNull(7, Types.VARCHAR)
+            case Some(jObj) => csAdder.setString(8, jObj.toString)
+            case None       => csAdder.setNull(8, Types.VARCHAR)
           }
-          csAdder.setString(8, datasetId.underlying)
-          csAdder.setLong(9, copyNumber)
+          csAdder.setString(9, datasetId.underlying)
+          csAdder.setLong(10, copyNumber)
           csAdder.addBatch
         }
 
@@ -742,12 +743,14 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           |    dataset_system_id,
           |    column_id,
           |    computation_strategy_type,
+          |    recompute,
           |    source_columns,
           |    parameters,
           |    copy_id)
           |    SELECT dataset_system_id,
           |           column_id,
           |           computation_strategy_type,
+          |           recompute,
           |           source_columns,
           |           parameters,
           |           (SELECT id FROM dataset_copies WHERE dataset_system_id = ? And copy_number = ?)
@@ -853,10 +856,12 @@ object PostgresStoreImpl {
         (dataset_system_id,
          column_id,
          computation_strategy_type,
+         recompute,
          source_columns,
          parameters,
          copy_id)
          SELECT ?,
+                ?,
                 ?,
                 ?,
                 $compStrategySourceColumnPartialSql,
