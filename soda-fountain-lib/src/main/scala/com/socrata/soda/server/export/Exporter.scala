@@ -16,7 +16,6 @@ trait Exporter {
   def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true): HttpResponse
-  def validForSchema(schema: Seq[ColumnRecordLike]): Boolean = true
 }
 
 object Exporter {

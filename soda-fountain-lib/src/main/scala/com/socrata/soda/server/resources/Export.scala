@@ -171,7 +171,6 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
           case Some((mimeType, charset, language)) =>
             val exporter = Exporter.exportForMimeType(mimeType)
             exportDAO.export(resourceName,
-                             exporter.validForSchema,
                              passOnPrecondition,
                              copy,
                              param,

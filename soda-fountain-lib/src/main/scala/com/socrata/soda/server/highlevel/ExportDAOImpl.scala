@@ -24,7 +24,6 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
   }
 
   def export[T](dataset: ResourceName,
-                schemaCheck: Seq[ColumnRecordLike] => Boolean,
                 precondition: Precondition,
                 copy: String,
                 param: ExportParam,
@@ -33,55 +32,51 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
     retryable(limit = 5) {
       lookupDataset(dataset, Stage(copy)) match {
         case Some(ds) =>
-          if (schemaCheck(ds.columns)) {
-            val schemaHash = param.onlyColumns match {
-              case Seq() => ds.schemaHash
-              case _     =>
-                SchemaHash.computeHash(ds.locale, ds.primaryKey, param.onlyColumns.map { col => (col.id, col.typ) })
-            }
-            val dcColumnIds = param.onlyColumns.map(_.id.underlying)
-            dc.export(ds.systemId, schemaHash, dcColumnIds, precondition,
-                      param.ifModifiedSince,
-                      param.limit,
-                      param.offset,
-                      copy,
-                      sorted = param.sorted,
-                      param.rowId,
-                      traceHeaders(requestId, dataset),
-                      resourceScope) match {
-              case DataCoordinatorClient.ExportResult(jvalues, etag) =>
-                val decodedSchema = CJson.decode(jvalues, JsonColumnRep.forDataCoordinatorType)
-                val schema = decodedSchema.schema
-                val simpleSchema = ExportDAO.CSchema(
-                  schema.approximateRowCount,
-                  schema.dataVersion,
-                  schema.lastModified.map(time => dateTimeParser.parseDateTime(time)),
-                  schema.locale,
-                  schema.pk.map(ds.columnsById(_).fieldName),
-                  schema.rowCount,
-                  schema.schema.map {
-                    f => ColumnInfo(ds.columnsById(f.c).id, ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t)
-                  }
-                )
-                ExportDAO.Success(simpleSchema, etag, decodedSchema.rows)
-              case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
-                store.resolveSchemaInconsistency(ds.systemId, newSchema)
-                retry()
-              case DataCoordinatorClient.NotModifiedResult(etags) =>
-                ExportDAO.NotModified(etags)
-              case DataCoordinatorClient.PreconditionFailedResult =>
-                ExportDAO.PreconditionFailed
-              case DataCoordinatorClient.DatasetNotFoundResult(_) =>
-                ExportDAO.NotFound(dataset)
-              case DataCoordinatorClient.InvalidRowIdResult =>
-                ExportDAO.InvalidRowId
-              case DataCoordinatorClient.InternalServerErrorResult(code, tag, msg) =>
-                ExportDAO.InternalServerError(code, tag, msg)
-              case x =>
-                ExportDAO.InternalServerError("unknown", tag, x.toString)
-            }
-          } else {
-            ExportDAO.SchemaInvalidForMimeType
+          val schemaHash = param.onlyColumns match {
+            case Seq() => ds.schemaHash
+            case _     =>
+              SchemaHash.computeHash(ds.locale, ds.primaryKey, param.onlyColumns.map { col => (col.id, col.typ) })
+          }
+          val dcColumnIds = param.onlyColumns.map(_.id.underlying)
+          dc.export(ds.systemId, schemaHash, dcColumnIds, precondition,
+                    param.ifModifiedSince,
+                    param.limit,
+                    param.offset,
+                    copy,
+                    sorted = param.sorted,
+                    param.rowId,
+                    traceHeaders(requestId, dataset),
+                    resourceScope) match {
+            case DataCoordinatorClient.ExportResult(jvalues, etag) =>
+              val decodedSchema = CJson.decode(jvalues, JsonColumnRep.forDataCoordinatorType)
+              val schema = decodedSchema.schema
+              val simpleSchema = ExportDAO.CSchema(
+                schema.approximateRowCount,
+                schema.dataVersion,
+                schema.lastModified.map(time => dateTimeParser.parseDateTime(time)),
+                schema.locale,
+                schema.pk.map(ds.columnsById(_).fieldName),
+                schema.rowCount,
+                schema.schema.map {
+                  f => ColumnInfo(ds.columnsById(f.c).id, ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t)
+                }
+              )
+              ExportDAO.Success(simpleSchema, etag, decodedSchema.rows)
+            case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
+              store.resolveSchemaInconsistency(ds.systemId, newSchema)
+              retry()
+            case DataCoordinatorClient.NotModifiedResult(etags) =>
+              ExportDAO.NotModified(etags)
+            case DataCoordinatorClient.PreconditionFailedResult =>
+              ExportDAO.PreconditionFailed
+            case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+              ExportDAO.NotFound(dataset)
+            case DataCoordinatorClient.InvalidRowIdResult =>
+              ExportDAO.InvalidRowId
+            case DataCoordinatorClient.InternalServerErrorResult(code, tag, msg) =>
+              ExportDAO.InternalServerError(code, tag, msg)
+            case x =>
+              ExportDAO.InternalServerError("unknown", tag, x.toString)
           }
         case None =>
           ExportDAO.NotFound(dataset)

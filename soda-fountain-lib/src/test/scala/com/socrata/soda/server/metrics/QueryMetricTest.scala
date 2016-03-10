@@ -248,7 +248,7 @@ private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
             reqId: String, rs: ResourceScope): Result = {
     testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
   }
-  def getRow(dataset: ResourceName, schemaCheck: (Seq[ColumnRecord]) => Boolean, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
+  def getRow(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
              stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
              reqId: String, rs: ResourceScope): Result = {
     query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup, obfuscateId,
