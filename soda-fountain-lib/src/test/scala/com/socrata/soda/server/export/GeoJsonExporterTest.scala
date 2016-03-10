@@ -165,7 +165,24 @@ class GeoJsonExporterTest  extends ExporterTest {
       Array(SoQLText("Seward Park"), SoQLDate(ISODateTimeFormat.localDateParser.parseLocalDate("1902-01-01")))
     )
 
-    a [InvalidGeoJsonSchema.type] should be thrownBy { getGeoJson(columns, "hym8-ivsj", rows, false) }
+    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, false)
+    geoJson should be (JObject(Map(
+      "type"     -> JString("FeatureCollection"),
+      "features" -> JArray(Array(
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JNull,
+          "properties" -> JObject(Map("name" -> JString("Volunteer Park"), "date_constructed" -> JString("1900-01-01"))))),
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JNull,
+          "properties" -> JObject(Map("name" -> JString("Cal Anderson Park"), "date_constructed" -> JString("1901-01-01"))))),
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JNull,
+          "properties" -> JObject(Map("name" -> JString("Seward Park"), "date_constructed" -> JString("1902-01-01")))))
+      )),
+      expectedProjection)))
   }
 
   test("Dataset with multiple geo columns") {
@@ -181,7 +198,26 @@ class GeoJsonExporterTest  extends ExporterTest {
             SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-124.314822 49.630269)").get))
     )
 
-    a [InvalidGeoJsonSchema.type] should be thrownBy { getGeoJson(columns, "hym8-ivsj", rows, false) }
+    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, false)
+    geoJson should be (JObject(Map(
+      "type"     -> JString("FeatureCollection"),
+      "features" -> JArray(Array(
+        JObject(Map(
+          "type"     -> JString("Feature"),
+          "geometry" -> JObject(Map(
+            "type" -> JString("Point"),
+            "coordinates" -> JArray(Array(JNumber.unsafeFromString("-122.314822"),
+              JNumber.unsafeFromString("47.630269"))))),
+          "properties" -> JObject(Map(
+            "name" -> JString("Volunteer Park"),
+            "location2" ->
+              JObject(Map(
+              "type" -> JString("Point"),
+              "coordinates" -> JArray(Array(JNumber.unsafeFromString("-124.314822"),
+                JNumber.unsafeFromString("49.630269")))))
+          ))))
+      )),
+      expectedProjection)))
   }
 
   private class FakeServletOutputStream(underlying: OutputStream) extends ServletOutputStream {
