@@ -134,7 +134,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
   case class copyService(resourceName: ResourceName) extends SodaResource {
     def keepSnapshot(req: HttpServletRequest) =
-      try { Option(req.getParameter("keepSnapshot")).map(_.toBoolean) }
+      try { Option(req.getParameter("keep_snapshot")).map(_.toBoolean) }
       catch { case e: IllegalArgumentException => ??? /* TODO: Proper error */ }
 
     // TODO: not GET
