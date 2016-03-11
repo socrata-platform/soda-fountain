@@ -183,63 +183,61 @@ case class Resource(rowDAO: RowDAO,
               case Some((mimeType, charset, language)) =>
                 val exporter = Exporter.exportForMimeType(mimeType)
                 val obfuscateId = reqObfuscateId(req)
-                using(new ResourceScope()) { resourceScope =>
-                  rowDAO.query(
-                    resourceName.value,
-                    newPrecondition.map(_.dropRight(suffix.length)),
-                    req.dateTimeHeader("If-Modified-Since"),
-                    Option(req.getParameter(qpQuery)).getOrElse(qpQueryDefault),
-                    Option(req.getParameter(qpRowCount)),
-                    Stage(req.getParameter(qpCopy)),
-                    Option(req.getParameter(qpSecondary)),
-                    Option(req.getParameter(qpNoRollup)).isDefined,
-                    obfuscateId,
-                    RequestId.getFromRequest(req),
-                    resourceScope) match {
-                    case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
-                      metric(QuerySuccessMetric)
-                      if (isConditionalGet(req)) {
-                        metric(QueryCacheMiss)
-                      }
-                      val latencyMs = System.currentTimeMillis - start
-                      if (rollup.isDefined) queryLatencyRollup += latencyMs
-                      else                  queryLatencyNonRollup += latencyMs
-                      val createHeader =
-                        OK ~>
-                          ContentType(mimeType.toString) ~>
-                          Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
-                          ETags(etags.map(prepareTag)) ~>
-                          optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
-                          optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
-                          optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
-                          Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
-                      createHeader ~> exporter.export(charset, schema, rows, singleRow = false, obfuscateId)
-                    case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
-                      metric(QueryCacheHit)
-                      SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))
-                    case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
-                      metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
-                    case RowDAO.DatasetNotFound(resourceName) =>
-                      metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))
-                    case RowDAO.QCError(status, qcErr) =>
-                      metricByStatus(status)
-                      SodaUtils.errorResponse(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
-                    case RowDAO.InvalidRequest(client, status, body) =>
-                      metricByStatus(status)
-                      SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
-                        "code"  -> JNumber(status),
-                        "data" -> body))
-                    case RowDAO.InternalServerError(status, client, code, tag, data) =>
-                      metricByStatus(status)
-                      SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
-                        "status" -> JNumber(status),
-                        "code"  -> JString(code),
-                        "data" -> JString(data),
-                        "tag" -> JString(tag)))
+                rowDAO.query(
+                  resourceName.value,
+                  newPrecondition.map(_.dropRight(suffix.length)),
+                  req.dateTimeHeader("If-Modified-Since"),
+                  Option(req.getParameter(qpQuery)).getOrElse(qpQueryDefault),
+                  Option(req.getParameter(qpRowCount)),
+                  Stage(req.getParameter(qpCopy)),
+                  Option(req.getParameter(qpSecondary)),
+                  Option(req.getParameter(qpNoRollup)).isDefined,
+                  obfuscateId,
+                  RequestId.getFromRequest(req),
+                  req.resourceScope) match {
+                  case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
+                    metric(QuerySuccessMetric)
+                    if (isConditionalGet(req)) {
+                      metric(QueryCacheMiss)
+                    }
+                    val latencyMs = System.currentTimeMillis - start
+                    if (rollup.isDefined) queryLatencyRollup += latencyMs
+                    else                  queryLatencyNonRollup += latencyMs
+                    val createHeader =
+                      OK ~>
+                        ContentType(mimeType.toString) ~>
+                        Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
+                        ETags(etags.map(prepareTag)) ~>
+                        optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
+                        optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
+                        optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
+                        Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
+                    createHeader ~> exporter.export(charset, schema, rows, singleRow = false, obfuscateId)
+                  case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
+                    metric(QueryCacheHit)
+                    SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))
+                  case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
+                    metric(QueryErrorUser)
+                    SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
+                  case RowDAO.DatasetNotFound(resourceName) =>
+                    metric(QueryErrorUser)
+                    SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))
+                  case RowDAO.QCError(status, qcErr) =>
+                    metricByStatus(status)
+                    SodaUtils.errorResponse(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
+                  case RowDAO.InvalidRequest(client, status, body) =>
+                    metricByStatus(status)
+                    SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
+                      "code"  -> JNumber(status),
+                      "data" -> body))
+                  case RowDAO.InternalServerError(status, client, code, tag, data) =>
+                    metricByStatus(status)
+                    SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
+                      "status" -> JNumber(status),
+                      "code"  -> JString(code),
+                      "data" -> JString(data),
+                      "tag" -> JString(tag)))
 
-                  }
                 }
               case None =>
                 metric(QueryErrorUser)
