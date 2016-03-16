@@ -36,7 +36,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   def latestCopyNumber(resourceName: ResourceName): Long = {
     lookupCopyNumber(resourceName, None).getOrElse(throw new Exception("there should always be a latest copy"))
   }
-  
+
   def lookupCopyNumber(resourceName: ResourceName, stage: Option[Stage]): Option[Long] = {
     using(dataSource.getConnection()){ connection =>
       using(connection.prepareStatement(
@@ -797,6 +797,25 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       case _ => stage
     }
   }
+
+  override def bulkDatasetLookup(ids: Set[DatasetId]): Set[ResourceName] =
+    if(ids.isEmpty) Set.empty
+    else {
+      using(dataSource.getConnection) { conn =>
+        using(conn.prepareStatement(Iterator.fill(ids.size)("?").mkString("SELECT resource_name FROM datasets WHERE dataset_system_id in (", ",", ")"))) { stmt =>
+          ids.iterator.zipWithIndex.foreach { case (id, idx) =>
+            stmt.setString(idx + 1, id.underlying)
+          }
+          using(stmt.executeQuery()) { rs =>
+            val result = Set.newBuilder[ResourceName]
+            while(rs.next()) {
+              result += new ResourceName(rs.getString(1))
+            }
+            result.result()
+          }
+        }
+      }
+    }
 }
 
 object PostgresStoreImpl {

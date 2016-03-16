@@ -159,6 +159,11 @@ case class RowNotFound(value: RowSpecifier)
      s"Row with identifier ${value.underlying} was not found",
      "value" -> JString(value.underlying))
 
+case class SnapshotNotFound(value: ResourceName, snapshot: Long)
+  extends SodaError(SC_NOT_FOUND, "soda.dataset.not-found", s"Snapshot ${snapshot} for dataset '${value.name}' was not found",
+    "dataset" -> JString(value.name),
+    "snapshot" -> JNumber(snapshot))
+
 // BAD REQUESTS
 
 case class BadParameter(param: String, value: String)
