@@ -2,7 +2,7 @@ package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.ast.JValue
 import com.socrata.http.server.util.RequestId.RequestId
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.VersionReport
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{SecondaryVersionsReport, VersionReport}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
 import com.socrata.soda.server.persistence.DatasetRecord
@@ -23,6 +23,7 @@ trait DatasetDAO {
   def markDatasetForDeletion(user: String, dataset: ResourceName): Result
   def removeDataset(user: String, dataset: ResourceName, requestId: RequestId):Result
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result
+  def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
   def getCurrentCopyNum(dataset: ResourceName): Option[Long]
 
@@ -49,6 +50,7 @@ object DatasetDAO {
   case class Created(dataset: DatasetRecord) extends SuccessResult
   case class Updated(dataset: DatasetRecord) extends SuccessResult
   case class Found(dataset: DatasetRecord) extends SuccessResult
+  case class DatasetSecondaryVersions(versions: SecondaryVersionsReport) extends SuccessResult
   case class DatasetVersion(version: VersionReport) extends SuccessResult
   case object Deleted extends SuccessResult
   case object WorkingCopyCreated extends SuccessResult

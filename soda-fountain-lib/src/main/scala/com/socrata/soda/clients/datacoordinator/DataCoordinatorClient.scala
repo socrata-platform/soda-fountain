@@ -13,6 +13,11 @@ object DataCoordinatorClient {
 
   val client = "DC"
 
+  @JsonKeyStrategy(Strategy.Underscore)
+  case class SecondaryVersionsReport(truthVersion: Long, secondaries: Map[String, Long], feedbackSecondaries: Set[String])
+  object SecondaryVersionsReport {
+    implicit val codec = AutomaticJsonCodecBuilder[SecondaryVersionsReport]
+  }
 
   case class VersionReport(val version: Long)
   object VersionReport{
@@ -136,6 +141,9 @@ trait DataCoordinatorClient {
                          user: String,
                          extraHeaders: Map[String, String] = Map.empty)
                         (f: Result => T): T
+
+  def checkVersionInSecondaries(datasetId: DatasetId,
+                                extraHeaders: Map[String, String] = Map.empty): SecondaryVersionsReport
 
   def checkVersionInSecondary(datasetId: DatasetId,
                               secondaryId: SecondaryId,

@@ -30,6 +30,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def createUrl(host: RequestBuilder) = host.p("dataset")
   def mutateUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
   def schemaUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "schema")
+  def secondariesUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("secondaries-of-dataset", datasetId.underlying)
   def secondaryUrl(host: RequestBuilder, secondaryId: SecondaryId, datasetId: DatasetId) = host.p("secondary-manifest", secondaryId.underlying, datasetId.underlying)
   def exportUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
 
@@ -380,6 +381,28 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       val deleteScript = new MutationScript(user, DropDataset(schemaHash), Iterator.empty)
       val req = mutateUrl(host, datasetId).method(HttpMethods.DELETE).addHeaders(extraHeaders)
       sendNonCreateScript(req, deleteScript)(f)
+    }
+  }
+
+  def checkVersionInSecondaries(datasetId: DatasetId,
+                                extraHeaders: Map[String, String] = Map.empty): SecondaryVersionsReport = {
+    withHost(datasetId) { host =>
+      val request = secondariesUrl(host, datasetId)
+        .addHeader(("Content-type", "application/json"))
+        .addHeaders(extraHeaders)
+        .get
+      httpClient.execute(request).run { response =>
+        response.resultCode match {
+          case HttpServletResponse.SC_OK =>
+            val oVers = response.value[SecondaryVersionsReport]()
+            oVers match {
+              case Right(vers) => vers
+              case Left(_) => throw new Exception("secondary versions not found")
+            }
+          case HttpServletResponse.SC_NOT_FOUND => throw new Exception("dataset not found")
+          case _ => throw new Exception("unexpected error code, secondary versions not found")
+        }
+      }
     }
   }
 

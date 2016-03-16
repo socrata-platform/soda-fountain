@@ -215,6 +215,16 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       }
   }
 
+  def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result =
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        val vrs = dc.checkVersionInSecondaries(datasetRecord.systemId,
+          traceHeaders(requestId, dataset))
+        DatasetSecondaryVersions(vrs)
+      case None =>
+        DatasetNotFound(dataset)
+    }
+
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
