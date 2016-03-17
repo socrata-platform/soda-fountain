@@ -217,13 +217,24 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       }
   }
 
+  def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result =
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        dc.checkVersionInSecondaries(datasetRecord.systemId, traceHeaders(requestId, dataset)) match {
+          case Right(vrs) => vrs.map(DatasetSecondaryVersions).getOrElse(DatasetNotFound(dataset))
+          case Left(fail) => UnexpectedInternalServerResponse(fail.reason, fail.tag)
+        }
+      case None =>
+        DatasetNotFound(dataset)
+    }
+
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        val vr = dc.checkVersionInSecondary(datasetRecord.systemId,
-                                            secondary,
-                                            traceHeaders(requestId, dataset))
-        DatasetVersion(vr)
+        dc.checkVersionInSecondary(datasetRecord.systemId, secondary, traceHeaders(requestId, dataset)) match {
+          case Right(vr) => vr.map(DatasetVersion).getOrElse(DatasetNotFound(dataset))
+          case Left(fail) => UnexpectedInternalServerResponse(fail.reason, fail.tag)
+        }
       case None =>
         DatasetNotFound(dataset)
     }
