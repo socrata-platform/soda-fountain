@@ -384,8 +384,11 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
+  val UninterpretableDataCoordinatorResponseBody = "uninterpretable response body from data-coordinator"
+  def UnexpectedDataCoordinatorResponseCode(code: Int) = s"unexpected response code from data-coordinator: $code"
+
   def checkVersionInSecondaries(datasetId: DatasetId,
-                                extraHeaders: Map[String, String] = Map.empty): SecondaryVersionsReport = {
+                                extraHeaders: Map[String, String] = Map.empty): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]] = {
     withHost(datasetId) { host =>
       val request = secondariesUrl(host, datasetId)
         .addHeader(("Content-type", "application/json"))
@@ -396,11 +399,17 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
           case HttpServletResponse.SC_OK =>
             val oVers = response.value[SecondaryVersionsReport]()
             oVers match {
-              case Right(vers) => vers
-              case Left(_) => throw new Exception("secondary versions not found")
+              case Right(vers) => Right(Some(vers))
+              case Left(other) =>
+                val reason = UninterpretableDataCoordinatorResponseBody
+                log.error(s"{}: {}", reason: Any, other.english)
+                Left(UnexpectedInternalServerResponseResult(reason, tag))
             }
-          case HttpServletResponse.SC_NOT_FOUND => throw new Exception("dataset not found")
-          case _ => throw new Exception("unexpected error code, secondary versions not found")
+          case HttpServletResponse.SC_NOT_FOUND => Right(None)
+          case other =>
+            val reason = UnexpectedDataCoordinatorResponseCode(other)
+            log.error(reason)
+            Left(UnexpectedInternalServerResponseResult(reason, tag))
         }
       }
     }
@@ -408,7 +417,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
 
   def checkVersionInSecondary(datasetId: DatasetId,
                               secondaryId: SecondaryId,
-                              extraHeaders: Map[String, String] = Map.empty): VersionReport = {
+                              extraHeaders: Map[String, String] = Map.empty): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]] = {
     withHost(datasetId) { host =>
       val request = secondaryUrl(host, secondaryId, datasetId)
         .addHeader(("Content-type", "application/json"))
@@ -419,11 +428,17 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
           case HttpServletResponse.SC_OK =>
             val oVer = response.value[VersionReport]()
             oVer match {
-              case Right(ver) => ver
-              case Left(_) => throw new Exception("version not found")
+              case Right(ver) => Right(Some(ver))
+              case Left(other) =>
+                val reason = UninterpretableDataCoordinatorResponseBody
+                log.error(s"{}: {}", reason: Any, other.english)
+                Left(UnexpectedInternalServerResponseResult(reason, tag))
             }
-          case HttpServletResponse. SC_NOT_FOUND => throw new Exception("version not found")
-          case _ => throw new Exception("unexpected error code, version not found")
+          case HttpServletResponse.SC_NOT_FOUND => Right(None)
+          case other =>
+            val reason = UnexpectedDataCoordinatorResponseCode(other)
+            log.error(reason)
+            Left(UnexpectedInternalServerResponseResult(reason, tag))
         }
       }
     }

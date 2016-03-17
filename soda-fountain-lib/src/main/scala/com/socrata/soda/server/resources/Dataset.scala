@@ -98,6 +98,9 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         SodaUtils.errorResponse(req, UnsupportedUpdateOperation(message))
       case DatasetDAO.InternalServerError(code, tag, data) =>
         SodaUtils.errorResponse(req, InternalError(tag, "code"  -> JString(code), "data" -> JString(data)))
+      case DatasetDAO.UnexpectedInternalServerResponse(reason, tag) =>
+        SodaUtils.errorResponse(req, InternalError(tag, "reason"  -> JString(reason)))
+
     }
   }
 

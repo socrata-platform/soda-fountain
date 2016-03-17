@@ -48,6 +48,7 @@ object DataCoordinatorClient {
   case class NoSuchRollupResult(name: RollupName, commandIndex: Long) extends FailResult
   case object PreconditionFailedResult extends FailResult
   case class InternalServerErrorResult(code: String, tag: String, data: String) extends FailResult
+  case class UnexpectedInternalServerResponseResult(reason: String, tag: String) extends FailResult
   case class InvalidLocaleResult(locale: String, commandIndex: Long) extends FailResult
   case object InvalidRowIdResult extends FailResult
 
@@ -143,11 +144,11 @@ trait DataCoordinatorClient {
                         (f: Result => T): T
 
   def checkVersionInSecondaries(datasetId: DatasetId,
-                                extraHeaders: Map[String, String] = Map.empty): SecondaryVersionsReport
+                                extraHeaders: Map[String, String] = Map.empty): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]]
 
   def checkVersionInSecondary(datasetId: DatasetId,
                               secondaryId: SecondaryId,
-                              extraHeaders: Map[String, String] = Map.empty): VersionReport
+                              extraHeaders: Map[String, String] = Map.empty): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]]
 
   def exportSimple(datasetId: DatasetId, copy: String, resourceScope: ResourceScope): Result
 

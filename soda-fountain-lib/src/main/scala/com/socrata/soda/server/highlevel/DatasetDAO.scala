@@ -65,6 +65,7 @@ object DatasetDAO {
   case class DatasetNotFound(name: ResourceName) extends FailResult
   case class CannotAcquireDatasetWriteLock(name: ResourceName) extends FailResult
   case class InternalServerError(code: String, tag: String, data: String) extends FailResult
+  case class UnexpectedInternalServerResponse(reason: String, tag: String) extends FailResult
 
   // FAILURES: Internally consumed
   case class InvalidDatasetName(name: ResourceName) extends FailResult
