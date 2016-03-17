@@ -160,7 +160,7 @@ case class RowNotFound(value: RowSpecifier)
      "value" -> JString(value.underlying))
 
 case class SnapshotNotFound(value: ResourceName, snapshot: Long)
-  extends SodaError(SC_NOT_FOUND, "soda.dataset.not-found", s"Snapshot ${snapshot} for dataset '${value.name}' was not found",
+  extends SodaError(SC_NOT_FOUND, "soda.snapshot.not-found", s"Snapshot ${snapshot} for dataset '${value.name}' was not found",
     "dataset" -> JString(value.name),
     "snapshot" -> JNumber(snapshot))
 

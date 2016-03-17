@@ -9,7 +9,6 @@ import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
-import com.socrata.soda.clients.datacoordinator
 import com.socrata.soda.server.id.{ColumnId, RowSpecifier, DatasetId, SecondaryId}
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
