@@ -5,6 +5,7 @@ import com.rojoma.json.v3.io._
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonArrayIterator}
 import com.rojoma.simplearm.v2._
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
+import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
@@ -422,6 +423,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         PreconditionFailedResult
       case NoSuchDataset(dataset) =>
         DatasetNotFoundResult(dataset)
+      case NoSuchSnapshot(dataset, copyspec) =>
+        SnapshotNotFoundResult(dataset, copyspec)
       case cbr: ContentTypeBadRequest =>
         InternalServerErrorResult(cbr.code, tag, cbr.contentTypeError)
       case InvalidRowId() =>
@@ -446,9 +449,10 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         errorFrom(r) match {
           case None =>
             val etag = r.headers("ETag").headOption.map(EntityTagParser.parse(_))
+            val lastModified = r.headers("Last-Modified").headOption.map(HttpUtils.parseHttpDate)
             tmpScope.transfer(r).to(resourceScope)
             val array = resourceScope.openUnmanaged(r.array[JValue](), transitiveClose = List(r))
-            ExportResult(array, etag)
+            ExportResult(array, lastModified, etag)
           case Some(err) =>
             convertExportError(r, err)
         }
@@ -487,9 +491,10 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         errorFrom(r) match {
           case None =>
             val etag = r.headers("ETag").headOption.map(EntityTagParser.parse(_))
+            val lastModified = r.headers("Last-Modified").headOption.map(HttpUtils.parseHttpDate)
             tmpScope.transfer(r).to(resourceScope)
             val array = resourceScope.openUnmanaged(r.array[JValue](), transitiveClose = List(r))
-            ExportResult(array, etag)
+            ExportResult(array, lastModified, etag)
           case Some(err) =>
             convertExportError(r, err)
         }

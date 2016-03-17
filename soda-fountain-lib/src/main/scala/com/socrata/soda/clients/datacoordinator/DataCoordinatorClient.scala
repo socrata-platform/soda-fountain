@@ -33,7 +33,7 @@ object DataCoordinatorClient {
 
   // SUCCESS CASES
   case class NonCreateScriptResult(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, lastModified: DateTime) extends SuccessResult
-  case class ExportResult(json: Iterator[JValue], etag: Option[EntityTag]) extends SuccessResult
+  case class ExportResult(json: Iterator[JValue], lastModified: Option[DateTime], etag: Option[EntityTag]) extends SuccessResult
 
 
 

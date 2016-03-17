@@ -43,7 +43,7 @@ object JsonExporter extends Exporter {
         Header(xhDeprecation, "X-SODA2-Fields and X-SODA2-Types are deprecated and have been suppressed for being too large.  Use the c-json output format if you require this information.")
       }
 
-    rowCountHeaders ~> deprecatedSodaHeaders ~> Write(mt) { rawWriter =>
+    exporterHeaders(schema) ~> rowCountHeaders ~> deprecatedSodaHeaders ~> Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
         class Processor {
           val writer = w

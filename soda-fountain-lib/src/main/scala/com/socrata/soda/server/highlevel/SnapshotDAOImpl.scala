@@ -4,8 +4,8 @@ import java.nio.charset.StandardCharsets
 
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.common.util.AliasedCharset
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ExportResult
+import com.socrata.soda.clients.datacoordinator.{NoSuchDataset, NoSuchSnapshot, DataCoordinatorClient}
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{DatasetNotFoundResult, SnapshotNotFoundResult, ExportResult}
 import com.socrata.soda.server.export.CsvExporter
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
@@ -51,7 +51,7 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
       case dss if dss.nonEmpty =>
         val ds = dss.head
         dc.exportSimple(ds.systemId, snapshot.toString, resourceScope) match {
-          case ExportResult(json, _) =>
+          case ExportResult(json, _, _) =>
             val decodedSchema = CJson.decode(json, JsonColumnRep.forDataCoordinatorType)
             val schema = decodedSchema.schema
             SnapshotDAO.Export(
@@ -60,7 +60,7 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
                 ExportDAO.CSchema(
                   approximateRowCount = None,
                   dataVersion = None,
-                  lastModified = None,
+                  lastModified = schema.lastModified.map(time => ExportDAO.dateTimeParser.parseDateTime(time)),
                   locale = schema.locale,
                   pk = None,
                   rowCount = None,
@@ -69,7 +69,10 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
                     ColumnInfo(f.c, fieldName, fieldName.name, f.t)
                   }),
                 decodedSchema.rows))
-          // TODO: Snapshot not found
+          case SnapshotNotFoundResult(_, _) =>
+            SnapshotDAO.SnapshotNotFound
+          case DatasetNotFoundResult(_) =>
+            SnapshotDAO.DatasetNotFound
           case other =>
             log.error("Unexpected result from simple export: {}", other)
             throw new Exception("Unexpected result from simple export: " + other)

@@ -27,7 +27,7 @@ object CJsonExporter extends Exporter {
              obfuscateId: Boolean = true): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
-    Write(mt) { rawWriter =>
+    exporterHeaders(schema) ~> Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
         val jw = new CompactJsonWriter(w)
         val schemaOrdering = schema.schema.zipWithIndex.sortBy(_._1.fieldName).map(_._2).toArray
