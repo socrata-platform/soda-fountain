@@ -139,6 +139,9 @@ case class InitialCopyDrop(dataset: DatasetId, commandIndex: Long) extends DCDat
 @Tag("update.dataset.operation-after-drop")
 case class OperationAfterDrop(dataset: DatasetId, commandIndex: Long) extends DCDatasetUpdateError
 
+@Tag("update.dataset.feedback-in-progress")
+case class FeedbackInProgress(dataset: DatasetId, commandIndex: Long, stores: Set[String]) extends DCDatasetUpdateError
+
 // Update Errors: Row
 
 @Tag("update.row.primary-key-nonexistent-or-null")

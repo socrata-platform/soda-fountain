@@ -76,6 +76,7 @@ object DataCoordinatorClient {
   case class CannotAcquireDatasetWriteLockResult(datasetId: DatasetId) extends FailResult
   case class InitialCopyDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
   case class OperationAfterDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
+  case class FeedbackInProgressResult(datasetId: DatasetId, commandIndex: Long, stores: Set[String]) extends FailResult
 
   // FAIL CASES: Updates
   case class NotPrimaryKeyResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult

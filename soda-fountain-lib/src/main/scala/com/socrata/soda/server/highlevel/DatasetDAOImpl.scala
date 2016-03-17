@@ -289,6 +289,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
               DatasetNotFound(dataset)
             case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
               CannotAcquireDatasetWriteLock(dataset)
+            case DataCoordinatorClient.FeedbackInProgressResult(_, _, stores) =>
+              FeedbackInProgress(dataset, stores)
             case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
               InternalServerError(code, tag, data)
             case x =>
@@ -319,6 +321,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                   DatasetNotFound(dataset)
                 case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
                   CannotAcquireDatasetWriteLock(dataset)
+                case DataCoordinatorClient.FeedbackInProgressResult(_, _, stores) =>
+                  FeedbackInProgress(dataset, stores)
                 case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
                   InternalServerError(code, tag, data)
                 case x =>
@@ -349,6 +353,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
               DatasetNotFound(dataset)
             case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
               CannotAcquireDatasetWriteLock(dataset)
+            case DataCoordinatorClient.FeedbackInProgressResult(_, _, stores) =>
+              FeedbackInProgress(dataset, stores)
             case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
               InternalServerError(code, tag, data)
             case x =>

@@ -94,6 +94,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         SodaUtils.errorResponse(req, RollupColumnNotFound(column))
       case DatasetDAO.CannotAcquireDatasetWriteLock(dataset) =>
         SodaUtils.errorResponse(req, DatasetWriteLockError(dataset))
+      case DatasetDAO.FeedbackInProgress(dataset, stores) =>
+        SodaUtils.errorResponse(req, FeedbackInProgressError(dataset, stores))
       case DatasetDAO.UnsupportedUpdateOperation(message) =>
         SodaUtils.errorResponse(req, UnsupportedUpdateOperation(message))
       case DatasetDAO.InternalServerError(code, tag, data) =>
