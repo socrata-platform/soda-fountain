@@ -236,6 +236,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 f(Left(InitialCopyDropResult(dataset, commandIndex)))
               case OperationAfterDrop(dataset, commandIndex) =>
                 f(Left(OperationAfterDropResult(dataset, commandIndex)))
+              case FeedbackInProgress(dataset, commandIndex, stores) =>
+                f(Left(FeedbackInProgressResult(dataset, commandIndex, stores)))
             }
             case (updateError: DCUpdateError) => updateError match {
               case SystemInReadOnlyMode(commandIndex) =>
