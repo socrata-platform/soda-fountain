@@ -3,6 +3,7 @@ package com.socrata.soda.server.wiremodels
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
 import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
+import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
 import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
@@ -190,6 +191,8 @@ object JsonColumnRep {
           val map: Map[String, JValue] = jo.map {
             case (key, JString(s)) if (key == "latitude" || key == "longitude") =>
               (key, try { JNumber(new java.math.BigDecimal(s)) } catch { case e: NumberFormatException => JNull })
+            case (key@"human_address", jo: JObject) =>
+              (key, JString(JsonUtil.renderJson(jo)))
             case x => x
           }(collection.breakOut)
           JObject(map)
