@@ -14,6 +14,11 @@ object DataCoordinatorClient {
 
   val client = "DC"
 
+  @JsonKeyStrategy(Strategy.Underscore)
+  case class SecondaryVersionsReport(truthVersion: Long, secondaries: Map[String, Long], feedbackSecondaries: Set[String])
+  object SecondaryVersionsReport {
+    implicit val codec = AutomaticJsonCodecBuilder[SecondaryVersionsReport]
+  }
 
   case class VersionReport(val version: Long)
   object VersionReport{
@@ -44,6 +49,7 @@ object DataCoordinatorClient {
   case class NoSuchRollupResult(name: RollupName, commandIndex: Long) extends FailResult
   case object PreconditionFailedResult extends FailResult
   case class InternalServerErrorResult(code: String, tag: String, data: String) extends FailResult
+  case class UnexpectedInternalServerResponseResult(reason: String, tag: String) extends FailResult
   case class InvalidLocaleResult(locale: String, commandIndex: Long) extends FailResult
   case object InvalidRowIdResult extends FailResult
 
@@ -70,6 +76,7 @@ object DataCoordinatorClient {
   case class CannotAcquireDatasetWriteLockResult(datasetId: DatasetId) extends FailResult
   case class InitialCopyDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
   case class OperationAfterDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
+  case class FeedbackInProgressResult(datasetId: DatasetId, commandIndex: Long, stores: Set[String]) extends FailResult
 
   // FAIL CASES: Updates
   case class NotPrimaryKeyResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult
@@ -139,9 +146,12 @@ trait DataCoordinatorClient {
                          extraHeaders: Map[String, String] = Map.empty)
                         (f: Result => T): T
 
+  def checkVersionInSecondaries(datasetId: DatasetId,
+                                extraHeaders: Map[String, String] = Map.empty): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]]
+
   def checkVersionInSecondary(datasetId: DatasetId,
                               secondaryId: SecondaryId,
-                              extraHeaders: Map[String, String] = Map.empty): VersionReport
+                              extraHeaders: Map[String, String] = Map.empty): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]]
 
   def datasetsWithSnapshots(): Set[DatasetId]
   def listSnapshots(datasetId: DatasetId): Option[Seq[Long]]

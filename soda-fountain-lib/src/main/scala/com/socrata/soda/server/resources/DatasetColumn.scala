@@ -103,16 +103,23 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     }
 
     override def put = { req => resp =>
+      val userFromReq = user(req)
+      val requestId = RequestId.getFromRequest(req)
       withColumnSpec(req, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          columnDAO.replaceOrCreateColumn(user(req), resourceName, precondition, columnName,
-                                          spec, RequestId.getFromRequest(req)) match {
+          columnDAO.replaceOrCreateColumn(userFromReq, resourceName, precondition, columnName,
+                                          spec, requestId) match {
             case success: ColumnDAO.UpdateSuccessResult =>
               if (spec.computationStrategy.isDefined &&
                   // optionally break apart rows computation into separate call.
                   "false" != req.getParameter("compute")) {
-                computeUtils.compute(req, resp, resourceName, columnName, user(req)) {
-                  case (res, report) => response(req, success)(resp)
+                try {
+                  computeUtils.compute(req, resp, resourceName, columnName, user(req)) {
+                    case (res, report) => response(req, success)(resp)
+                  }
+                } catch { case e: Exception =>
+                  columnDAO.deleteColumn(userFromReq, resourceName, columnName, requestId)
+                  throw e
                 }
               }
               else response(req, success)(resp)

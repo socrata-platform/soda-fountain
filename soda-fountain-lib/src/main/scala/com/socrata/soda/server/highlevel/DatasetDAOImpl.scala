@@ -217,13 +217,24 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       }
   }
 
+  def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result =
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        dc.checkVersionInSecondaries(datasetRecord.systemId, traceHeaders(requestId, dataset)) match {
+          case Right(vrs) => vrs.map(DatasetSecondaryVersions).getOrElse(DatasetNotFound(dataset))
+          case Left(fail) => UnexpectedInternalServerResponse(fail.reason, fail.tag)
+        }
+      case None =>
+        DatasetNotFound(dataset)
+    }
+
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        val vr = dc.checkVersionInSecondary(datasetRecord.systemId,
-                                            secondary,
-                                            traceHeaders(requestId, dataset))
-        DatasetVersion(vr)
+        dc.checkVersionInSecondary(datasetRecord.systemId, secondary, traceHeaders(requestId, dataset)) match {
+          case Right(vr) => vr.map(DatasetVersion).getOrElse(DatasetNotFound(dataset))
+          case Left(fail) => UnexpectedInternalServerResponse(fail.reason, fail.tag)
+        }
       case None =>
         DatasetNotFound(dataset)
     }
@@ -278,6 +289,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
               DatasetNotFound(dataset)
             case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
               CannotAcquireDatasetWriteLock(dataset)
+            case DataCoordinatorClient.FeedbackInProgressResult(_, _, stores) =>
+              FeedbackInProgress(dataset, stores)
             case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
               InternalServerError(code, tag, data)
             case x =>
@@ -308,6 +321,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
                   DatasetNotFound(dataset)
                 case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
                   CannotAcquireDatasetWriteLock(dataset)
+                case DataCoordinatorClient.FeedbackInProgressResult(_, _, stores) =>
+                  FeedbackInProgress(dataset, stores)
                 case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
                   InternalServerError(code, tag, data)
                 case x =>
@@ -338,6 +353,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
               DatasetNotFound(dataset)
             case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
               CannotAcquireDatasetWriteLock(dataset)
+            case DataCoordinatorClient.FeedbackInProgressResult(_, _, stores) =>
+              FeedbackInProgress(dataset, stores)
             case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
               InternalServerError(code, tag, data)
             case x =>
@@ -427,13 +444,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
           DatasetNotFound(dataset)
       }
 
-  private def analyzeQuery(ds: MinimalDatasetRecord, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLAnalysisType]] = {
+  private def analyzeQuery(ds: MinimalDatasetRecord, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLType]] = {
     val columnIdMap: Map[ColumnName, String] = ds.columnsByName.mapValues(_.id.underlying)
     val rawSchema: Map[String, SoQLType] = ds.schemaSpec.schema.map { case (k, v) => (k.underlying, v) }
 
     val analyzer = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
 
-    val dsCtx = new DatasetContext[SoQLAnalysisType] {
+    val dsCtx = new DatasetContext[SoQLType] {
       val schema = OrderedMap(columnIdMap.mapValues(rawSchema).toSeq.sortBy(_._1) : _*)
     }
     try {

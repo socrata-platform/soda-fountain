@@ -4,7 +4,9 @@
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
 
-    <changeSet author="Alexa Rust" id="20160216-drop-recompute-from-computation-strategies">
-        <sqlFile path="com/socrata/soda/server/persistence/pg/sql/drop_recompute_from_computation_strategies.sql"/>
+    <changeSet author="Alexa Rust" id="20160308-add-recompute-default-value">
+        <addDefaultValue tableName="computation_strategies"
+                         columnName="recompute"
+                         defaultValueBoolean="FALSE"/>
     </changeSet>
 </databaseChangeLog>

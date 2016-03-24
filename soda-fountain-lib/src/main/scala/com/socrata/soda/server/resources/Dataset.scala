@@ -55,6 +55,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         OK ~> Json(record.asSpec)
       case DatasetDAO.Found(record) =>
         OK ~> Json(record.asSpec)
+      case DatasetDAO.DatasetSecondaryVersions(vrs) =>
+        OK ~> Json(vrs)
       case DatasetDAO.DatasetVersion(vr) =>
         OK ~> Json(vr)
       case DatasetDAO.Created(record) =>
@@ -92,10 +94,15 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         SodaUtils.errorResponse(req, RollupColumnNotFound(column))
       case DatasetDAO.CannotAcquireDatasetWriteLock(dataset) =>
         SodaUtils.errorResponse(req, DatasetWriteLockError(dataset))
+      case DatasetDAO.FeedbackInProgress(dataset, stores) =>
+        SodaUtils.errorResponse(req, FeedbackInProgressError(dataset, stores))
       case DatasetDAO.UnsupportedUpdateOperation(message) =>
         SodaUtils.errorResponse(req, UnsupportedUpdateOperation(message))
       case DatasetDAO.InternalServerError(code, tag, data) =>
         SodaUtils.errorResponse(req, InternalError(tag, "code"  -> JString(code), "data" -> JString(data)))
+      case DatasetDAO.UnexpectedInternalServerResponse(reason, tag) =>
+        SodaUtils.errorResponse(req, InternalError(tag, "reason"  -> JString(reason)))
+
     }
   }
 
@@ -151,6 +158,12 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     override def put = { req =>
       response(req, datasetDAO.publish(user(req), resourceName, keepSnapshot = keepSnapshot(req),
                                        requestId = RequestId.getFromRequest(req)))
+    }
+  }
+
+  case class secondaryVersionsService(resource: ResourceName) extends SodaResource {
+    override def get = { req =>
+      response(req, datasetDAO.getSecondaryVersions(resource, RequestId.getFromRequest(req)))
     }
   }
 

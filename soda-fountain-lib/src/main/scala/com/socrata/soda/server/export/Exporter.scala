@@ -17,8 +17,6 @@ trait Exporter {
   def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true): HttpResponse
-  def validForSchema(schema: Seq[ColumnRecordLike]): Boolean = true
-
   protected def exporterHeaders(schema: ExportDAO.CSchema): HttpResponse =
     schema.lastModified.fold(NoOp) { lm =>
       Header("Last-Modified", HttpUtils.HttpDateFormat.print(lm))

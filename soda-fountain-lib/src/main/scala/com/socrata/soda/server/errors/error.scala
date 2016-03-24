@@ -232,6 +232,12 @@ case class DatasetWriteLockError(dataset: ResourceName)
     s"Dataset ${dataset.name} cannot acquire a write lock",
     "dataset" -> JString(dataset.name))
 
+case class FeedbackInProgressError(dataset: ResourceName, stores: Set[String])
+  extends SodaError(SC_CONFLICT, "soda.dataset.feedback-in-progress",
+    s"Dataset ${dataset.name} is undergoing asynchronous processing; publication stage cannot be changed",
+    "dataset" -> JString(dataset.name),
+    "stores" -> JsonEncode.toJValue(stores))
+
 case class LocaleChangedError(locale: String)
   extends SodaError(SC_CONFLICT, "soda.dataset.locale-changed",
     s"Dataset locale is different from the default locale of $locale",
