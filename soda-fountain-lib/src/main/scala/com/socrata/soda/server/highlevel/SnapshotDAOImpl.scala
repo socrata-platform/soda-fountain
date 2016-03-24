@@ -65,8 +65,8 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
                   pk = None,
                   rowCount = None,
                   schema = schema.schema.map { f =>
-                    val fieldName = f.f.getOrElse(ColumnName(f.c.underlying))
-                    ColumnInfo(f.c, fieldName, fieldName.name, f.t)
+                    val fieldName = f.fieldName.getOrElse(ColumnName(f.columnId.underlying))
+                    ColumnInfo(f.columnId, fieldName, fieldName.name, f.typ)
                   }),
                 decodedSchema.rows))
           case SnapshotNotFoundResult(_, _) =>

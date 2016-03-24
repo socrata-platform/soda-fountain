@@ -59,8 +59,12 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                   schema.locale,
                   schema.pk.map(ds.columnsById(_).fieldName),
                   schema.rowCount,
-                  schema.schema.map {
-                    f => ColumnInfo(ds.columnsById(f.c).id, ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t)
+                  schema.schema.map { f =>
+                    ColumnInfo(
+                      ds.columnsById(f.columnId).id,
+                      ds.columnsById(f.columnId).fieldName,
+                      ds.columnsById(f.columnId).name,
+                      f.typ)
                   }
                 )
                 ExportDAO.Success(simpleSchema, etag, decodedSchema.rows)
