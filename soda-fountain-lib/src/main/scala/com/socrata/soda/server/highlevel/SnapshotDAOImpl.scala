@@ -12,6 +12,7 @@ import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.types.SoQLValue
 
 class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extends SnapshotDAO {
   private val log = org.slf4j.LoggerFactory.getLogger(classOf[SnapshotDAOImpl])
@@ -54,6 +55,10 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
           case ExportResult(json, _, _) =>
             val decodedSchema = CJson.decode(json, JsonColumnRep.forDataCoordinatorType)
             val schema = decodedSchema.schema
+            val toKeep = Array[Boolean](schema.schema.map { f => !f.fieldName.fold(f.columnId.underlying)(_.name).startsWith(":") } : _*)
+            val mappedRows = decodedSchema.rows.map { r =>
+              (r, toKeep).zipped.collect { case (v, true) => v }.toArray
+            }
             SnapshotDAO.Export(
               CsvExporter.export(
                 AliasedCharset(StandardCharsets.UTF_8, "utf-8"),
@@ -67,8 +72,8 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
                   schema = schema.schema.map { f =>
                     val fieldName = f.fieldName.getOrElse(ColumnName(f.columnId.underlying))
                     ColumnInfo(f.columnId, fieldName, fieldName.name, f.typ)
-                  }),
-                decodedSchema.rows))
+                  }.zip(toKeep).collect { case (v, true) => v }),
+                mappedRows))
           case SnapshotNotFoundResult(_, _) =>
             SnapshotDAO.SnapshotNotFound
           case DatasetNotFoundResult(_) =>
