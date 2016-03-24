@@ -33,8 +33,11 @@ trait ExporterTest extends FunSuite with MockFactory with ProxyMockFactory with 
         decoded.locale,
         decoded.pk.map(dataset.columnsById(_).fieldName),
         decoded.rowCount,
-        decoded.schema.map {
-          f => ColumnInfo(dataset.columnsById(f.c).id, dataset.columnsById(f.c).fieldName, dataset.columnsById(f.c).name, f.t)
+        decoded.schema.map { f =>
+          ColumnInfo(dataset.columnsById(f.columnId).id,
+                     dataset.columnsById(f.columnId).fieldName,
+                     dataset.columnsById(f.columnId).name,
+                     f.typ)
         })
 
 
