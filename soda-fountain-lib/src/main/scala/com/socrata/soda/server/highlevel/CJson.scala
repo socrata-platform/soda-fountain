@@ -5,7 +5,6 @@ import com.rojoma.json.v3.codec.JsonDecode
 import com.rojoma.json.v3.util.{Strategy, JsonKeyStrategy, AutomaticJsonCodecBuilder}
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.wiremodels.{JsonColumnReadRep, JsonColumnRep}
-import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 
@@ -14,7 +13,7 @@ import scala.runtime.AbstractFunction1
 
 object CJson {
 
-  case class Field(c: ColumnId, t: SoQLType, f: Option[ColumnName])
+  case class Field(c: ColumnId, t: SoQLType)
   private implicit val fieldCodec = AutomaticJsonCodecBuilder[Field]
 
   @JsonKeyStrategy(Strategy.Underscore)

@@ -99,7 +99,7 @@ class HttpDatatCoordinatorClientTest extends FunSuite with Matchers {
 
   class MyClient extends HttpDataCoordinatorClient(null){
     def hostO(instance: String): Option[RequestBuilder] = None
-    override def instances(): Set[String] = Set.empty
+
   }
 
 }

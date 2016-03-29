@@ -2,7 +2,7 @@ package com.socrata.soda.clients.datacoordinator
 
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
-import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonArrayIterator}
+import com.rojoma.json.v3.util.JsonArrayIterator
 import com.rojoma.simplearm.v2._
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
@@ -27,16 +27,12 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   val xhCopyNumber = "X-SODA2-Truth-Copy-Number"
 
   def hostO(instance: String): Option[RequestBuilder]
-  def instances(): Set[String]
   def createUrl(host: RequestBuilder) = host.p("dataset")
   def mutateUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
   def schemaUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "schema")
   def secondariesUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("secondaries-of-dataset", datasetId.underlying)
   def secondaryUrl(host: RequestBuilder, secondaryId: SecondaryId, datasetId: DatasetId) = host.p("secondary-manifest", secondaryId.underlying, datasetId.underlying)
   def exportUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
-  def snapshottedUrl(host: RequestBuilder) = host.p("snapshotted")
-  def snapshotsUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "snapshots")
-  def snapshotUrl(host: RequestBuilder, datasetId: DatasetId, num: Long) = host.p("dataset", datasetId.underlying, "snapshots", num.toString)
 
   def withHost[T](instance: String)(f: RequestBuilder => T): T =
     hostO(instance) match {
@@ -226,8 +222,6 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
             case (datasetError: DCDatasetUpdateError) => datasetError match {
               case NoSuchDataset(dataset) =>
                 f(Left(DatasetNotFoundResult(dataset)))
-              case NoSuchSnapshot(dataset, snapshotNumber) =>
-                f(Left(SnapshotNotFoundResult(dataset, snapshotNumber)))
               case CannotAcquireDatasetWriteLock(dataset) =>
                 f(Left(CannotAcquireDatasetWriteLockResult(dataset)))
               case IncorrectLifecycleStage(dataset, actualStage, expectedStage) =>
@@ -353,14 +347,14 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
 
   def publish[T](datasetId: DatasetId,
                  schemaHash: String,
-                 keepSnapshot:Option[Boolean],
+                 snapshotLimit:Option[Int],
                  user: String,
                  instructions: Iterator[DataCoordinatorInstruction],
                  extraHeaders: Map[String, String] = Map.empty)
                 (f: Result => T): T = {
     // TODO: publish should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
-      val pubScript = new MutationScript(user, PublishDataset(keepSnapshot, schemaHash), instructions)
+      val pubScript = new MutationScript(user, PublishDataset(snapshotLimit, schemaHash), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), pubScript)(f)
     }
   }
@@ -537,69 +531,6 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     }
   }
 
-  private def datasetsWithSnapshotsOn(instance: String): Set[DatasetId] = {
-    hostO(instance).fold(Set.empty[DatasetId]) { host => // there's nothing that can go wrong here that isn't an internal error
-      val request = snapshottedUrl(host).get
-      httpClient.execute(request).run { r =>
-        errorFrom(r) match {
-          case None =>
-            r.value[Set[DatasetId]]() match {
-              case Right(ids) =>
-                ids
-              case Left(err) =>
-                // yep, this deserves an internal error
-                throw new Exception("Response from data-coordinator is not interpretable as a set of DatasetIds: " + err.english)
-            }
-          case Some(err) => // there's nothing that can go wrong with this that isn't an internal server error!
-            throw new Exception("Unexpected error from data-coordinator " + instance + " : " + err)
-        }
-      }
-    }
-  }
-
-  override def datasetsWithSnapshots(): Set[DatasetId] =
-    instances().par.flatMap(datasetsWithSnapshotsOn).seq
-
-  override def deleteSnapshot(datasetId: DatasetId, copy: Long): Either[FailResult, Unit] =
-    withHost(datasetId) { host =>
-      val request = snapshotUrl(host, datasetId, copy).delete
-      httpClient.execute(request).run { r =>
-        errorFrom(r) match {
-          case None =>
-            Right(())
-          case Some(NoSuchDataset(dsId)) =>
-            Left(DatasetNotFoundResult(dsId))
-          case Some(NoSuchSnapshot(dsId, snapshot)) =>
-            Left(SnapshotNotFoundResult(dsId, snapshot))
-          case Some(err) =>
-            // ... and everything else is an internal error
-            throw new Exception("Unexpected error from data-coordinator deleting dataset copy " + datasetId + "/" + copy + ": " + err)
-        }
-      }
-    }
-
-  override def listSnapshots(datasetId: DatasetId): Option[Seq[Long]] =
-    withHost(datasetId) { host =>
-      val request = snapshotsUrl(host, datasetId).get
-      httpClient.execute(request).run { r =>
-        errorFrom(r) match {
-          case None =>
-            case class Bit(num: Long)
-            implicit val bCodec = AutomaticJsonCodecBuilder[Bit]
-            r.value[Seq[Bit]]() match {
-              case Right(copies) =>
-                Some(copies.map(_.num))
-              case Left(err) =>
-                throw new Exception("Response from data-coordinator is not interpretable as a set of dataset descriptions: " + err.english)
-            }
-          case Some(NoSuchDataset(_)) =>
-            None
-          case Some(err) =>
-            // and everything else is an internal error
-            throw new Exception("Unexpected error from data-coordinator listing snapshots for dataset " + datasetId + ": " + err)
-        }
-      }
-    }
   /**
    * EntityTag Seq from response object
    * @param r

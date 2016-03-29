@@ -42,8 +42,6 @@ trait NameAndSchemaStore {
   def dropColumn(datasetId: DatasetId, columnId: ColumnId, copyNumber: Long) : Unit
   def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]): Unit
   def makeCopy(datasetId: DatasetId, copyNumber: Long, dataVersion: Long): Unit
-
-  def bulkDatasetLookup(id: Set[DatasetId]): Set[ResourceName]
 }
 
 trait DatasetRecordLike {
