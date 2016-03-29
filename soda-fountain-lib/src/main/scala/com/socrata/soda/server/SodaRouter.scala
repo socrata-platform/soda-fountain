@@ -9,6 +9,10 @@ import com.socrata.soda.server.errors.GeneralNotFoundError
 import com.socrata.soda.server.id.{RollupName, RowSpecifier, SecondaryId, ResourceName}
 import com.socrata.soql.environment.ColumnName
 
+case class SnapshotResources(listDatasetsResource: HttpService,  // list all datasets with snapshots
+                             listSnapshotsResource: ResourceName => HttpService, // list snapshots for a dataset
+                             snapshotResource: (ResourceName, Long) => HttpService) // export or delete the given snapshot
+
 class SodaRouter(versionResource: HttpService,
                  healthZResource: HttpService,
                  datasetCreateResource: HttpService,
@@ -28,7 +32,8 @@ class SodaRouter(versionResource: HttpService,
                  datasetRollupResource: (ResourceName, RollupName) => HttpService,
                  computeResource: (ResourceName, ColumnName) => HttpService,
                  sampleResource: (ResourceName, ColumnName) => HttpService,
-                 suggestResource: (ResourceName, ColumnName, String) => HttpService) {
+                 suggestResource: (ResourceName, ColumnName, String) => HttpService,
+                 snapshotResources: SnapshotResources) {
   private[this] implicit val ResourceNameExtractor = new Extractor[ResourceName] {
     def extract(s: String): Option[ResourceName] = Some(new ResourceName(s))
   }
@@ -70,6 +75,9 @@ class SodaRouter(versionResource: HttpService,
     Route("/dataset-version/{ResourceName}/{SecondaryId}", datasetVersionResource),
     Route("/export/{{ResourceName:exportExtensions}}", datasetExportResource),
     Route("/export/{ResourceName}/{{String:exportExtensions}}", datasetExportCopyResource),
+    Route("/snapshot", snapshotResources.listDatasetsResource),
+    Route("/snapshot/{ResourceName}", snapshotResources.listSnapshotsResource),
+    Route("/snapshot/{ResourceName}/{Long}", snapshotResources.snapshotResource),
     Route("/dataset-rollup/{ResourceName}/{RollupName}", datasetRollupResource),
     Route("/compute/{ResourceName}/{ColumnName}", computeResource),
     Route("/suggest/{ResourceName}/{ColumnName}", sampleResource),

@@ -136,7 +136,9 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           schema.locale,
           schema.pk.map(ds.columnsById(_).fieldName),
           schema.rowCount,
-          schema.schema.map { f => ColumnInfo(f.c, ColumnName(f.c.underlying), f.c.underlying, f.t) }
+          schema.schema.map { f =>
+            ColumnInfo(f.columnId, ColumnName(f.columnId.underlying), f.columnId.underlying, f.typ)
+          }
         )
         QuerySuccess(etags, ds.truthVersion, ds.lastModified, rollup, simpleSchema, decodedResult.rows)
         // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!

@@ -19,7 +19,7 @@ object CsvExporter extends Exporter {
   def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true): HttpResponse = {
-    Write(new MimeType(mimeTypeBase)) { rawWriter =>
+    exporterHeaders(schema) ~> Write(new MimeType(mimeTypeBase)) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
         val csvColumnReps = if (obfuscateId) CsvColumnRep.forType
                             else CsvColumnRep.forTypeClearId

@@ -5,6 +5,7 @@ import com.rojoma.json.v3.util._
 import com.socrata.http.server.util.EntityTag
 import com.socrata.soda.server.macros.{Tag, BranchCodec}
 import com.socrata.soda.server.id.{RowSpecifier, ColumnId, RollupName, DatasetId}
+import com.socrata.soda.server.util.CopySpecifier
 import com.socrata.soda.server.util.schema.SchemaSpec
 
 
@@ -120,6 +121,9 @@ case class ColumnNotFound(dataset: DatasetId, column: ColumnId, commandIndex: Lo
 
 @Tag("update.dataset.does-not-exist") // orignally dataset was a string, but not sure why it wouldnt be DatasetId
 case class NoSuchDataset(dataset: DatasetId) extends DCDatasetUpdateError
+
+@Tag("update.snapshot.does-not-exist")
+case class NoSuchSnapshot(dataset: DatasetId, copy: CopySpecifier) extends DCDatasetUpdateError
 
 @Tag("update.dataset.temporarily-not-writable")
 case class CannotAcquireDatasetWriteLock(dataset: DatasetId) extends DCDatasetUpdateError

@@ -47,18 +47,21 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                     param.rowId,
                     traceHeaders(requestId, dataset),
                     resourceScope) match {
-            case DataCoordinatorClient.ExportResult(jvalues, etag) =>
+            case DataCoordinatorClient.ExportResult(jvalues, _, etag) =>
               val decodedSchema = CJson.decode(jvalues, JsonColumnRep.forDataCoordinatorType)
               val schema = decodedSchema.schema
               val simpleSchema = ExportDAO.CSchema(
                 schema.approximateRowCount,
                 schema.dataVersion,
-                schema.lastModified.map(time => dateTimeParser.parseDateTime(time)),
+                schema.lastModified.map(time => ExportDAO.dateTimeParser.parseDateTime(time)),
                 schema.locale,
                 schema.pk.map(ds.columnsById(_).fieldName),
                 schema.rowCount,
-                schema.schema.map {
-                  f => ColumnInfo(ds.columnsById(f.c).id, ds.columnsById(f.c).fieldName, ds.columnsById(f.c).name, f.t)
+                schema.schema.map { f =>
+                  ColumnInfo(ds.columnsById(f.columnId).id,
+                             ds.columnsById(f.columnId).fieldName,
+                             ds.columnsById(f.columnId).name,
+                             f.typ)
                 }
               )
               ExportDAO.Success(simpleSchema, etag, decodedSchema.rows)

@@ -140,9 +140,9 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   }
 
   case class copyService(resourceName: ResourceName) extends SodaResource {
-    def snapshotLimit(req: HttpServletRequest) =
-      try { Option(req.getParameter("snapshot_limit")).map(_.toInt) }
-      catch { case e: NumberFormatException => ??? /* TODO: Proper error */ }
+    def keepSnapshot(req: HttpServletRequest) =
+      try { Option(req.getParameter("keep_snapshot")).map(_.toBoolean) }
+      catch { case e: IllegalArgumentException => ??? /* TODO: Proper error */ }
 
     // TODO: not GET
     override def get = { req =>
@@ -156,7 +156,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
                                                       RequestId.getFromRequest(req)))
     }
     override def put = { req =>
-      response(req, datasetDAO.publish(user(req), resourceName, snapshotLimit = snapshotLimit(req),
+      response(req, datasetDAO.publish(user(req), resourceName, keepSnapshot = keepSnapshot(req),
                                        requestId = RequestId.getFromRequest(req)))
     }
   }

@@ -137,8 +137,8 @@ class MutationScript(
       case i: CreateDataset => Map("locale" -> JString(i.locale), "c" -> JString(copyInstruction.command), "user" -> JString(user))
       case i: UpdateDataset => topLevelCommandBase(i.schema)
       case i: CopyDataset   => topLevelCommandBase(i.schema) + ("copy_data" -> JBoolean(i.copyData))
-      case i: PublishDataset=> i.snapshotLimit match {
-        case Some(s)  => topLevelCommandBase(i.schema) + ("snapshot_limit" -> JNumber(s))
+      case i: PublishDataset=> i.keepSnapshot match {
+        case Some(s)  => topLevelCommandBase(i.schema) + ("keep_snapshot" -> JBoolean(s))
         case None     => topLevelCommandBase(i.schema)
       }
       case i: DropDataset => topLevelCommandBase(i.schema)

@@ -1,8 +1,11 @@
 package com.socrata.soda.server
 
+import java.nio.charset.StandardCharsets
+
 import com.mchange.v2.c3p0.DataSources
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import com.socrata.http.common.AuxiliaryData
+import com.socrata.http.common.util.CharsetFor
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.handlers.{NewLoggingHandler, ThreadRenamingHandler}
 import com.socrata.http.server.util.RequestId.ReqIdHeader
@@ -35,6 +38,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[SodaFountain])
 
   PropertyConfigurator.configure(Propertizer("log4j", config.log4j))
+
+  CharsetFor.registerContentTypeCharset("application/json+cjson", StandardCharsets.UTF_8)
 
   val logOptions = NewLoggingHandler.defaultOptions.copy(
                      logRequestHeaders = Set(ReqIdHeader),
@@ -124,9 +129,14 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       withLivenessChecker(livenessChecker).
       withUserAgent("soda fountain")))
 
+  val discoverySnoop = si(new CuratorProviderSnoop(curator,
+    config.discovery.serviceBasePath,
+    config.dataCoordinatorClient.serviceName))
+
   val dc: DataCoordinatorClient = i(new CuratedHttpDataCoordinatorClient(
     httpClient,
     discovery,
+    discoverySnoop,
     config.dataCoordinatorClient.serviceName,
     config.dataCoordinatorClient.instance,
     config.dataCoordinatorClient.connectTimeout,
@@ -151,6 +161,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val columnDAO = i(new ColumnDAOImpl(dc, store, columnSpecUtils))
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
   val exportDAO = i(new ExportDAOImpl(store, dc))
+  val snapshotDAO = i(new SnapshotDAOImpl(store, dc))
 
   val metricProvider = config.metrics.map( balboaConfig => si(new BalboaMetricProvider(balboaConfig)) ).getOrElse( i(new NoopMetricProvider) )
 
@@ -169,6 +180,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     val resource = Resource(rowDAO, datasetDAO, etagObfuscator, config.maxDatumSize, computedColumns, metricProvider, export)
     val compute = Compute(columnDAO, exportDAO, rowDAO, computedColumns, etagObfuscator)
     val suggest = Suggest(datasetDAO, columnDAO, httpClient, config.suggest)
+    val snapshots = Snapshots(snapshotDAO)
 
     new SodaRouter(
       versionResource = Version.service,
@@ -190,7 +202,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       datasetRollupResource = dataset.rollupService,
       computeResource = compute.service,
       sampleResource = suggest.sampleService,
-      suggestResource = suggest.service
+      suggestResource = suggest.service,
+      snapshotResources = SnapshotResources(snapshots.findDatasetsService, snapshots.listSnapshotsService, snapshots.snapshotsService)
     )
   }
 

@@ -31,7 +31,7 @@ object GeoJsonExporter extends Exporter {
              obfuscateId: Boolean = true): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
-    Write(mt) { rawWriter =>
+    exporterHeaders(schema) ~> Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
         val processor = new GeoJsonProcessor(w, schema, singleRow, obfuscateId)
         processor.go(rows)

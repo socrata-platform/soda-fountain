@@ -22,8 +22,6 @@ case class ExportParam(limit: Option[Long],
 trait ExportDAO {
   class Retry extends ControlThrowable
 
-  val dateTimeParser = ISODateTimeFormat.dateTimeParser
-
   def retryable[T](limit: Int /* does not include the initial try */)(f: => T): T = {
     var count = 0
     var done = false
@@ -53,6 +51,8 @@ trait ExportDAO {
 }
 
 object ExportDAO {
+  val dateTimeParser = ISODateTimeFormat.dateTimeParser
+
   case class ColumnInfo(id: ColumnId, fieldName: ColumnName, humanName: String, typ: SoQLType)
   case class CSchema(approximateRowCount: Option[Long], dataVersion: Option[Long], lastModified: Option[DateTime], locale: String, pk: Option[ColumnName], rowCount: Option[Long], schema: Seq[ColumnInfo])
 
