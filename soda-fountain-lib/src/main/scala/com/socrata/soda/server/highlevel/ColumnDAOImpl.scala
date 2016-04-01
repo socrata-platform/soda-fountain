@@ -206,7 +206,6 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
   }
 
   def doUpdateColumn(datasetRecord: DatasetRecord, columnRecord: ColumnRecord, user: String, precondition: Precondition, column: ColumnName, spec: UserProvidedColumnSpec, requestId: RequestId): Result = {
-    log.warn("TODO: updating existing columns not supported yet")
     // ok.  Bleh.  We have a thing and a thing, and we need to decide what's changed.
     // "name" and "description" are easy enough; we need to prevent "fieldName" from
     // colliding with existing names though.
