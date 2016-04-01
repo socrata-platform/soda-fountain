@@ -132,7 +132,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     override def patch = { req => resp =>
       withColumnSpec(req, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          response(req, columnDAO.updateColumn(user(req), resourceName, columnName, spec))(resp)
+          response(req, columnDAO.updateColumn(user(req), resourceName, columnName, spec, RequestId.getFromRequest(req)))(resp)
         }
       }
     }
