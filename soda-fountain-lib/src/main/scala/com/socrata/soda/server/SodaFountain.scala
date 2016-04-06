@@ -17,7 +17,7 @@ import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
-import com.socrata.soda.server.metrics.{BalboaMetricProvider, NoopMetricProvider}
+import com.socrata.soda.server.metrics.NoopMetricProvider
 import com.socrata.soda.server.util._
 import com.socrata.curator.{CuratorFromConfig, DiscoveryFromConfig}
 import com.socrata.thirdparty.typesafeconfig.Propertizer
@@ -163,7 +163,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val exportDAO = i(new ExportDAOImpl(store, dc))
   val snapshotDAO = i(new SnapshotDAOImpl(store, dc))
 
-  val metricProvider = config.metrics.map( balboaConfig => si(new BalboaMetricProvider(balboaConfig)) ).getOrElse( i(new NoopMetricProvider) )
+  val metricProvider = i(new NoopMetricProvider) // TODO : Replace with Graphite or rip out metrics code completely
 
   val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
 
