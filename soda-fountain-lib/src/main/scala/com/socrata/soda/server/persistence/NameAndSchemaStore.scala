@@ -24,6 +24,7 @@ trait NameAndSchemaStore {
   def translateResourceName(resourceName: ResourceName, stage: Option[Stage] = None, deleted:Boolean = false): Option[MinimalDatasetRecord]
   def latestCopyNumber(resourceName: ResourceName): Long
   def lookupCopyNumber(resourceName: ResourceName, copy: Option[Stage]): Option[Long]
+  def latestCopyNumber(resourceName: DatasetRecord): Long
   def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord]
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
     lookupCopyNumber(resourceName, copy).flatMap(lookupDataset(resourceName, _))
@@ -44,6 +45,16 @@ trait NameAndSchemaStore {
   def makeCopy(datasetId: DatasetId, copyNumber: Long, dataVersion: Long): Unit
 
   def bulkDatasetLookup(id: Set[DatasetId]): Set[ResourceName]
+
+  def withColumnUpdater[T](datasetId: DatasetId, columnId: ColumnId)(f: NameAndSchemaStore.ColumnUpdater => T): T
+}
+
+object NameAndSchemaStore {
+  trait ColumnUpdater {
+    def updateFieldName(newFieldName: ColumnName)
+    def updateHumanName(newHumanName: String)
+    def updateDescription(newDescription: String)
+  }
 }
 
 trait DatasetRecordLike {

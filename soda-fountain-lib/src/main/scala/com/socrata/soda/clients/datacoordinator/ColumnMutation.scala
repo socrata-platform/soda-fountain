@@ -59,3 +59,11 @@ case class DropRowIdColumnInstruction(name: ColumnId) extends CM {
     "column"  -> JString(name.underlying)
   ))
 }
+
+case class SetFieldNameInstruction(name: ColumnId, fieldName: ColumnName) extends CM {
+  def asJson = JObject(Map(
+    "c"     -> JString("update field name"),
+    "column"  -> JString(name.underlying),
+    "field_name"  -> JString(fieldName.name)
+  ))
+}

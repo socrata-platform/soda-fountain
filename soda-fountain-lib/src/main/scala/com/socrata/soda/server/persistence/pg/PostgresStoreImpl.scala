@@ -2,6 +2,8 @@ package com.socrata.soda.server.persistence.pg
 
 import java.sql.{Connection, ResultSet, Timestamp, Types, BatchUpdateException}
 
+import com.socrata.soda.server.persistence.NameAndSchemaStore.ColumnUpdater
+
 import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
 
@@ -35,6 +37,10 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def latestCopyNumber(resourceName: ResourceName): Long = {
     lookupCopyNumber(resourceName, None).getOrElse(throw new Exception("there should always be a latest copy"))
+  }
+
+  def latestCopyNumber(ds: DatasetRecord): Long = {
+    lookupCopyNumber(ds.resourceName, None).getOrElse(throw new Exception("there should always be a latest copy"))
   }
 
   def lookupCopyNumber(resourceName: ResourceName, stage: Option[Stage]): Option[Long] = {
@@ -586,8 +592,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         }
     }
       connection.commit()
-}
     }
+  }
 
   // WARNING: this method is only suitable for things that are safe to update
   // with no downstream repercussions for data coordinator (eg. name, resource_name)
@@ -813,6 +819,45 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         }
       }
     }
+
+  override def withColumnUpdater[T](datasetId: DatasetId, columnId: ColumnId)(f: ColumnUpdater => T): T = {
+    using(dataSource.getConnection) { conn =>
+      var humanName: Option[String] = None
+      var description: Option[String] = None
+      var fieldName: Option[ColumnName] = None
+
+      val columnUpdater = new ColumnUpdater {
+        override def updateHumanName(newHumanName: String): Unit = humanName = Some(newHumanName)
+        override def updateDescription(newDescription: String): Unit = description = Some(newDescription)
+        override def updateFieldName(newFieldName: ColumnName): Unit = fieldName = Some(newFieldName)
+      }
+
+      val result = f(columnUpdater)
+
+      val fragments = Seq(
+        humanName.map { _ => "name = ?" },
+        description.map { _ => "description = ?" },
+        fieldName.map { _ => "column_name = ?, column_name_casefolded = ?" }
+      ).flatten
+      if(fragments.nonEmpty) {
+        val sql = fragments.mkString("UPDATE columns SET ", ",", " WHERE dataset_system_id = ? AND column_id = ?")
+        using(conn.prepareStatement(sql)) { stmt =>
+          var ptr = 0
+          def nextPtr() = { ptr += 1; ptr }
+          humanName.foreach(stmt.setString(nextPtr(), _))
+          description.foreach(stmt.setString(nextPtr(), _))
+          fieldName.foreach { fn =>
+            stmt.setString(nextPtr(), fn.name)
+            stmt.setString(nextPtr(), fn.caseFolded)
+          }
+          stmt.setString(nextPtr(), datasetId.underlying)
+          stmt.setString(nextPtr(), columnId.underlying)
+          stmt.execute()
+        }
+      }
+      result
+    }
+  }
 }
 
 object PostgresStoreImpl {

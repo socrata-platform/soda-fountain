@@ -18,7 +18,7 @@ trait ColumnDAO {
                             spec: UserProvidedColumnSpec,
                             requestId: RequestId): Result
 
-  def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec): Result
+  def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec, requestId: RequestId): Result
 
   def deleteColumn(user: String, dataset: ResourceName, column: ColumnName, requestId: RequestId): Result
 
@@ -48,6 +48,8 @@ object ColumnDAO {
   case class InternalServerError(code: String, tag: String, data: String) extends FailResult
   case class CannotDeleteRowId(columnRec: ColumnRecord, method: String) extends FailResult
   case class DatasetNotFound(dataset: ResourceName) extends FailResult
+  case object CannotChangeColumnId extends FailResult
+  case object CannotChangeColumnType extends FailResult
 
   // FAILURES: Internally consumed only
   case class InvalidColumnName(col: ColumnName) extends FailResult
