@@ -68,7 +68,7 @@ object InputUtils {
         val jsonEventIt = fbJsonEventIt.map(InputNormalizer.normalizeEvent)
         fbJsonEventIt.head match {
           case StartOfArrayEvent() =>
-            Right((boundIt(JsonArrayIterator[JValue](jsonEventIt)), true))
+            Right((boundIt(JsonArrayIterator.fromEvents[JValue](jsonEventIt)), true))
           case StartOfObjectEvent() if allowSingleItem =>
             Right((boundIt(Iterator.single(JsonReader.fromEvents(jsonEventIt))), false))
           case _ =>

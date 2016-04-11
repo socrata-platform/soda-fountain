@@ -63,7 +63,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     response.resultCode match {
       case SC_OK =>
         val jsonEventIt = response.jsonEvents()
-        val jvIt = JsonArrayIterator[JValue](jsonEventIt)
+        val jvIt = JsonArrayIterator.fromEvents[JValue](jsonEventIt)
         val umJvIt = rs.openUnmanaged(jvIt, Seq(response))
         Success(response.headers("ETag").map(EntityTagParser.parse(_)), response.headers(HeaderRollup).headOption, umJvIt)
       case SC_NOT_MODIFIED =>

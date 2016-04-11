@@ -29,6 +29,7 @@ trait RowDAO {
             noRollup: Boolean,
             obfuscateId: Boolean,
             requestId: RequestId,
+            fuseColumns: Option[String],
             resourceScope: ResourceScope): Result
 
   def getRow(dataset: ResourceName,
@@ -40,6 +41,7 @@ trait RowDAO {
              noRollup: Boolean,
              obfuscateId: Boolean,
              requestId: RequestId,
+             fuseColumns: Option[String],
              resourceScope: ResourceScope): Result
 
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
