@@ -194,6 +194,7 @@ case class Resource(rowDAO: RowDAO,
                   Option(req.getParameter(qpNoRollup)).isDefined,
                   obfuscateId,
                   RequestId.getFromRequest(req),
+                  Option(req.getHeader("X-Socrata-Fuse-Columns")),
                   req.resourceScope) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                     metric(QuerySuccessMetric)
@@ -312,6 +313,7 @@ case class Resource(rowDAO: RowDAO,
                     Option(req.getParameter(qpNoRollup)).isDefined,
                     obfuscateId,
                     RequestId.getFromRequest(req),
+                    Option(req.getHeader("X-Socrata-Fuse-Columns")),
                     resourceScope) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)

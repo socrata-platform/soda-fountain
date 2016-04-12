@@ -138,7 +138,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       def next(): ReportItem = {
         if(!hasNext) Iterator.empty.next()
         if(in.head.isInstanceOf[StartOfArrayEvent]) {
-          pendingIterator = JsonArrayIterator[JValue](in)
+          pendingIterator = JsonArrayIterator.fromEvents[JValue](in)
           UpsertReportItem(pendingIterator)
         } else {
           skipNextDatum(in)
