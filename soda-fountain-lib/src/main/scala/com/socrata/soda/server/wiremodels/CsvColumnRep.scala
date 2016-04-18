@@ -173,6 +173,21 @@ object CsvColumnRep {
     }
   }
 
+  object UrlRep extends CsvColumnRep {
+    def toString(value: SoQLValue) = {
+      value match {
+        case SoQLNull => null
+        case SoQLUrl(Some(url), Some(description)) =>
+          s"$description ($url)"
+        case SoQLUrl(Some(url), None) =>
+          url
+        case SoQLUrl(None, Some(description)) =>
+          description
+        case _ => null
+      }
+    }
+  }
+
   val forType: Map[SoQLType, CsvColumnRep] = Map(
     SoQLText -> TextRep,
     SoQLFixedTimestamp -> FixedTimestampRep,
@@ -196,7 +211,8 @@ object CsvColumnRep {
     SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value),
     SoQLBlob -> BlobRep,
     SoQLPhone -> PhoneRep,
-    SoQLLocation -> LocationRep
+    SoQLLocation -> LocationRep,
+    SoQLUrl -> UrlRep
   )
 
   val forTypeClearId: Map[SoQLType, CsvColumnRep] =
