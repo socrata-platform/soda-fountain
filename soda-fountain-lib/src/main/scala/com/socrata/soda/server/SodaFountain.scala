@@ -189,6 +189,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       datasetColumnPKResource = column.pkservice,
       datasetCreateResource = dataset.createService,
       datasetResource = dataset.service,
+      datasetUndeleteResource = dataset.undeleteService,
       resourceResource = resource.service,
       resourceExtensions = resource.extensions,
       resourceRowResource = resource.rowService,

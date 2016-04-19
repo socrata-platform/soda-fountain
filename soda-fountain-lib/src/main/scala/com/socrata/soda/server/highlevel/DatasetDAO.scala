@@ -21,7 +21,8 @@ trait DatasetDAO {
                     spec: UserProvidedDatasetSpec,
                     requestId: RequestId): Result
   def markDatasetForDeletion(user: String, dataset: ResourceName): Result
-  def removeDataset(user: String, dataset: ResourceName, requestId: RequestId):Result
+  def unmarkDatasetForDeletion(user: String, dataset: ResourceName) : Result
+  def removeDataset(user: String, dataset: ResourceName, requestId: RequestId): Result
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result
   def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
@@ -53,6 +54,7 @@ object DatasetDAO {
   case class DatasetSecondaryVersions(versions: SecondaryVersionsReport) extends SuccessResult
   case class DatasetVersion(version: VersionReport) extends SuccessResult
   case object Deleted extends SuccessResult
+  case object Undeleted extends SuccessResult
   case object WorkingCopyCreated extends SuccessResult
   case object WorkingCopyDropped extends SuccessResult
   case object WorkingCopyPublished extends SuccessResult
