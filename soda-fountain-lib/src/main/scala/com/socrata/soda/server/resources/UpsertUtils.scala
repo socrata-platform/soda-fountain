@@ -103,6 +103,16 @@ object UpsertUtils {
   def writeSingleRowUpsertResponse(resourceName: ResourceName, export: Export, req: HttpRequest)
                                   (response: HttpServletResponse, report: Iterator[ReportItem]): Unit = {
     var wroteOne = false
+    def exportSingleRowUpsertResponse(rowId: String): Unit = {
+      val param = ExportParam(None, None, Seq.empty[ColumnRecordLike], None,
+                              sorted = false, rowId = Some(rowId))
+      export.exportCopy(resourceName,
+                        "latest",
+                        Some("json"),
+                        excludeSystemFields = false,
+                        param,
+                        true)(req)(response)
+    }
     while(report.hasNext) {
       report.next() match {
         case UpsertReportItem(items) =>
@@ -117,14 +127,9 @@ object UpsertUtils {
                 case JObject(rowInfo) =>
                   rowInfo("id") match {
                     case JString(rowId) =>
-                      val param = ExportParam(None, None, Seq.empty[ColumnRecordLike], None,
-                                              sorted = false, rowId = Some(rowId))
-                      export.exportCopy(resourceName,
-                                        "latest",
-                                        Some("json"),
-                                        excludeSystemFields = false,
-                                        param,
-                                        true)(req)(response)
+                      exportSingleRowUpsertResponse(rowId)
+                    case rowId: JNumber =>
+                      exportSingleRowUpsertResponse(rowId.toString())
                     case unknown =>
                       log.error("single row upsert error, malformed report-item-id {}", unknown)
                       SodaUtils.errorResponse(req,
