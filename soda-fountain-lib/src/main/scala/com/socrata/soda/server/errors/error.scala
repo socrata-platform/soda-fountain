@@ -131,10 +131,10 @@ case class RollupNotFound(value: RollupName)
   extends SodaError("soda.rollup.not-found", s"Rollup '${value.name}' was not found",
     "value" -> JString(value.name))
 
-case class NonUniqueRowId(column: String)
+case class NonUniqueRowId(column: ColumnName)
   extends SodaError("soda.column.not-unique",
-    s"Row-Identifier column '$column', which should contain unique values, instead contains duplicate values",
-    "column" -> JString(column)
+    s"Row-Identifier column '${column.name}', which should contain unique values, instead contains duplicate values",
+    "column" -> JString(column.name)
   )
 
 case class ColumnSpecUnknownType(typeName: TypeName)

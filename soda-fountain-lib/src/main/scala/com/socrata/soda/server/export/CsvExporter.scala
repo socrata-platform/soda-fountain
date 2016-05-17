@@ -69,7 +69,7 @@ object CsvExporter extends Exporter {
           }
 
           def go(rows: Iterator[Array[SoQLValue]]) {
-            val array = schema.schema.map(_.humanName).toArray
+            val array = schema.schema.map(_.fieldName.name).toArray
             writeCSVRow(array)
             while(rows.hasNext) {
               convertInto(array, rows.next())

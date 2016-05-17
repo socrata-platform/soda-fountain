@@ -41,8 +41,6 @@ trait DatasetsForTesting {
       ColumnId(":id"),
       ColumnName(":id"),
       SoQLID,
-      "ID",
-      "Description",
       isInconsistencyResolutionGenerated =  false,
       None
     )
@@ -51,23 +49,19 @@ trait DatasetsForTesting {
       ColumnId("src1-2345"),
       ColumnName("source"),
       SoQLText,
-      "Source",
-      "Description",
       isInconsistencyResolutionGenerated =  false,
       None
     )
 
     val computationStrategy = ComputationStrategyRecord(
       ComputationStrategyType.Test,
-      Some(Seq(MinimalColumnRecord(sourceColumn.id, sourceColumn.fieldName, SoQLNull, false, None))),
+      Some(Seq(MinimalColumnRecord(sourceColumn.id, sourceColumn.fieldName, SoQLNull, isInconsistencyResolutionGenerated = false, None))),
       Some(JObject(Map("concat_text" -> JString("fun")))))
 
     val computedColumn = ColumnRecord(
       ColumnId("comp-1234"),
       ColumnName(":computed"),
       SoQLText,
-      "Computed",
-      "Description",
       isInconsistencyResolutionGenerated =  false,
       Some(computationStrategy)
     )
@@ -86,7 +80,7 @@ trait DatasetsForTesting {
       DateTime.now
     )
 
-    val dcColumns = dataset.columns.map { col => ExportDAO.ColumnInfo(col.id, col.fieldName, "Human Readable Name", col.typ) }
+    val dcColumns = dataset.columns.map { col => ExportDAO.ColumnInfo(col.id, col.fieldName, col.typ) }
     val dcSchema = ExportDAO.CSchema(
       Some(3), Some(2), Some(DateTime.now), "en_US", Some(ColumnName(":id")), Some(3), dcColumns)
 

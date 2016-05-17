@@ -60,7 +60,6 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 schema.schema.map { f =>
                   ColumnInfo(ds.columnsById(f.columnId).id,
                              ds.columnsById(f.columnId).fieldName,
-                             ds.columnsById(f.columnId).name,
                              f.typ)
                 }
               )

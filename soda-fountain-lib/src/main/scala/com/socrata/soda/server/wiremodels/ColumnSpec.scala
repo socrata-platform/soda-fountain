@@ -14,8 +14,6 @@ import com.socrata.soda.server.errors.{ColumnSpecMaltyped, ColumnSpecUnknownType
 @JsonKeyStrategy(Strategy.Underscore)
 case class ColumnSpec(id: ColumnId,
                       fieldName: ColumnName,
-                      name:String,
-                      description:String,
                       datatype: SoQLType,
                       computationStrategy: Option[ComputationStrategySpec] = None)
 
@@ -34,8 +32,6 @@ object ColumnSpecSubSet {
 // users cannot select their own column IDs.
 case class UserProvidedColumnSpec(id: Option[ColumnId],
                                   fieldName: Option[ColumnName],
-                                  name: Option[String],
-                                  description:Option[String],
                                   datatype:Option[SoQLType],
                                   delete: Option[Boolean],
                                   computationStrategy: Option[UserProvidedComputationStrategySpec])
@@ -46,13 +42,11 @@ object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
     for {
       columnId <- cex.columnId
       fieldName <- cex.fieldName
-      name <- cex.name
-      description <- cex.description
       datatype <- cex.datatype
       delete <- cex.delete
       computationStrategy <- cex.computationStrategy
     } yield {
-      UserProvidedColumnSpec(columnId, fieldName, name, description, datatype, delete, computationStrategy)
+      UserProvidedColumnSpec(columnId, fieldName, datatype, delete, computationStrategy)
     }
   }
 
@@ -66,7 +60,6 @@ object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
       extract[T](map, field)
 
     def columnId = e[ColumnId]("id")
-    def name = e[String]("name")
     def fieldName = e[ColumnName]("field_name")
     def datatype = e[TypeName]("datatype").flatMap {
       case Some(typeName) =>
@@ -77,7 +70,6 @@ object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
       case None =>
         Extracted(None)
     }
-    def description = e[String]("description")
     def delete = e[Boolean]("delete")
     def computationStrategy: ExtractResult[Option[UserProvidedComputationStrategySpec]] =
       e[JObject]("computation_strategy") match {

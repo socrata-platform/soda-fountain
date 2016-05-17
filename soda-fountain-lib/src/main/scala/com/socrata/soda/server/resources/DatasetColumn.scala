@@ -60,7 +60,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       case ColumnDAO.CannotDeleteRowId(column, method) =>
         SodaUtils.errorResponse(req, HttpMethodNotAllowed(method, Seq("GET", "PATCH")))
       case ColumnDAO.DuplicateValuesInColumn(column) =>
-        SodaUtils.errorResponse(req, NonUniqueRowId(column.name))
+        SodaUtils.errorResponse(req, NonUniqueRowId(column.fieldName))
       case ColumnDAO.InternalServerError(code, tag, data) =>
         SodaUtils.errorResponse(req, InternalError(tag,
           "code"  -> JString(code),

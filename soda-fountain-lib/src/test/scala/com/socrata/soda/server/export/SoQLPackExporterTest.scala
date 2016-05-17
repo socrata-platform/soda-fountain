@@ -19,9 +19,9 @@ class SoQLPackExporterTest  extends ExporterTest {
   )
 
   val columns = Seq(
-    new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-    new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None),
-    new ColumnRecord(ColumnId("abcd-1234"), ColumnName("visits"), SoQLNumber, "visits", "", false, None)
+    new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, false, None),
+    new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint,false, None),
+    new ColumnRecord(ColumnId("abcd-1234"), ColumnName("visits"), SoQLNumber, false, None)
   )
 
   def soqlNum(num: Int) = SoQLNumber(new java.math.BigDecimal(num))

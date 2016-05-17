@@ -50,7 +50,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
   )
   val columnRecord = new ColumnRecord(
     new ColumnId(expectedColumnId), columnName,
-    SoQLNull, "", "", false, None
+    SoQLNull, false, None
   )
 
   def httpClient: HttpClient =

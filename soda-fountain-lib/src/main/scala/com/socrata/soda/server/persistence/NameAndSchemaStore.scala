@@ -52,8 +52,6 @@ trait NameAndSchemaStore {
 object NameAndSchemaStore {
   trait ColumnUpdater {
     def updateFieldName(newFieldName: ColumnName)
-    def updateHumanName(newHumanName: String)
-    def updateDescription(newDescription: String)
   }
 }
 
@@ -119,8 +117,6 @@ case class ColumnRecord(
   id: ColumnId,
   fieldName: ColumnName,
   typ: SoQLType,
-  name: String,
-  description: String,
   isInconsistencyResolutionGenerated: Boolean,
   computationStrategy: Option[ComputationStrategyRecord])
     extends ColumnRecordLike
