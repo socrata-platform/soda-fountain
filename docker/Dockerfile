@@ -1,4 +1,4 @@
-FROM socrata/java
+FROM socrata/java8
 
 EXPOSE 6010
 EXPOSE 6012
