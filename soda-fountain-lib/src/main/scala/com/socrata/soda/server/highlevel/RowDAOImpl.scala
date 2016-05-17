@@ -141,7 +141,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           schema.pk.map(ds.columnsById(_).fieldName),
           schema.rowCount,
           schema.schema.map { f =>
-            ColumnInfo(f.columnId, ColumnName(f.columnId.underlying), f.columnId.underlying, f.typ)
+            ColumnInfo(f.columnId, ColumnName(f.columnId.underlying), f.typ)
           }
         )
         QuerySuccess(etags, ds.truthVersion, ds.lastModified, rollup, simpleSchema, decodedResult.rows)

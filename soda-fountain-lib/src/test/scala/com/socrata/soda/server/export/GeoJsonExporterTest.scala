@@ -22,8 +22,8 @@ class GeoJsonExporterTest  extends ExporterTest {
 
   test("Multi row - dataset with single geo column") {
     val columns = Seq(
-      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
+      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, false, None),
+      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, false, None)
     )
 
     val rows = Seq[Array[SoQLValue]](
@@ -67,15 +67,15 @@ class GeoJsonExporterTest  extends ExporterTest {
 
   test("Single row - dataset with single geo column") {
     val columns = Seq(
-      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
+      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, false, None),
+      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, false, None)
     )
 
     val rows = Seq[Array[SoQLValue]](
       Array(SoQLText("Volunteer Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.314822 47.630269)").get))
     )
 
-    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, true)
+    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, singleRow = true)
     geoJson should be (
         JObject(Map(
           "type"     -> JString("Feature"),
@@ -89,15 +89,15 @@ class GeoJsonExporterTest  extends ExporterTest {
 
   test("Single row - dataset with null geo column") {
     val columns = Seq(
-      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
+      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, false, None),
+      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, false, None)
     )
 
     val rows = Seq[Array[SoQLValue]](
       Array(SoQLText("Volunteer Park"), SoQLNull)
     )
 
-    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, true)
+    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, singleRow = true)
     geoJson should be (
         JObject(Map(
           "type"     -> JString("Feature"),
@@ -109,8 +109,8 @@ class GeoJsonExporterTest  extends ExporterTest {
 
   test("Multi row - dataset with single geo column and some rows with empty geo value") {
     val columns = Seq(
-      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, "location", "", false, None)
+      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, false, None),
+      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location"), SoQLPoint, false, None)
     )
 
     val rows = Seq[Array[SoQLValue]](
@@ -120,7 +120,7 @@ class GeoJsonExporterTest  extends ExporterTest {
       Array(SoQLText("Seward Park"), SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-122.252513 47.555530)").get))
     )
 
-    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, false)
+    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, singleRow = false)
     geoJson should be (JObject(Map(
       "type"     -> JString("FeatureCollection"),
       "features" -> JArray(Array(
@@ -155,8 +155,8 @@ class GeoJsonExporterTest  extends ExporterTest {
 
   test("Dataset with no geo column") {
     val columns = Seq(
-      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("date_constructed"), SoQLDate, "date_constructed", "", false, None)
+      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, false, None),
+      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("date_constructed"), SoQLDate, false, None)
     )
 
     val rows = Seq[Array[SoQLValue]](
@@ -165,7 +165,7 @@ class GeoJsonExporterTest  extends ExporterTest {
       Array(SoQLText("Seward Park"), SoQLDate(ISODateTimeFormat.localDateParser.parseLocalDate("1902-01-01")))
     )
 
-    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, false)
+    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, singleRow = false)
     geoJson should be (JObject(Map(
       "type"     -> JString("FeatureCollection"),
       "features" -> JArray(Array(
@@ -187,9 +187,9 @@ class GeoJsonExporterTest  extends ExporterTest {
 
   test("Dataset with multiple geo columns") {
     val columns = Seq(
-      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, "name", "", false, None),
-      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location1"), SoQLPoint, "location1", "", false, None),
-      new ColumnRecord(ColumnId("dk3l-s2jk"), ColumnName("location2"), SoQLPoint, "location2", "", false, None)
+      new ColumnRecord(ColumnId("hym8-ivsj"), ColumnName("name"), SoQLText, false, None),
+      new ColumnRecord(ColumnId("pw2s-k39x"), ColumnName("location1"), SoQLPoint, false, None),
+      new ColumnRecord(ColumnId("dk3l-s2jk"), ColumnName("location2"), SoQLPoint, false, None)
     )
 
     val rows = Seq[Array[SoQLValue]](
@@ -198,7 +198,7 @@ class GeoJsonExporterTest  extends ExporterTest {
             SoQLPoint(SoQLPoint.WktRep.unapply("POINT (-124.314822 49.630269)").get))
     )
 
-    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, false)
+    val geoJson = getGeoJson(columns, "hym8-ivsj", rows, singleRow = false)
     geoJson should be (JObject(Map(
       "type"     -> JString("FeatureCollection"),
       "features" -> JArray(Array(

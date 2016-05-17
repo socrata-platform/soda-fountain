@@ -39,25 +39,22 @@ class ColumnSpecUtils(rng: Random) {
 
   def freezeForCreation(existingColumns: Map[ColumnName, ColumnId], ucs: UserProvidedColumnSpec): CreateResult =
     ucs match {
-      case UserProvidedColumnSpec(None, Some(fieldName), Some(name), desc, Some(typ), None, uCompStrategy) =>
+      case UserProvidedColumnSpec(None, Some(fieldName), Some(typ), None, uCompStrategy) =>
         if (!validColumnName(fieldName, uCompStrategy)) return InvalidFieldName(fieldName)
         if (duplicateColumnName(fieldName, existingColumns)) return DuplicateColumnName(fieldName)
-        val trueDesc = desc.getOrElse("")
         val id = selectId(existingColumns.values)
         freezeForCreation(existingColumns, uCompStrategy) match {
           case ComputationStrategySuccess(compStrategy) =>
-            Success(ColumnSpec(id, fieldName, name, trueDesc, typ, compStrategy))
+            Success(ColumnSpec(id, fieldName, typ, compStrategy))
           case cr: CreateResult => cr
         }
-      case UserProvidedColumnSpec(Some(_), _, _, _, _, _, _) =>
+      case UserProvidedColumnSpec(Some(_), _, _, _, _) =>
         IdGiven
-      case UserProvidedColumnSpec(_, None, _, _, _, _, _) =>
+      case UserProvidedColumnSpec(_, None, _, _, _) =>
         NoFieldName
-      case UserProvidedColumnSpec(_, _, None, _, _, _, _) =>
-        NoName
-      case UserProvidedColumnSpec(_, _, _, _, None, _, _) =>
+      case UserProvidedColumnSpec(_, _, None, _, _) =>
         NoType
-      case UserProvidedColumnSpec(_, _, _, _, _, Some(_), _) =>
+      case UserProvidedColumnSpec(_, _, _, Some(_), _) =>
         DeleteSet
     }
 
@@ -107,10 +104,10 @@ class ColumnSpecUtils(rng: Random) {
   }
 
   private[this] val _systemColumns = Map(
-    ColumnName(":id") -> ColumnSpec(ColumnId(":id"), ColumnName(":id"), ":id", "", SoQLID, None),
-    ColumnName(":version") -> ColumnSpec(ColumnId(":version"), ColumnName(":version"), ":version", "", SoQLVersion, None),
-    ColumnName(":created_at") -> ColumnSpec(ColumnId(":created_at"), ColumnName(":created_at"), ":created_at", "", SoQLFixedTimestamp, None),
-    ColumnName(":updated_at") -> ColumnSpec(ColumnId(":updated_at"), ColumnName(":updated_at"), ":updated_at", "", SoQLFixedTimestamp, None)
+    ColumnName(":id") -> ColumnSpec(ColumnId(":id"), ColumnName(":id"), SoQLID, None),
+    ColumnName(":version") -> ColumnSpec(ColumnId(":version"), ColumnName(":version"), SoQLVersion, None),
+    ColumnName(":created_at") -> ColumnSpec(ColumnId(":created_at"), ColumnName(":created_at"), SoQLFixedTimestamp, None),
+    ColumnName(":updated_at") -> ColumnSpec(ColumnId(":updated_at"), ColumnName(":updated_at"), SoQLFixedTimestamp, None)
   )
 }
 
@@ -122,7 +119,6 @@ object ColumnSpecUtils {
   case object NoFieldName extends CreateResult
   case class InvalidFieldName(name: ColumnName) extends CreateResult
   case class DuplicateColumnName(name: ColumnName) extends CreateResult
-  case object NoName extends CreateResult
   case object NoType extends CreateResult
   case object DeleteSet extends CreateResult
   case object UnknownComputationStrategySourceColumn extends CreateResult

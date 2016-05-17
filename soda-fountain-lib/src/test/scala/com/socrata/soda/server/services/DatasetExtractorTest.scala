@@ -39,9 +39,7 @@ class DatasetExtractorTest extends FunSuite with Matchers {
                          |  resource_name: "hotdog",
                          |  name: "hot dog",
                          |  columns: [
-                         |    {name:"column1",
-                         |    field_name:"col1",
-                         |    description:"this is a column",
+                         |    {field_name:"col1",
                          |    datatype:"money"}
                          |  ]
                          |}""".stripMargin)
@@ -50,9 +48,7 @@ class DatasetExtractorTest extends FunSuite with Matchers {
         dspec.columns.isDefined should be (true)
         val columns = dspec.columns.get
         columns.size should be (1)
-        columns(0).name should be eq (Some("column1"))
         columns(0).fieldName should be eq (Some("col1"))
-        columns(0).description should be eq (Some("this is a column"))
         columns(0).datatype should be (Some(com.socrata.soql.types.SoQLMoney))
       case _ => fail("didn't extract")
     }
@@ -62,13 +58,9 @@ class DatasetExtractorTest extends FunSuite with Matchers {
                          |  resource_name: "chicago_crimes",
                          |  name: "Chicago Crimes",
                          |  columns: [
-                         |    {name: "location",
-                         |    field_name: "Location",
-                         |    description: "Location of the crime",
+                         |    {field_name: "Location",
                          |    datatype: "point"},
-                         |    {name: "ward_id",
-                         |    field_name: "Ward ID",
-                         |    description: "Ward ID",
+                         |    {field_name: "Ward ID",
                          |    datatype: "number",
                          |    computation_strategy: {
                          |      type: "georegion_match_on_point",
@@ -83,9 +75,7 @@ class DatasetExtractorTest extends FunSuite with Matchers {
         dspec.columns.get.size should be (2)
 
         val regionColumn = dspec.columns.get(1)
-        regionColumn.name should be eq (Some("ward_id"))
         regionColumn.fieldName should be eq (Some("Ward ID"))
-        regionColumn.description should be eq (Some("Ward ID"))
         regionColumn.datatype should be (Some(com.socrata.soql.types.SoQLNumber))
         regionColumn.computationStrategy should not be (None)
 

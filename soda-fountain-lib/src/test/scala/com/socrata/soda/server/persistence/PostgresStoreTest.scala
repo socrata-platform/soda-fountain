@@ -40,16 +40,12 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         ColumnId("abc123"),
         ColumnName("a b c 1 2 3"),
         SoQLText,
-        "column name human",
-        "column desc human",
         false,
         None),
       new ColumnRecord(
         ColumnId("def456"),
         ColumnName("d e f 4 5 6"),
         SoQLText,
-        "column name human",
-        "column desc human",
         false,
         None
       )
@@ -74,7 +70,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
   }
 
   test("Postgres rename field name"){
-    val columns = Seq(ColumnRecord(ColumnId("one"), ColumnName("field_name"), SoQLText, "name", "desc",false, None))
+    val columns = Seq(ColumnRecord(ColumnId("one"), ColumnName("field_name"), SoQLText, isInconsistencyResolutionGenerated = false, None))
     val (resourceName, datasetId) = createMockDataset(columns)
 
     store.updateColumnFieldName(datasetId, ColumnId("one"), ColumnName("new_field_name"), 1L)
@@ -94,20 +90,16 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         ColumnId("abcd-1234"),
         ColumnName("location"),
         SoQLPoint,
-        "Location",
-        "Point representing location of the crime",
         false,
         None),
       new ColumnRecord(
         ColumnId("defg-4567"),
         ColumnName("ward"),
         SoQLNumber,
-        "Ward",
-        "Ward where the crime took place",
         false,
         Some(ComputationStrategyRecord(
           ComputationStrategyType.GeoRegionMatchOnPoint,
-          Some(Seq(MinimalColumnRecord(ColumnId("abcd-1234"), ColumnName("location"), SoQLPoint, false, None))),
+          Some(Seq(MinimalColumnRecord(ColumnId("abcd-1234"), ColumnName("location"), SoQLPoint, isInconsistencyResolutionGenerated = false, None))),
           Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))
         ))
       )
@@ -123,14 +115,10 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
       case ColumnRecord(id,
                         fieldName,
                         typ,
-                        displayName,
-                        description,
                         isInconsistencyResolutionGenerated,
                         Some(ComputationStrategyRecord(strategy, Some(sourceColumns), Some(params)))) =>
         id should equal (columns(1).id)
         fieldName should equal (columns(1).fieldName)
-        displayName should equal (columns(1).name)
-        description should equal (columns(1).description)
         isInconsistencyResolutionGenerated should equal (columns(1).isInconsistencyResolutionGenerated)
         strategy should equal (columns(1).computationStrategy.get.strategyType)
         sourceColumns should equal (columns(1).computationStrategy.get.sourceColumns.get)
@@ -140,8 +128,8 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
   test("Two copies with different columns"){
     val columnSpecs = Seq(
-      ColumnSpec(ColumnId("one"), ColumnName("one"), "one", "desc", SoQLText, None),
-      ColumnSpec(ColumnId("two"), ColumnName("two"), "two", "desc", SoQLText, None)
+      ColumnSpec(ColumnId("one"), ColumnName("one"), SoQLText, None),
+      ColumnSpec(ColumnId("two"), ColumnName("two"), SoQLText, None)
     )
     val columns = columnSpecs.map(columnSpecTocolumnRecord)
     val (resourceName, datasetId) = createMockDataset(columns.take(1))
@@ -168,16 +156,12 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
       ColumnSpec(
         ColumnId("abcd-1234"),
         ColumnName("location"),
-        "Location",
-        "Point representing location of the crime",
         SoQLPoint,
         None
       ),
       ColumnSpec(
         ColumnId("defg-4567"),
         ColumnName("ward"),
-        "Ward",
-        "Ward where the crime took place",
         SoQLNumber,
         Some(ComputationStrategySpec(ComputationStrategyType.GeoRegionMatchOnPoint,
           Some(Seq(SourceColumnSpec(ColumnId("abcd-1234"), ColumnName("location")))),
@@ -190,20 +174,16 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         ColumnId("abcd-1234"),
         ColumnName("location"),
         SoQLPoint,
-        "Location",
-        "Point representing location of the crime",
         false,
         None),
       new ColumnRecord(
         ColumnId("defg-4567"),
         ColumnName("ward"),
         SoQLNumber,
-        "Ward",
-        "Ward where the crime took place",
         false,
         Some(ComputationStrategyRecord(
           ComputationStrategyType.GeoRegionMatchOnPoint,
-          Some(Seq(MinimalColumnRecord(ColumnId("abcd-1234"), ColumnName("location"), SoQLPoint, false, None))),
+          Some(Seq(MinimalColumnRecord(ColumnId("abcd-1234"), ColumnName("location"), SoQLPoint, isInconsistencyResolutionGenerated = false, None))),
           Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))
         ))
       )
@@ -300,10 +280,10 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
   test("drop working copies") {
     val columnSpecs = Seq(
-      ColumnSpec(ColumnId("one"), ColumnName("one"), "one", "desc", SoQLText, None),
-      ColumnSpec(ColumnId("two"), ColumnName("two"), "two", "deleted", SoQLText, None),
-      ColumnSpec(ColumnId("three"), ColumnName("three"), "three", "desc",SoQLText, None),
-      ColumnSpec(ColumnId("four"), ColumnName("four"), "four", "deleted",SoQLText, None)
+      ColumnSpec(ColumnId("one"), ColumnName("one"), SoQLText, None),
+      ColumnSpec(ColumnId("two"), ColumnName("two"), SoQLText, None),
+      ColumnSpec(ColumnId("three"), ColumnName("three"), SoQLText, None),
+      ColumnSpec(ColumnId("four"), ColumnName("four"), SoQLText, None)
     )
     val columns = columnSpecs.map(columnSpecTocolumnRecord)
     val (resourceName, datasetId) = createMockDataset(columns.take(1))
@@ -329,27 +309,24 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
     val unpublishedCopy = store.lookupDataset(resourceName, Some(Unpublished))
     unpublishedCopy should not be (None)
-    unpublishedCopy.get.columns.foreach(println)
-    unpublishedCopy.get.columns should be (columns.filter(_.description != "deleted"))
+    val unpublishedColumns = unpublishedCopy.get.columns
+    unpublishedColumns.foreach(println)
+    unpublishedColumns should be (columns.filter(_.fieldName.name.matches("one|three")))
   }
 
-  test ("dropping a dataset - check if metadata is updated - check if 'deleted-at' column is updated in metadata tables  datasets and dataset_copies") {
+  test ("dropping a dataset - check if metadata is updated - check if 'deleted-at' column is updated in metadata tables datasets and dataset_copies") {
 
     val columns = Seq[ColumnRecord](
       new ColumnRecord(
         ColumnId("abc123"),
         ColumnName("a b c 1 2 3"),
         SoQLText,
-        "column name human",
-        "column desc human",
         false,
         None),
       new ColumnRecord(
         ColumnId("def456"),
         ColumnName("d e f 4 5 6"),
         SoQLText,
-        "column name human",
-        "column desc human",
         false,
         None
       )
@@ -370,16 +347,12 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         ColumnId("abc123"),
         ColumnName("a b c 1 2 3"),
         SoQLText,
-        "column name human",
-        "column desc human",
         false,
         None),
       new ColumnRecord(
         ColumnId("def456"),
         ColumnName("d e f 4 5 6"),
         SoQLText,
-        "column name human",
-        "column desc human",
         false,
         None
       )
@@ -405,15 +378,15 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
   }
 
   private def columnSpecTocolumnRecord(spec: ColumnSpec) = {
-    ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
+    ColumnRecord(spec.id, spec.fieldName, spec.datatype, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
   }
 
   private val sixColumnSpecs = Seq(
-    ColumnSpec(ColumnId("zero"), ColumnName("zero"), "zero", "desc", SoQLText, None),
-    ColumnSpec(ColumnId("one"), ColumnName("one"), "one", "desc", SoQLText, None),
-    ColumnSpec(ColumnId("two"), ColumnName("two"), "two", "desc",SoQLText, None),
-    ColumnSpec(ColumnId("three"), ColumnName("three"), "three", "desc",SoQLText, None),
-    ColumnSpec(ColumnId("four"), ColumnName("four"), "four", "desc",SoQLText, None),
-    ColumnSpec(ColumnId("five"), ColumnName("five"), "five", "desc",SoQLText, None)
+    ColumnSpec(ColumnId("zero"), ColumnName("zero"), SoQLText, None),
+    ColumnSpec(ColumnId("one"), ColumnName("one"), SoQLText, None),
+    ColumnSpec(ColumnId("two"), ColumnName("two"), SoQLText, None),
+    ColumnSpec(ColumnId("three"), ColumnName("three"), SoQLText, None),
+    ColumnSpec(ColumnId("four"), ColumnName("four"), SoQLText, None),
+    ColumnSpec(ColumnId("five"), ColumnName("five"), SoQLText, None)
   )
 }

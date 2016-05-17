@@ -13,8 +13,6 @@ package object highlevel {
         __underlying.id,
         __underlying.fieldName,
         __underlying.datatype,
-        __underlying.name,
-        __underlying.description,
         isInconsistencyResolutionGenerated = false,
         __underlying.computationStrategy.asRecord
       )
@@ -25,8 +23,6 @@ package object highlevel {
       ColumnSpec(
         __underlying.id,
         __underlying.fieldName,
-        __underlying.name,
-        __underlying.description,
         __underlying.typ,
         __underlying.computationStrategy.asSpec
       )
@@ -79,7 +75,7 @@ package object highlevel {
         __underlying.locale,
         __underlying.stage,
         __underlying.columnsByName.mapValues { cr =>
-          ColumnSpec(cr.id, cr.fieldName, cr.name, cr.description, cr.typ, cr.computationStrategy.asSpec)
+          ColumnSpec(cr.id, cr.fieldName, cr.typ, cr.computationStrategy.asSpec)
         })
     }
   }

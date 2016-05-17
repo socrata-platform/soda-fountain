@@ -266,18 +266,16 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         // so we'll name them "unknown_$CID" and "Unknown column $CID".
         // If the former conflicts, add a disambiguating number.  IF the latter
         // conflicts, add primes until it doesn't.
-        val (existingFieldNames, existingColumnNames) = using(conn.prepareStatement("select column_name, name from columns where dataset_system_id = ?")) { stmt =>
+        val existingFieldNames = using(conn.prepareStatement("select column_name from columns where dataset_system_id = ?")) { stmt =>
           stmt.setString(1, datasetId.underlying)
           using(stmt.executeQuery()) { rs =>
             val fns = Set.newBuilder[ColumnName]
-            val cns = Set.newBuilder[String]
 
             while(rs.next()) {
               fns += ColumnName(rs.getString("column_name"))
-              cns += rs.getString("name")
             }
 
-            (fns.result(), cns.result())
+            fns.result()
           }
         }
         val copyNumber = lookupCopyNumber(datasetId, Some(Latest)).getOrElse(throw new Exception("cannot find the latest copy"))
@@ -291,17 +289,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             } while(existingFieldNames.contains(newFieldName))
           }
 
-          var newName = "Unknown column " + cid.underlying
-          if(existingColumnNames.contains(newName)) {
-            var i = 1
-            do {
-              newName = "Unknown column " + cid + ("'" * i)
-              i += 1
-            } while(existingColumnNames.contains(newName))
-          }
-
           // TODO : Understand what needs to happen to computation strategy here
-          ColumnRecord(cid, newFieldName, newSchema.schema(cid), newName, "Unknown column discovered by consistency checker", isInconsistencyResolutionGenerated = true, None)
+          ColumnRecord(cid, newFieldName, newSchema.schema(cid), isInconsistencyResolutionGenerated = true, None)
         })
       }
 
@@ -372,8 +361,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       """SELECT c.column_name,
         |       c.column_id,
         |       c.type_name,
-        |       c.name,
-        |       c.description,
         |       c.is_inconsistency_resolution_generated,
         |       cs.computation_strategy_type,
         |       cs.source_columns,
@@ -397,8 +384,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             ColumnId(rs.getString("column_id")),
             new ColumnName(rs.getString("column_name")),
             SoQLType.typesByName(TypeName(rs.getString("type_name"))),
-            rs.getString("name"),
-            rs.getString("description"),
             rs.getBoolean("is_inconsistency_resolution_generated"),
             fetchComputationStrategy(conn, datasetId, rs, copyNumber)
           )
@@ -466,7 +451,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           |    type_name,
           |    is_inconsistency_resolution_generated,
           |    copy_id)
-          | SELECT ?, ?, ?, ?, ?, ?, ?, ?, id FROM dataset_copies
+          | SELECT ?, ?, ?, ?, '', '', ?, ?, id FROM dataset_copies
           |  WHERE dataset_system_id = ? AND copy_number = ?
           |    And deleted_at is null
           | """.stripMargin
@@ -478,12 +463,10 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           colAdder.setString(2, crec.fieldName.caseFolded)
           colAdder.setString(3, crec.fieldName.name)
           colAdder.setString(4, crec.id.underlying)
-          colAdder.setString(5, crec.name)
-          colAdder.setString(6, crec.description)
-          colAdder.setString(7, crec.typ.name.name)
-          colAdder.setBoolean(8, crec.isInconsistencyResolutionGenerated)
-          colAdder.setString(9, datasetId.underlying)
-          colAdder.setLong(10, copyNumber)
+          colAdder.setString(5, crec.typ.name.name)
+          colAdder.setBoolean(6, crec.isInconsistencyResolutionGenerated)
+          colAdder.setString(7, datasetId.underlying)
+          colAdder.setLong(8, copyNumber)
           colAdder.addBatch
         }
         colAdder.executeBatch
@@ -648,7 +631,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def addColumn(datasetId: DatasetId, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
     using(dataSource.getConnection()) { conn =>
-      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, spec.name, spec.description, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
+      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
       addColumns(conn, datasetId, copyNumber, Seq(result))
       updateSchemaHash(conn, datasetId, copyNumber)
       result
@@ -737,8 +720,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           |           column_name_casefolded,
           |           column_name,
           |           column_id,
-          |           name,
-          |           description,
+          |           '',
+          |           '',
           |           type_name,
           |           is_inconsistency_resolution_generated,
           |           (SELECT id FROM dataset_copies WHERE dataset_system_id = ? And copy_number = ?)
@@ -822,21 +805,15 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   override def withColumnUpdater[T](datasetId: DatasetId, columnId: ColumnId)(f: ColumnUpdater => T): T = {
     using(dataSource.getConnection) { conn =>
-      var humanName: Option[String] = None
-      var description: Option[String] = None
       var fieldName: Option[ColumnName] = None
 
       val columnUpdater = new ColumnUpdater {
-        override def updateHumanName(newHumanName: String): Unit = humanName = Some(newHumanName)
-        override def updateDescription(newDescription: String): Unit = description = Some(newDescription)
         override def updateFieldName(newFieldName: ColumnName): Unit = fieldName = Some(newFieldName)
       }
 
       val result = f(columnUpdater)
 
       val fragments = Seq(
-        humanName.map { _ => "name = ?" },
-        description.map { _ => "description = ?" },
         fieldName.map { _ => "column_name = ?, column_name_casefolded = ?" }
       ).flatten
       if(fragments.nonEmpty) {
@@ -844,8 +821,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         using(conn.prepareStatement(sql)) { stmt =>
           var ptr = 0
           def nextPtr() = { ptr += 1; ptr }
-          humanName.foreach(stmt.setString(nextPtr(), _))
-          description.foreach(stmt.setString(nextPtr(), _))
           fieldName.foreach { fn =>
             stmt.setString(nextPtr(), fn.name)
             stmt.setString(nextPtr(), fn.caseFolded)
