@@ -2,13 +2,12 @@ package com.socrata.soda.server.wiremodels
 
 import com.rojoma.json.v3.ast.{JString, JObject, JValue}
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.errors.{ComputationStrategySpecUnknownType, ComputationStrategySpecMaltyped}
 import com.socrata.soda.server.id.ColumnId
-import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.wiremodels.InputUtils.ExtractContext
 import scala.{collection => sc}
-import scala.util.Try
 import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
 import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
 
@@ -34,7 +33,7 @@ object SourceColumnSpec {
  */
 @JsonKeyStrategy(Strategy.Underscore)
 case class ComputationStrategySpec(
-  strategyType: ComputationStrategyType.Value,
+  strategyType: StrategyType,
   sourceColumns: Option[Seq[SourceColumnSpec]],
   parameters: Option[JObject])
 
@@ -43,7 +42,7 @@ object ComputationStrategySpec {
 }
 
 
-case class UserProvidedComputationStrategySpec(strategyType: Option[ComputationStrategyType.Value],
+case class UserProvidedComputationStrategySpec(strategyType: Option[StrategyType],
                                                sourceColumns: Option[Seq[String]],
                                                parameters: Option[JObject])
 
@@ -69,10 +68,11 @@ object UserProvidedComputationStrategySpec extends UserProvidedSpec[UserProvided
       extract[T](map, field)
 
     def strategyType = e[String]("type") match {
-      case Extracted(Some(s)) => Try(ComputationStrategyType.withName(s)).toOption match {
-        case Some(typ) => Extracted(Some(typ))
-        case None => RequestProblem(ComputationStrategySpecUnknownType(s))
-      }
+      case Extracted(Some(s)) =>
+        StrategyType.withName(s) match {
+          case Some(typ) => Extracted(Some(typ))
+          case None => RequestProblem(ComputationStrategySpecUnknownType(s))
+        }
       case _ => Extracted(None)
     }
     def sourceColumns = e[Seq[String]]("source_columns")

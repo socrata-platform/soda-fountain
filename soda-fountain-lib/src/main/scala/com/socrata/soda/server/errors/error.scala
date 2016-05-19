@@ -5,10 +5,10 @@ import javax.servlet.http.HttpServletResponse._
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec._
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.EntityTag
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError
 import com.socrata.soda.server.id.{ResourceName, RollupName, RowSpecifier}
-import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.{ColumnName, TypeName}
 
 case class ResourceNotModified(override val etags: Seq[EntityTag],
@@ -196,7 +196,7 @@ case class RowColumnNotFound(value: ColumnName)
     s"One or more rows expected column '${value.name}' which was not found on the dataset",
     "value" -> JString(value.name))
 
-case class ComputationHandlerNotFound(typ: ComputationStrategyType.Value)
+case class ComputationHandlerNotFound(typ: StrategyType)
   extends SodaError(SC_BAD_REQUEST, "soda.column.computation-handler-not-found",
     s"Computation handler not found for computation strategy type ${typ.toString}",
     "computation-strategy" -> JString(typ.toString))

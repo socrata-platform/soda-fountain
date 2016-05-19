@@ -1,7 +1,8 @@
 package com.socrata.soda.server.services
 
+import com.socrata.computation_strategies.StrategyType
 import org.scalatest.{Matchers, FunSuite}
-import com.socrata.soda.server.wiremodels.{RequestProblem, ComputationStrategyType, Extracted, UserProvidedComputationStrategySpec}
+import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedComputationStrategySpec}
 import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.json.v3.ast.{JString, JObject}
 import com.socrata.soda.server.errors.ComputationStrategySpecUnknownType
@@ -17,7 +18,7 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
                          |}""".stripMargin)
     spec match {
       case Extracted(compStrategy) =>
-        compStrategy.strategyType should be (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
+        compStrategy.strategyType should be (Some(StrategyType.GeoRegionMatchOnPoint))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
 
@@ -59,7 +60,7 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
                          |}""".stripMargin)
     spec match {
       case Extracted(compStrategy) =>
-        compStrategy.strategyType should be (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
+        compStrategy.strategyType should be (Some(StrategyType.GeoRegionMatchOnPoint))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
       case _ => fail("parsing should fail if recompute is missing")
@@ -73,7 +74,7 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
                          |}""".stripMargin)
     spec match {
       case Extracted(compStrategy) =>
-        compStrategy.strategyType should be (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
+        compStrategy.strategyType should be (Some(StrategyType.GeoRegionMatchOnPoint))
         compStrategy.sourceColumns should be (None)
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
 
@@ -88,7 +89,7 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
                          |}""".stripMargin)
     spec match {
       case Extracted(compStrategy) =>
-        compStrategy.strategyType should be (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
+        compStrategy.strategyType should be (Some(StrategyType.GeoRegionMatchOnPoint))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (None)
 
@@ -105,7 +106,7 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
                          |}""".stripMargin)
     spec match {
       case Extracted(compStrategy) =>
-        compStrategy.strategyType should be (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
+        compStrategy.strategyType should be (Some(StrategyType.GeoRegionMatchOnPoint))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
 

@@ -1,6 +1,6 @@
 package com.socrata.soda.server.computation
 
-import com.socrata.soda.server.wiremodels.ComputationStrategyType
+import com.socrata.computation_strategies.StrategyType
 import com.typesafe.config.Config
 import org.apache.curator.x.discovery.ServiceDiscovery
 
@@ -15,13 +15,13 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
   /**
    * Instantiates a computation handler handle a given computation strategy type.
    */
-  val handlers = Map[ComputationStrategyType.Value, () => ComputationHandler](
-    ComputationStrategyType.GeoRegionMatchOnPoint  -> (() => geoRegionMatchOnPointHandler),
-    ComputationStrategyType.GeoRegionMatchOnString -> (() => geoRegionMatchOnStringHandler),
-    ComputationStrategyType.Test                   -> (() => new TestComputationHandler),
+  val handlers = Map[StrategyType, () => ComputationHandler](
+    StrategyType.GeoRegionMatchOnPoint  -> (() => geoRegionMatchOnPointHandler),
+    StrategyType.GeoRegionMatchOnString -> (() => geoRegionMatchOnStringHandler),
+    StrategyType.Test                   -> (() => new TestComputationHandler),
 
     // For backwards compatibility only. Replaced by GeoRegionMatchOnPoint
-    ComputationStrategyType.GeoRegion              -> (() => geoRegionMatchOnPointHandler)
+    StrategyType.GeoRegion              -> (() => geoRegionMatchOnPointHandler)
   )
 
   private def geoRegionMatchOnPointHandler  = new GeoregionMatchOnPointHandler(

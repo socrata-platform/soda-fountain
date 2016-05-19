@@ -1,10 +1,12 @@
 package com.socrata.soda.server.highlevel
 
+import com.rojoma.json.v3.util.WrapperJsonDecode
+import com.socrata.computation_strategies._
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.brita.IdentifierFilter
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.id.ColumnId
-import com.socrata.soql.types.{SoQLFixedTimestamp, SoQLVersion, SoQLID}
+import com.socrata.soql.types.{SoQLType, SoQLFixedTimestamp, SoQLVersion, SoQLID}
 import com.socrata.soql.types.obfuscation.Quadifier
 import scala.util.Random
 
@@ -19,7 +21,7 @@ class ColumnSpecUtils(rng: Random) {
     // system columns, but for now we decided to enforce this rule so that computed columns
     // behave like system columns (not writable thru API, not returned in SELECT *).
     val isComputedSystemLike = uCompStrategy match {
-      case Some(UserProvidedComputationStrategySpec(Some(typ), _, _)) => !ComputationStrategyType.userColumnAllowed(typ)
+      case Some(UserProvidedComputationStrategySpec(Some(typ), _, _)) => !StrategyType.userColumnAllowed(typ)
       case _ => false // worry about no ComputationStrategyType later...
     }
     if (isComputedSystemLike &&
@@ -37,13 +39,14 @@ class ColumnSpecUtils(rng: Random) {
   def duplicateColumnName(columnName: ColumnName, existingColumns: Map[ColumnName, ColumnId]): Boolean =
     existingColumns.map(_._1).exists(_.name.equalsIgnoreCase(columnName.name))
 
-  def freezeForCreation(existingColumns: Map[ColumnName, ColumnId], ucs: UserProvidedColumnSpec): CreateResult =
+  def freezeForCreation(existingColumns: Map[ColumnName, (ColumnId, SoQLType)], ucs: UserProvidedColumnSpec): CreateResult =
     ucs match {
       case UserProvidedColumnSpec(None, Some(fieldName), Some(typ), None, uCompStrategy) =>
         if (!validColumnName(fieldName, uCompStrategy)) return InvalidFieldName(fieldName)
-        if (duplicateColumnName(fieldName, existingColumns)) return DuplicateColumnName(fieldName)
-        val id = selectId(existingColumns.values)
-        freezeForCreation(existingColumns, uCompStrategy) match {
+        val existingColumnIds = existingColumns.mapValues(_._1)
+        if (duplicateColumnName(fieldName, existingColumnIds)) return DuplicateColumnName(fieldName)
+        val id = selectId(existingColumnIds.values)
+        freezeForCreation(existingColumns, typ, uCompStrategy) match {
           case ComputationStrategySuccess(compStrategy) =>
             Success(ColumnSpec(id, fieldName, typ, compStrategy))
           case cr: CreateResult => cr
@@ -58,21 +61,35 @@ class ColumnSpecUtils(rng: Random) {
         DeleteSet
     }
 
-  def freezeForCreation(existingColumns: Map[ColumnName, ColumnId],
+  def freezeForCreation(existingColumns: Map[ColumnName, (ColumnId, SoQLType)],
+                        datatype: SoQLType,
                         ucs: Option[UserProvidedComputationStrategySpec]): CreateResult =
     ucs match {
       case Some(UserProvidedComputationStrategySpec(Some(typ), sourceColumns, parameters)) =>
-        // The logic below assumes that the computed column is defined after the source column in the schema.
-        // TODO : Validation should be independent of column ordering in the schema definition.
-        val sourceColumnSpecs = sourceColumns.map(_.map(sourceColumnSpec(_, existingColumns)))
-        sourceColumnSpecs match {
-          case Some(specs: Seq[Option[SourceColumnSpec]]) =>
-            if (specs.exists(_.isEmpty)) UnknownComputationStrategySourceColumn
-            else {
-              ComputationStrategySuccess(Some(ComputationStrategySpec(typ, Some(specs.flatten), parameters)))
-            }
+        val definition = StrategyDefinition[ColumnName](typ, sourceColumns.map(_.map(new ColumnName(_))), parameters)
+
+        // Column should have the correct datatype
+        val targetDatatype = ComputationStrategy.strategies(definition.typ).targetColumnType
+        if (datatype != targetDatatype)
+          return WrongDatatypeForComputationStrategy(datatype, targetDatatype)
+
+        // Validate the strategy and the datatypes of the source columns
+        implicit val decode = WrapperJsonDecode[ColumnName]{ name: String => new ColumnName(name): ColumnName }
+        ComputationStrategy.validate[ColumnName](definition, existingColumns.mapValues(_._2)) match {
+          case Some(UnknownSourceColumn(_)) =>
+            UnknownComputationStrategySourceColumn
+          case Some(other) =>
+            InvalidComputationStrategy(other)
           case None =>
-            ComputationStrategySuccess(Some(ComputationStrategySpec(typ, None, parameters)))
+            // The logic below assumes that the computed column is defined after the source column in the schema.
+            // TODO : Validation should be independent of column ordering in the schema definition.
+            val sourceColumnSpecs = sourceColumns.map(_.map(sourceColumnSpec(_, existingColumns.mapValues(_._1))))
+            sourceColumnSpecs match {
+              case Some(specs: Seq[Option[SourceColumnSpec]]) =>
+                ComputationStrategySuccess(Some(ComputationStrategySpec(typ, Some(specs.flatten), parameters)))
+              case None =>
+                ComputationStrategySuccess(Some(ComputationStrategySpec(typ, None, parameters)))
+            }
         }
       case Some(UserProvidedComputationStrategySpec(None, _, _)) => ComputationStrategyNoStrategyType
       case None => ComputationStrategySuccess(None)
@@ -123,6 +140,8 @@ object ColumnSpecUtils {
   case object DeleteSet extends CreateResult
   case object UnknownComputationStrategySourceColumn extends CreateResult
   case object ComputationStrategyNoStrategyType extends CreateResult
+  case class WrongDatatypeForComputationStrategy(found: SoQLType, required: SoQLType) extends CreateResult
+  case class InvalidComputationStrategy(error: ValidationError) extends CreateResult
 
   def isSystemColumn(columnName: ColumnName): Boolean = columnName.name.startsWith(":")
 }

@@ -1,6 +1,7 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.server.wiremodels.{ComputationStrategyType, UserProvidedComputationStrategySpec}
+import com.socrata.computation_strategies.StrategyType
+import com.socrata.soda.server.wiremodels.UserProvidedComputationStrategySpec
 import org.scalatest.{FunSuite, Matchers}
 import java.security.SecureRandom
 import com.socrata.soql.environment.ColumnName
@@ -41,18 +42,18 @@ class ColumnSpecUtilsTest extends FunSuite with Matchers {
   }
 
   test("validColumnName - computed column, colon") {
-    test(":location", Some(UserProvidedComputationStrategySpec(Some(ComputationStrategyType.Test), None, None)), true)
+    test(":location", Some(UserProvidedComputationStrategySpec(Some(StrategyType.Test), None, None)), true)
   }
 
   test("validColumnName - computed column, no colon allowed") {
-    test("location", Some(UserProvidedComputationStrategySpec(Some(ComputationStrategyType.GeoCoding), None, None)), true)
+    test("location", Some(UserProvidedComputationStrategySpec(Some(StrategyType.Geocoding), None, None)), true)
   }
 
   test("validColumnName - computed column, no colon not allowed") {
-    test("region", Some(UserProvidedComputationStrategySpec(Some(ComputationStrategyType.GeoRegionMatchOnPoint), None, None)), false)
+    test("region", Some(UserProvidedComputationStrategySpec(Some(StrategyType.GeoRegionMatchOnPoint), None, None)), false)
   }
 
   test("validColumnName - computed column, collides with system column") {
-    test(":created_at",  Some(UserProvidedComputationStrategySpec(Some(ComputationStrategyType.Test), None, None)), false)
+    test(":created_at",  Some(UserProvidedComputationStrategySpec(Some(StrategyType.Test), None, None)), false)
   }
 }

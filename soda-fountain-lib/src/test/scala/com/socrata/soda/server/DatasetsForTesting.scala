@@ -1,10 +1,10 @@
 package com.socrata.soda.server
 
 import com.rojoma.json.v3.ast.{JObject, JString}
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence._
-import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import org.joda.time.DateTime
@@ -54,7 +54,7 @@ trait DatasetsForTesting {
     )
 
     val computationStrategy = ComputationStrategyRecord(
-      ComputationStrategyType.Test,
+      StrategyType.Test,
       Some(Seq(MinimalColumnRecord(sourceColumn.id, sourceColumn.fieldName, SoQLNull, isInconsistencyResolutionGenerated = false, None))),
       Some(JObject(Map("concat_text" -> JString("fun")))))
 

@@ -14,7 +14,7 @@ import com.socrata.soql.types.SoQLText
  * The column value is computed by taking the text of the source column (which must be of type "text"),
  * and concatenating a specified string to it.
  * To trigger this handler, define a column whose computation strategy looks like this:
- * { "type": "test", "recompute": true, "source_columns": ["my_source"], "parameters": { "concat_text" : "foo" } }
+ * { "type": "test", "source_columns": ["my_source"], "parameters": { "concat_text" : "foo" } }
  */
 class TestComputationHandler extends ComputationHandler {
   def compute(requestId: RequestId,
