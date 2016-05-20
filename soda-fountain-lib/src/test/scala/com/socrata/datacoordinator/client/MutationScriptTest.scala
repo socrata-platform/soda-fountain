@@ -2,7 +2,8 @@ package com.socrata.datacoordinator.client
 import java.io._
 import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.io.JsonReader
-import com.socrata.soda.server.wiremodels.{SourceColumnSpec, ComputationStrategyType, ComputationStrategySpec}
+import com.socrata.computation_strategies.StrategyType
+import com.socrata.soda.server.wiremodels.{SourceColumnSpec, ComputationStrategySpec}
 import com.socrata.soql.types.SoQLType
 import com.socrata.soql.environment.{ColumnName, TypeName}
 import com.socrata.soda.server.id.{RollupName, ColumnId}
@@ -16,7 +17,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   val fieldName= ColumnName("field_name")
   val user = "Daniel the tester"
   val computationStrategy = ComputationStrategySpec(
-    ComputationStrategyType.Test,
+    StrategyType.Test,
     Some(Seq(SourceColumnSpec(ColumnId("source column id"), ColumnName("source_column")))),
     Some(JObject(Map("param" -> JString("some value"))))
   )

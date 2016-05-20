@@ -1,6 +1,5 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.v3.ast.JValue
 import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.copy.Latest
@@ -9,12 +8,11 @@ import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.{SoQLText, SoQLType}
 import scala.util.control.ControlThrowable
 
 // TODO: This shouldn't be referenced here.
 import com.socrata.http.server.util.{NoPrecondition, Precondition}
-import com.socrata.soda.server.persistence.{ColumnRecord, MinimalColumnRecord, DatasetRecord, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord, NameAndSchemaStore}
 
 class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils) extends ColumnDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnDAOImpl])
@@ -47,7 +45,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                    column: ColumnName,
                    userProvidedSpec: UserProvidedColumnSpec,
                    requestId: RequestId): ColumnDAO.Result = {
-    columnSpecUtils.freezeForCreation(datasetRecord.columnsByName.mapValues(_.id), userProvidedSpec) match {
+    columnSpecUtils.freezeForCreation(datasetRecord.columnsByName.mapValues(col => (col.id, col.typ)), userProvidedSpec) match {
       case ColumnSpecUtils.Success(spec) =>
         if(spec.fieldName != column) return ColumnDAO.InvalidColumnName(column)
 

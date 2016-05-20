@@ -2,12 +2,13 @@ package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.conversions._
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecordLike}
-import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
+import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 
@@ -163,5 +164,5 @@ object RowDataTranslator {
   case class UnknownColumnEx(col: ColumnName) extends Exception(s"Unrecognized column $col")
   case object DeleteNoPKEx extends Exception
   case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends Exception(s"Inappropriate JValue $obj")
-  case class ComputationHandlerNotFoundEx(typ: ComputationStrategyType.Value) extends Exception(s"Computation strategy $typ was not found")
+  case class ComputationHandlerNotFoundEx(typ: StrategyType) extends Exception(s"Computation strategy $typ was not found")
 }

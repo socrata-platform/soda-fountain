@@ -2,11 +2,12 @@ package com.socrata.soda.server.persistence
 
 import com.rojoma.json.v3.ast.JObject
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec
-import com.socrata.soda.server.wiremodels.{ColumnSpec, ComputationStrategyType}
+import com.socrata.soda.server.wiremodels.ColumnSpec
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLType
 import com.socrata.thirdparty.json.AdditionalJsonCodecs._
@@ -84,7 +85,7 @@ trait ColumnRecordLike {
 }
 
 case class ComputationStrategyRecord(
-   strategyType: ComputationStrategyType.Value,
+   strategyType: StrategyType,
    sourceColumns: Option[Seq[MinimalColumnRecord]],
    parameters: Option[JObject])
 

@@ -1,7 +1,7 @@
 package com.socrata.soda.server.services
 
+import com.socrata.computation_strategies.StrategyType
 import org.scalatest.{Matchers, FunSuite}
-import com.rojoma.json.v3.io.{JsonReader, CompactJsonWriter}
 import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.json.v3.ast.{JString, JObject}
 import com.socrata.soda.server.wiremodels._
@@ -80,7 +80,7 @@ class DatasetExtractorTest extends FunSuite with Matchers {
         regionColumn.computationStrategy should not be (None)
 
         val compStrategy = regionColumn.computationStrategy.get
-        compStrategy.strategyType should be eq (Some(ComputationStrategyType.GeoRegionMatchOnPoint))
+        compStrategy.strategyType should be eq (Some(StrategyType.GeoRegionMatchOnPoint))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
 

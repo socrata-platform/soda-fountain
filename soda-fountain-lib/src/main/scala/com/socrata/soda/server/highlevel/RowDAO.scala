@@ -1,15 +1,14 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.ast.JObject
 import com.rojoma.json.v3.ast.JValue
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError
 import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
-import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecord}
-import com.socrata.soda.server.wiremodels.ComputationStrategyType
+import com.socrata.soda.server.persistence.DatasetRecordLike
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import org.joda.time.DateTime
@@ -98,5 +97,5 @@ object RowDAO {
   case class QCError(status: Int, error: QueryCoordinatorError) extends UpsertFailResult
 
   // UPSERT FAILURE: UNKNOWN
-  case class ComputationHandlerNotFound(typ: ComputationStrategyType.Value) extends UpsertFailResult
+  case class ComputationHandlerNotFound(typ: StrategyType) extends UpsertFailResult
 }

@@ -1,11 +1,12 @@
 package com.socrata.soda.server.persistence
 
 import com.rojoma.json.v3.ast.{JObject, JString}
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.copy._
 import com.socrata.soda.server.highlevel.csrec
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
-import com.socrata.soda.server.wiremodels.{SourceColumnSpec, ComputationStrategySpec, ColumnSpec, ComputationStrategyType}
+import com.socrata.soda.server.wiremodels.{SourceColumnSpec, ComputationStrategySpec, ColumnSpec}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText}
 import org.joda.time.DateTime
@@ -98,7 +99,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         SoQLNumber,
         false,
         Some(ComputationStrategyRecord(
-          ComputationStrategyType.GeoRegionMatchOnPoint,
+          StrategyType.GeoRegionMatchOnPoint,
           Some(Seq(MinimalColumnRecord(ColumnId("abcd-1234"), ColumnName("location"), SoQLPoint, isInconsistencyResolutionGenerated = false, None))),
           Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))
         ))
@@ -163,7 +164,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         ColumnId("defg-4567"),
         ColumnName("ward"),
         SoQLNumber,
-        Some(ComputationStrategySpec(ComputationStrategyType.GeoRegionMatchOnPoint,
+        Some(ComputationStrategySpec(StrategyType.GeoRegionMatchOnPoint,
           Some(Seq(SourceColumnSpec(ColumnId("abcd-1234"), ColumnName("location")))),
           Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))))
       )
@@ -182,7 +183,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
         SoQLNumber,
         false,
         Some(ComputationStrategyRecord(
-          ComputationStrategyType.GeoRegionMatchOnPoint,
+          StrategyType.GeoRegionMatchOnPoint,
           Some(Seq(MinimalColumnRecord(ColumnId("abcd-1234"), ColumnName("location"), SoQLPoint, isInconsistencyResolutionGenerated = false, None))),
           Some(JObject(Map("georegion_resource_name" -> JString("chicago_wards"))))
         ))

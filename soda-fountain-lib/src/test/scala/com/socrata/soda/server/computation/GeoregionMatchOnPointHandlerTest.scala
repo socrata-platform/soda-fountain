@@ -6,11 +6,12 @@ import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.io.JsonReader
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.highlevel.RowDataTranslator.{DeleteAsCJson, UpsertAsSoQL}
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.persistence.{ColumnRecordLike, ComputationStrategyRecord, MinimalColumnRecord}
-import com.socrata.soda.server.wiremodels.{ComputationStrategyType, JsonColumnRep}
+import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.curator.{CuratorBroker, CuratorServiceIntegration}
@@ -54,7 +55,7 @@ trait GeoregionMatchOnPointHandlerData {
   }
 
   def computeStrategy(explicitPrimaryKeyParam: Boolean) = {
-    ComputationStrategyRecord(ComputationStrategyType.GeoRegionMatchOnPoint,
+    ComputationStrategyRecord(StrategyType.GeoRegionMatchOnPoint,
       Some(Seq(sourceColumn("geom-1234"))),
       Some(JObject(strategyParams(explicitPrimaryKeyParam))))
   }
@@ -286,7 +287,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     val badColumnSpec = mock[ColumnRecordLike]
     when(badColumnSpec.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
-        ComputationStrategyType.GeoRegionMatchOnPoint,
+        StrategyType.GeoRegionMatchOnPoint,
         Some(Seq(sourceColumn(""))),
         Some(JObject(Map())))))
 
@@ -300,7 +301,7 @@ class GeoregionMatchOnPointHandlerTest extends FunSuite
     val badColumnSpec = mock[ColumnRecordLike]
     when(badColumnSpec.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
-        ComputationStrategyType.GeoRegionMatchOnPoint,
+        StrategyType.GeoRegionMatchOnPoint,
         Some(Seq()),
         null)))
 

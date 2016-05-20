@@ -1,11 +1,8 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.RequestId.RequestId
-import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.{DropRollupInstruction, CreateOrUpdateRollupInstruction, SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
-import com.socrata.soda.server.highlevel.SnapshotDAO.{DeleteSnapshotResponse, ExportSnapshotResponse}
 import com.socrata.soda.server.id.{ColumnId, SecondaryId, ResourceName, RollupName}
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
@@ -14,14 +11,13 @@ import com.socrata.soql.collection.OrderedMap
 import com.socrata.soql.exceptions.{NoSuchColumn, SoQLException}
 import com.socrata.soql.mapping.ColumnNameMapper
 import com.socrata.soql.parsing.StandaloneParser
-import com.socrata.soql.types.{SoQLType, SoQLAnalysisType}
+import com.socrata.soql.types.SoQLType
 import com.socrata.soql.{SoQLAnalysis, SoQLAnalyzer}
 import com.socrata.soql.brita.IdentifierFilter
 import com.socrata.soql.environment.{DatasetContext, ColumnName}
 import com.socrata.soql.functions.SoQLFunctionInfo
 import com.socrata.soql.functions.SoQLTypeInfo
 import DatasetDAO._
-import scala.concurrent.duration.FiniteDuration
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Unpublished, Stage}
 
@@ -49,7 +45,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         val trueRID = rowIdentifier.getOrElse(defaultPrimaryKey)
         val trueLocale = locale.flatten.getOrElse(defaultLocale)
         val trueColumns = columns.getOrElse(Seq.empty).foldLeft(Map.empty[ColumnName, ColumnSpec]) { (acc, userColumnSpec) =>
-          columnSpecUtils.freezeForCreation(acc.mapValues(_.id), userColumnSpec) match {
+          columnSpecUtils.freezeForCreation(acc.mapValues { col => (col.id, col.datatype) }, userColumnSpec) match {
             case ColumnSpecUtils.Success(cSpec) => acc + (cSpec.fieldName -> cSpec)
             // TODO: not-success case
             // TODO other cases have not been implemented

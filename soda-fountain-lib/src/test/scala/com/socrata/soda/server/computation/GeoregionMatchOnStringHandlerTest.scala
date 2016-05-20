@@ -2,10 +2,10 @@ package com.socrata.soda.server.computation
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.conversions._
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.server.computation.ComputationHandler.MaltypedDataEx
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.persistence.{MinimalColumnRecord, ComputationStrategyRecord, ColumnRecordLike}
-import com.socrata.soda.server.wiremodels.ComputationStrategyType
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.typesafe.config.ConfigFactory
@@ -49,7 +49,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     val columnDef = mock[ColumnRecordLike]
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
-        ComputationStrategyType.GeoRegionMatchOnString,
+        StrategyType.GeoRegionMatchOnString,
         Some(Seq(sourceColumn)),
         Some(JObject(Map("region" -> JString("sfo_zipcodes"),
                          "column" -> JString("zip"),
@@ -63,7 +63,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     val columnDef = mock[ColumnRecordLike]
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
-        ComputationStrategyType.GeoRegionMatchOnString,
+        StrategyType.GeoRegionMatchOnString,
         Some(Seq(sourceColumn)),
         None)))
 
@@ -77,7 +77,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     val columnDef = mock[ColumnRecordLike]
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
-        ComputationStrategyType.GeoRegionMatchOnString,
+        StrategyType.GeoRegionMatchOnString,
         Some(Seq(sourceColumn)),
         Some(JObject(Map("column" -> JString("zip"), "primary_key" -> JString("_feature_id")))))))
 
@@ -91,7 +91,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     val columnDef = mock[ColumnRecordLike]
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
-        ComputationStrategyType.GeoRegionMatchOnString,
+        StrategyType.GeoRegionMatchOnString,
         Some(Seq(sourceColumn)),
         Some(JObject(Map("region" -> JString("sfo_zipcodes"), "primary_key" -> JString("_feature_id")))))))
 
@@ -105,7 +105,7 @@ class GeoregionMatchOnStringHandlerTest extends FunSuiteLike with FakeDiscovery 
     val columnDef = mock[ColumnRecordLike]
     when(columnDef.computationStrategy).thenReturn(Some(
       ComputationStrategyRecord(
-        ComputationStrategyType.GeoRegionMatchOnString,
+        StrategyType.GeoRegionMatchOnString,
         Some(Seq(sourceColumn)),
         Some(JObject(Map("region" -> JString("sfo_zipcodes"), "column" -> JString("zip")))))))
 

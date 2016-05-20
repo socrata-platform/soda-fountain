@@ -16,6 +16,7 @@ object SodaFountainLib {
       apacheCuratorDiscovery,
       balboaClient,
       c3po,
+      computationStrategies,
       javaxServletApi,
       liquibaseCore,
       liquibasePlugin,

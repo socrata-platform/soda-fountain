@@ -1,7 +1,8 @@
 package com.socrata.soda.server.persistence.pg
 
-import java.sql.{Connection, ResultSet, Timestamp, Types, BatchUpdateException}
+import java.sql.{Connection, ResultSet, Timestamp, Types}
 
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.server.persistence.NameAndSchemaStore.ColumnUpdater
 
 import scala.annotation.tailrec
@@ -15,7 +16,7 @@ import com.socrata.soda.server.highlevel.csrec
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
-import com.socrata.soda.server.wiremodels.{ColumnSpec, ComputationStrategyType}
+import com.socrata.soda.server.wiremodels.ColumnSpec
 import com.socrata.soql.environment.{ColumnName, TypeName}
 import com.socrata.soql.types.SoQLType
 import javax.sql.DataSource
@@ -395,11 +396,9 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def fetchComputationStrategy(conn: Connection, datasetId: DatasetId, rs: ResultSet, copyNumber: Long): Option[ComputationStrategyRecord] = {
     def parseStrategyType(raw: String) =
-      try {
-        ComputationStrategyType.withName(raw)
-      } catch {
-        case e: NoSuchElementException =>
-          throw new SodaFountainStoreError(s"Invalid computation strategy type found in database: '$raw'")
+      StrategyType.withName(raw) match {
+        case Some(typ) => typ
+        case None => throw new SodaFountainStoreError(s"Invalid computation strategy type found in database: '$raw'")
       }
 
     def parseParameters(raw: String) =

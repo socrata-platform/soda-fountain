@@ -1,15 +1,15 @@
 package com.socrata.soda.server.computation
 
+import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike}
 import com.socrata.soda.server.util.ManagedIterator
-import com.socrata.soda.server.wiremodels.ComputationStrategyType
 
 object ComputedColumnsLike {
   sealed trait ComputeResult
   case class ComputeSuccess(it: Iterator[RowDataTranslator.Computable]) extends ComputeResult
-  case class HandlerNotFound(typ: ComputationStrategyType.Value) extends ComputeResult
+  case class HandlerNotFound(typ: StrategyType) extends ComputeResult
 }
 
 trait ComputedColumnsLike {
@@ -18,7 +18,7 @@ trait ComputedColumnsLike {
   /**
    * Instantiates a computation handler handle a given computation strategy type.
    */
-  val handlers: Map[ComputationStrategyType.Value, () => ComputationHandler]
+  val handlers: Map[StrategyType, () => ComputationHandler]
 
   /**
    * Finds the computed columns from the dataset schema.
@@ -48,7 +48,7 @@ trait ComputedColumnsLike {
     for (computedColumn <- computedColumns) {
       val strategyType = computedColumn.computationStrategy.get.strategyType
       // only add computed columns that have synchronous computation strategies
-      if (ComputationStrategyType.computeSynchronously(strategyType)) {
+      if (StrategyType.computeSynchronously(strategyType)) {
         val tryGetHandler = handlers.get(strategyType)
         tryGetHandler match {
           case Some(handlerCreator) =>
