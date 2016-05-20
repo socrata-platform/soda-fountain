@@ -52,9 +52,10 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
     }
   }
 
-  test("No recompute") {
+  test("With legacy recompute") {
     val spec = extract("""{
                          |  type: "georegion_match_on_point",
+                         |  recompute: true,
                          |  source_columns: ["location"],
                          |  parameters: { georegion_uid:"abcd-1234" }
                          |}""".stripMargin)
@@ -63,7 +64,7 @@ class ComputationStrategyExtractorTest extends FunSuite with Matchers {
         compStrategy.strategyType should be (Some(StrategyType.GeoRegionMatchOnPoint))
         compStrategy.sourceColumns should be (Some(Seq("location")))
         compStrategy.parameters should be (Some(JObject(Map("georegion_uid" -> JString("abcd-1234")))))
-      case _ => fail("parsing should fail if recompute is missing")
+      case _ => fail("parsing should not fail if recompute is provided")
     }
   }
 
