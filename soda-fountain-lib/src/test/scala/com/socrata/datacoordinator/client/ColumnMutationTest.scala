@@ -21,7 +21,7 @@ class ColumnMutationTest extends DataCoordinatorClientTest {
   val testStrategy = ComputationStrategySpec(
     StrategyType.Test,
     Some(Seq(SourceColumnSpec(ColumnId("source column id"), ColumnName("source_field_name")))),
-    Some(JsonEncode.toJValue[TestParameterSchema](TestParameterSchema("foo")).asInstanceOf[JObject])
+    Some(JsonEncode.toJValue(TestParameterSchema("foo")).asInstanceOf[JObject])
   )
   val geocodingStrategy = ComputationStrategySpec(
     StrategyType.Geocoding,
@@ -29,13 +29,13 @@ class ColumnMutationTest extends DataCoordinatorClientTest {
       SourceColumnSpec(ColumnId("2222-2222"), ColumnName("street_address")),
         SourceColumnSpec(ColumnId("3333-3333"), ColumnName("zip_code"))
     )),
-    Some(JsonEncode.toJValue[GeocodingParameterSchema[String]](GeocodingParameterSchema(
+    Some(JsonEncode.toJValue(GeocodingParameterSchema(
       sources = GeocodingSources(
-        address = Some("street_address"),
+        address = Some("2222-2222"),
         locality = None,
         region = None,
         subregion = None,
-        postalCode = Some("zip_code"),
+        postalCode = Some("3333-3333"),
         country = None
       ),
       defaults = GeocodingDefaults(
