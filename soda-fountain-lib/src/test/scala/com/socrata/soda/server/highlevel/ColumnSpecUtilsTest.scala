@@ -1,12 +1,13 @@
 package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.ast.JObject
+import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.json.v3.interpolation._
-import com.socrata.computation_strategies.{MissingParameters, StrategyType}
+import com.socrata.computation_strategies._
 import com.socrata.soda.server.highlevel.ColumnSpecUtils._
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.wiremodels._
-import com.socrata.soql.types.{SoQLNumber, SoQLText, SoQLType}
+import com.socrata.soql.types.{SoQLPoint, SoQLNumber, SoQLText, SoQLType}
 import org.scalatest.{FunSuite, Matchers}
 import java.security.SecureRandom
 import com.socrata.soql.environment.ColumnName
@@ -168,5 +169,71 @@ class ColumnSpecUtilsTest extends FunSuite with Matchers {
         parameters = None
       )))
     testFreeze(existingColumns, ucs, InvalidComputationStrategy(MissingParameters(StrategyType.Test)))
+  }
+
+  test("freezeForCreation - test computed column strategy type \"geocoding\"") {
+    val existingColumns = Map[ColumnName, (ColumnId, SoQLType)](
+      ColumnName("street_address") -> ((ColumnId("2222-2222"), SoQLText)),
+      ColumnName("zip_code") -> ((ColumnId("3333-3333"), SoQLText))
+    )
+    val ucs = UserProvidedColumnSpec(
+      id = None,
+      fieldName = Some(ColumnName("location")),
+      datatype = Some(SoQLPoint),
+      delete = None,
+      computationStrategy = Some(UserProvidedComputationStrategySpec(
+        strategyType = Some(StrategyType.Geocoding),
+        sourceColumns = Some(Seq("street_address", "zip_code")),
+        parameters = Some(JsonEncode.toJValue(GeocodingParameterSchema(
+          sources = GeocodingSources(
+            address = Some("street_address"),
+            locality = None,
+            region = None,
+            subregion = None,
+            postalCode = Some("zip_code"),
+            country = None
+          ),
+          defaults = GeocodingDefaults(
+            address = None,
+            locality = Some("Seattle"),
+            region = Some("WA"),
+            subregion = None,
+            postalCode = None,
+            country = "US"
+          ),
+          version = "v1"
+        )).asInstanceOf[JObject])
+      )))
+    testFreeze(existingColumns, ucs, Success(
+      ColumnSpec(
+        ColumnId("???"),
+        ColumnName("location"),
+        SoQLPoint,
+        Some(ComputationStrategySpec(
+          StrategyType.Geocoding,
+          Some(Seq(
+            SourceColumnSpec(ColumnId("2222-2222"), ColumnName("street_address")),
+            SourceColumnSpec(ColumnId("3333-3333"), ColumnName("zip_code"))
+          )),
+          Some(JsonEncode.toJValue(GeocodingParameterSchema(
+            sources = GeocodingSources(
+              address = Some("2222-2222"),
+              locality = None,
+              region = None,
+              subregion = None,
+              postalCode = Some("3333-3333"),
+              country = None
+            ),
+            defaults = GeocodingDefaults(
+              address = None,
+              locality = Some("Seattle"),
+              region = Some("WA"),
+              subregion = None,
+              postalCode = None,
+              country = "US"
+            ),
+            version = "v1"
+          )).asInstanceOf[JObject])
+        )))))
   }
 }
