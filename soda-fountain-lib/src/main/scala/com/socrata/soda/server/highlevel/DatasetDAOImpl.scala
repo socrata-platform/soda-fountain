@@ -202,6 +202,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
       }
     }
   }
+
   def markDatasetForDeletion(user: String, dataset: ResourceName): Result = {
     //TODO: Ask about retryable and give a return value
       store.translateResourceName(dataset) match {
@@ -211,6 +212,16 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         case None =>
           DatasetNotFound(dataset)
       }
+  }
+
+  def unmarkDatasetForDeletion(user: String, dataset: ResourceName) : Result = {
+    store.translateResourceName(dataset, None, true) match {
+      case Some(datasetRecord) =>
+        store.unmarkResourceForDeletion(dataset)
+        Undeleted
+      case None =>
+        DatasetNotFound(dataset)
+    }
   }
 
   def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result =

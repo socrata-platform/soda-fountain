@@ -371,6 +371,33 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
     }
 
+  test ("undeleting a dataset should set 'deleted-at' to null") {
+    val columns = Seq[ColumnRecord](
+      new ColumnRecord(
+        ColumnId("abc123"),
+        ColumnName("a b c 1 2 3"),
+        SoQLText,
+        false,
+        None),
+      new ColumnRecord(
+        ColumnId("def456"),
+        ColumnName("d e f 4 5 6"),
+        SoQLText,
+        false,
+        None
+      )
+    )
+    val (resourceName, _) = createMockDataset(columns)
+    store.markResourceForDeletion(resourceName)
+    store.unmarkResourceForDeletion(resourceName)
+    val f = store.translateResourceName(resourceName)
+    f match {
+      case Some(record) =>
+        record.deletedAt should not be ('defined)
+      case None => fail("deleted_at column was still set in datasets after undeleting")
+    }
+  }
+
   private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetId) = {
     val dataset = generateDataset("PostgresStoreTest", columns)
     store.addResource(dataset)

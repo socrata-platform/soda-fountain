@@ -577,6 +577,44 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
+  def unmarkResourceForDeletion (resourceName: ResourceName): Unit = {
+    using(dataSource.getConnection()) { connection =>
+      connection.setAutoCommit(false)
+      val datasetIdOpt = using(connection.prepareStatement(
+        """SELECT
+          | d.dataset_system_id
+          |FROM datasets d
+          |WHERE
+          | d.resource_name_casefolded = ? AND d.deleted_at IS NOT NULL
+          |FOR UPDATE
+        """.stripMargin
+      )) { idFetcher =>
+        idFetcher.setString(1, resourceName.caseFolded)
+        using(idFetcher.executeQuery()) { rs =>
+          if (rs.next()) Some(DatasetId(rs.getString(1)))
+          else None
+        }
+      }
+      for (datasetId <- datasetIdOpt) {
+        using(connection.prepareStatement(
+          """UPDATE dataset_copies dc
+            | SET deleted_at = NULL
+            | WHERE dc.dataset_system_id = ? AND dc.deleted_at IS NOT NULL;
+            |
+            |UPDATE datasets d
+            | SET deleted_at = NULL
+            | WHERE d.dataset_system_id = ? AND d.deleted_at IS NOT NULL;""".stripMargin)) {
+        update =>
+          for (i <- 1 to 2) {
+            update.setString(i, datasetId.underlying)
+          }
+          update.execute()
+        }
+      }
+      connection.commit()
+    }
+  }
+
   // WARNING: this method is only suitable for things that are safe to update
   // with no downstream repercussions for data coordinator (eg. name, resource_name)
   def patchResource(toPatch: ResourceName, newResourceName: ResourceName): Unit = {

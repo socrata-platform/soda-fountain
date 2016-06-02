@@ -75,6 +75,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         NoContent
       case DatasetDAO.RollupDropped =>
         NoContent
+      case DatasetDAO.Undeleted =>
+        NoContent
       // fail cases
       case DatasetDAO.DatasetAlreadyExists(dataset) =>
         SodaUtils.errorResponse(req, DatasetAlreadyExistsSodaErr(dataset))
@@ -136,6 +138,12 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
     override def delete = { req =>
       response(req, datasetDAO.markDatasetForDeletion(user(req), resourceName))
+    }
+  }
+
+  case class undeleteService(resourceName: ResourceName) extends SodaResource {
+    override def post = { req =>
+      response(req, datasetDAO.unmarkDatasetForDeletion(user(req), resourceName))
     }
   }
 
