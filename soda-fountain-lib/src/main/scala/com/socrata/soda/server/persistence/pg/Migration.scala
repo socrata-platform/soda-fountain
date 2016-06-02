@@ -1,9 +1,9 @@
 package com.socrata.soda.server.persistence.pg
 
 import java.sql.Connection
+
 import liquibase.Liquibase
 import liquibase.resource.ClassLoaderResourceAccessor
-import liquibase.database.jvm.JdbcConnection
 
 object Migration {
   sealed abstract class MigrationOperation
@@ -15,7 +15,8 @@ object Migration {
                 operation: MigrationOperation = Migrate,
                 changeLogPath: String = migrationScriptPath)
   {
-    val liquibase = new Liquibase(changeLogPath, new ClassLoaderResourceAccessor(), new JdbcConnection(conn))
+    val jdbc = new NonCommmittingJdbcConnenction(conn)
+    val liquibase = new Liquibase(changeLogPath, new ClassLoaderResourceAccessor(), jdbc)
     val database = conn.getCatalog
 
     operation match {
@@ -27,6 +28,7 @@ object Migration {
         liquibase.rollback(numChanges, database)
         liquibase.update(database)
     }
+    jdbc.realCommit()
   }
 
   private val migrationScriptPath = "com/socrata/soda/server/persistence/pg/migrate.xml"

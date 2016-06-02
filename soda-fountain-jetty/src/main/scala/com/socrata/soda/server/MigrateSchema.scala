@@ -30,7 +30,9 @@ object MigrateSchema extends App {
     val config = new SodaFountainConfig(ConfigFactory.load)
     for {
       conn <- managed(DataSourceFromConfig(config.database).getConnection)
+      stmt <- managed(conn.createStatement())
     } {
+      stmt.execute("SET lock_timeout = '30s'")
       Migration.migrateDb(conn, operation)
     }
   }
