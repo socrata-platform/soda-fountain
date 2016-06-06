@@ -11,6 +11,7 @@ su socrata -c '/usr/bin/java \
 exec su socrata -c '/usr/bin/java \
     -Xmx${JAVA_XMX} \
     -Xms${JAVA_XMX} \
+    -XX:MaxMetaspaceSize=${JAVA_MAX_METASPACE} \
     -Dconfig.file=${SERVER_CONFIG} \
     -Djava.net.preferIPv4Stack=true \
     -Dcom.sun.management.jmxremote.port=${JMX_PORT} \
