@@ -4,6 +4,7 @@ package com.socrata.soda.clients.querycoordinator
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout}
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.util._
@@ -31,6 +32,21 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   private val qpNoRollup = "no_rollup"
   private val qpObfuscateId = "obfuscateId"
 
+  private def retrying[T](limit: Int)(f: => T): T = {
+    def doRetry(count: Int, e: Exception): T = {
+      if(count == limit) throw e
+      else loop(count + 1)
+    }
+    def loop(count: Int): T = {
+      try { f }
+      catch {
+        case e: ConnectTimeout => doRetry(count, e)
+        case e: ConnectFailed => doRetry(count, e)
+      }
+    }
+    loop(0)
+  }
+
   def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
     columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String],
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
@@ -38,25 +54,30 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     extraHeaders: Map[String, String],
     rs: ResourceScope)(f: Result => T): T = {
 
-    qchost match {
-      case Some(host) =>
-        val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
-        val params = List(
-            qpDataset -> datasetId.underlying,
-            qpQuery -> query,
-            qpIdMap -> jsonizedColumnIdMap) ++
-          copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
-          rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
-          (if (noRollup) List(qpNoRollup -> "y") else Nil) ++
-          (if (!obfuscateId) List(qpObfuscateId -> "false") else Nil) ++
-          secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)
-        log.debug("Query Coordinator request parameters: " + params)
-        val request = host.addHeaders(PreconditionRenderer(precondition) ++
-                                      ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate) ++
-                                      extraHeaders).form(params)
-        f(resultFrom(rs.open(httpClient.executeUnmanaged(request)), query, rs))
-      case None => throw new Exception("could not connect to query coordinator")
+    val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
+    val params = List(
+      qpDataset -> datasetId.underlying,
+      qpQuery -> query,
+      qpIdMap -> jsonizedColumnIdMap) ++
+      copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
+      rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
+      (if (noRollup) List(qpNoRollup -> "y") else Nil) ++
+      (if (!obfuscateId) List(qpObfuscateId -> "false") else Nil) ++
+      secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)
+    log.debug("Query Coordinator request parameters: " + params)
+
+    val result = retrying(5) {
+      qchost match {
+        case Some(host) =>
+          val request = host.addHeaders(PreconditionRenderer(precondition) ++
+                                        ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate) ++
+                                        extraHeaders).form(params)
+          httpClient.execute(request, rs)
+        case None =>
+          throw new Exception("could not connect to query coordinator")
+      }
     }
+    f(resultFrom(result, query, rs))
   }
 
   def resultFrom(response: Response, query: String, rs: ResourceScope): Result = {
