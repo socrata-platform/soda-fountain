@@ -10,7 +10,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{Precondition, EntityTag, RequestId}
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.errors._
+import com.socrata.soda.server.responses._
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.ExportDAO.{ColumnInfo, CSchema}
 import com.socrata.soda.server.highlevel.{ExportParam, ColumnSpecUtils, ExportDAO}
@@ -66,7 +66,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
         limStr.toLong
       } catch {
         case e: NumberFormatException =>
-          return SodaUtils.errorResponse(req, BadParameter("limit", limStr))
+          return SodaUtils.response(req, BadParameter("limit", limStr))
       }
     }
 
@@ -75,7 +75,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
         offStr.toLong
       } catch {
         case e: NumberFormatException =>
-          return SodaUtils.errorResponse(req, BadParameter("offset", offStr))
+          return SodaUtils.response(req, BadParameter("offset", offStr))
       }
     }
 
@@ -84,7 +84,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
         paramStr.toBoolean
       } catch {
         case e: Exception =>
-          return SodaUtils.errorResponse(req, BadParameter("exclude_system_fields", paramStr))
+          return SodaUtils.response(req, BadParameter("exclude_system_fields", paramStr))
       }
     }.getOrElse(true)
 
@@ -109,7 +109,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                 val filtered = columns.filter { c => columnFieldsWithRowIdSet.contains(c.fieldName.name)}
 
                 if (filtered.length != columnFieldsWithRowIdSet.size) {
-                  return SodaUtils.errorResponse(req, BadParameter("could not find columns requested.", paramStr))
+                  return SodaUtils.response(req, BadParameter("could not find columns requested.", paramStr))
                 }
                 filtered
               } else {
@@ -117,11 +117,11 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
               }
             }
             case None =>
-              return SodaUtils.errorResponse(req, DatasetNotFound(resourceName))
+              return SodaUtils.response(req, DatasetNotFound(resourceName))
           }
         } catch {
           case e: Exception =>
-            return SodaUtils.errorResponse(req, BadParameter("error locating columns requested", paramStr))
+            return SodaUtils.response(req, BadParameter("error locating columns requested", paramStr))
         }
     }.getOrElse(Seq.empty)
 
@@ -130,7 +130,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
     val sorted = Option(req.getParameter("sorted")).map {
       case "true" => true
       case "false" => false
-      case other => return SodaUtils.errorResponse(req, BadParameter("sorted", other))
+      case other => return SodaUtils.response(req, BadParameter("sorted", other))
     }.getOrElse(true)
 
     val rowId = Option(req.getParameter("row_id"))
@@ -192,19 +192,19 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                     fullRows.map(row => row.take(sysColsStart) ++ row.drop(sysColsStart + sysColumns.size)))
                 headers ~> exporter.export(charset, schema, rows, singleRow)
               case ExportDAO.PreconditionFailed =>
-                SodaUtils.errorResponse(req, EtagPreconditionFailed)
+                SodaUtils.response(req, EtagPreconditionFailed)
               case ExportDAO.NotModified(etags) =>
-                SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareTag),
+                SodaUtils.response(req, ResourceNotModified(etags.map(prepareTag),
                   Some(ContentNegotiation.headers.mkString(","))
                 ))
               case ExportDAO.SchemaInvalidForMimeType =>
-                SodaUtils.errorResponse(req, SchemaInvalidForMimeType)
+                SodaUtils.response(req, SchemaInvalidForMimeType)
               case ExportDAO.NotFound(x) =>
-                SodaUtils.errorResponse(req, GeneralNotFoundError(x.toString()))
+                SodaUtils.response(req, GeneralNotFoundError(x.toString()))
               case ExportDAO.InvalidRowId =>
-                SodaUtils.errorResponse(req, InvalidRowId)
+                SodaUtils.response(req, InvalidRowId)
               case ExportDAO.InternalServerError(code, tag, data) =>
-                SodaUtils.errorResponse(req, InternalError(tag,
+                SodaUtils.response(req, InternalError(tag,
                   "code"  -> JString(code),
                   "data" -> JString(data)
                 ))
@@ -214,7 +214,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
             NotAcceptable
         }
       case Left(Precondition.FailedBecauseNoMatch) =>
-        SodaUtils.errorResponse(req, EtagPreconditionFailed)
+        SodaUtils.response(req, EtagPreconditionFailed)
     }
   }
 

@@ -10,12 +10,12 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util._
 import com.socrata.http.server.util.RequestId.{ReqIdHeader, RequestId}
-import com.socrata.soda.server.errors.{InternalException, SodaError}
+import com.socrata.soda.server.responses.{InternalException, SodaResponse}
 import com.socrata.soda.server.id.{AbstractId, ResourceName}
 import com.socrata.soql.environment.AbstractName
 
 object SodaUtils {
-  val errorLog = org.slf4j.LoggerFactory.getLogger("com.socrata.soda.server.Error")
+  val responseLog = org.slf4j.LoggerFactory.getLogger("com.socrata.soda.server.Response")
 
   val jsonContentTypeBase = "application/json"
   val jsonContentTypeUtf8 = jsonContentTypeBase + "; charset=utf-8"
@@ -31,27 +31,24 @@ object SodaUtils {
     }
   }
 
-  @deprecated(message = "Need to negotiate a charset", since = "forever")
-  def JsonContent[T: JsonEncode : JsonDecode](thing: T): HttpResponse =
-    JsonContent(thing, StandardCharsets.UTF_8)
-
-  def errorResponse(req: HttpServletRequest, error: SodaError, logTags: LogTag*): HttpResponse = {
+  def response(req: HttpServletRequest, response: SodaResponse, logTags: LogTag*): HttpResponse = {
     import com.rojoma.json.v3.ast._
 
-    errorLog.info(s"${logTags.mkString(" ")} responding with error ${error.errorCode}: ${error.humanReadableMessage}")
-    val header = error.vary.foldLeft(error.etags.foldLeft(Status(error.httpResponseCode): HttpResponse) { (h, et) =>
+    responseLog.info(s"${logTags.mkString(" ")} responding with response ${response.responseCode}: ${response.humanReadableMessage}")
+    val header = response.vary.foldLeft(response.etags.foldLeft(Status(response.httpResponseCode): HttpResponse) { (h, et) =>
       h ~> ETag(et)
     }) { (h, vary) =>
       h ~> Header("Vary", vary)
     }
 
     def potentialContent =
-      if (error.hasContent) {
+      if (response.hasContent) {
         // TODO: Content-type and language negotiation
         val content = JObject(Map(
-          "message" -> JString(error.humanReadableMessage),
-          "errorCode" -> JString(error.errorCode),
-          "data" -> JObject(error.sanitizedData)
+          "message" -> JString(response.humanReadableMessage),
+          // Returning as "errorCode" for backwards compatibility
+          "errorCode" -> JString(response.responseCode),
+          "data" -> JObject(response.sanitizedData)
         ))
         Json(content)
       } else {
@@ -64,8 +61,8 @@ object SodaUtils {
 
   def internalError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {
     val tag = java.util.UUID.randomUUID.toString
-    errorLog.error("Internal exception: " + tag, th)
-    errorResponse(request, InternalException(th, tag), logTags: _*)
+    responseLog.error("Internal exception: " + tag, th)
+    response(request, InternalException(th, tag), logTags: _*)
   }
 
   /**

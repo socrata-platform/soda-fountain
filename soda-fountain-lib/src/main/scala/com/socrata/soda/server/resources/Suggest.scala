@@ -10,12 +10,12 @@ import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, Conten
 import com.socrata.http.server._
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
-import com.socrata.soda.server.SodaUtils.errorResponse
+import com.socrata.soda.server.SodaUtils.response
 import com.socrata.soda.server.config.SuggestConfig
 import com.socrata.soda.server.copy.{Published, Stage}
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.ResourceName
-import com.socrata.soda.server.{errors => SodaError}
+import com.socrata.soda.server.{responses => SodaError}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.thirdparty.metrics.Metrics
 
@@ -64,7 +64,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     def err(e: Throwable): HttpResponse = {
       val tag = UUID.randomUUID().toString
       log.error("Unexpected error talking to spandex, tag {}", tag: Any, e)
-      errorResponse(com.socrata.soda.server.toServletHttpRequest(req), SodaError.InternalException(e, tag))
+      response(com.socrata.soda.server.toServletHttpRequest(req), SodaError.InternalException(e, tag))
     }
     internalContext(resourceName, columnName) match {
       case None => NotFound(resp)

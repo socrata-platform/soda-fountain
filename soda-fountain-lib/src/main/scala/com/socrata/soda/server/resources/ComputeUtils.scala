@@ -6,8 +6,8 @@ import com.rojoma.simplearm.util._
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.util.{NoPrecondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
-import com.socrata.soda.server.errors.GeneralNotFoundError
-import com.socrata.soda.server.{errors => SodaError, _}
+import com.socrata.soda.server.responses.GeneralNotFoundError
+import com.socrata.soda.server.{responses => SodaError, _}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.export.JsonExporter
 import com.socrata.soda.server.highlevel._
@@ -49,15 +49,15 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
       case ColumnDAO.Found(dataset, column, _)         =>
         column.computationStrategy match {
           case Some(strategy) => compute(req, response, dataset, column, user)(successHandler)
-          case None           => SodaUtils.errorResponse(req, SodaError.NotAComputedColumn(columnName))(response)
+          case None           => SodaUtils.response(req, SodaError.NotAComputedColumn(columnName))(response)
         }
       case ColumnDAO.DatasetNotFound(dataset) =>
-        SodaUtils.errorResponse(req, SodaError.DatasetNotFound(resourceName))(response)
+        SodaUtils.response(req, SodaError.DatasetNotFound(resourceName))(response)
       case ColumnDAO.ColumnNotFound(column)   =>
-        SodaUtils.errorResponse(req, SodaError.ColumnNotFound(resourceName, columnName))(response)
+        SodaUtils.response(req, SodaError.ColumnNotFound(resourceName, columnName))(response)
       case _@x =>
         log.warn("case is NOT implemented")
-        SodaUtils.errorResponse(req, GeneralNotFoundError("unexpected match case"))
+        SodaUtils.response(req, GeneralNotFoundError("unexpected match case"))
     }
   }
 
@@ -86,23 +86,23 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
             val upsertRows = transformer.transformDcRowsForUpsert(computedColumns, Seq(column), schema, rows)
             rowDAO.upsert(user, dataset, upsertRows, requestId)(UpsertUtils.handleUpsertErrors(req, response)(successHandler))
           case ExportDAO.SchemaInvalidForMimeType =>
-            SodaUtils.errorResponse(req, SodaError.SchemaInvalidForMimeType)(response)
+            SodaUtils.response(req, SodaError.SchemaInvalidForMimeType)(response)
           case ExportDAO.NotModified(etags) =>
-            SodaUtils.errorResponse(req, SodaError.ResourceNotModified(Nil, None))(response)
+            SodaUtils.response(req, SodaError.ResourceNotModified(Nil, None))(response)
           case ExportDAO.PreconditionFailed =>
-            SodaUtils.errorResponse(req, SodaError.EtagPreconditionFailed)(response)
+            SodaUtils.response(req, SodaError.EtagPreconditionFailed)(response)
           case ExportDAO.NotFound(resourceName) =>
-            SodaUtils.errorResponse(req, SodaError.DatasetNotFound(resourceName))(response)
+            SodaUtils.response(req, SodaError.DatasetNotFound(resourceName))(response)
           case ExportDAO.InvalidRowId =>
-            SodaUtils.errorResponse(req, SodaError.InvalidRowId)(response)
+            SodaUtils.response(req, SodaError.InvalidRowId)(response)
           case ExportDAO.InternalServerError(code, tag, data) =>
-            SodaUtils.errorResponse(req, SodaError.InternalError(tag,
+            SodaUtils.response(req, SodaError.InternalError(tag,
               "code"  -> JString(code),
               "data" -> JString(data)
             ))(response)
         }
       case None =>
-        SodaUtils.errorResponse(req, SodaError.NotAComputedColumn(column.fieldName))(response)
+        SodaUtils.response(req, SodaError.NotAComputedColumn(column.fieldName))(response)
     }
 
   def writeComputeResponse(resourceName: ResourceName,

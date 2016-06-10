@@ -8,7 +8,7 @@ import com.rojoma.json.v3.codec.DecodeError.{InvalidField, InvalidType}
 import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Strategy}
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.errors.DatasetSpecMaltyped
+import com.socrata.soda.server.responses.DatasetSpecMaltyped
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.wiremodels.InputUtils._
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
@@ -74,7 +74,7 @@ object UserProvidedDatasetSpec extends UserProvidedSpec[UserProvidedDatasetSpec]
   }
 
   // Using this class instead of AutomaticJsonCodecBuilder allows us to
-  // return a specific SodaError citing what part of the extraction failed.
+  // return a specific SodaResponse citing what part of the extraction failed.
   private class DatasetExtractor(map: sc.Map[String, JValue]) {
     val context = new ExtractContext(DatasetSpecMaltyped)
     import context._

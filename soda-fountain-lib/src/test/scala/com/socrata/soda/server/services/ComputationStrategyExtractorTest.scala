@@ -5,7 +5,7 @@ import org.scalatest.{Matchers, FunSuite}
 import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedComputationStrategySpec}
 import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.json.v3.ast.{JString, JObject}
-import com.socrata.soda.server.errors.ComputationStrategySpecUnknownType
+import com.socrata.soda.server.responses.ComputationStrategySpecUnknownType
 
 class ComputationStrategyExtractorTest extends FunSuite with Matchers {
   def extract(input: String) = UserProvidedComputationStrategySpec.fromObject(JsonUtil.parseJson[JObject](input).right.get)

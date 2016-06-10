@@ -6,14 +6,14 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.soda.server._
 import com.socrata.soda.server.SodaUtils
-import com.socrata.soda.server.errors.HttpMethodNotAllowed
+import com.socrata.soda.server.responses.HttpMethodNotAllowed
 import org.apache.commons.codec.binary.Base64
 
 class SodaResource extends SimpleResource {
 
   override def methodNotAllowed: HttpService = { req =>
     val allowed = allowedMethods
-    Header("Allow", allowed.mkString(",")) ~> SodaUtils.errorResponse(
+    Header("Allow", allowed.mkString(",")) ~> SodaUtils.response(
       req,
       HttpMethodNotAllowed(req.getMethod, allowed))
   }

@@ -2,7 +2,7 @@ package com.socrata.soda.server.wiremodels
 
 import com.rojoma.json.v3.ast.{JObject, JValue}
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
-import com.socrata.soda.server.errors.RollupSpecMaltyped
+import com.socrata.soda.server.responses.RollupSpecMaltyped
 
 import com.socrata.soda.server.id.RollupName
 import com.socrata.soda.server.wiremodels.InputUtils.ExtractContext
@@ -39,7 +39,7 @@ object UserProvidedRollupSpec extends UserProvidedSpec[UserProvidedRollupSpec] {
   }
 
   // Using this class instead of AutomaticJsonCodecBuilder allows us to
-  // return a specific SodaError citing what part of the extraction failed.
+  // return a specific SodaResponse citing what part of the extraction failed.
   class RollupExtractor(map: sc.Map[String, JValue]) {
     val context = new ExtractContext(RollupSpecMaltyped)
     import context._

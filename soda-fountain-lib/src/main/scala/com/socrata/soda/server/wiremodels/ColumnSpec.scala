@@ -9,7 +9,7 @@ import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soql.types.SoQLType
 import InputUtils._
-import com.socrata.soda.server.errors.{ColumnSpecMaltyped, ColumnSpecUnknownType}
+import com.socrata.soda.server.responses.{ColumnSpecMaltyped, ColumnSpecUnknownType}
 
 @JsonKeyStrategy(Strategy.Underscore)
 case class ColumnSpec(id: ColumnId,
@@ -51,7 +51,7 @@ object UserProvidedColumnSpec extends UserProvidedSpec[UserProvidedColumnSpec] {
   }
 
   // Using this class instead of AutomaticJsonCodecBuilder allows us to
-  // return a specific SodaError citing what part of the extraction failed.
+  // return a specific SodaResponse citing what part of the extraction failed.
   class ColumnExtractor(map: sc.Map[String, JValue]) {
     val context = new ExtractContext(ColumnSpecMaltyped)
     import context._

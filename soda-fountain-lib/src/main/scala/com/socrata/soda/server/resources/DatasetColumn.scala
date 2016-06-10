@@ -7,7 +7,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
 import com.socrata.soda.server._
 import com.socrata.soda.server.computation.ComputedColumnsLike
-import com.socrata.soda.server.errors._
+import com.socrata.soda.server.responses._
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
@@ -25,7 +25,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       case Extracted(datasetSpec) =>
         f(datasetSpec)
       case RequestProblem(err) =>
-        SodaUtils.errorResponse(request, err, logTags : _*)(response)
+        SodaUtils.response(request, err, logTags : _*)(response)
       case IOProblem(err) =>
         SodaUtils.internalError(request, err)(response)
     }
@@ -56,25 +56,25 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       case ColumnDAO.InvalidSystemColumnOperation(columnName) =>
         BadRequest ~> Json(ColumnSpecSubSet(None, Some(columnName)))
       case ColumnDAO.ColumnHasDependencies(col, deps) =>
-        SodaUtils.errorResponse(req, ColumnHasDependencies(col, deps))
+        SodaUtils.response(req, ColumnHasDependencies(col, deps))
       case ColumnDAO.CannotDeleteRowId(column, method) =>
-        SodaUtils.errorResponse(req, HttpMethodNotAllowed(method, Seq("GET", "PATCH")))
+        SodaUtils.response(req, HttpMethodNotAllowed(method, Seq("GET", "PATCH")))
       case ColumnDAO.DuplicateValuesInColumn(column) =>
-        SodaUtils.errorResponse(req, NonUniqueRowId(column.fieldName))
+        SodaUtils.response(req, NonUniqueRowId(column.fieldName))
       case ColumnDAO.InternalServerError(code, tag, data) =>
-        SodaUtils.errorResponse(req, InternalError(tag,
+        SodaUtils.response(req, InternalError(tag,
           "code"  -> JString(code),
           "data" -> JString(data)
         ))
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
         if(isGet) {
           // TODO: when we have content-negotiation, set the Vary parameter on ResourceNotModified
-          SodaUtils.errorResponse(req, ResourceNotModified(etags.map(prepareETag), None))
+          SodaUtils.response(req, ResourceNotModified(etags.map(prepareETag), None))
         } else {
-          SodaUtils.errorResponse(req, EtagPreconditionFailed)
+          SodaUtils.response(req, EtagPreconditionFailed)
         }
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
-        SodaUtils.errorResponse(req, EtagPreconditionFailed)
+        SodaUtils.response(req, EtagPreconditionFailed)
     }
   }
 
@@ -84,7 +84,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       case Right(preconditionRaw) =>
         op(preconditionRaw.map(_.dropRight(suffix.length)))
       case Left(Precondition.FailedBecauseNoMatch) =>
-        SodaUtils.errorResponse(req, EtagPreconditionFailed)
+        SodaUtils.response(req, EtagPreconditionFailed)
     }
   }
 

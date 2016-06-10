@@ -1,6 +1,6 @@
 package com.socrata.soda.server.wiremodels
 
-import com.socrata.soda.server.errors.SodaError
+import com.socrata.soda.server.responses.SodaResponse
 import java.io.IOException
 
 sealed abstract class ExtractResult[+T] {
@@ -30,4 +30,4 @@ sealed abstract class ExtractFailure extends ExtractResult[Nothing] {
 }
 
 case class IOProblem(error: IOException) extends ExtractFailure
-case class RequestProblem(error: SodaError) extends ExtractFailure
+case class RequestProblem(error: SodaResponse) extends ExtractFailure
