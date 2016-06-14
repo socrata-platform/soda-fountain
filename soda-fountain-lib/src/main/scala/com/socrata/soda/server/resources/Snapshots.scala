@@ -2,7 +2,7 @@ package com.socrata.soda.server.resources
 
 import com.socrata.http.server.HttpRequest
 import com.socrata.soda.server.SodaUtils
-import com.socrata.soda.server.errors.{SnapshotNotFound, DatasetNotFound}
+import com.socrata.soda.server.responses.{SnapshotNotFound, DatasetNotFound}
 import com.socrata.soda.server.highlevel.SnapshotDAO
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.http.server.responses._
@@ -22,7 +22,7 @@ case class Snapshots(snapshotDAO: SnapshotDAO) {
         case Some(snapshots) =>
           OK ~> Json(snapshots)
         case None =>
-          SodaUtils.errorResponse(req.servletRequest, DatasetNotFound(resourceName))
+          SodaUtils.response(req.servletRequest, DatasetNotFound(resourceName))
       }
     }
   }
@@ -31,9 +31,9 @@ case class Snapshots(snapshotDAO: SnapshotDAO) {
     override def get = { (req: HttpRequest) =>
       snapshotDAO.exportSnapshot(resourceName, number, req.resourceScope) match {
         case SnapshotDAO.DatasetNotFound =>
-          SodaUtils.errorResponse(req.servletRequest, DatasetNotFound(resourceName))
+          SodaUtils.response(req.servletRequest, DatasetNotFound(resourceName))
         case SnapshotDAO.SnapshotNotFound =>
-          SodaUtils.errorResponse(req.servletRequest, SnapshotNotFound(resourceName, number))
+          SodaUtils.response(req.servletRequest, SnapshotNotFound(resourceName, number))
         case SnapshotDAO.Export(csv) =>
           OK ~> csv
       }
@@ -42,9 +42,9 @@ case class Snapshots(snapshotDAO: SnapshotDAO) {
     override def delete = { (req: HttpRequest) =>
       snapshotDAO.deleteSnapshot(resourceName, number) match {
         case SnapshotDAO.DatasetNotFound =>
-          SodaUtils.errorResponse(req.servletRequest, DatasetNotFound(resourceName))
+          SodaUtils.response(req.servletRequest, DatasetNotFound(resourceName))
         case SnapshotDAO.SnapshotNotFound =>
-          SodaUtils.errorResponse(req.servletRequest, SnapshotNotFound(resourceName, number))
+          SodaUtils.response(req.servletRequest, SnapshotNotFound(resourceName, number))
         case SnapshotDAO.Deleted =>
           OK
       }

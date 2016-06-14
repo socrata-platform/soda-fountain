@@ -4,7 +4,7 @@ import com.rojoma.json.v3.ast.{JString, JObject, JValue}
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
 import com.socrata.computation_strategies.StrategyType
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soda.server.errors.{ComputationStrategySpecUnknownType, ComputationStrategySpecMaltyped}
+import com.socrata.soda.server.responses.{ComputationStrategySpecUnknownType, ComputationStrategySpecMaltyped}
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.wiremodels.InputUtils.ExtractContext
 import scala.{collection => sc}
@@ -59,7 +59,7 @@ object UserProvidedComputationStrategySpec extends UserProvidedSpec[UserProvided
   }
 
   // Using this class instead of AutomaticJsonCodecBuilder allows us to
-  // return a specific SodaError citing what part of the extraction failed.
+  // return a specific SodaResponse citing what part of the extraction failed.
   class ComputationStrategyExtractor(map: sc.Map[String, JValue]) {
     val context = new ExtractContext(ComputationStrategySpecMaltyped)
     import context._

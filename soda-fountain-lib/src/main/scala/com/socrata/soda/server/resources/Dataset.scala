@@ -7,7 +7,7 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.util.RequestId
 import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.errors._
+import com.socrata.soda.server.responses._
 import com.socrata.soda.server.highlevel.DatasetDAO.{NonExistentColumn, DatasetAlreadyExists}
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
@@ -29,7 +29,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
       case Extracted(datasetSpec) =>
         f(datasetSpec)
       case RequestProblem(err) =>
-        SodaUtils.errorResponse(request, err, logTags : _*)
+        SodaUtils.response(request, err, logTags : _*)
       case IOProblem(err) =>
         SodaUtils.internalError(request, err)
     }
@@ -40,7 +40,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
       case Extracted(datasetSpec) =>
         f(datasetSpec)
       case RequestProblem(err) =>
-        SodaUtils.errorResponse(request, err, logTags : _*)
+        SodaUtils.response(request, err, logTags : _*)
       case IOProblem(err) =>
         SodaUtils.internalError(request, err)
     }
@@ -79,31 +79,31 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         NoContent
       // fail cases
       case DatasetDAO.DatasetAlreadyExists(dataset) =>
-        SodaUtils.errorResponse(req, DatasetAlreadyExistsSodaErr(dataset))
+        SodaUtils.response(req, DatasetAlreadyExistsSodaErr(dataset))
       case DatasetDAO.NonExistentColumn(dataset, column) =>
-        SodaUtils.errorResponse(req, ColumnNotFound(dataset, column))
+        SodaUtils.response(req, ColumnNotFound(dataset, column))
       case DatasetDAO.LocaleChanged(locale) =>
-        SodaUtils.errorResponse(req, LocaleChangedError(locale))
+        SodaUtils.response(req, LocaleChangedError(locale))
       case DatasetDAO.DatasetNotFound(dataset) =>
-        SodaUtils.errorResponse(req, DatasetNotFound(dataset))
+        SodaUtils.response(req, DatasetNotFound(dataset))
       case DatasetDAO.InvalidDatasetName(name) =>
-        SodaUtils.errorResponse(req, DatasetNameInvalidNameSodaErr(name))
+        SodaUtils.response(req, DatasetNameInvalidNameSodaErr(name))
       case DatasetDAO.RollupNotFound(name) =>
-        SodaUtils.errorResponse(req, RollupNotFound(name))
+        SodaUtils.response(req, RollupNotFound(name))
       case DatasetDAO.RollupError(reason) =>
-        SodaUtils.errorResponse(req, RollupCreationFailed(reason))
+        SodaUtils.response(req, RollupCreationFailed(reason))
       case DatasetDAO.RollupColumnNotFound(column) =>
-        SodaUtils.errorResponse(req, RollupColumnNotFound(column))
+        SodaUtils.response(req, RollupColumnNotFound(column))
       case DatasetDAO.CannotAcquireDatasetWriteLock(dataset) =>
-        SodaUtils.errorResponse(req, DatasetWriteLockError(dataset))
+        SodaUtils.response(req, DatasetWriteLockError(dataset))
       case DatasetDAO.FeedbackInProgress(dataset, stores) =>
-        SodaUtils.errorResponse(req, FeedbackInProgressError(dataset, stores))
+        SodaUtils.response(req, FeedbackInProgressError(dataset, stores))
       case DatasetDAO.UnsupportedUpdateOperation(message) =>
-        SodaUtils.errorResponse(req, UnsupportedUpdateOperation(message))
+        SodaUtils.response(req, UnsupportedUpdateOperation(message))
       case DatasetDAO.InternalServerError(code, tag, data) =>
-        SodaUtils.errorResponse(req, InternalError(tag, "code"  -> JString(code), "data" -> JString(data)))
+        SodaUtils.response(req, InternalError(tag, "code"  -> JString(code), "data" -> JString(data)))
       case DatasetDAO.UnexpectedInternalServerResponse(reason, tag) =>
-        SodaUtils.errorResponse(req, InternalError(tag, "reason"  -> JString(reason)))
+        SodaUtils.response(req, InternalError(tag, "reason"  -> JString(reason)))
 
     }
   }

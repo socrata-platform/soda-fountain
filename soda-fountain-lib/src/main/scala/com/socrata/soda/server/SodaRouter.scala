@@ -5,7 +5,7 @@ import com.socrata.http.server.routing.SimpleRouteContext._
 import com.socrata.http.server.routing.{OptionallyTypedPathComponent, Extractor}
 import com.socrata.http.server.{HttpRequest, HttpService, HttpResponse}
 import com.socrata.soda.server._
-import com.socrata.soda.server.errors.GeneralNotFoundError
+import com.socrata.soda.server.responses.GeneralNotFoundError
 import com.socrata.soda.server.id.{RollupName, RowSpecifier, SecondaryId, ResourceName}
 import com.socrata.soql.environment.ColumnName
 
@@ -94,7 +94,7 @@ class SodaRouter(versionResource: HttpService,
       case Some(s) =>
         s(req)
       case None =>
-        SodaUtils.errorResponse(req, GeneralNotFoundError(req.getRequestURI))
+        SodaUtils.response(req, GeneralNotFoundError(req.getRequestURI))
     }
   }
 }

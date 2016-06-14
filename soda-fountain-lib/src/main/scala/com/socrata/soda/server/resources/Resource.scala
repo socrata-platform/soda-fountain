@@ -19,7 +19,7 @@ import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
-import com.socrata.soda.server.{errors => SodaErrors, _}
+import com.socrata.soda.server.{responses => SodaErrors, _}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.export.Exporter
@@ -91,36 +91,36 @@ case class Resource(rowDAO: RowDAO,
       case RowDAO.Success(code, value) =>
         Status(code) ~> Json(value)
       case RowDAO.RowNotFound(value) =>
-        SodaUtils.errorResponse(req, SodaErrors.RowNotFound(value))
+        SodaUtils.response(req, SodaErrors.RowNotFound(value))
       case RowDAO.RowPrimaryKeyIsNonexistentOrNull(value) =>
-        SodaUtils.errorResponse(req, SodaErrors.RowPrimaryKeyNonexistentOrNull(value))
+        SodaUtils.response(req, SodaErrors.RowPrimaryKeyNonexistentOrNull(value))
       case RowDAO.UnknownColumn(columnName) =>
-        SodaUtils.errorResponse(req, SodaErrors.RowColumnNotFound(columnName))
+        SodaUtils.response(req, SodaErrors.RowColumnNotFound(columnName))
       case RowDAO.ComputationHandlerNotFound(typ) =>
-        SodaUtils.errorResponse(req, SodaErrors.ComputationHandlerNotFound(typ))
+        SodaUtils.response(req, SodaErrors.ComputationHandlerNotFound(typ))
       case RowDAO.CannotDeletePrimaryKey =>
-        SodaUtils.errorResponse(req, SodaErrors.CannotDeletePrimaryKey)
+        SodaUtils.response(req, SodaErrors.CannotDeletePrimaryKey)
       case RowDAO.RowNotAnObject(obj) =>
-        SodaUtils.errorResponse(req, SodaErrors.UpsertRowNotAnObject(obj))
+        SodaUtils.response(req, SodaErrors.UpsertRowNotAnObject(obj))
       case RowDAO.DatasetNotFound(dataset) =>
-        SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(dataset))
+        SodaUtils.response(req, SodaErrors.DatasetNotFound(dataset))
       case RowDAO.SchemaOutOfSync =>
-        SodaUtils.errorResponse(req, SodaErrors.SchemaInvalidForMimeType)
+        SodaUtils.response(req, SodaErrors.SchemaInvalidForMimeType)
       case RowDAO.InvalidRequest(client, status, body) =>
-        SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:", "code"  -> JNumber(status),
+        SodaUtils.response(req, SodaErrors.InternalError(s"Error from $client:", "code"  -> JNumber(status),
           "data" -> body))
       case RowDAO.QCError(status, qcErr) =>
-        SodaUtils.errorResponse(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
+        SodaUtils.response(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
       case RowDAO.InternalServerError(status, client, code, tag, data) =>
-        SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
+        SodaUtils.response(req, SodaErrors.InternalError(s"Error from $client:",
           "code"  -> JString(code),
           "data" -> JString(data),
           "tag"->JString(tag)))
       case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
-        SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
+        SodaUtils.response(req, SodaErrors.EtagPreconditionFailed)
       case x =>
         log.warn("case is NOT implemented")
-        SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error",
+        SodaUtils.response(req, SodaErrors.InternalError(s"Error",
           "error" -> JString(x.toString)))
     }
   }
@@ -140,11 +140,11 @@ case class Resource(rowDAO: RowDAO,
         val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(reportFunc))
       case DatasetDAO.DatasetNotFound(dataset) =>
-        SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))(response)
+        SodaUtils.response(req, SodaErrors.DatasetNotFound(resourceName))(response)
         // No other cases have to be implimented
       case x =>
         log.warn("case is NOT implemented")
-        SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error",
+        SodaUtils.response(req, SodaErrors.InternalError(s"Error",
           "error" -> JString(x.toString)))
     }
   }
@@ -216,24 +216,24 @@ case class Resource(rowDAO: RowDAO,
                     createHeader ~> exporter.export(charset, schema, rows, singleRow = false, obfuscateId)
                   case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
                     metric(QueryCacheHit)
-                    SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))
+                    SodaUtils.response(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))
                   case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
                     metric(QueryErrorUser)
-                    SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
+                    SodaUtils.response(req, SodaErrors.EtagPreconditionFailed)
                   case RowDAO.DatasetNotFound(resourceName) =>
                     metric(QueryErrorUser)
-                    SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))
+                    SodaUtils.response(req, SodaErrors.DatasetNotFound(resourceName))
                   case RowDAO.QCError(status, qcErr) =>
                     metricByStatus(status)
-                    SodaUtils.errorResponse(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
+                    SodaUtils.response(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
                   case RowDAO.InvalidRequest(client, status, body) =>
                     metricByStatus(status)
-                    SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
+                    SodaUtils.response(req, SodaErrors.InternalError(s"Error from $client:",
                       "code"  -> JNumber(status),
                       "data" -> body))
                   case RowDAO.InternalServerError(status, client, code, tag, data) =>
                     metricByStatus(status)
-                    SodaUtils.errorResponse(req, SodaErrors.InternalError(s"Error from $client:",
+                    SodaUtils.response(req, SodaErrors.InternalError(s"Error from $client:",
                       "status" -> JNumber(status),
                       "code"  -> JString(code),
                       "data" -> JString(data),
@@ -247,7 +247,7 @@ case class Resource(rowDAO: RowDAO,
             }
           case Left(Precondition.FailedBecauseNoMatch) =>
             metric(QueryErrorUser)
-            SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
+            SodaUtils.response(req, SodaErrors.EtagPreconditionFailed)
         }
       } catch {
         case e: Exception =>
@@ -279,7 +279,7 @@ case class Resource(rowDAO: RowDAO,
             else { UpsertUtils.writeSingleRowUpsertResponse(resourceName.value, export, req) _ }
           upsertishFlow(req, response, requestId, resourceName.value, boundedIt, f, processUpsertReport)
         case Left(err) =>
-          SodaUtils.errorResponse(req, err, resourceName.value)(response)
+          SodaUtils.response(req, err, resourceName.value)(response)
       }
     }
   }
@@ -331,22 +331,22 @@ case class Resource(rowDAO: RowDAO,
                       createHeader ~> exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId)
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.RowNotFound(row))
+                      SodaUtils.response(req, SodaErrors.RowNotFound(row))
                     case RowDAO.RowPrimaryKeyIsNonexistentOrNull(row) =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.RowPrimaryKeyNonexistentOrNull(row))
+                      SodaUtils.response(req, SodaErrors.RowPrimaryKeyNonexistentOrNull(row))
                     case RowDAO.DatasetNotFound(resourceName) =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.DatasetNotFound(resourceName))
+                      SodaUtils.response(req, SodaErrors.DatasetNotFound(resourceName))
                     case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
                       metric(QueryCacheHit)
-                      SodaUtils.errorResponse(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))
+                      SodaUtils.response(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))
                     case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
+                      SodaUtils.response(req, SodaErrors.EtagPreconditionFailed)
                     case RowDAO.SchemaInvalidForMimeType =>
                       metric(QueryErrorUser)
-                      SodaUtils.errorResponse(req, SodaErrors.SchemaInvalidForMimeType)
+                      SodaUtils.response(req, SodaErrors.SchemaInvalidForMimeType)
                   }
                 }
               case None =>
@@ -356,7 +356,7 @@ case class Resource(rowDAO: RowDAO,
             }
           case Left(Precondition.FailedBecauseNoMatch) =>
             metric(QueryErrorUser)
-            SodaUtils.errorResponse(req, SodaErrors.EtagPreconditionFailed)
+            SodaUtils.response(req, SodaErrors.EtagPreconditionFailed)
         }
       } catch {
         case e: Exception =>
@@ -372,7 +372,7 @@ case class Resource(rowDAO: RowDAO,
           upsertishFlow(req, response, requestId, resourceName, Iterator.single(rowJVal),
                         rowDAO.upsert(user(req), _, _, requestId), UpsertUtils.writeUpsertResponse)
         case Left(err) =>
-          SodaUtils.errorResponse(req, err, resourceName)(response)
+          SodaUtils.response(req, err, resourceName)(response)
       }
     }
 

@@ -5,7 +5,7 @@ import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.http.server.HttpRequest
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem, ReportItem}
-import com.socrata.soda.server.{errors => SodaErrors, _}
+import com.socrata.soda.server.{responses => SodaErrors, _}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence.ColumnRecordLike
 import com.socrata.soda.server.highlevel.{ExportParam, RowDataTranslator, RowDAO}
@@ -46,30 +46,30 @@ object UpsertUtils {
       case RowDAO.StreamSuccess(report) =>
         successHandler(response, report)
       case mismatch : MaltypedData =>
-        SodaUtils.errorResponse(request, new SodaErrors.ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
+        SodaUtils.response(request, new SodaErrors.ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
       case RowDAO.RowNotFound(rowSpecifier) =>
-        SodaUtils.errorResponse(request, SodaErrors.RowNotFound(rowSpecifier))(response)
+        SodaUtils.response(request, SodaErrors.RowNotFound(rowSpecifier))(response)
       case RowDAO.RowPrimaryKeyIsNonexistentOrNull(rowSpecifier) =>
-        SodaUtils.errorResponse(request, SodaErrors.RowPrimaryKeyNonexistentOrNull(rowSpecifier))(response)
+        SodaUtils.response(request, SodaErrors.RowPrimaryKeyNonexistentOrNull(rowSpecifier))(response)
       case RowDAO.UnknownColumn(columnName) =>
-        SodaUtils.errorResponse(request, SodaErrors.RowColumnNotFound(columnName))(response)
+        SodaUtils.response(request, SodaErrors.RowColumnNotFound(columnName))(response)
       case RowDAO.ComputationHandlerNotFound(typ) =>
-        SodaUtils.errorResponse(request, SodaErrors.ComputationHandlerNotFound(typ))(response)
+        SodaUtils.response(request, SodaErrors.ComputationHandlerNotFound(typ))(response)
       case RowDAO.CannotDeletePrimaryKey =>
-        SodaUtils.errorResponse(request, SodaErrors.CannotDeletePrimaryKey)(response)
+        SodaUtils.response(request, SodaErrors.CannotDeletePrimaryKey)(response)
       case RowDAO.RowNotAnObject(obj) =>
-        SodaUtils.errorResponse(request, SodaErrors.UpsertRowNotAnObject(obj))(response)
+        SodaUtils.response(request, SodaErrors.UpsertRowNotAnObject(obj))(response)
       case RowDAO.DatasetNotFound(dataset) =>
-        SodaUtils.errorResponse(request, SodaErrors.DatasetNotFound(dataset))(response)
+        SodaUtils.response(request, SodaErrors.DatasetNotFound(dataset))(response)
       case RowDAO.SchemaOutOfSync =>
-        SodaUtils.errorResponse(request, SodaErrors.SchemaInvalidForMimeType)(response)
+        SodaUtils.response(request, SodaErrors.SchemaInvalidForMimeType)(response)
       case RowDAO.InvalidRequest(client, status, body) =>
-        SodaUtils.errorResponse(request, SodaErrors.InternalError(s"Error from $client:", "code"  -> JNumber(status),
+        SodaUtils.response(request, SodaErrors.InternalError(s"Error from $client:", "code"  -> JNumber(status),
           "data" -> body))(response)
       case RowDAO.QCError(status, qcErr) =>
-        SodaUtils.errorResponse(request, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))(response)
+        SodaUtils.response(request, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))(response)
       case RowDAO.InternalServerError(status, client, code, tag, data) =>
-        SodaUtils.errorResponse(request, SodaErrors.InternalError(s"Error from $client:",
+        SodaUtils.response(request, SodaErrors.InternalError(s"Error from $client:",
           "status" -> JNumber(status),
           "code"  -> JString(code),
           "data" -> JString(data),
@@ -132,19 +132,19 @@ object UpsertUtils {
                       exportSingleRowUpsertResponse(rowId.toString())
                     case unknown =>
                       log.error("single row upsert error, malformed report-item-id {}", unknown)
-                      SodaUtils.errorResponse(req,
+                      SodaUtils.response(req,
                         SodaErrors.InternalError("upsert-error-malformed-report-item-id"))(response)
                   }
                 case unknown =>
                   log.error("single row upsert error, malformed report-item {}", unknown)
-                  SodaUtils.errorResponse(req,
+                  SodaUtils.response(req,
                     SodaErrors.InternalError("upsert-error-malformed-report-item"))(response)
               }
             }
           }
         case OtherReportItem => // nothing; probably shouldn't have occurred!
           log.error("single row upsert error, got other-report-item")
-          SodaUtils.errorResponse(req,
+          SodaUtils.response(req,
             SodaErrors.InternalError("upsert-error-malformed-other-report-item"))(response)
       }
     }

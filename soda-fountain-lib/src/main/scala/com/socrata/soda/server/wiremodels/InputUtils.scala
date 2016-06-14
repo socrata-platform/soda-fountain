@@ -11,13 +11,13 @@ import com.socrata.http.common.util.{AcknowledgeableReader, TooMuchDataWithoutAc
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.implicits._
 import com.socrata.soda.server._
-import com.socrata.soda.server.errors._
+import com.socrata.soda.server.responses._
 import javax.activation.{MimeType, MimeTypeParseException}
 
 object InputUtils {
   def eventIterator(reader: Reader) = new FusedBlockJsonEventIterator(reader).map(InputNormalizer.normalizeEvent)
 
-  private def streamJson(req: HttpRequest, approximateMaxDatumBound: Long): Either[SodaError, AcknowledgeableReader] = {
+  private def streamJson(req: HttpRequest, approximateMaxDatumBound: Long): Either[SodaResponse, AcknowledgeableReader] = {
     val nullableContentType = req.getContentType
     if(nullableContentType == null)
       return Left(NoContentType)
@@ -37,7 +37,7 @@ object InputUtils {
     }
   }
 
-  def jsonSingleObjectStream(req: HttpRequest, approximateMaxDatumBound: Long): Either[SodaError, JObject] = {
+  def jsonSingleObjectStream(req: HttpRequest, approximateMaxDatumBound: Long): Either[SodaResponse, JObject] = {
     streamJson(req, approximateMaxDatumBound).right.flatMap { boundedReader =>
       try {
         JsonReader.fromEvents(eventIterator(boundedReader)) match {
@@ -60,7 +60,7 @@ object InputUtils {
    *         in brackets (true) or in braces (false)
    */
   def jsonArrayValuesStream(req: HttpRequest, approximateMaxDatumBound: Long, allowSingleItem: Boolean)
-    : Either[SodaError, Tuple2[Iterator[JValue], Boolean]] = {
+    : Either[SodaResponse, Tuple2[Iterator[JValue], Boolean]] = {
     streamJson(req, approximateMaxDatumBound) match {
       case Right(boundedReader) =>
         def boundIt[T](it: Iterator[T]) = it.map { ev => boundedReader.acknowledge(); ev }
@@ -89,7 +89,7 @@ object InputUtils {
         RequestProblem(BodyTooLarge(e.limit))
     }
 
-  class ExtractContext(maltyped: (String, String, JValue) => SodaError) {
+  class ExtractContext(maltyped: (String, String, JValue) => SodaResponse) {
     def extract[T](v: sc.Map[String, JValue], field: String)(implicit decoder: Decoder[T]): ExtractResult[Option[T]] = {
       v.get(field) match {
         case Some(json) =>
