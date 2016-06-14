@@ -3,6 +3,7 @@ package com.socrata.soda.server.highlevel
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.{DropRollupInstruction, CreateOrUpdateRollupInstruction, SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
+import com.socrata.soda.server.highlevel.ColumnSpecUtils.{InvalidComputationStrategy, WrongDatatypeForComputationStrategy, ComputationStrategyNoStrategyType, UnknownComputationStrategySourceColumn}
 import com.socrata.soda.server.id.{ColumnId, SecondaryId, ResourceName, RollupName}
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
@@ -47,6 +48,15 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
         val trueColumns = columns.getOrElse(Seq.empty).foldLeft(Map.empty[ColumnName, ColumnSpec]) { (acc, userColumnSpec) =>
           columnSpecUtils.freezeForCreation(acc.mapValues { col => (col.id, col.datatype) }, userColumnSpec) match {
             case ColumnSpecUtils.Success(cSpec) => acc + (cSpec.fieldName -> cSpec)
+
+            case UnknownComputationStrategySourceColumn(name) =>
+              return Left(ColumnDAO.UnknownComputationStrategySourceColumn(name))
+            case ComputationStrategyNoStrategyType =>
+              ColumnDAO.ComputationStrategyNoStrategyType
+            case WrongDatatypeForComputationStrategy(found, required) =>
+              ColumnDAO.WrongDatatypeForComputationStrategy(found, required)
+            case InvalidComputationStrategy(error) =>
+              ColumnDAO.InvalidComputationStrategy(error)
             // TODO: not-success case
             // TODO other cases have not been implemented
             case x =>

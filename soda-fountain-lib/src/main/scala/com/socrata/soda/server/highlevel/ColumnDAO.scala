@@ -1,12 +1,13 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.v3.ast.JValue
+import com.socrata.computation_strategies.ValidationError
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.http.server.util.RequestId.RequestId
-import com.socrata.soda.server.id.{ColumnId, ResourceName}
+import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence.{DatasetRecord, ColumnRecord}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.types.SoQLType
 
 trait ColumnDAO {
   import ColumnDAO.Result
@@ -38,6 +39,12 @@ object ColumnDAO {
   case class Updated(columnRec: ColumnRecord, etag: Option[EntityTag]) extends UpdateSuccessResult
   case class Found(datasetRec: DatasetRecord, columnRec: ColumnRecord, etag: Option[EntityTag]) extends SuccessResult
   case class Deleted(rec: ColumnRecord, etag: Option[EntityTag]) extends SuccessResult
+
+  // FAILURES: Validation
+  case class UnknownComputationStrategySourceColumn(columnName: ColumnName) extends FailResult
+  case object ComputationStrategyNoStrategyType extends FailResult
+  case class WrongDatatypeForComputationStrategy(found: SoQLType, required: SoQLType) extends FailResult
+  case class InvalidComputationStrategy(error: ValidationError) extends FailResult
 
   // FAILURES: DataCoordinator
   case class ColumnAlreadyExists(columnName: ColumnName) extends FailResult

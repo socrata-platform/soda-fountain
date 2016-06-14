@@ -4,6 +4,7 @@ import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.copy.Latest
 import com.socrata.soda.server.highlevel.ColumnDAO.Result
+import com.socrata.soda.server.highlevel.ColumnSpecUtils.{InvalidComputationStrategy, WrongDatatypeForComputationStrategy, ComputationStrategyNoStrategyType, UnknownComputationStrategySourceColumn}
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soda.server.SodaUtils
@@ -83,6 +84,14 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
           case f: Precondition.Failure =>
             ColumnDAO.PreconditionFailed(f)
         }
+      case UnknownComputationStrategySourceColumn(name) =>
+        ColumnDAO.UnknownComputationStrategySourceColumn(name)
+      case ComputationStrategyNoStrategyType =>
+        ColumnDAO.ComputationStrategyNoStrategyType
+      case WrongDatatypeForComputationStrategy(found, required) =>
+        ColumnDAO.WrongDatatypeForComputationStrategy(found, required)
+      case InvalidComputationStrategy(error) =>
+        ColumnDAO.InvalidComputationStrategy(error)
       // TODO other cases have not been implemented
       case err@x =>
         log.warn(s"case is NOT implemented ${err.getClass.getName}")

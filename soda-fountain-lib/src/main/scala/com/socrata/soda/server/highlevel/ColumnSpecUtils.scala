@@ -79,8 +79,8 @@ class ColumnSpecUtils(rng: Random) {
 
         // Validate the strategy and the datatypes of the source columns
         ComputationStrategy.validate[ColumnName](definition, existingColumns.mapValues(_._2)) match {
-          case Some(UnknownSourceColumn(_)) =>
-            UnknownComputationStrategySourceColumn
+          case Some(UnknownSourceColumn(name)) =>
+            UnknownComputationStrategySourceColumn(name.asInstanceOf[ColumnName]) // TODO: fix the library
           case Some(other) =>
             InvalidComputationStrategy(other)
           case None =>
@@ -180,7 +180,7 @@ object ColumnSpecUtils {
   case class DuplicateColumnName(name: ColumnName) extends CreateResult
   case object NoType extends CreateResult
   case object DeleteSet extends CreateResult
-  case object UnknownComputationStrategySourceColumn extends CreateResult
+  case class UnknownComputationStrategySourceColumn(name: ColumnName) extends CreateResult
   case object ComputationStrategyNoStrategyType extends CreateResult
   case class WrongDatatypeForComputationStrategy(found: SoQLType, required: SoQLType) extends CreateResult
   case class InvalidComputationStrategy(error: ValidationError) extends CreateResult
