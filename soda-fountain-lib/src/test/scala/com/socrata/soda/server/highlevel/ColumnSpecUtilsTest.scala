@@ -168,7 +168,7 @@ class ColumnSpecUtilsTest extends FunSuite with Matchers {
         sourceColumns = Some(Seq("my_column")),
         parameters = None
       )))
-    testFreeze(existingColumns, ucs, InvalidComputationStrategy(MissingParameters(StrategyType.Test)))
+    testFreeze(existingColumns, ucs, InvalidComputationStrategy(MissingParameters(TestParameterSchema)))
   }
 
   test("freezeForCreation - test computed column strategy type \"geocoding\"") {
