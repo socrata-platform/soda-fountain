@@ -5,6 +5,7 @@ import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.http.server.HttpResponse
+import com.socrata.soda.server.SodaInternalException
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.persistence.ColumnRecordLike
@@ -127,5 +128,5 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
  * Helpful objects related to GeoJSON processing
  */
 object GeoJsonProcessor {
-  object InvalidGeoJsonSchema extends Exception
+  object InvalidGeoJsonSchema extends SodaInternalException("Invalid geojson schema")
 }

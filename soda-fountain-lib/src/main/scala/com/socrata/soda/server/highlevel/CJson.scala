@@ -3,6 +3,7 @@ package com.socrata.soda.server.highlevel
 import com.rojoma.json.v3.ast.{JArray, JValue}
 import com.rojoma.json.v3.codec.JsonDecode
 import com.rojoma.json.v3.util.{JsonKey, Strategy, JsonKeyStrategy, AutomaticJsonCodecBuilder}
+import com.socrata.soda.server.SodaInternalException
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.wiremodels.{JsonColumnReadRep, JsonColumnRep}
 import com.socrata.soql.environment.ColumnName
@@ -59,7 +60,7 @@ object CJson {
   // either success or failure casses.
 
   // EXCEPTIONS
-  class CJsonException(msg: String) extends Exception(msg)
+  class CJsonException(msg: String) extends SodaInternalException(msg)
 
   case object NoSchemaPresent extends CJsonException("No Schema Present")
   case class CannotDecodeSchema(value: JValue) extends CJsonException(s"Could not decode Schema: $value")

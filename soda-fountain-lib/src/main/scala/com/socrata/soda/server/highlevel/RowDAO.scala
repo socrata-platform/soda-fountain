@@ -89,6 +89,7 @@ object RowDAO {
   case class DatasetNotFound(dataset: ResourceName) extends UpsertFailResult
   case class UnknownColumn(column: ColumnName) extends UpsertFailResult
   case object CannotDeletePrimaryKey extends UpsertFailResult
+  case object DeleteWithoutPrimaryKey extends UpsertFailResult
   case class InvalidRequest(client: String, status: Int, body: JValue) extends UpsertFailResult
   case class RowNotAnObject(value: JValue) extends UpsertFailResult
   case class InternalServerError(status: Int = 500, client: String = "QC", code: String, tag: String, data: String) extends UpsertFailResult

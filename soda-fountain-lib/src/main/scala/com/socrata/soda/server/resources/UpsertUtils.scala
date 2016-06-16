@@ -31,7 +31,7 @@ object UpsertUtils {
       case UnknownColumnEx(columnName)               =>
         handleResponse(RowDAO.UnknownColumn(columnName))
       case DeleteNoPKEx                              =>
-        handleResponse(RowDAO.CannotDeletePrimaryKey)
+        handleResponse(RowDAO.DeleteWithoutPrimaryKey)
       case NotAnObjectOrSingleElementArrayEx(obj)    =>
         handleResponse(RowDAO.RowNotAnObject(obj))
       case ComputationHandlerNotFoundEx(typ)         =>
@@ -57,6 +57,8 @@ object UpsertUtils {
         SodaUtils.response(request, SodaErrors.ComputationHandlerNotFound(typ))(response)
       case RowDAO.CannotDeletePrimaryKey =>
         SodaUtils.response(request, SodaErrors.CannotDeletePrimaryKey)(response)
+      case RowDAO.DeleteWithoutPrimaryKey =>
+        SodaUtils.response(request, SodaErrors.DeleteWithoutPrimaryKey)(response)
       case RowDAO.RowNotAnObject(obj) =>
         SodaUtils.response(request, SodaErrors.UpsertRowNotAnObject(obj))(response)
       case RowDAO.DatasetNotFound(dataset) =>

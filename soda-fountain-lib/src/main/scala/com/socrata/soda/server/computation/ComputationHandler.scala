@@ -1,6 +1,7 @@
 package com.socrata.soda.server.computation
 
 import com.socrata.http.server.util.RequestId.RequestId
+import com.socrata.soda.server.{SodaInternalException, SodaInvalidRequestException}
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
@@ -35,8 +36,7 @@ trait ComputationHandler extends java.io.Closeable {
 }
 
 object ComputationHandler {
-  // TODO: These are repeated from RowDAOImpl.  Let's share these somehow.  Or maybe we just make them private.
-  case class UnknownColumnEx(colName: ColumnName) extends Exception
-  case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: SoQLType) extends Exception
-  case class ComputationEx(message: String, underlying: Option[Throwable]) extends Exception(message, underlying.orNull)
+  case class UnknownColumnEx(colName: ColumnName) extends SodaInvalidRequestException(s"Unknown column $colName")
+  case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: SoQLType) extends SodaInvalidRequestException(s"Invalid data for column $col; expected a $expected and got a $got")
+  case class ComputationEx(message: String, underlying: Option[Throwable]) extends SodaInternalException(message, underlying.orNull)
 }

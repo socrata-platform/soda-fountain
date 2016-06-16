@@ -10,7 +10,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util._
 import com.socrata.http.server.util.RequestId.{ReqIdHeader, RequestId}
-import com.socrata.soda.server.responses.{InternalException, SodaResponse}
+import com.socrata.soda.server.responses.{SodaInvalidRequest, InternalException, SodaResponse}
 import com.socrata.soda.server.id.{AbstractId, ResourceName}
 import com.socrata.soql.environment.AbstractName
 
@@ -63,6 +63,20 @@ object SodaUtils {
     val tag = java.util.UUID.randomUUID.toString
     responseLog.error("Internal exception: " + tag, th)
     response(request, InternalException(th, tag), logTags: _*)
+  }
+
+  def invalidRequest(request: HttpServletRequest, th: SodaInvalidRequestException, logTags: LogTag*): HttpResponse = {
+    val tag = java.util.UUID.randomUUID.toString
+    responseLog.error("Invalid request: " + tag)
+    response(request, SodaInvalidRequest(th, tag), logTags: _*)
+  }
+
+  def handleError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {
+    th match {
+      case sir: SodaInvalidRequestException => invalidRequest(request, sir, logTags: _*)
+      case sie: SodaInternalException => internalError(request, sie, logTags: _*) // TODO do we want to include these messages? too detailed?
+      case e => internalError(request, e, logTags: _*)
+    }
   }
 
   /**

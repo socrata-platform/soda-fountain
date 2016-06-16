@@ -7,6 +7,7 @@ import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.id.ColumnId
+import com.socrata.soda.server.{SodaInvalidRequestException, SodaInternalException}
 import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecordLike}
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
 import com.socrata.soql.environment.ColumnName
@@ -160,9 +161,9 @@ object RowDataTranslator {
   case class UpsertAsSoQL(rowData: Map[String, SoQLValue]) extends Computable
   case class DeleteAsCJson(pk: JValue) extends Computable
 
-  case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends Exception(s"Expected $expected type for column $col, but got value $got")
-  case class UnknownColumnEx(col: ColumnName) extends Exception(s"Unrecognized column $col")
-  case object DeleteNoPKEx extends Exception
-  case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends Exception(s"Inappropriate JValue $obj")
-  case class ComputationHandlerNotFoundEx(typ: StrategyType) extends Exception(s"Computation strategy $typ was not found")
+  case class MaltypedDataEx(col: ColumnName, expected: SoQLType, got: JValue) extends SodaInvalidRequestException(s"Expected $expected type for column $col, but got value $got")
+  case class UnknownColumnEx(col: ColumnName) extends SodaInvalidRequestException(s"Unrecognized column $col")
+  case object DeleteNoPKEx extends SodaInvalidRequestException(s"Cannot delete row without giving primary key")
+  case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends SodaInvalidRequestException(s"Inappropriate JValue $obj")
+  case class ComputationHandlerNotFoundEx(typ: StrategyType) extends SodaInternalException(s"Computation strategy $typ was not found")
 }
