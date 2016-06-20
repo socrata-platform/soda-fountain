@@ -1,6 +1,6 @@
 package com.socrata.soda.server.id
 
-import com.rojoma.json.v3.ast.{JString, JValue}
+import com.rojoma.json.v3.ast.{JNumber, JString, JValue}
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.codec.DecodeError.InvalidType
 import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
@@ -49,6 +49,7 @@ object RowSpecifier {
     def encode(x: RowSpecifier): JValue = JString(x.underlying)
     def decode(x: JValue): DecodeResult[RowSpecifier] = x match {
       case JString(s) => Right(RowSpecifier(s))
+      case n: JNumber => Right(RowSpecifier(n.toString))
       case u => Left(InvalidType(JString, u.jsonType))
     }}
 }
