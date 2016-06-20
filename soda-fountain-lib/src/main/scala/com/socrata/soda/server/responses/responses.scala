@@ -40,6 +40,16 @@ case class InternalException(th: Throwable, tag: String)
   override def excludedFields = Set("errorMessage", "errorClass", "stackTrace")
 }
 
+case class SodaInvalidRequest(th: Throwable, tag: String)
+  extends SodaResponse(SC_BAD_REQUEST, "invalid-request",
+    s"Invalid request: ${Option(th.getMessage).getOrElse("")}",
+    "errorMessage" -> JString(Option(th.getMessage).getOrElse("")),
+    "errorClass"   -> JString(th.getClass.getCanonicalName),
+    "stackTrace"   -> JArray(th.getStackTrace.map(x => JString(x.toString)))
+  ) {
+  override def excludedFields = Set("errorMessage", "errorClass", "stackTrace")
+}
+
 case class HttpMethodNotAllowed(method: String, allowed: TraversableOnce[String])
   extends SodaResponse(SC_METHOD_NOT_ALLOWED, "method-not-allowed",
     s"HTTP method $method is not allowed for this request",

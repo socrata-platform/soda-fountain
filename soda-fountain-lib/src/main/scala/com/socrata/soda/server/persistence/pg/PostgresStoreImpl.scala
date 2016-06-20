@@ -3,6 +3,7 @@ package com.socrata.soda.server.persistence.pg
 import java.sql.{Connection, ResultSet, Timestamp, Types}
 
 import com.socrata.computation_strategies.StrategyType
+import com.socrata.soda.server.SodaInternalException
 import com.socrata.soda.server.persistence.NameAndSchemaStore.ColumnUpdater
 
 import scala.annotation.tailrec
@@ -22,7 +23,7 @@ import com.socrata.soql.types.SoQLType
 import javax.sql.DataSource
 import org.joda.time.DateTime
 
-case class SodaFountainStoreError(message: String) extends Exception(message)
+case class SodaFountainStoreError(message: String) extends SodaInternalException(message)
 
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
