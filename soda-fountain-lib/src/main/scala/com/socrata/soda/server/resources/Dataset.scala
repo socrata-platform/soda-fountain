@@ -98,6 +98,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         SodaUtils.response(req, DatasetWriteLockError(dataset))
       case DatasetDAO.FeedbackInProgress(dataset, stores) =>
         SodaUtils.response(req, FeedbackInProgressError(dataset, stores))
+      case DatasetDAO.IncorrectLifecycleStageResult(actualStage: String, expectedStage: Set[String]) =>
+        SodaUtils.response(req, IncorrectLifecycleStage(actualStage, expectedStage))
       case DatasetDAO.UnsupportedUpdateOperation(message) =>
         SodaUtils.response(req, UnsupportedUpdateOperation(message))
       case DatasetDAO.InternalServerError(code, tag, data) =>
