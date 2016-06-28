@@ -12,7 +12,7 @@ import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.soda.clients.regioncoder.CuratedRegionCoderClient
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
-import com.socrata.soda.server.computation.ComputedColumns
+import com.socrata.soda.server.computation.{ComputingGate, ComputedColumns}
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
@@ -155,7 +155,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
 
-  val computedColumns = new ComputedColumns(config.handlers, discovery)
+  val computingGate = si(new ComputingGate(curator, "/soda-fountain"))
+
+  val computedColumns = new ComputedColumns(config.handlers, discovery, computingGate)
 
   val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
   val columnDAO = i(new ColumnDAOImpl(dc, store, columnSpecUtils))

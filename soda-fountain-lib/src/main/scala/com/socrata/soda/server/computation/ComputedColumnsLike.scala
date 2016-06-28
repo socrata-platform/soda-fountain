@@ -30,6 +30,11 @@ trait ComputedColumnsLike {
     datasetRecord.columns.filter { col => col.computationStrategy.isDefined }
 
   /**
+   * Dynamically gate the actual running of computation strategies
+   */
+  def computingEnabled: Boolean
+
+  /**
    * Performs the (hopefully lazy) computation of all computed columns, producing a new iterator with
    * the new computed columns filled in.   The computations are chained, one computed column at a time;
    * thus if all computation handlers are lazy then the processing can happen incrementally.
@@ -48,7 +53,7 @@ trait ComputedColumnsLike {
     for (computedColumn <- computedColumns) {
       val strategyType = computedColumn.computationStrategy.get.strategyType
       // only add computed columns that have synchronous computation strategies
-      if (StrategyType.computeSynchronously(strategyType)) {
+      if (StrategyType.computeSynchronously(strategyType) && computingEnabled) {
         val tryGetHandler = handlers.get(strategyType)
         tryGetHandler match {
           case Some(handlerCreator) =>
