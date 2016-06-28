@@ -2,10 +2,10 @@ package com.socrata.soda.server.highlevel
 
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.RequestId.RequestId
-import com.socrata.soda.clients.datacoordinator.{DropRollupInstruction, CreateOrUpdateRollupInstruction, SetRowIdColumnInstruction, AddColumnInstruction, DataCoordinatorClient}
-import com.socrata.soda.server.id.{ColumnId, SecondaryId, ResourceName, RollupName}
+import com.socrata.soda.clients.datacoordinator.{AddColumnInstruction, CreateOrUpdateRollupInstruction, DataCoordinatorClient, DropRollupInstruction, SetRowIdColumnInstruction}
+import com.socrata.soda.server.id.{ColumnId, ResourceName, RollupName, SecondaryId}
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
-import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, ColumnSpec, DatasetSpec, UserProvidedDatasetSpec}
+import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec, UserProvidedRollupSpec}
 import com.socrata.soda.server.SodaUtils.traceHeaders
 import com.socrata.soql.collection.OrderedMap
 import com.socrata.soql.exceptions.{NoSuchColumn, SoQLException}
@@ -14,12 +14,13 @@ import com.socrata.soql.parsing.StandaloneParser
 import com.socrata.soql.types.SoQLType
 import com.socrata.soql.{SoQLAnalysis, SoQLAnalyzer}
 import com.socrata.soql.brita.IdentifierFilter
-import com.socrata.soql.environment.{DatasetContext, ColumnName}
+import com.socrata.soql.environment.{ColumnName, DatasetContext}
 import com.socrata.soql.functions.SoQLFunctionInfo
 import com.socrata.soql.functions.SoQLTypeInfo
 import DatasetDAO._
+
 import scala.util.control.ControlThrowable
-import com.socrata.soda.server.copy.{Discarded, Published, Unpublished, Stage}
+import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
 
 class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils, instanceForCreate: () => String) extends DatasetDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetDAOImpl])
@@ -298,6 +299,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
               CannotAcquireDatasetWriteLock(dataset)
             case DataCoordinatorClient.FeedbackInProgressResult(_, _, stores) =>
               FeedbackInProgress(dataset, stores)
+            case DataCoordinatorClient.IncorrectLifecycleStageResult(actualStage: String, expectedStage: Set[String]) =>
+              IncorrectLifecycleStageResult(actualStage, expectedStage)
             case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
               InternalServerError(code, tag, data)
             case x =>

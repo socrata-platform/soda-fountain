@@ -248,6 +248,13 @@ case class FeedbackInProgressError(dataset: ResourceName, stores: Set[String])
     "dataset" -> JString(dataset.name),
     "stores" -> JsonEncode.toJValue(stores))
 
+case class IncorrectLifecycleStage(actualStage: String, expectedStage: Set[String])
+  extends SodaResponse(SC_CONFLICT,
+                       "soda.dataset.incorrect-lifecycle-stage",
+                       "Dataset is in incorrect lifecycle stage",
+                       "actual" -> JString(actualStage),
+                       "expected" -> JArray(expectedStage.toSeq.map(JString(_))))
+
 case class LocaleChangedError(locale: String)
   extends SodaResponse(SC_CONFLICT, "soda.dataset.locale-changed",
     s"Dataset locale is different from the default locale of $locale",

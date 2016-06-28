@@ -130,8 +130,8 @@ case class CannotAcquireDatasetWriteLock(dataset: DatasetId) extends DCDatasetUp
 
 @Tag("update.dataset.invalid-state")
 case class IncorrectLifecycleStage(dataset: DatasetId,
-                                   `actual-stage`: String,
-                                   `expected-stage`: Set[String]) extends DCDatasetUpdateError
+                                   `actual-state`: String,
+                                   `expected-state`: Set[String]) extends DCDatasetUpdateError
 
 @Tag("update.dataset.initial-copy-drop")
 case class InitialCopyDrop(dataset: DatasetId, commandIndex: Long) extends DCDatasetUpdateError
