@@ -10,7 +10,7 @@ import org.apache.curator.x.discovery.ServiceDiscovery
  * @param handlersConfig a Typesafe Config containing an entry for configuring each handler.
  * @param discovery the ServiceDiscovery instance used for discovering other services using ZK/Curator
  */
-class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T]) extends ComputedColumnsLike {
+class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T], computingGate: () => Boolean) extends ComputedColumnsLike {
 
   /**
    * Instantiates a computation handler handle a given computation strategy type.
@@ -28,4 +28,6 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T])
     handlersConfig.getConfig("region-coder"), discovery)
   private def geoRegionMatchOnStringHandler = new GeoregionMatchOnStringHandler(
     handlersConfig.getConfig("region-coder"), discovery)
+
+  def computingEnabled = computingGate()
 }

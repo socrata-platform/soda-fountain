@@ -7,4 +7,5 @@ object TestComputedColumns extends ComputedColumnsLike {
   val handlers = Map[StrategyType, () => ComputationHandler](
     StrategyType.Test      -> (() => new TestComputationHandler)
   )
+  def computingEnabled = true
 }
