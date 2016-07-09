@@ -24,7 +24,7 @@ object CJsonExporter extends Exporter {
 
   def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
-             obfuscateId: Boolean = true): HttpResponse = {
+             obfuscateId: Boolean = true, bom: Boolean = false): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     exporterHeaders(schema) ~> Write(mt) { rawWriter =>

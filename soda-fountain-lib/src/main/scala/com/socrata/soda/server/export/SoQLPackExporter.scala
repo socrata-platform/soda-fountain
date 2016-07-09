@@ -32,7 +32,8 @@ object SoQLPackExporter extends Exporter {
              schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]],
              singleRow: Boolean = false,
-             obfuscateId: Boolean = true): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
+             obfuscateId: Boolean = true,
+             bom: Boolean = false): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
     // Compute the schema
     val soqlSchema = schema.schema.map { ci =>
       (ci.fieldName.name, ci.typ)

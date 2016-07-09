@@ -213,7 +213,9 @@ case class Resource(rowDAO: RowDAO,
                         optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
                         optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
-                    createHeader ~> exporter.export(charset, schema, rows, singleRow = false, obfuscateId)
+                    createHeader ~>
+                      exporter.export(charset, schema, rows, singleRow = false, obfuscateId,
+                                      bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))
                   case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
                     metric(QueryCacheHit)
                     SodaUtils.response(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))
@@ -328,7 +330,9 @@ case class Resource(rowDAO: RowDAO,
                         optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
-                      createHeader ~> exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId)
+                      createHeader ~>
+                        exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId,
+                                        bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
                       SodaUtils.response(req, SodaErrors.RowNotFound(row))
@@ -395,6 +399,7 @@ object Resource {
   val qpSecondary = "$$store"
   val qpNoRollup = "$$no_rollup"
   val qpObfuscateId = "$$obfuscate_id" // for OBE compatibility - use false
+  val qpBom = "$$bom"
 
   val qpQueryDefault = "select *"
 }

@@ -18,7 +18,8 @@ object CsvExporter extends Exporter {
 
   def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
-             obfuscateId: Boolean = true): HttpResponse = {
+             obfuscateId: Boolean = true,
+             bom: Boolean = false): HttpResponse = {
     exporterHeaders(schema) ~> Write(new MimeType(mimeTypeBase)) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
         val csvColumnReps = if (obfuscateId) CsvColumnRep.forType
@@ -68,8 +69,11 @@ object CsvExporter extends Exporter {
             }
           }
 
+          def writeBom(): Unit = writer.write("\uFEFF")
+
           def go(rows: Iterator[Array[SoQLValue]]) {
             val array = schema.schema.map(_.fieldName.name).toArray
+            if (bom) { writeBom() }
             writeCSVRow(array)
             while(rows.hasNext) {
               convertInto(array, rows.next())
@@ -83,3 +87,4 @@ object CsvExporter extends Exporter {
     }
   }
 }
+
