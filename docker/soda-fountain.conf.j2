@@ -28,4 +28,19 @@ com.socrata.soda-fountain  {
     jms-queue = "{{ BALBOA_JMS_QUEUE }}"
     log-metrics = {{ LOG_METRICS }}
   }
+
+  computation-strategy-secondary-id {
+    {% if GEOCODING_SECONDARY_ID is defined %}
+    geocoding = {{ GEOCODING_SECONDARY_ID }}
+    {% endif %}
+
+    {% if GEOREGION_MATCH_ON_POINT_SECONDARY_ID is defined %}
+    georegion_match_on_point = {{ GEOREGION_MATCH_ON_POINT_SECONDARY_ID }}
+    georegion = {{ GEOREGION_MATCH_ON_POINT_SECONDARY_ID }}
+    {% endif %}
+
+    {% if GEOREGION_MATCH_ON_STRING_SECONDARY_ID is defined %}
+    georegion_match_on_string = {{ GEOREGION_MATCH_ON_STRING_SECONDARY_ID }}
+    {% endif %}
+  }
 }
