@@ -14,7 +14,10 @@ import scala.util.control.ControlThrowable
 import com.socrata.http.server.util.{NoPrecondition, Precondition}
 import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord, NameAndSchemaStore}
 
-class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils) extends ColumnDAO {
+class ColumnDAOImpl(dc: DataCoordinatorClient,
+                    fbm: FeedbackSecondaryManifestClient,
+                    store: NameAndSchemaStore,
+                    columnSpecUtils: ColumnSpecUtils) extends ColumnDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ColumnDAOImpl])
 
   def replaceOrCreateColumn(user: String,
@@ -61,6 +64,9 @@ class ColumnDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, column
                 store.addColumn(datasetRecord.systemId, copyNumber, spec)
                 store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                 log.info("column created {} {} {}", datasetRecord.systemId.toString, copyNumber.toString, column.name)
+                spec.computationStrategy.foreach { strategy =>
+                  fbm.maybeReplicate(datasetRecord.systemId, Set(strategy.strategyType), extraHeaders)
+                }
                 ColumnDAO.Created(spec.asRecord, etag)
               case DataCoordinatorClient.ColumnExistsAlreadyResult(datasetId, columnId, _) =>
                 ColumnDAO.ColumnAlreadyExists(column)

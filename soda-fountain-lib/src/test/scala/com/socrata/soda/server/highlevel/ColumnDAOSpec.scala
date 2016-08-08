@@ -1,6 +1,6 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
+import com.socrata.soda.clients.datacoordinator.{FeedbackSecondaryManifestClient, DataCoordinatorClient}
 import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.copy.Latest
 import com.socrata.soda.server.highlevel.ColumnDAO._
@@ -19,12 +19,13 @@ class ColumnDAOSpec extends FunSuiteLike
     val toDelete = ColumnName("blah")
 
     val dc = mock[DataCoordinatorClient]
+    val fbm = new FeedbackSecondaryManifestClient(dc, Map.empty)
     val ns = mock[NameAndSchemaStore]
     ns.expects('lookupDataset)(dataset.resourceName, Some(Latest))
       .returning(Some(dataset)).anyNumberOfTimes()
     val col = new ColumnSpecUtils(Random)
 
-    val dao: ColumnDAO = new ColumnDAOImpl(dc, ns, col)
+    val dao: ColumnDAO = new ColumnDAOImpl(dc, fbm, ns, col)
 
     val result = dao.deleteColumn("user", dataset.resourceName, toDelete, "1234")
 
@@ -38,12 +39,13 @@ class ColumnDAOSpec extends FunSuiteLike
     val requestId = "1234"
 
     val dc = mock[DataCoordinatorClient]
+    val fbm = new FeedbackSecondaryManifestClient(dc, Map.empty)
     val ns = mock[NameAndSchemaStore]
     ns.expects('lookupDataset)(dataset.resourceName, Some(Latest))
       .returning(Some(dataset)).anyNumberOfTimes()
     val col = new ColumnSpecUtils(Random)
 
-    val dao: ColumnDAO = new ColumnDAOImpl(dc, ns, col)
+    val dao: ColumnDAO = new ColumnDAOImpl(dc, fbm, ns, col)
 
     val result = dao.deleteColumn("user", dataset.resourceName, toDelete.fieldName, requestId)
 
@@ -56,13 +58,14 @@ class ColumnDAOSpec extends FunSuiteLike
     val requestId = "1234"
 
     val dc = mock[DataCoordinatorClient]
+    val fbm = new FeedbackSecondaryManifestClient(dc, Map.empty)
     val ns = mock[NameAndSchemaStore]
     ns.expects('lookupDataset)(dataset.resourceName, Some(Latest))
       .returning(Some(dataset)).anyNumberOfTimes()
     dc.expects('update)(*, *, *, *, *, *)
     val col = new ColumnSpecUtils(Random)
 
-    val dao: ColumnDAO = new ColumnDAOImpl(dc, ns, col)
+    val dao: ColumnDAO = new ColumnDAOImpl(dc, fbm, ns, col)
 
     dao.deleteColumn("user", dataset.resourceName, toDelete.fieldName, requestId)
 
