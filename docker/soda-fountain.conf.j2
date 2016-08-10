@@ -16,10 +16,6 @@ com.socrata.soda-fountain  {
     port = "{{ SPANDEX_PORT }}"
   }
 
-  log4j.logger.com.socrata.http.client.LivenessCheckerImpl = TRACE
-
-  log4j.logger.com.socrata.http.server.livenesscheck = TRACE
-
   metrics {
     activemq-connection-uri = "{{ BALBOA_ACTIVEMQ_URI }}"
     enable-graphite = {{ ENABLE_GRAPHITE }}
