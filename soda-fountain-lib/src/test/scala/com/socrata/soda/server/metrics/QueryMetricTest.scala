@@ -245,14 +245,14 @@ private object TestDatasets {
 private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
   def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String],
             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
-            reqId: String, fuseColumns: Option[String], rs: ResourceScope): Result = {
+            reqId: String, fuseColumns: Option[String], customQueryTimeoutMs: Option[String], rs: ResourceScope): Result = {
     testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
   }
   def getRow(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
              stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
-             reqId: String, fuseColumns: Option[String], rs: ResourceScope): Result = {
+             reqId: String, fuseColumns: Option[String], customQueryTimeoutMs: Option[String], rs: ResourceScope): Result = {
     query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup, obfuscateId,
-          reqId, fuseColumns, rs)
+          reqId, fuseColumns, None, rs)
   }
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
   def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???

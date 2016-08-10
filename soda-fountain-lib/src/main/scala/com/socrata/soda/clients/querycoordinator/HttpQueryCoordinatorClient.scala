@@ -1,7 +1,7 @@
 package com.socrata.soda.clients.querycoordinator
 
 
-import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout}
@@ -31,6 +31,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   private val secondaryStoreOverride = "store"
   private val qpNoRollup = "no_rollup"
   private val qpObfuscateId = "obfuscateId"
+  private val qpQueryTimeoutMs = "queryTimeoutMs"
 
   private def retrying[T](limit: Int)(f: => T): T = {
     def doRetry(count: Int, e: Exception): T = {
@@ -51,7 +52,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String],
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
     obfuscateId: Boolean,
-    extraHeaders: Map[String, String],
+    extraHeaders: Map[String, String], customQueryTimeoutMs: Option[String],
     rs: ResourceScope)(f: Result => T): T = {
 
     val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
@@ -59,6 +60,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
       qpDataset -> datasetId.underlying,
       qpQuery -> query,
       qpIdMap -> jsonizedColumnIdMap) ++
+      customQueryTimeoutMs.map(qpQueryTimeoutMs -> _) ++
       copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
       rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
       (if (noRollup) List(qpNoRollup -> "y") else Nil) ++
@@ -91,6 +93,9 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
         NotModified(response.headers("ETag").map(EntityTagParser.parse(_)))
       case SC_PRECONDITION_FAILED =>
         PreconditionFailed
+      case SC_REQUEST_TIMEOUT =>
+        // if we can't read the timeout for some reason, pass through null but keep it as a RequestTimedOut
+        response.value[RequestTimedOut]().right.toOption.getOrElse(RequestTimedOut(JNull))
       case status =>
         val r = response.value[QueryCoordinatorError]().right.toOption.getOrElse(
           throw new Exception(s"Response was JSON but not decodable as an error -  query: $query; code $status"))

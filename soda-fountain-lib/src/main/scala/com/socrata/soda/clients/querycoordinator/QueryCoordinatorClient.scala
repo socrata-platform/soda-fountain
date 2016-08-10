@@ -2,6 +2,7 @@ package com.socrata.soda.clients.querycoordinator
 
 import com.rojoma.json.ast.JObject
 import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.copy.Stage
@@ -22,6 +23,10 @@ object QueryCoordinatorClient {
   // Fail Cases
   case class NotModified(etags: Seq[EntityTag]) extends FailResult
   case object PreconditionFailed extends FailResult
+  case class RequestTimedOut(timeout: JValue) extends FailResult
+  object RequestTimedOut {
+    implicit val jCodec = AutomaticJsonCodecBuilder[RequestTimedOut]
+  }
 
   case class QueryCoordinatorResult(status: Int,  payload: QueryCoordinatorError) extends FailResult
 
@@ -76,6 +81,7 @@ trait QueryCoordinatorClient {
                noRollup: Boolean,
                obfuscateId: Boolean,
                extraHeaders: Map[String, String],
+               customQueryTimeoutMs: Option[String],
                rs: ResourceScope)(f: Result => T): T
 
 }
