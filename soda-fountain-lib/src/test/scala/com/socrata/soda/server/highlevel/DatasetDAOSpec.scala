@@ -1,6 +1,6 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
+import com.socrata.soda.clients.datacoordinator.{FeedbackSecondaryManifestClient, DataCoordinatorClient}
 import com.socrata.soda.server.copy.{Published, Unpublished}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence.NameAndSchemaStore
@@ -16,13 +16,14 @@ class DatasetDAOSpec extends FunSuiteLike with Matchers with MockFactory with Pr
     val expectedCopyNum = Some(42)
 
     val dc = mock[DataCoordinatorClient]
+    val fbm = new FeedbackSecondaryManifestClient(dc, Map.empty)
     val ns = mock[NameAndSchemaStore]
     ns.expects('lookupCopyNumber)(dataset, None).returning(Some(1)).anyNumberOfTimes()
     ns.expects('lookupCopyNumber)(dataset, Some(Published)).returning(expectedCopyNum)
     val col = new ColumnSpecUtils(Random)
     val instance = () => "test"
 
-    val dao: DatasetDAO = new DatasetDAOImpl(dc, ns, col, instance)
+    val dao: DatasetDAO = new DatasetDAOImpl(dc, fbm, ns, col, instance)
 
     val copynum = dao.getCurrentCopyNum(dataset)
 
@@ -34,13 +35,14 @@ class DatasetDAOSpec extends FunSuiteLike with Matchers with MockFactory with Pr
     val expectedCopyNum = Some(42)
 
     val dc = mock[DataCoordinatorClient]
+    val fbm = new FeedbackSecondaryManifestClient(dc, Map.empty)
     val ns = mock[NameAndSchemaStore]
     ns.expects('lookupCopyNumber)(dataset, Some(Published)).returning(None)
     ns.expects('lookupCopyNumber)(dataset, Some(Unpublished)).returning(expectedCopyNum)
     val col = new ColumnSpecUtils(Random)
     val instance = () => "test"
 
-    val dao: DatasetDAO = new DatasetDAOImpl(dc, ns, col, instance)
+    val dao: DatasetDAO = new DatasetDAOImpl(dc, fbm, ns, col, instance)
 
     val copynum = dao.getCurrentCopyNum(dataset)
 

@@ -3,18 +3,20 @@ package com.socrata.soda.server
 import java.nio.charset.StandardCharsets
 
 import com.mchange.v2.c3p0.DataSources
+import com.socrata.computation_strategies.{StrategyType, ComputationStrategy}
 import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
 import com.socrata.http.common.AuxiliaryData
 import com.socrata.http.common.util.CharsetFor
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.handlers.{NewLoggingHandler, ThreadRenamingHandler}
 import com.socrata.http.server.util.RequestId.ReqIdHeader
-import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
+import com.socrata.soda.clients.datacoordinator.{FeedbackSecondaryManifestClient, CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
 import com.socrata.soda.clients.regioncoder.CuratedRegionCoderClient
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import com.socrata.soda.server.computation.{ComputingGate, ComputedColumns}
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
+import com.socrata.soda.server.id.SecondaryId
 import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
 import com.socrata.soda.server.metrics.NoopMetricProvider
@@ -159,8 +161,22 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val computedColumns = new ComputedColumns(config.handlers, discovery, computingGate)
 
-  val datasetDAO = i(new DatasetDAOImpl(dc, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
-  val columnDAO = i(new ColumnDAOImpl(dc, store, columnSpecUtils))
+  val fbm: FeedbackSecondaryManifestClient = {
+    val feedbackSecondaryIdMap: Map[StrategyType, SecondaryId] = config.computationStrategySecondaryId match  {
+      case Some(conf) =>
+        val map = scala.collection.mutable.Map[StrategyType, SecondaryId]()
+        ComputationStrategy.strategies.foreach { case (strategy, _) =>
+          if (conf.hasPath(strategy.name)) map.put(strategy, SecondaryId(conf.getString(strategy.name)))
+        }
+        map.toMap
+      case None => Map.empty
+    }
+
+    new FeedbackSecondaryManifestClient(dc, feedbackSecondaryIdMap)
+  }
+
+  val datasetDAO = i(new DatasetDAOImpl(dc, fbm, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
+  val columnDAO = i(new ColumnDAOImpl(dc, fbm, store, columnSpecUtils))
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
   val exportDAO = i(new ExportDAOImpl(store, dc))
   val snapshotDAO = i(new SnapshotDAOImpl(store, dc))

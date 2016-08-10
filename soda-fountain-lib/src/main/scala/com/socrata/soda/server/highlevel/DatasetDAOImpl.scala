@@ -2,7 +2,9 @@ package com.socrata.soda.server.highlevel
 
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.RequestId.RequestId
-import com.socrata.soda.clients.datacoordinator.{AddColumnInstruction, CreateOrUpdateRollupInstruction, DataCoordinatorClient, DropRollupInstruction, SetRowIdColumnInstruction}
+import com.socrata.soda.clients.datacoordinator._
+import com.socrata.soda.server.highlevel.DatasetDAO.CannotAcquireDatasetWriteLock
+import com.socrata.soda.server.highlevel.DatasetDAO.FeedbackInProgress
 import com.socrata.soda.server.id.{ColumnId, ResourceName, RollupName, SecondaryId}
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec, UserProvidedRollupSpec}
@@ -22,7 +24,11 @@ import DatasetDAO._
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
 
-class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, columnSpecUtils: ColumnSpecUtils, instanceForCreate: () => String) extends DatasetDAO {
+class DatasetDAOImpl(dc: DataCoordinatorClient,
+                     fbm: FeedbackSecondaryManifestClient,
+                     store: NameAndSchemaStore,
+                     columnSpecUtils: ColumnSpecUtils,
+                     instanceForCreate: () => String) extends DatasetDAO {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetDAOImpl])
   val defaultDescription = ""
   val defaultPrimaryKey = ColumnName(":id")
@@ -106,6 +112,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient, store: NameAndSchemaStore, colum
 
         store.addResource(record)
         store.updateVersionInfo(reportMetaData.datasetId, reportMetaData.version, reportMetaData.lastModified, None, Stage.InitialCopyNumber, None)
+
+        val strategyTypes = spec.columns.flatMap { case (_, colSpec) => colSpec.computationStrategy }.map { _.strategyType }.toSet
+        fbm.maybeReplicate(record.systemId, strategyTypes, traceHeaders(requestId, record.resourceName))
+
         Created(trueSpec.asRecord(reportMetaData))
       case Some(_) =>
         DatasetAlreadyExists(spec.resourceName)
