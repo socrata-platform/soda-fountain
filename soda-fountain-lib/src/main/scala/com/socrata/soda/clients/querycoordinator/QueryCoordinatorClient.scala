@@ -81,7 +81,7 @@ trait QueryCoordinatorClient {
                noRollup: Boolean,
                obfuscateId: Boolean,
                extraHeaders: Map[String, String],
-               customQueryTimeoutMs: Option[String],
+               queryTimeoutSeconds: Option[String],
                rs: ResourceScope)(f: Result => T): T
 
 }

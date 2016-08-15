@@ -197,7 +197,7 @@ case class Resource(rowDAO: RowDAO,
                   obfuscateId,
                   RequestId.getFromRequest(req),
                   Option(req.getHeader("X-Socrata-Fuse-Columns")),
-                  Option(req.getParameter(qpQueryTimeoutMs)),
+                  Option(req.getParameter(qpQueryTimeoutSeconds)),
                   req.resourceScope) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                     metric(QuerySuccessMetric)
@@ -322,7 +322,7 @@ case class Resource(rowDAO: RowDAO,
                     obfuscateId,
                     RequestId.getFromRequest(req),
                     Option(req.getHeader("X-Socrata-Fuse-Columns")),
-                    Option(req.getParameter(qpQueryTimeoutMs)),
+                    Option(req.getParameter(qpQueryTimeoutSeconds)),
                     resourceScope) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
@@ -410,7 +410,7 @@ object Resource {
   val qpNoRollup = "$$no_rollup"
   val qpObfuscateId = "$$obfuscate_id" // for OBE compatibility - use false
   val qpBom = "$$bom"
-  val qpQueryTimeoutMs = "queryTimeoutMs"
+  val qpQueryTimeoutSeconds = "queryTimeoutSeconds"
 
   val qpQueryDefault = "select *"
 }

@@ -31,7 +31,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   private val secondaryStoreOverride = "store"
   private val qpNoRollup = "no_rollup"
   private val qpObfuscateId = "obfuscateId"
-  private val qpQueryTimeoutMs = "queryTimeoutMs"
+  private val qpQueryTimeoutSeconds = "queryTimeoutSeconds"
 
   private def retrying[T](limit: Int)(f: => T): T = {
     def doRetry(count: Int, e: Exception): T = {
@@ -52,7 +52,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String],
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
     obfuscateId: Boolean,
-    extraHeaders: Map[String, String], customQueryTimeoutMs: Option[String],
+    extraHeaders: Map[String, String], queryTimeoutSeconds: Option[String],
     rs: ResourceScope)(f: Result => T): T = {
 
     val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
@@ -60,7 +60,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
       qpDataset -> datasetId.underlying,
       qpQuery -> query,
       qpIdMap -> jsonizedColumnIdMap) ++
-      customQueryTimeoutMs.map(qpQueryTimeoutMs -> _) ++
+      queryTimeoutSeconds.map(qpQueryTimeoutSeconds -> _) ++
       copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
       rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
       (if (noRollup) List(qpNoRollup -> "y") else Nil) ++
