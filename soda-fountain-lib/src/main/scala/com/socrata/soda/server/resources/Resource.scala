@@ -118,6 +118,8 @@ case class Resource(rowDAO: RowDAO,
           "tag"->JString(tag)))
       case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
         SodaUtils.response(req, SodaErrors.EtagPreconditionFailed)
+      case RowDAO.RequestTimedOut(timeout) =>
+        SodaUtils.response(req, SodaErrors.RequestTimedOut(timeout))
       case x =>
         log.warn("case is NOT implemented")
         SodaUtils.response(req, SodaErrors.InternalError(s"Error",
@@ -195,6 +197,7 @@ case class Resource(rowDAO: RowDAO,
                   obfuscateId,
                   RequestId.getFromRequest(req),
                   Option(req.getHeader("X-Socrata-Fuse-Columns")),
+                  Option(req.getParameter(qpQueryTimeoutSeconds)),
                   req.resourceScope) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                     metric(QuerySuccessMetric)
@@ -225,6 +228,9 @@ case class Resource(rowDAO: RowDAO,
                   case RowDAO.DatasetNotFound(resourceName) =>
                     metric(QueryErrorUser)
                     SodaUtils.response(req, SodaErrors.DatasetNotFound(resourceName))
+                  case RowDAO.RequestTimedOut(timeout) =>
+                    metric(QueryErrorUser)
+                    SodaUtils.response(req, SodaErrors.RequestTimedOut(timeout))
                   case RowDAO.QCError(status, qcErr) =>
                     metricByStatus(status)
                     SodaUtils.response(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
@@ -316,6 +322,7 @@ case class Resource(rowDAO: RowDAO,
                     obfuscateId,
                     RequestId.getFromRequest(req),
                     Option(req.getHeader("X-Socrata-Fuse-Columns")),
+                    Option(req.getParameter(qpQueryTimeoutSeconds)),
                     resourceScope) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
@@ -348,6 +355,9 @@ case class Resource(rowDAO: RowDAO,
                     case RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
                       metric(QueryErrorUser)
                       SodaUtils.response(req, SodaErrors.EtagPreconditionFailed)
+                    case RowDAO.RequestTimedOut(timeout) =>
+                      metric(QueryErrorUser)
+                      SodaUtils.response(req, SodaErrors.RequestTimedOut(timeout))
                     case RowDAO.SchemaInvalidForMimeType =>
                       metric(QueryErrorUser)
                       SodaUtils.response(req, SodaErrors.SchemaInvalidForMimeType)
@@ -400,6 +410,7 @@ object Resource {
   val qpNoRollup = "$$no_rollup"
   val qpObfuscateId = "$$obfuscate_id" // for OBE compatibility - use false
   val qpBom = "$$bom"
+  val qpQueryTimeoutSeconds = "queryTimeoutSeconds"
 
   val qpQueryDefault = "select *"
 }

@@ -19,6 +19,9 @@ case class ResourceNotModified(override val etags: Seq[EntityTag],
 case object EtagPreconditionFailed
   extends SodaResponse(SC_PRECONDITION_FAILED, "precondition-failed", "Precondition failed")
 
+case class RequestTimedOut(customTimeout: JValue)
+  extends SodaResponse(SC_REQUEST_TIMEOUT, "request-timeout", "Request timed out", "customTimeout" -> customTimeout)
+
 case object SchemaInvalidForMimeType
   extends SodaResponse(SC_NOT_ACCEPTABLE, "schema-invalid-for-mime-type", "Schema is invalid for given mime-type")
 

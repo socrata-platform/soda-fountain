@@ -29,6 +29,7 @@ trait RowDAO {
             obfuscateId: Boolean,
             requestId: RequestId,
             fuseColumns: Option[String],
+            queryTimeoutSeconds: Option[String],
             resourceScope: ResourceScope): Result
 
   def getRow(dataset: ResourceName,
@@ -41,6 +42,7 @@ trait RowDAO {
              obfuscateId: Boolean,
              requestId: RequestId,
              fuseColumns: Option[String],
+             queryTimeoutSeconds: Option[String],
              resourceScope: ResourceScope): Result
 
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
@@ -68,6 +70,7 @@ object RowDAO {
 
   // FAILURE: QueryCoordinator
   case class PreconditionFailed(failure: Precondition.Failure) extends FailResult
+  case class RequestTimedOut(timeout: JValue) extends FailResult
 
   // FAILURES: Internally consumed
   case object TooManyRows extends FailResult
