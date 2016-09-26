@@ -32,6 +32,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   def query(resourceName: ResourceName,
             precondition: Precondition,
             ifModifiedSince: Option[DateTime],
+            ifNoneMatch: Option[String],
             query: String,
             rowCount: Option[String],
             copy: Option[Stage],
@@ -44,7 +45,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(ds) =>
-        getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup, obfuscateId,
+        getRows(ds, precondition, ifModifiedSince, ifNoneMatch, query, rowCount, copy, secondaryInstance, noRollup, obfuscateId,
           requestId, fuseColumns, queryTimeoutSeconds, resourceScope)
       case None =>
         log.info("dataset not found {}", resourceName.name)
@@ -55,6 +56,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   def getRow(resourceName: ResourceName,
              precondition: Precondition,
              ifModifiedSince: Option[DateTime],
+             ifNoneMatch: Option[String],
              rowId: RowSpecifier,
              copy: Option[Stage],
              secondaryInstance:Option[String],
@@ -73,7 +75,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
             val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
-            getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance,
+            getRows(datasetRecord, NoPrecondition, ifModifiedSince, ifNoneMatch, query, None, copy, secondaryInstance,
                     noRollup, obfuscateId, requestId, fuseColumns, queryTimeoutSeconds, resourceScope) match {
               case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
                 val version = ColumnName(":version")
@@ -113,6 +115,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
   private def getRows(ds: DatasetRecord,
                       precondition: Precondition,
                       ifModifiedSince: Option[DateTime],
+                      ifNoneMatch: Option[String],
                       query: String,
                       rowCount: Option[String],
                       copy: Option[Stage],
@@ -127,7 +130,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                            SodaUtils.ResourceHeader -> ds.resourceName.name,
                            "X-SODA2-DataVersion"    -> ds.truthVersion.toString,
                            "X-SODA2-LastModified"   -> ds.lastModified.toHttpDate) ++
-      fuseColumns.map(c => Map("X-Socrata-Fuse-Columns" -> c)).getOrElse(Map.empty)
+      fuseColumns.map(c => Map("X-Socrata-Fuse-Columns" -> c)).getOrElse(Map.empty) ++
+      ifNoneMatch.map(v => Map("If-None-Match" -> v)).getOrElse(Map.empty)
     qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount,
              copy, secondaryInstance, noRollup, obfuscateId, extraHeaders, queryTimeoutSeconds, resourceScope) {
       case QueryCoordinatorClient.Success(etags, rollup, response) =>

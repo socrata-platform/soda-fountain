@@ -16,7 +16,7 @@ import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
-import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
+import com.socrata.http.server.util.{EntityTag, EntityTagRenderer, Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.{responses => SodaErrors, _}
@@ -189,6 +189,7 @@ case class Resource(rowDAO: RowDAO,
                   resourceName.value,
                   newPrecondition.map(_.dropRight(suffix.length)),
                   req.dateTimeHeader("If-Modified-Since"),
+                  req.header("If-None-Match"),
                   Option(req.getParameter(qpQuery)).getOrElse(qpQueryDefault),
                   Option(req.getParameter(qpRowCount)),
                   Stage(req.getParameter(qpCopy)),
@@ -315,6 +316,7 @@ case class Resource(rowDAO: RowDAO,
                     resourceName,
                     newPrecondition.map(_.dropRight(suffix.length)),
                     req.dateTimeHeader("If-Modified-Since"),
+                    Option(req.getParameter("If-None-Match")),
                     rowId,
                     Stage(req.getParameter(qpCopy)),
                     Option(req.getParameter(qpSecondary)),
