@@ -15,7 +15,13 @@ object DataCoordinatorClient {
   val client = "DC"
 
   @JsonKeyStrategy(Strategy.Underscore)
-  case class SecondaryVersionsReport(truthVersion: Long, secondaries: Map[String, Long], feedbackSecondaries: Set[String])
+  case class SecondaryVersionsReport(truthVersion: Option[Long], // TODO: remove this once `latestVersion` is not optional and CRJ is no-longer looking for it
+                                     latestVersion: Option[Long], // TODO: make this not an Option once data-coordinator is always sending it
+                                     publishedVersion: Option[Long],
+                                     unpublishedVersion: Option[Long],
+                                     secondaries: Map[String, Long],
+                                     feedbackSecondaries: Set[String],
+                                     groups: Option[Map[String, Set[String]]]) // TODO: make this not an Option once data-coordinator is always sending it
   object SecondaryVersionsReport {
     implicit val codec = AutomaticJsonCodecBuilder[SecondaryVersionsReport]
   }
