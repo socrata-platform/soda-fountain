@@ -90,10 +90,6 @@ class TableExporter(
               writeCSVRow(array)
             }
           }
-
-          def main(args: Array[String]): Unit = {
-
-          }
         }
         val processor = new Processor
         processor.go(rows)
@@ -104,4 +100,4 @@ class TableExporter(
 
 object CsvExporter extends TableExporter("text/csv", Some("csv"), ',')
 
-object TsvExporter extends TableExporter("text/text-separated-value", Some("tsv"), '\t')
+object TsvExporter extends TableExporter("text/tab-separated-values", Some("tsv"), '\t')
