@@ -45,7 +45,7 @@ class TableExporterTest extends ExporterTest {
       Array(SoQLText("Volunteer Park"), SoQLText("Pratt Park"))
     )
     val expectedTsvTable = "\"name\"\t\"other\"\n\"Volunteer Park\"\t\"Pratt Park\"\n"
-    val tsvTable = getTable(columns, "hym8-ivsj", rows, TsvExporter, "text/text-separated-value", singleRow = false)
+    val tsvTable = getTable(columns, "hym8-ivsj", rows, TsvExporter, "text/tab-separated-values", singleRow = false)
     tsvTable should be(expectedTsvTable)
   }
 
@@ -74,7 +74,7 @@ class TableExporterTest extends ExporterTest {
       Array(SoQLText("Volunteer Park"), SoQLText("Pratt Park"))
     )
     val expectedTsvTable = "\"name\t\"\t\"other\"\n\"Volunteer Park\"\t\"Pratt Park\"\n"
-    val tsvTable = getTable(columns, "hym8-ivsj", rows, TsvExporter, "text/text-separated-value", singleRow = false)
+    val tsvTable = getTable(columns, "hym8-ivsj", rows, TsvExporter, "text/tab-separated-values", singleRow = false)
     tsvTable should be(expectedTsvTable)
   }
 
@@ -105,7 +105,7 @@ class TableExporterTest extends ExporterTest {
       Array(SoQLText("Volunteer Park\n"), SoQLText("Pratt Park"))
     )
     val expectedTsvTable = "\"name\n\"\t\"other\"\n\"Volunteer Park\n\"\t\"Pratt Park\"\n"
-    val tsvTable = getTable(columns, "hym8-ivsj", rows, TsvExporter, "text/text-separated-value", singleRow = false)
+    val tsvTable = getTable(columns, "hym8-ivsj", rows, TsvExporter, "text/tab-separated-values", singleRow = false)
     tsvTable should be(expectedTsvTable)
   }
 
@@ -132,17 +132,16 @@ class TableExporterTest extends ExporterTest {
       Array(SoQLText("Volunteer Park\""), SoQLText("Pratt Park"))
     )
     val expectedTsvTable = "\"name\"\"\"\t\"other\"\n\"Volunteer Park\"\"\"\t\"Pratt Park\"\n"
-    val tsvTable = getTable(columns, "hym8-ivsj", rows, TsvExporter, "text/text-separated-value", singleRow = false)
+    val tsvTable = getTable(columns, "hym8-ivsj", rows, TsvExporter, "text/tab-separated-values", singleRow = false)
     tsvTable should be(expectedTsvTable)
   }
 
-  private def getTable(
-                        columns: Seq[ColumnRecord],
-                        pk: String,
-                        rows: Seq[Array[SoQLValue]],
-                        tableExporter: TableExporter,
-                        contentType: String,
-                        singleRow: Boolean): String = {
+  private def getTable(columns: Seq[ColumnRecord],
+                       pk: String,
+                       rows: Seq[Array[SoQLValue]],
+                       tableExporter: TableExporter,
+                       contentType: String,
+                       singleRow: Boolean): String = {
     for {
       out <- managed(new ByteArrayOutputStream)
       wrapped <- managed(new FakeServletOutputStream(out))

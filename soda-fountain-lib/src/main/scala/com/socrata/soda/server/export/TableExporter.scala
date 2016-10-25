@@ -29,8 +29,7 @@ class TableExporter(val mimeTypeBaseValue: String,
              bom: Boolean = false): HttpResponse = {
     exporterHeaders(schema) ~> Write(new MimeType(mimeTypeBase)) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
-        val csvColumnReps = if (obfuscateId) CsvColumnRep.forType
-        else CsvColumnRep.forTypeClearId
+        val csvColumnReps = if (obfuscateId) CsvColumnRep.forType else CsvColumnRep.forTypeClearId
         class Processor {
           val writer = w
           val reps: Array[CsvColumnWriteRep] = schema.schema.map { f => csvColumnReps(f.typ) }.toArray
