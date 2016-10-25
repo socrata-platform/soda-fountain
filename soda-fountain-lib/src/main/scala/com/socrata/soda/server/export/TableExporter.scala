@@ -14,10 +14,9 @@ import javax.activation.MimeType
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 
-class TableExporter(
-                     val mimeTypeBaseValue: String,
-                     val extensionValue: Option[String],
-                     val separatorValue: Char) extends Exporter {
+class TableExporter(val mimeTypeBaseValue: String,
+                    val extensionValue: Option[String],
+                    val separatorValue: Char) extends Exporter {
 
   val mimeTypeBase = mimeTypeBaseValue
   val mimeType = new MimeType(mimeTypeBase)
