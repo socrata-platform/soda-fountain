@@ -220,12 +220,6 @@ class GeoJsonExporterTest  extends ExporterTest {
       expectedProjection)))
   }
 
-  private class FakeServletOutputStream(underlying: OutputStream) extends ServletOutputStream {
-    override def write(b: Int): Unit = underlying.write(b)
-    override def write(bs: Array[Byte]): Unit = underlying.write(bs)
-    override def write(bs: Array[Byte], offset: Int, length: Int): Unit = underlying.write(bs, offset, length)
-  }
-
   private def getGeoJson(columns: Seq[ColumnRecord],
                          pk: String,
                          rows: Seq[Array[SoQLValue]],

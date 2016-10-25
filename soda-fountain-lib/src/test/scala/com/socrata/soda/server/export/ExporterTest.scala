@@ -1,6 +1,8 @@
 package com.socrata.soda.server.export
 
+import java.io.OutputStream
 import java.nio.charset.StandardCharsets
+import javax.servlet.ServletOutputStream
 
 import com.rojoma.json.v3.ast._
 import com.socrata.http.common.util.AliasedCharset
@@ -65,4 +67,10 @@ trait ExporterTest extends FunSuite with MockFactory with ProxyMockFactory with 
   private def getHumanReadableTypeName(typ: SoQLType) = SoQLType.typesByName.map(_.swap).get(typ).get.name
 
 
+}
+
+class FakeServletOutputStream(underlying: OutputStream) extends ServletOutputStream {
+  override def write(b: Int): Unit = underlying.write(b)
+  override def write(bs: Array[Byte]): Unit = underlying.write(bs)
+  override def write(bs: Array[Byte], offset: Int, length: Int): Unit = underlying.write(bs, offset, length)
 }

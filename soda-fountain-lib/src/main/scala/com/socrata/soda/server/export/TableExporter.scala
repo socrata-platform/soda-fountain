@@ -1,20 +1,28 @@
 package com.socrata.soda.server.export
 
+import com.rojoma.json.v3.ast.{JNull, JString}
+import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.http.server.HttpResponse
+import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.highlevel.ExportDAO
-import com.socrata.soda.server.wiremodels.{JsonColumnRep, CsvColumnRep, CsvColumnWriteRep}
-import com.socrata.soql.types.SoQLValue
+import com.socrata.soda.server.wiremodels.{CsvColumnWriteRep, CsvColumnRep}
+import com.socrata.soql.types.{SoQLType, SoQLValue}
 import java.io.BufferedWriter
 import javax.activation.MimeType
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 
-object CsvExporter extends Exporter {
-  val mimeTypeBase = "text/csv"
+class TableExporter(
+                     val mimeTypeBaseValue: String,
+                     val extensionValue: Option[String],
+                     val separatorValue: Char) extends Exporter {
+
+  val mimeTypeBase = mimeTypeBaseValue
   val mimeType = new MimeType(mimeTypeBase)
-  val extension = Some("csv")
+  val extension = extensionValue
+  val separator = separatorValue
 
   def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
@@ -23,7 +31,7 @@ object CsvExporter extends Exporter {
     exporterHeaders(schema) ~> Write(new MimeType(mimeTypeBase)) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
         val csvColumnReps = if (obfuscateId) CsvColumnRep.forType
-                            else CsvColumnRep.forTypeClearId
+        else CsvColumnRep.forTypeClearId
         class Processor {
           val writer = w
           val reps: Array[CsvColumnWriteRep] = schema.schema.map { f => csvColumnReps(f.typ) }.toArray
@@ -33,13 +41,13 @@ object CsvExporter extends Exporter {
           // dumping the result to the writer is slightly faster than writing
           // straight to the writer, even though it's a BufferedWriter.
           def writeCell(cell: String) {
-            if(cell != null) {
+            if (cell != null) {
               sb.setLength(0)
               sb.append('"')
               var j = 0
-              while(j != cell.length) {
+              while (j != cell.length) {
                 val c = cell.charAt(j)
-                if(c == '"') sb.append(c)
+                if (c == '"') sb.append(c)
                 sb.append(c)
                 j += 1
               }
@@ -49,11 +57,11 @@ object CsvExporter extends Exporter {
           }
 
           def writeCSVRow(row: Array[String]) {
-            if(row.length != 0) {
+            if (row.length != 0) {
               writeCell(row(0))
               var i = 1
-              while(i != row.length) {
-                writer.write(',')
+              while (i != row.length) {
+                writer.write(separator)
                 writeCell(row(i))
                 i += 1
               }
@@ -63,7 +71,7 @@ object CsvExporter extends Exporter {
 
           def convertInto(out: Array[String], row: Array[SoQLValue]) {
             var i = 0
-            while(i != out.length) {
+            while (i != out.length) {
               out(i) = reps(i).toString(row(i))
               i += 1
             }
@@ -73,12 +81,18 @@ object CsvExporter extends Exporter {
 
           def go(rows: Iterator[Array[SoQLValue]]) {
             val array = schema.schema.map(_.fieldName.name).toArray
-            if (bom) { writeBom() }
+            if (bom) {
+              writeBom()
+            }
             writeCSVRow(array)
-            while(rows.hasNext) {
+            while (rows.hasNext) {
               convertInto(array, rows.next())
               writeCSVRow(array)
             }
+          }
+
+          def main(args: Array[String]): Unit = {
+
           }
         }
         val processor = new Processor
@@ -88,3 +102,6 @@ object CsvExporter extends Exporter {
   }
 }
 
+object CsvExporter extends TableExporter("text/csv", Some("csv"), ',')
+
+object TsvExporter extends TableExporter("text/text-separated-value", Some("tsv"), '\t')
