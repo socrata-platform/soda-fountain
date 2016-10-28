@@ -243,19 +243,15 @@ private object TestDatasets {
  * Dummy RowDAO that accepts a collection of TestDatasets and simply returns whatever RowDAO.Result they contain.
  */
 private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
-  def query(dataset: ResourceName,
-            precondition: Precondition, ifModifiedSince: Option[DateTime], ifNoneMatch: Option[String],
-            query: String, rowCount: Option[String],
+  def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String],
             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
             reqId: String, fuseColumns: Option[String], queryTimeoutSeconds: Option[String], rs: ResourceScope): Result = {
     testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
   }
-  def getRow(dataset: ResourceName,
-             precondition: Precondition, ifModifiedSince: Option[DateTime], ifNoneMatch: Option[String],
-             rowId: RowSpecifier,
+  def getRow(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
              stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
              reqId: String, fuseColumns: Option[String], queryTimeoutSeconds: Option[String], rs: ResourceScope): Result = {
-    query(dataset, precondition, ifModifiedSince, ifNoneMatch, "give me one row!", None, None, secondaryInstance, noRollup, obfuscateId,
+    query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup, obfuscateId,
           reqId, fuseColumns, None, rs)
   }
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
