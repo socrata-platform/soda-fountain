@@ -1,5 +1,5 @@
 resolvers ++= Seq(
-    "socrata maven" at "https://repository-socrata-oss.forge.cloudbees.com/release",
+    "socrata maven" at "https://repo.socrata.com/artifactory/libs-release",
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/"
 )
 
