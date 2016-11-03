@@ -271,6 +271,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         DatasetNotFound(dataset)
     }
 
+  override def getDatasetBySystemId(systemId: String): Result =
+    store.lookupDatasetBySystemId(systemId) match {
+      case Some(datasetRecord) =>
+        Found(datasetRecord)
+      case None =>
+        DatasetNotFoundBySystemId(systemId)
+    }
+
   class Retry extends ControlThrowable
 
   def retryable[T](limit: Int /* does not include the initial try */)(f: => T): T = {
@@ -518,4 +526,5 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     log.info("internal error; tag = " + uuid)
     uuid
   }
+
 }

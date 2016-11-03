@@ -128,15 +128,25 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
 
   def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord] = {
-    val datasets = lookupDataset(resourceName, Some(copyNumber))
+    val datasets = lookupDataset(Right(resourceName), Some(copyNumber))
     if (datasets.isEmpty) None
     else Some(datasets.head)
   }
 
-  def lookupDataset(resourceName: ResourceName): Seq[DatasetRecord] = lookupDataset(resourceName, None)
+  def lookupDataset(resourceName: ResourceName): Seq[DatasetRecord] = lookupDataset(Right(resourceName), None)
 
-  private def lookupDataset(resourceName: ResourceName, copyNumber: Option[Long]): Seq[DatasetRecord] = {
-    val sql = fetchDatasetSql(resourceName = true,
+  def lookupDatasetBySystemId(systemId: String): Option[DatasetRecord] = {
+    lookupDataset(Left(systemId), None).headOption
+  }
+
+  private def lookupDataset(resourceNameOrSystemId: Either[String, ResourceName],
+                            copyNumber: Option[Long]): Seq[DatasetRecord] = {
+    val (filterResourceName, filterSystemId) = resourceNameOrSystemId match {
+      case Left(_) => (false, true)
+      case Right(_) => (true, false)
+    }
+    val sql = fetchDatasetSql(resourceName = filterResourceName,
+                              systemId = filterSystemId,
                               copyNumber = {if (copyNumber.isDefined) true else false},
                               isDeleted = false)
 
@@ -145,9 +155,13 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
       using(conn.prepareStatement(
         sql)) { dsQuery =>
-        dsQuery.setString(1, resourceName.caseFolded)
-        if(copyNumber.isDefined)
-        {
+        resourceNameOrSystemId match {
+          case Left(systemId) =>
+            dsQuery.setString(1, systemId)
+          case Right(resourceName) =>
+            dsQuery.setString(1, resourceName.caseFolded)
+        }
+        if(copyNumber.isDefined) {
           dsQuery.setString(2, copyNumber.toString())
         }
         copyNumber.foreach(dsQuery.setLong(2, _))
@@ -637,7 +651,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def lookupDroppedDatasets(delay: FiniteDuration): List[MinimalDatasetRecord]= {
-    val sql = fetchDatasetSql(resourceName = false, copyNumber = false,isDeleted = true)
+    val sql = fetchDatasetSql(resourceName = false, systemId = false, copyNumber = false, isDeleted = true)
 
     using(dataSource.getConnection()) { conn =>
       conn.setAutoCommit(false)
@@ -895,14 +909,18 @@ object PostgresStoreImpl {
         |       """.stripMargin
   }
 
-  def fetchDatasetSql (resourceName: Boolean, copyNumber: Boolean, isDeleted: Boolean) = {
-    val resourceNameFilter = if (resourceName) "WHERE d.resource_name_casefolded = ?"  else ""
+  def fetchDatasetSql (resourceName: Boolean, systemId: Boolean, copyNumber: Boolean, isDeleted: Boolean) = {
+    val maybeWhere = if (resourceName || systemId || copyNumber || isDeleted) "WHERE" else ""
+    val resourceNameFilter = if (resourceName) "d.resource_name_casefolded = ?"  else ""
+    val systemIdFilter = if (systemId) "d.dataset_system_id = ?"  else ""
     val deletedFilter = if (!isDeleted) "AND d.deleted_at is null AND c.deleted_at is null" else "AND d.deleted_at < now() - (?::INTERVAL)"
     val copyNumberFilter = if (copyNumber) "And c.copy_number = ?" else ""
     s"""SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, c.schema_hash, d.last_modified, d.deleted_at,
     c.copy_number, c.primary_key_column_id, c.latest_version, c.lifecycle_stage, c.updated_at
     FROM datasets d
-    Join dataset_copies c on c.dataset_system_id = d.dataset_system_id
+    JOIN dataset_copies c on c.dataset_system_id = d.dataset_system_id
+    $maybeWhere
+    $systemIdFilter
     $resourceNameFilter
     $copyNumberFilter
     $deletedFilter

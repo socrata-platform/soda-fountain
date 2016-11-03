@@ -161,6 +161,12 @@ case class DatasetNotFound(value: ResourceName)
   extends SodaResponse(SC_NOT_FOUND, "soda.dataset.not-found", s"Dataset '${value.name}' was not found",
     "dataset" -> JString(value.name))
 
+
+case class DatasetNotFoundBySystemId(value: String)
+  extends SodaResponse(SC_NOT_FOUND, "soda.dataset.not-found", s"Dataset with system id '$value' was not found",
+    "systemId" -> JString(value))
+
+
 case class ColumnNotFound(resourceName: ResourceName, columnName: ColumnName)
   extends SodaResponse(SC_NOT_FOUND, "soda.dataset.column-not-found",
     s"Column ${columnName.name} was not found on dataset ${resourceName.name}",

@@ -24,6 +24,7 @@ trait DatasetDAO {
   def unmarkDatasetForDeletion(user: String, dataset: ResourceName) : Result
   def removeDataset(user: String, dataset: ResourceName, requestId: RequestId): Result
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result
+  def getDatasetBySystemId(systemId: String): Result
   def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
   def getCurrentCopyNum(dataset: ResourceName): Option[Long]
@@ -65,6 +66,7 @@ object DatasetDAO {
   // FAILURES: DataCoordinator
   case class RollupNotFound(name: RollupName) extends FailResult
   case class DatasetNotFound(name: ResourceName) extends FailResult
+  case class DatasetNotFoundBySystemId(systemId: String) extends FailResult
   case class CannotAcquireDatasetWriteLock(name: ResourceName) extends FailResult
   case class FeedbackInProgress(name: ResourceName, stores: Set[String]) extends FailResult
   case class IncorrectLifecycleStageResult(actualStage: String, expectedStage: Set[String]) extends FailResult

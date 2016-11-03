@@ -1,19 +1,19 @@
 package com.socrata.soda.server.resources
 
 import com.rojoma.json.v3.ast.JString
-import com.socrata.http.server.{HttpRequest, HttpResponse}
+import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util.RequestId
 import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.responses._
-import com.socrata.soda.server.highlevel.DatasetDAO.{NonExistentColumn, DatasetAlreadyExists}
+import com.socrata.soda.server.highlevel.DatasetDAO.{DatasetAlreadyExists, NonExistentColumn}
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
-import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
-import com.socrata.soda.server.wiremodels.{UserProvidedSpec, Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
-import com.socrata.soda.server.wiremodels.{RequestProblem, IOProblem}
+import com.socrata.soda.server.id.{ResourceName, RollupName, SecondaryId}
+import com.socrata.soda.server.wiremodels.{Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec, UserProvidedSpec}
+import com.socrata.soda.server.wiremodels.{IOProblem, RequestProblem}
 import javax.servlet.http.HttpServletRequest
 
 /**
@@ -86,6 +86,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         SodaUtils.response(req, LocaleChangedError(locale))
       case DatasetDAO.DatasetNotFound(dataset) =>
         SodaUtils.response(req, DatasetNotFound(dataset))
+      case DatasetDAO.DatasetNotFoundBySystemId(systemId) =>
+        SodaUtils.response(req, DatasetNotFoundBySystemId(systemId))
       case DatasetDAO.InvalidDatasetName(name) =>
         SodaUtils.response(req, DatasetNameInvalidNameSodaErr(name))
       case DatasetDAO.RollupNotFound(name) =>
@@ -141,6 +143,11 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     override def delete = { req =>
       response(req, datasetDAO.markDatasetForDeletion(user(req), resourceName))
     }
+  }
+
+  def bySystemIdService(systemId: String): HttpService = { req =>
+//    val copy = Stage(req.getParameter("$$copy")) // Query parameter for copy.  Optional, "latest", "published", "unpublished", or "latest"
+    response(req, datasetDAO.getDatasetBySystemId(systemId))
   }
 
   case class undeleteService(resourceName: ResourceName) extends SodaResource {
