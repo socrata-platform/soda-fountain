@@ -22,6 +22,7 @@ object DatasetSpecSubSet{
 
 @JsonKeyStrategy(Strategy.Underscore)
 case class DatasetSpec(resourceName: ResourceName,
+                       systemId: String,
                        name:String,
                        description: String,
                        rowIdentifier: ColumnName,

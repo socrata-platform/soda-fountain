@@ -61,7 +61,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               ???
           }
         }
-        Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, None, trueColumns))
+        // idk what is going on in this method
+        getDataset(resourceName, None) match {
+          case Found(datasetRecord) =>
+            Right(DatasetSpec(resourceName, datasetRecord.systemId.underlying, name, trueDesc, trueRID, trueLocale, None, trueColumns))
+          case _ =>
+            // not found with that resourceName....
+            Left(DatasetNotFound(resourceName))
+        }
       // TODO: Not-success case
     }
   }
