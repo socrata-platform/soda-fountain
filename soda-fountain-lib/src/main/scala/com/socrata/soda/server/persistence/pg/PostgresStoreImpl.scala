@@ -910,7 +910,7 @@ object PostgresStoreImpl {
   }
 
   def fetchDatasetSql (resourceName: Boolean, systemId: Boolean, copyNumber: Boolean, isDeleted: Boolean) = {
-    val maybeWhere = if (resourceName || systemId || copyNumber || isDeleted) "WHERE" else ""
+    val maybeWhere = if (resourceName || systemId) "WHERE" else ""
     val resourceNameFilter = if (resourceName) "d.resource_name_casefolded = ?"  else ""
     val systemIdFilter = if (systemId) "d.dataset_system_id = ?"  else ""
     val deletedFilter = if (!isDeleted) "AND d.deleted_at is null AND c.deleted_at is null" else "AND d.deleted_at < now() - (?::INTERVAL)"
