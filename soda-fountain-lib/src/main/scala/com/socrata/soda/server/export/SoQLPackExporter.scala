@@ -40,7 +40,7 @@ object SoQLPackExporter extends Exporter {
     }.toSeq
 
     val rowCountElem: Option[(String, Long)] = schema.rowCount.map { count => "row_count" -> count }
-    exporterHeaders(schema) ~> ContentType(new MimeType(mimeTypeBase)) ~> Stream { os =>
+    exporterHeaders(schema) ~> ContentType(mimeType) ~> Stream { os =>
       val writer = new SoQLPackWriter(soqlSchema, Seq(rowCountElem).flatten.toMap)
       writer.write(os, rows)
     }
