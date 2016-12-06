@@ -208,8 +208,7 @@ case class Resource(rowDAO: RowDAO,
                     if (rollup.isDefined) queryLatencyRollup += latencyMs
                     else                  queryLatencyNonRollup += latencyMs
                     val createHeader =
-                      OK ~>
-                        ContentType(mimeType.toString) ~>
+                      OK ~> // ContentType is handled in exporter
                         Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
                         ETags(etags.map(prepareTag)) ~>
                         optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
@@ -331,8 +330,7 @@ case class Resource(rowDAO: RowDAO,
                         metric(QueryCacheMiss)
                       }
                       val createHeader =
-                        OK ~>
-                        ContentType(mimeType.toString) ~>
+                        OK ~> // ContentType is handled in exporter
                         Header("Vary", ContentNegotiation.headers.mkString(",")) ~>
                         ETags(etags.map(prepareTag)) ~>
                         optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>

@@ -27,7 +27,9 @@ class TableExporter(val mimeTypeBaseValue: String,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true,
              bom: Boolean = false): HttpResponse = {
-    exporterHeaders(schema) ~> Write(new MimeType(mimeTypeBase)) { rawWriter =>
+    val mt = new MimeType(mimeTypeBase)
+    mt.setParameter("charset", charset.alias)
+    exporterHeaders(schema) ~> Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
         val csvColumnReps = if (obfuscateId) CsvColumnRep.forType else CsvColumnRep.forTypeClearId
         class Processor {
