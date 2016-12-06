@@ -85,7 +85,7 @@ class SoQLPackExporterTest  extends ExporterTest {
     for { baos   <- managed(new ByteArrayOutputStream)
           stream <- managed(new ServletOutputStream { def write(b: Int) { baos.write(b) }} ) } yield {
       val mockResponse = mock[HttpServletResponse]
-      mockResponse.expects('setContentType)("application/octet-stream")
+      mockResponse.expects('setContentType)("application/octet-stream; charset=UTF-8")
       mockResponse.expects('getOutputStream)().returning(stream)
 
       SoQLPackExporter.export(charset, getDCSchema("SoQLPackExporterTest", columns, pk, rows), rows.iterator, singleRow)(mockResponse)

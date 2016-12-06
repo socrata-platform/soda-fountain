@@ -147,7 +147,7 @@ class TableExporterTest extends ExporterTest {
       wrapped <- managed(new FakeServletOutputStream(out))
     } yield {
       val mockResponse = mock[HttpServletResponse]
-      mockResponse.expects('setContentType)(contentType)
+      mockResponse.expects('setContentType)(s"$contentType; charset=UTF-8")
       mockResponse.expects('getOutputStream)().returning(wrapped)
 
       tableExporter.export(charset, getDCSchema("TableExporterTest", columns, pk, rows), rows.iterator, singleRow)(mockResponse)
