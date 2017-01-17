@@ -7,10 +7,12 @@ import com.socrata.http.common.util.AliasedCharset
 import com.socrata.http.server.HttpResponse
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soda.server.highlevel.ExportDAO
-import com.socrata.soda.server.wiremodels.{CsvColumnWriteRep, CsvColumnRep}
+import com.socrata.soda.server.wiremodels.{CsvColumnRep, CsvColumnWriteRep}
 import com.socrata.soql.types.{SoQLType, SoQLValue}
 import java.io.BufferedWriter
 import javax.activation.MimeType
+import javax.servlet.http.HttpServletResponse
+
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 
@@ -95,6 +97,10 @@ class TableExporter(val mimeTypeBaseValue: String,
         processor.go(rows)
       }
     }
+  }
+
+  override protected def maybeSoda2FieldsHeader(schema: ExportDAO.CSchema): HttpServletResponse => Unit = {
+    writeSoda2FieldsHeader(schema)
   }
 }
 
