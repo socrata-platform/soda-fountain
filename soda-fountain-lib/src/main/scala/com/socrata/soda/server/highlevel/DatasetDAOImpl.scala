@@ -1,6 +1,5 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator._
@@ -240,11 +239,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         dc.checkVersionInSecondaries(datasetRecord.systemId, traceHeaders(requestId, dataset)) match {
-          case Right(vrs) =>
-            // Temporary extra logging to debug EN-12821
-            val vrsLog = vrs.map(JsonUtil.renderJson(_)).getOrElse("None")
-            log.info(s"Replication status of ${dataset.name}: $vrsLog")
-            vrs.map(DatasetSecondaryVersions).getOrElse(DatasetNotFound(dataset))
+          case Right(vrs) => vrs.map(DatasetSecondaryVersions).getOrElse(DatasetNotFound(dataset))
           case Left(fail) => UnexpectedInternalServerResponse(fail.reason, fail.tag)
         }
       case None =>
