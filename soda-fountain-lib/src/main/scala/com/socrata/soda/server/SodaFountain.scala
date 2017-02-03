@@ -3,17 +3,17 @@ package com.socrata.soda.server
 import java.nio.charset.StandardCharsets
 
 import com.mchange.v2.c3p0.DataSources
-import com.socrata.computation_strategies.{StrategyType, ComputationStrategy}
-import com.socrata.http.client.{InetLivenessChecker, HttpClientHttpClient}
+import com.socrata.computation_strategies.{ComputationStrategy, StrategyType}
+import com.socrata.http.client.{HttpClientHttpClient, InetLivenessChecker}
 import com.socrata.http.common.AuxiliaryData
 import com.socrata.http.common.util.CharsetFor
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.handlers.{NewLoggingHandler, ThreadRenamingHandler}
 import com.socrata.http.server.util.RequestId.ReqIdHeader
-import com.socrata.soda.clients.datacoordinator.{FeedbackSecondaryManifestClient, CuratedHttpDataCoordinatorClient, DataCoordinatorClient}
+import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient, FeedbackSecondaryManifestClient}
 import com.socrata.soda.clients.regioncoder.CuratedRegionCoderClient
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
-import com.socrata.soda.server.computation.{ComputingGate, ComputedColumns}
+import com.socrata.soda.server.computation.{ComputedColumns, ComputingGate}
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.SecondaryId
@@ -25,9 +25,11 @@ import com.socrata.curator.{CuratorFromConfig, DiscoveryFromConfig}
 import com.socrata.thirdparty.typesafeconfig.Propertizer
 import java.io.Closeable
 import java.security.SecureRandom
-import java.util.concurrent.{CountDownLatch, TimeUnit, Executors}
+import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
 import javax.sql.DataSource
+
 import org.apache.log4j.PropertyConfigurator
+
 import scala.collection.mutable
 
 /**
@@ -175,7 +177,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     new FeedbackSecondaryManifestClient(dc, feedbackSecondaryIdMap)
   }
 
-  val datasetDAO = i(new DatasetDAOImpl(dc, fbm, store, columnSpecUtils, () => config.dataCoordinatorClient.instance))
+  val datasetDAO = i(new DatasetDAOImpl(
+    dc, fbm, store, columnSpecUtils,
+    () => config.dataCoordinatorClient.instances(rng.nextInt(config.dataCoordinatorClient.instances.size))))
   val columnDAO = i(new ColumnDAOImpl(dc, fbm, store, columnSpecUtils))
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
   val exportDAO = i(new ExportDAOImpl(store, dc))
