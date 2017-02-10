@@ -179,7 +179,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val datasetDAO = i(new DatasetDAOImpl(
     dc, fbm, store, columnSpecUtils,
-    () => config.dataCoordinatorClient.instances(rng.nextInt(config.dataCoordinatorClient.instances.size))))
+    () => config.dataCoordinatorClient.instancesForNewDatasets(rng.nextInt(config.dataCoordinatorClient.instancesForNewDatasets.size))))
   val columnDAO = i(new ColumnDAOImpl(dc, fbm, store, columnSpecUtils))
   val rowDAO = i(new RowDAOImpl(store, dc, qc))
   val exportDAO = i(new ExportDAOImpl(store, dc))

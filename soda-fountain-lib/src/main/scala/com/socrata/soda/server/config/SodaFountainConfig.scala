@@ -31,9 +31,9 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val serviceName = getString("service-name")
   val instance = getString("instance")
-  val instances =
+  val instancesForNewDatasets =
     try {
-      getStringList("instances").toVector
+      getStringList("instances-for-new-datasets").toVector
     } catch {
       case ex: Missing =>
         Vector(instance)
