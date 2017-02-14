@@ -11,6 +11,10 @@ com.socrata.soda-fountain  {
     {{ SODA_FOUNTAIN_DB_PASSWORD_LINE }}
   }
 
+  data-coordinator-client {
+    instances-for-new-datasets = "{{ DATA_COORDINATORS_FOR_NEW_DATASETS }}"
+  }
+
   suggest {
     host = "{{ SPANDEX_HOST }}"
     port = "{{ SPANDEX_PORT }}"
