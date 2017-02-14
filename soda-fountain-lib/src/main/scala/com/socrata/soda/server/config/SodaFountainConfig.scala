@@ -3,6 +3,7 @@ package com.socrata.soda.server.config
 import com.typesafe.config.Config
 import com.socrata.curator.{CuratorConfig, DiscoveryConfig}
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
+import com.typesafe.config.ConfigException.Missing
 
 class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(config), "com.socrata.soda-fountain") {
   val maxDatumSize = getInt("max-datum-size")
@@ -30,6 +31,13 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val serviceName = getString("service-name")
   val instance = getString("instance")
+  val instancesForNewDatasets =
+    try {
+      getStringList("instances-for-new-datasets").toVector
+    } catch {
+      case ex: Missing =>
+        Vector(instance)
+    }
   val connectTimeout = getDuration("connect-timeout")
   val receiveTimeout = getDuration("receive-timeout")
 }

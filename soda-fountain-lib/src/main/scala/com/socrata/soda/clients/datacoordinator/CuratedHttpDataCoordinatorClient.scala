@@ -12,7 +12,6 @@ class CuratedHttpDataCoordinatorClient(httpClient: HttpClient,
                                        discovery: ServiceDiscovery[AuxiliaryData],
                                        discoveredInstances: () => Set[String],
                                        serviceName: String,
-                                       targetInstance: String,
                                        connectTimeout: FiniteDuration,
                                        receiveTimeout: FiniteDuration)
   extends HttpDataCoordinatorClient(httpClient) with Closeable
