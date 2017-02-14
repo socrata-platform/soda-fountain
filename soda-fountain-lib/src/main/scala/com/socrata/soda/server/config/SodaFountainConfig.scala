@@ -38,8 +38,8 @@ class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigCl
       case ex: Missing =>
         Vector(instance)
     }
-    val connectTimeout = getDuration("connect-timeout")
-    val receiveTimeout = getDuration("receive-timeout")
+  val connectTimeout = getDuration("connect-timeout")
+  val receiveTimeout = getDuration("receive-timeout")
 }
 
 class QueryCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {

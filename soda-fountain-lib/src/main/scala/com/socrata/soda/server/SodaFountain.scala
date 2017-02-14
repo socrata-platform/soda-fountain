@@ -142,7 +142,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     discovery,
     discoverySnoop,
     config.dataCoordinatorClient.serviceName,
-    config.dataCoordinatorClient.instance,
     config.dataCoordinatorClient.connectTimeout,
     config.dataCoordinatorClient.receiveTimeout))
 
