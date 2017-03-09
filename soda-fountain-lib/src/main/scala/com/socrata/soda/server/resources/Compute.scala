@@ -17,7 +17,7 @@ case class Compute(columnDAO: ColumnDAO,
 
   case class service(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def post = { req => resp =>
-      computeUtils.compute(req, resp, resourceName, columnName, user(req)) {
+      computeUtils.compute(req, resp, req.resourceScope, resourceName, columnName, user(req)) {
         computeUtils.writeComputeResponse(
           resourceName, columnName, HttpServletResponse.SC_OK, _: HttpServletResponse, _: Iterator[ReportItem])
       }
