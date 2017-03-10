@@ -1,5 +1,6 @@
 package com.socrata.soda.server.resources
 
+import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.soda.server.{TestComputedColumns, DatasetsForTesting}
@@ -57,6 +58,7 @@ class ComputeTest extends FunSuite with Matchers with MockFactory with DatasetsF
 
     val httpReq = mock[HttpRequest]
     val augReq = new AugmentedHttpServletRequest(request)
+    httpReq.expects('resourceScope)().returning(new ResourceScope())
     httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
 
     val getColumnResponse = dataset match {
