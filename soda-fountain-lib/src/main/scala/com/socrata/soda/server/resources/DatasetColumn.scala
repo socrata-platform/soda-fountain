@@ -1,6 +1,7 @@
 package com.socrata.soda.server.resources
 
 import com.rojoma.json.v3.ast.JString
+import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -113,11 +114,16 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
               if (spec.computationStrategy.isDefined &&
                   // optionally break apart rows computation into separate call.
                   "false" != req.getParameter("compute")) {
+                // We want to give computeUtils.compute its own temp scope to export from data-coordinator with
+                // so if computation on our side fails while we are exporting from DC we can close the http connection
+                // and hence the read query on the t-table in truth so we can make a request to DC to drop the column
+                val tempScope = req.resourceScope.open(new ResourceScope())
                 try {
-                  computeUtils.compute(req, resp, resourceName, columnName, user(req)) {
+                  computeUtils.compute(req, resp, tempScope, resourceName, columnName, user(req)) {
                     case (res, report) => response(req, success)(resp)
                   }
                 } catch { case e: Exception =>
+                  req.resourceScope.close(tempScope)
                   columnDAO.deleteColumn(userFromReq, resourceName, columnName, requestId)
                   throw e
                 }

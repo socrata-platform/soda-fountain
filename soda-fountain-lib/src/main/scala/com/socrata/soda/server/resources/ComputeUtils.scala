@@ -3,6 +3,7 @@ package com.socrata.soda.server.resources
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.util.{NoPrecondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
@@ -41,6 +42,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
 
   def compute(req: HttpRequest,
               response: HttpServletResponse,
+              resourceScope: ResourceScope,
               resourceName: ResourceName,
               columnName: ColumnName,
               user: String)
@@ -48,7 +50,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
     columnDAO.getColumn(resourceName, columnName) match {
       case ColumnDAO.Found(dataset, column, _)         =>
         column.computationStrategy match {
-          case Some(strategy) => compute(req, response, dataset, column, user)(successHandler)
+          case Some(strategy) => compute(req, response, resourceScope, dataset, column, user)(successHandler)
           case None           => SodaUtils.response(req, SodaError.NotAComputedColumn(columnName))(response)
         }
       case ColumnDAO.DatasetNotFound(dataset) =>
@@ -63,6 +65,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
 
   def compute(req: HttpRequest,
               response: HttpServletResponse,
+              resourceScope: ResourceScope,
               dataset: DatasetRecordLike,
               column: ColumnRecordLike,
               user: String)
@@ -78,7 +81,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
                          "latest",
                          param,
                          requestId,
-                         req.resourceScope) match {
+                         resourceScope) match {
           case ExportDAO.Success(schema, newTag, rows) =>
             log.info("exported dataset {} for column compute", dataset.resourceName.name)
             val transformer = new RowDataTranslator(
