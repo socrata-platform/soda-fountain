@@ -9,7 +9,7 @@ import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
-import com.socrata.soda.server.id.{ColumnId, RowSpecifier, DatasetId, SecondaryId}
+import com.socrata.soda.server.id._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
 import org.joda.time.DateTime
@@ -300,13 +300,14 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       case Left(e) => f(e)
     }
 
-  def create(instance: String,
+  def create(resource: ResourceName,
+             instance: String,
              user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
              locale: String = "en_US",
              extraHeaders: Map[String, String] = Map.empty): (ReportMetaData, Iterable[ReportItem]) = {
     withHost(instance) { host =>
-      val createScript = new MutationScript(user, CreateDataset(locale), instructions.getOrElse(Array().iterator))
+      val createScript = new MutationScript(user, CreateDataset(resource, locale), instructions.getOrElse(Array().iterator))
       sendScript(createUrl(host).addHeaders(extraHeaders), createScript) {
         case Right(r) =>
           val events = r.jsonEvents().buffered

@@ -134,7 +134,7 @@ class MutationScript(
 
   def topLevelCommand: Map[String, JValue] = {
     copyInstruction match {
-      case i: CreateDataset => Map("locale" -> JString(i.locale), "c" -> JString(copyInstruction.command), "user" -> JString(user))
+      case i: CreateDataset => Map("resource" -> JString(i.resource.name), "locale" -> JString(i.locale), "c" -> JString(copyInstruction.command), "user" -> JString(user))
       case i: UpdateDataset => topLevelCommandBase(i.schema)
       case i: CopyDataset   => topLevelCommandBase(i.schema) + ("copy_data" -> JBoolean(i.copyData))
       case i: PublishDataset=> i.keepSnapshot match {
