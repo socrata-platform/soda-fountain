@@ -94,7 +94,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
 
         val instructions = columnInstructions ++ addRidInstruction
 
-        val (reportMetaData, _) = dc.create(instanceForCreate(),
+        val (reportMetaData, _) = dc.create(spec.resourceName,
+                                            instanceForCreate(),
                                             user,
                                             Some(instructions.iterator),
                                             spec.locale,

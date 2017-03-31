@@ -110,7 +110,8 @@ trait DataCoordinatorClient {
                            extraHeaders: Map[String, String] = Map.empty)
   def getSchema(datasetId: DatasetId): Option[SchemaSpec]
 
-  def create(instance: String,
+  def create(resource: ResourceName,
+             instance: String,
              user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
              locale: String = "en_US",
