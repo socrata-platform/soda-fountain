@@ -272,7 +272,7 @@ case class Resource(rowDAO: RowDAO,
 
     override def put = { req => response =>
       val requestId = RequestId.getFromRequest(req)
-      upsertMany(req, response, requestId, rowDAO.replace(user(req), _, _, requestId), allowSingleItem = false)
+      upsertMany(req, response, requestId, rowDAO.replace(user(req), _, _, requestId), allowSingleItem = true)
     }
 
     private def upsertMany(req: HttpRequest,
