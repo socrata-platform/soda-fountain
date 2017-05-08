@@ -16,7 +16,7 @@ import com.socrata.soql.parsing.StandaloneParser
 import com.socrata.soql.types.SoQLType
 import com.socrata.soql.{SoQLAnalysis, SoQLAnalyzer}
 import com.socrata.soql.brita.IdentifierFilter
-import com.socrata.soql.environment.{ColumnName, DatasetContext}
+import com.socrata.soql.environment.{ColumnName, DatasetContext, TableName}
 import com.socrata.soql.functions.SoQLFunctionInfo
 import com.socrata.soql.functions.SoQLTypeInfo
 import DatasetDAO._
@@ -475,7 +475,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       val schema = OrderedMap(columnIdMap.mapValues(rawSchema).toSeq.sortBy(_._1) : _*)
     }
     try {
-      val analysis = analyzer.analyzeUnchainedQuery(query)(dsCtx)
+      val analysis = analyzer.analyzeUnchainedQuery(query)(Map(TableName.PrimaryTable.qualifier -> dsCtx))
       log.debug(s"Rollup analysis successful: ${analysis}")
       Right(analysis)
     } catch {
