@@ -2,6 +2,7 @@ package com.socrata.soda.server.computation
 
 import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.RequestId.RequestId
+import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.highlevel.RowDataTranslator
 import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike}
 import com.socrata.soda.server.util.ManagedIterator
@@ -32,7 +33,7 @@ trait ComputedColumnsLike {
   /**
    * Dynamically gate the actual running of computation strategies
    */
-  def computingEnabled: Boolean
+  def computingEnabled(resourceName: ResourceName): Boolean
 
   /**
    * Performs the (hopefully lazy) computation of all computed columns, producing a new iterator with
@@ -47,13 +48,14 @@ trait ComputedColumnsLike {
    * @param computedColumns the list of computed columns from [[findComputedColumns]] (not always true)
    */
   def addComputedColumns(requestId: RequestId,
+                         resourceName: ResourceName,
                          sourceIt: Iterator[RowDataTranslator.Computable],
                          computedColumns: Seq[ColumnRecordLike]): ComputeResult = {
     var rowIterator = sourceIt
     for (computedColumn <- computedColumns) {
       val strategyType = computedColumn.computationStrategy.get.strategyType
       // only add computed columns that have synchronous computation strategies
-      if (StrategyType.computeSynchronously(strategyType) && computingEnabled) {
+      if (StrategyType.computeSynchronously(strategyType) && computingEnabled(resourceName)) {
         val tryGetHandler = handlers.get(strategyType)
         tryGetHandler match {
           case Some(handlerCreator) =>
