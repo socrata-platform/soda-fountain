@@ -87,7 +87,7 @@ class RowDataTranslator(requestId: RequestId,
                                      rows: Iterator[Computable]): Iterator[RowUpdate] = {
     import ComputedColumnsLike._
 
-    val computedResult = cc.addComputedColumns(requestId, rows, toCompute)
+    val computedResult = cc.addComputedColumns(requestId, dataset.resourceName, rows, toCompute)
     computedResult match {
       case ComputeSuccess(computedRows) =>
         val rowUpdates = computedRows.map {

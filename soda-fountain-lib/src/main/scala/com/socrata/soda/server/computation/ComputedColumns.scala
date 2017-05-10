@@ -1,7 +1,10 @@
 package com.socrata.soda.server.computation
 
 import com.socrata.computation_strategies.StrategyType
+import com.socrata.soda.server.id.ResourceName
+
 import com.typesafe.config.Config
+
 import org.apache.curator.x.discovery.ServiceDiscovery
 
 /**
@@ -10,7 +13,7 @@ import org.apache.curator.x.discovery.ServiceDiscovery
  * @param handlersConfig a Typesafe Config containing an entry for configuring each handler.
  * @param discovery the ServiceDiscovery instance used for discovering other services using ZK/Curator
  */
-class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T], computingGate: () => Boolean) extends ComputedColumnsLike {
+class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T], computingGate: ResourceName => Boolean) extends ComputedColumnsLike {
 
   /**
    * Instantiates a computation handler handle a given computation strategy type.
@@ -29,5 +32,5 @@ class ComputedColumns[T](handlersConfig: Config, discovery: ServiceDiscovery[T],
   private def geoRegionMatchOnStringHandler = new GeoregionMatchOnStringHandler(
     handlersConfig.getConfig("region-coder"), discovery)
 
-  def computingEnabled = computingGate()
+  def computingEnabled(resourceName: ResourceName): Boolean = computingGate(resourceName)
 }
