@@ -15,7 +15,14 @@ object BuildSettings {
         styleCheck in Compile := {},
         scalaVersion := "2.10.4",
 
-        resolvers += "velvia maven" at "http://dl.bintray.com/velvia/maven"
+        resolvers += "velvia maven" at "http://dl.bintray.com/velvia/maven",
+
+        ivyXML :=
+          <dependencies>
+            <exclude org="com.sun.jmx" module="jmxri"/>         <!--   / log4j          -->
+            <exclude org="com.sun.jdmk" module="jmxtools"/>     <!--  <  extra          -->
+            <exclude org="javax.jms" module="jms"/>             <!--   \ deps           -->
+          </dependencies>
       )
 
   def projectSettings(assembly: Boolean = false): Seq[Setting[_]] =
