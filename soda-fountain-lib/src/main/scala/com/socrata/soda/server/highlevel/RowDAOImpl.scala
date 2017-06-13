@@ -128,7 +128,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                            "X-SODA2-DataVersion"    -> ds.truthVersion.toString,
                            "X-SODA2-LastModified"   -> ds.lastModified.toHttpDate) ++
       fuseColumns.map(c => Map("X-Socrata-Fuse-Columns" -> c)).getOrElse(Map.empty)
-    qc.query(ds.systemId, precondition, ifModifiedSince, query, ds.columnsByName.mapValues(_.id), rowCount,
+    qc.query(ds.systemId, precondition, ifModifiedSince, query, rowCount,
              copy, secondaryInstance, noRollup, obfuscateId, extraHeaders, queryTimeoutSeconds, resourceScope) {
       case QueryCoordinatorClient.Success(etags, rollup, response) =>
         val jsonColumnReps = if (obfuscateId) JsonColumnRep.forDataCoordinatorType

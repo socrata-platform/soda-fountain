@@ -74,7 +74,6 @@ trait QueryCoordinatorClient {
                precondition: Precondition,
                ifModifiedSince: Option[DateTime],
                query: String,
-               columnIdMap: Map[ColumnName, ColumnId],
                rowCount: Option[String],
                copy: Option[Stage],
                secondaryInstance: Option[String],
