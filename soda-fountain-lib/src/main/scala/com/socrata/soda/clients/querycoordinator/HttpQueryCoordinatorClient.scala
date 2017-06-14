@@ -49,17 +49,15 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   }
 
   def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
-    columnIdMap: Map[ColumnName, ColumnId], rowCount: Option[String],
+    rowCount: Option[String],
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
     obfuscateId: Boolean,
     extraHeaders: Map[String, String], queryTimeoutSeconds: Option[String],
     rs: ResourceScope)(f: Result => T): T = {
 
-    val jsonizedColumnIdMap = JsonUtil.renderJson(columnIdMap.map { case(k,v) => k.name -> v.underlying})
     val params = List(
       qpDataset -> datasetId.underlying,
-      qpQuery -> query,
-      qpIdMap -> jsonizedColumnIdMap) ++
+      qpQuery -> query) ++
       queryTimeoutSeconds.map(qpQueryTimeoutSeconds -> _) ++
       copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
       rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
