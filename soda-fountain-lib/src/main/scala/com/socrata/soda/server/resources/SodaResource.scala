@@ -18,16 +18,9 @@ class SodaResource extends SimpleResource {
       HttpMethodNotAllowed(req.getMethod, allowed))
   }
 
-  def user(req: HttpRequest): String = {
-    val fromHeader = for {
-      authenticate <- req.header("Authenticate")
-      if authenticate.startsWith("Basic ")
-    } yield new String(Base64.decodeBase64(authenticate.split(" ", 1)(1)), "latin1").split(":")(0)
-    fromHeader.getOrElse {
-      SodaResource.log.info("Unable to get user out of Authenticate header; going with `anonymous' for now")
-      "anonymous"
-    }
-  }
+  // SF doesn't handle auth, unlike what was originally envisionsed, but is still wired up to pass user info down
+  // to DC, this could be used for debugging or ripped out.
+  def user(req: HttpRequest): String = "anonymous"
 
   def optionalHeader(header: String, headerValue: Option[String]): HttpResponse =
     headerValue match {
