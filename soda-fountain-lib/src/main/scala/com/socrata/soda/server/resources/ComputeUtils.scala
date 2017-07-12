@@ -71,7 +71,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
               user: String)
              (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit): Unit =
     column.computationStrategy match {
-      case Some(strategy) =>
+      case Some(strategy) if computedColumns.computingEnabled(dataset.resourceName) =>
         val columns = columnsToExport(RequestId.getFromRequest(req), dataset, strategy)
         val requestId = RequestId.getFromRequest(req)
         log.info("export dataset {} for column compute", dataset.resourceName.name)
@@ -104,6 +104,8 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
               "data" -> JString(data)
             ))(response)
         }
+      case Some(_) =>
+        log.info("skipping computation for dataset {} for column compute", dataset.resourceName.name)
       case None =>
         SodaUtils.response(req, SodaError.NotAComputedColumn(column.fieldName))(response)
     }
