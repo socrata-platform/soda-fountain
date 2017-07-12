@@ -24,7 +24,7 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val codaMetrics = getRawConfig("metrics")
   val threadpool = getRawConfig("threadpool")
   val tableDropDelay = getDuration("tableDropDelay")
-  val dataCleanupInterval = getInt("dataCleanupInterval")
+  val dataCleanupInterval = getDuration("dataCleanupInterval")
   val computationStrategySecondaryId = optionally(getRawConfig("computation-strategy-secondary-id"))
 }
 
