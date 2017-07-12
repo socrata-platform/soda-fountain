@@ -55,7 +55,7 @@ trait ComputedColumnsLike {
     for (computedColumn <- computedColumns) {
       val strategyType = computedColumn.computationStrategy.get.strategyType
       // only add computed columns that have synchronous computation strategies
-      if (StrategyType.computeSynchronously(strategyType) && computingEnabled(resourceName)) {
+      if (StrategyType.computeSynchronously(strategyType)) {
         val tryGetHandler = handlers.get(strategyType)
         tryGetHandler match {
           case Some(handlerCreator) =>
