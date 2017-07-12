@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+
+    <changeSet author="marcs" id="1" runInTransaction="false">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                select count(*) from pg_class where relname = 'datasets_deleted_at'
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            CREATE INDEX CONCURRENTLY datasets_deleted_at on datasets(deleted_at)
+        </sql>
+        <rollback>
+            <dropIndex indexName="datasets_deleted_at" tableName="datasets"/>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>
