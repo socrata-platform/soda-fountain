@@ -31,6 +31,7 @@ import javax.sql.DataSource
 import org.apache.log4j.PropertyConfigurator
 
 import scala.collection.mutable
+import scala.util.Random
 
 /**
  * Manages the lifecycle of the routing table.  This means that
@@ -189,7 +190,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
 
   val tableDropDelay = config.tableDropDelay
-  val dataCleanupInterval = config.dataCleanupInterval
+  val dataCleanupIntervalSecs = config.dataCleanupInterval.toSeconds
   val router = i {
     import com.socrata.soda.server.resources._
 
@@ -236,20 +237,20 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     setName("table dropper")
 
     override def run() {
-      do {
+      while (!finished.await(dataCleanupIntervalSecs + Random.nextInt(dataCleanupIntervalSecs.toInt / 10), TimeUnit.SECONDS)) {
         try {
           val records = store.lookupDroppedDatasets(tableDropDelay)
           records.foreach { rec =>
             log.info(s"Dropping dataset ${rec.resourceName} (${rec.systemId}")
+            //drops the dataset and calls data coordinator to remove datasets in truth
             datasetDAO.removeDataset("", rec.resourceName, RequestId.generate())
           }
-          //call data coordinator to remove datasets in truth
         }
         catch {
           case e: Exception =>
             log.error("Unexpected error while cleaning tables", e)
         }
-      } while (!finished.await(dataCleanupInterval, TimeUnit.SECONDS))
+      }
     }
   }
 

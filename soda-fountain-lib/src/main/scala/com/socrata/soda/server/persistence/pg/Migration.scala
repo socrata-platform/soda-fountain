@@ -3,6 +3,7 @@ package com.socrata.soda.server.persistence.pg
 import java.sql.Connection
 
 import liquibase.Liquibase
+import liquibase.lockservice.LockService
 import liquibase.resource.ClassLoaderResourceAccessor
 
 object Migration {
@@ -17,6 +18,9 @@ object Migration {
   {
     val jdbc = new NonCommmittingJdbcConnenction(conn)
     val liquibase = new Liquibase(changeLogPath, new ClassLoaderResourceAccessor(), jdbc)
+    val lockService = LockService.getInstance(liquibase.getDatabase)
+    lockService.setChangeLogLockWaitTime(1000 * 3) // 3s where value should be < SQL lock_timeout (30s)
+
     val database = conn.getCatalog
 
     operation match {
