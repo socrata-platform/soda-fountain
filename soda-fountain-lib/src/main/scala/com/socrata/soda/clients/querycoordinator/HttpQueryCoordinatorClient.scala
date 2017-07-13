@@ -25,7 +25,6 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
 
   private val qpDataset = "ds"
   private val qpQuery = "q"
-  private val qpIdMap = "idMap"
   private val qpRowCount = "rowCount"
   private val qpCopy = "copy"
   private val secondaryStoreOverride = "store"
