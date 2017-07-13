@@ -4,7 +4,7 @@ object Dependencies {
   object versions {
     val apacheCurator     = "2.4.2"
     val balboa            = "0.14.0"
-    val c3po              = "0.9.2.1"
+    val c3p0              = "0.9.5.2"
     val codahaleMetrics   = "3.0.2"
     val computationStrategies = "0.0.4"
     val dropWizardMetrics = "3.1.0"
@@ -42,7 +42,7 @@ object Dependencies {
 
   val balboaClient             = "com.socrata"     %% "balboa-client"               % versions.balboa exclude("org.slf4j", "slf4j-simple")
 
-  val c3po                     = "com.mchange"      % "c3p0"                        % versions.c3po
+  val c3p0                     = "com.mchange"      % "c3p0"                        % versions.c3p0
 
   val codahaleMetricsGraphite   = "com.codahale.metrics"  % "metrics-graphite"      % versions.codahaleMetrics
 

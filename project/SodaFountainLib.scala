@@ -15,7 +15,7 @@ object SodaFountainLib {
     libraryDependencies ++= Seq(
       apacheCuratorDiscovery,
       balboaClient,
-      c3po,
+      c3p0,
       computationStrategies,
       javaxServletApi,
       liquibaseCore,
