@@ -106,6 +106,7 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
         }
       case Some(_) =>
         log.info("skipping computation for dataset {} for column compute", dataset.resourceName.name)
+        successHandler(response, Iterator.empty)
       case None =>
         SodaUtils.response(req, SodaError.NotAComputedColumn(column.fieldName))(response)
     }
