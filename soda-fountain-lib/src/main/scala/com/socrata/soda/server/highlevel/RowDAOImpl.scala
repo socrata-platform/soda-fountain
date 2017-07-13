@@ -135,7 +135,6 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                              else JsonColumnRep.forDataCoordinatorTypeClearId
         val decodedResult = CJson.decode(response, jsonColumnReps)
         val schema = decodedResult.schema
-        schema.pk.map(ds.columnsById(_).fieldName)
         val simpleSchema = ExportDAO.CSchema(
           schema.approximateRowCount,
           schema.dataVersion,
