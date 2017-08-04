@@ -9,7 +9,7 @@ import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Strategy}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.responses.DatasetSpecMaltyped
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{DatasetId, ResourceName}
 import com.socrata.soda.server.wiremodels.InputUtils._
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soql.environment.ColumnName
@@ -22,12 +22,13 @@ object DatasetSpecSubSet{
 
 @JsonKeyStrategy(Strategy.Underscore)
 case class DatasetSpec(resourceName: ResourceName,
-                       name:String,
+                       systemId: Option[DatasetId],
+                       name: String,
                        description: String,
                        rowIdentifier: ColumnName,
-                       locale:String,
+                       locale: String,
                        stage: Option[Stage],
-                       columns:Map[ColumnName, ColumnSpec])
+                       columns: Map[ColumnName, ColumnSpec])
 object DatasetSpec {
   private implicit val columnMapCodec = new JsonEncode[Map[ColumnName, ColumnSpec]] with JsonDecode[Map[ColumnName, ColumnSpec]]{
     def encode(x: Map[ColumnName, ColumnSpec]): JValue =

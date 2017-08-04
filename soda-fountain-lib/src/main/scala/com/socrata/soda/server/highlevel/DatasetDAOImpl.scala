@@ -61,7 +61,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               ???
           }
         }
-        Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, None, trueColumns))
+        Right(DatasetSpec(resourceName, None, name, trueDesc, trueRID, trueLocale, None, trueColumns))
       // TODO: Not-success case
     }
   }
