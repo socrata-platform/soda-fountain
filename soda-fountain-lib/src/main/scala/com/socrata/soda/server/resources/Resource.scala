@@ -7,8 +7,7 @@ import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
 
 import scala.collection.JavaConverters._
 import scala.language.existentials
-
-import com.rojoma.json.v3.ast.{JNumber, JString, JValue}
+import com.rojoma.json.v3.ast.{JArray, JNumber, JString, JValue}
 import com.rojoma.simplearm.util._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.common.util.ContentNegotiation
@@ -17,14 +16,14 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
-import com.socrata.soda.clients.datacoordinator.RowUpdate
-import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
+import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RowUpdate}
+import com.socrata.soda.clients.querycoordinator.{QueryCoordinatorClient, QueryCoordinatorError}
 import com.socrata.soda.server.{responses => SodaErrors, _}
 import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{DatasetDAO, RowDAO, RowDataTranslator}
-import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
+import com.socrata.soda.server.id.{DatasetId, ResourceName, RowSpecifier, SecondaryId}
 import com.socrata.soda.server.metrics.{MetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.metrics.Metrics.{QuerySuccess => QuerySuccessMetric, _}
 import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike}
@@ -42,7 +41,8 @@ case class Resource(rowDAO: RowDAO,
                     maxRowSize: Long,
                     cc: ComputedColumnsLike,
                     metricProvider: MetricProvider,
-                    export: Export) extends Metrics {
+                    export: Export,
+                    dc: DataCoordinatorClient) extends Metrics {
   import Resource._
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -233,6 +233,9 @@ case class Resource(rowDAO: RowDAO,
                     SodaUtils.response(req, SodaErrors.RequestTimedOut(timeout))
                   case RowDAO.QCError(status, qcErr) =>
                     metricByStatus(status)
+                    if (Option(req.getHeader("X-Socrata-Collocate")) == Some("true")) {
+                      collocateDataset(qcErr)
+                    }
                     SodaUtils.response(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
                   case RowDAO.InvalidRequest(client, status, body) =>
                     metricByStatus(status)
@@ -288,6 +291,26 @@ case class Resource(rowDAO: RowDAO,
           upsertishFlow(req, response, requestId, resourceName.value, boundedIt, f, processUpsertReport)
         case Left(err) =>
           SodaUtils.response(req, err, resourceName.value)(response)
+      }
+    }
+
+    private def collocateDataset(qcErr: QueryCoordinatorError): Unit = {
+      qcErr match {
+        case QueryCoordinatorError("query.dataset.is-not-collocated", Some(description), data) =>
+          (data("resource"), data("secondaries")) match {
+            case (JString(resource), JArray(Seq(JString(sec), _*))) =>
+              val resourceName = new ResourceName(resource)
+              datasetDAO.getDataset(resourceName, None) match {
+                case DatasetDAO.Found(datasetRecord) =>
+                  val dsId = datasetRecord.systemId
+                  val secId = SecondaryId(sec.split("\\.").head)
+                  log.info("collocate {} dataset {} in {}", resourceName, dsId.underlying, secId)
+                  dc.propagateToSecondary(dsId, secId, Map.empty)
+                case _ =>
+              }
+            case _ =>
+          }
+        case _ =>
       }
     }
   }
