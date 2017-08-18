@@ -15,10 +15,9 @@ import org.scalatest.{FunSuite, Matchers, Tag}
 
 class HttpDatatCoordinatorClientTest extends FunSuite with Matchers {
 
-
   object tag extends Tag("HttpDatatCoordinatorClientTest")
 
-  val client = new MyClient
+  val client = new HttpDatatCoordinatorClientTest.MyClient
 
   // Helper to write errors
   case class ReqError(errorCode: String, data: Map[String, JValue])
@@ -96,6 +95,9 @@ class HttpDatatCoordinatorClientTest extends FunSuite with Matchers {
     def headers(name: String): Array[String] = Seq("application/json").toArray
     def headerNames = Set.empty
   }
+}
+
+object HttpDatatCoordinatorClientTest {
 
   class MyClient extends HttpDataCoordinatorClient(null){
     def hostO(instance: String): Option[RequestBuilder] = None
