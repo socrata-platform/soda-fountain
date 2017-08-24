@@ -25,6 +25,7 @@ object SodaFountainJetty extends App {
       sodaFountain.handle,
       SocrataServerJetty.defaultOptions.
         withPort(config.network.port).
+        withRequestHeaderSize(config.requestHeaderSize).
         withExtraHandlers(List(SocrataHttpSupport.getHandler(metricsOptions))).
         withPoolOptions(SocrataServerJetty.Pool(config.threadpool)).
         withBroker(new CuratorBroker[Void](
