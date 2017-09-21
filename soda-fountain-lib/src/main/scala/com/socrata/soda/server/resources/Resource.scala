@@ -303,7 +303,7 @@ case class Resource(rowDAO: RowDAO,
               datasetDAO.getDataset(resourceName, None) match {
                 case DatasetDAO.Found(datasetRecord) =>
                   val dsId = datasetRecord.systemId
-                  val secId = SecondaryId(sec.split("\\.").head)
+                  val secId = SecondaryId(sec.split("\\.")(1))
                   log.info("collocate {} dataset {} in {}", resourceName, dsId.underlying, secId)
                   dc.propagateToSecondary(dsId, secId, Map.empty)
                 case _ =>
