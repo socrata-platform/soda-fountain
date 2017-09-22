@@ -193,6 +193,10 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
                             url: String,
                             payload: JArray,
                             retriesLeft: Int): (Int, String) = {
+
+    def isRetryable(e: Exception) =
+      e.isInstanceOf[java.io.IOException] || e.isInstanceOf[scalaj.http.HttpException]
+
     try {
       val (status, _, response) = Http.postData(url, CompactJsonWriter.toString(payload)).
         header("content-type", "application/json").
@@ -202,13 +206,17 @@ abstract class GeoregionMatchHandler[T, V](config: Config, discovery: ServiceDis
         asHeadersAndParse(Http.readString)
       (status, response)
     } catch {
-      case e: scalaj.http.HttpException =>
-        if (retriesLeft > 0) {
-          Thread.sleep(retryWait)
-          postWithRetry(requestId, url, payload, retriesLeft - 1)
+      case e: Exception =>
+        if(isRetryable(e)) {
+          if (retriesLeft > 0) {
+            Thread.sleep(retryWait)
+            postWithRetry(requestId, url, payload, retriesLeft - 1)
+          } else {
+            logger.error("HTTP Error: ", e)
+            throw ComputationEx("HTTP Error reading " + url, Some(e))
+          }
         } else {
-          logger.error("HTTP Error: ", e)
-          throw ComputationEx("HTTP Error reading " + url, Some(e))
+          throw e
         }
     }
   }
