@@ -15,4 +15,5 @@
     <include file="com/socrata/soda/server/persistence/pg/20160308-add-recompute-default-value.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20160309-drop-recompute-from-computation-strategies.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20170712-add-datasets-deleted-at-index.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20171006-increase-column-name-size.xml"/>
 </databaseChangeLog>
