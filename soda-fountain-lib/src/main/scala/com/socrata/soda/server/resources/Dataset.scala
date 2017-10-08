@@ -8,7 +8,7 @@ import com.socrata.http.server.util.RequestId
 import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.responses._
-import com.socrata.soda.server.highlevel.DatasetDAO.{NonExistentColumn, DatasetAlreadyExists}
+//import com.socrata.soda.server.highlevel.DatasetDAO.{NonExistentColumn, DatasetAlreadyExists}
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}

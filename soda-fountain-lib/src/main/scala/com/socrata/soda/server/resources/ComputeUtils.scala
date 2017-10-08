@@ -1,44 +1,19 @@
 package com.socrata.soda.server.resources
 
-import com.rojoma.json.v3.ast._
 import com.rojoma.json.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.HttpRequest
-import com.socrata.http.server.util.{NoPrecondition, RequestId}
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
 import com.socrata.soda.server.responses.GeneralNotFoundError
 import com.socrata.soda.server.{responses => SodaError, _}
-import com.socrata.soda.server.computation.ComputedColumnsLike
-import com.socrata.soda.server.export.JsonExporter
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
-import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletResponse
 
-class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, computedColumns: ComputedColumnsLike) {
+class ComputeUtils(columnDAO: ColumnDAO) {
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[ComputeUtils])
-
-  private def columnsToExport(requestId: RequestId.RequestId,
-                              dataset: DatasetRecordLike,
-                              computationStrategy: ComputationStrategyRecord): Seq[ColumnRecordLike] = {
-    def sourceColumns    = getSourceColumns(requestId, dataset, computationStrategy)
-    def primaryKeyColumn = dataset.columnsById(dataset.primaryKey)
-    sourceColumns ++ Seq(primaryKeyColumn)
-  }
-
-  private def getSourceColumns(requestId: RequestId.RequestId,
-                               dataset: DatasetRecordLike,
-                               computationStrategy: ComputationStrategyRecord): Seq[ColumnRecordLike] = {
-    computationStrategy.sourceColumns match {
-      case Some(columns: Seq[MinimalColumnRecord]) =>
-        val trans = new RowDataTranslator(requestId, dataset, false)
-        trans.getInfoForColumnList(columns.map(_.id.underlying))
-      case None => Seq()
-    }
-  }
 
   def compute(req: HttpRequest,
               response: HttpServletResponse,
@@ -46,11 +21,11 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
               resourceName: ResourceName,
               columnName: ColumnName,
               user: String)
-             (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit): Unit = {
+             (successHandler: HttpServletResponse => Unit): Unit = {
     columnDAO.getColumn(resourceName, columnName) match {
       case ColumnDAO.Found(dataset, column, _)         =>
         column.computationStrategy match {
-          case Some(strategy) => compute(req, response, resourceScope, dataset, column, user)(successHandler)
+          case Some(strategy) => successHandler(response)
           case None           => SodaUtils.response(req, SodaError.NotAComputedColumn(columnName))(response)
         }
       case ColumnDAO.DatasetNotFound(dataset) =>
@@ -63,81 +38,18 @@ class ComputeUtils(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, c
     }
   }
 
-  def compute(req: HttpRequest,
-              response: HttpServletResponse,
-              resourceScope: ResourceScope,
-              dataset: DatasetRecordLike,
-              column: ColumnRecordLike,
-              user: String)
-             (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit): Unit =
-    column.computationStrategy match {
-      case Some(strategy) if computedColumns.computingEnabled(dataset.resourceName) =>
-        val columns = columnsToExport(RequestId.getFromRequest(req), dataset, strategy)
-        val requestId = RequestId.getFromRequest(req)
-        log.info("export dataset {} for column compute", dataset.resourceName.name)
-        val param = ExportParam(None, None, columns, None, sorted = false, rowId = None)
-        exportDAO.export(dataset.resourceName,
-                         NoPrecondition,
-                         "latest",
-                         param,
-                         requestId,
-                         resourceScope) match {
-          case ExportDAO.Success(schema, newTag, rows) =>
-            log.info("exported dataset {} for column compute", dataset.resourceName.name)
-            val transformer = new RowDataTranslator(
-              RequestId.getFromRequest(req), dataset, false)
-            val upsertRows = transformer.transformDcRowsForUpsert(computedColumns, Seq(column), schema, rows)
-            rowDAO.upsert(user, dataset, upsertRows, requestId)(UpsertUtils.handleUpsertErrors(req, response)(successHandler))
-          case ExportDAO.SchemaInvalidForMimeType =>
-            SodaUtils.response(req, SodaError.SchemaInvalidForMimeType)(response)
-          case ExportDAO.NotModified(etags) =>
-            SodaUtils.response(req, SodaError.ResourceNotModified(Nil, None))(response)
-          case ExportDAO.PreconditionFailed =>
-            SodaUtils.response(req, SodaError.EtagPreconditionFailed)(response)
-          case ExportDAO.NotFound(resourceName) =>
-            SodaUtils.response(req, SodaError.DatasetNotFound(resourceName))(response)
-          case ExportDAO.InvalidRowId =>
-            SodaUtils.response(req, SodaError.InvalidRowId)(response)
-          case ExportDAO.InternalServerError(code, tag, data) =>
-            SodaUtils.response(req, SodaError.InternalError(tag,
-              "code"  -> JString(code),
-              "data" -> JString(data)
-            ))(response)
-        }
-      case Some(_) =>
-        log.info("skipping computation for dataset {} for column compute", dataset.resourceName.name)
-        successHandler(response, Iterator.empty)
-      case None =>
-        SodaUtils.response(req, SodaError.NotAComputedColumn(column.fieldName))(response)
-    }
-
   def writeComputeResponse(resourceName: ResourceName,
                            columnName: ColumnName,
                            responseCode: Int,
-                           response: HttpServletResponse,
-                           report: Iterator[ReportItem]) {
-    import com.rojoma.json.ast._
+                           response: HttpServletResponse) {
     response.setStatus(responseCode)
     response.setContentType(SodaUtils.jsonContentTypeUtf8) // TODO: negotiate charset too
     using(response.getWriter) { w =>
       val jw = new CompactJsonWriter(w)
-      var rowsComputed = 0
-      while (report.hasNext) {
-        report.next() match {
-          case UpsertReportItem(items) =>
-            // Data coordinator client throws an exception if we don't
-            // iterate through the results.
-            while(items.hasNext) {
-              rowsComputed = rowsComputed + 1
-              items.next()
-            }
-          case OtherReportItem => // nothing; probably shouldn't have occurred!
-        }
-      }
       // TODO use .ast.v3 instead
       jw.write(com.rojoma.json.ast.JObject(Map("resource_name" -> com.rojoma.json.ast.JString(resourceName.name),
                            "column_name"   -> com.rojoma.json.ast.JString(columnName.name),
-                           "rows_computed" -> com.rojoma.json.ast.JNumber(rowsComputed))))
+                           "rows_computed" -> com.rojoma.json.ast.JNumber(0))))
       w.write("\n")
     }
   }

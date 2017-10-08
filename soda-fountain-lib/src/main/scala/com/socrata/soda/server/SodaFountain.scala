@@ -11,9 +11,7 @@ import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.handlers.{NewLoggingHandler, ThreadRenamingHandler}
 import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient, FeedbackSecondaryManifestClient}
-import com.socrata.soda.clients.regioncoder.CuratedRegionCoderClient
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
-import com.socrata.soda.server.computation.{ComputedColumns, ComputingGate}
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.SecondaryId
@@ -153,15 +151,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     config.queryCoordinatorClient.connectTimeout,
     config.queryCoordinatorClient.receiveTimeout))
 
-  val regionCoder = si(new CuratedRegionCoderClient(discovery, config.regionCoderClient))
-
   val dataSource = i(DataSourceFromConfig(config.database))
 
   val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
-
-  val computingGate = si(new ComputingGate(curator, "/soda-fountain"))
-
-  val computedColumns = new ComputedColumns(config.handlers, discovery, computingGate)
 
   val fbm: FeedbackSecondaryManifestClient = {
     val feedbackSecondaryIdMap: Map[StrategyType, SecondaryId] = config.computationStrategySecondaryId match  {
@@ -194,19 +186,18 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val router = i {
     import com.socrata.soda.server.resources._
 
-    val healthZ = HealthZ(regionCoder)
     // TODO: this should probably be a different max size value
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
-    val column = DatasetColumn(columnDAO, exportDAO, rowDAO, computedColumns, etagObfuscator, config.maxDatumSize)
+    val column = DatasetColumn(columnDAO, exportDAO, rowDAO, etagObfuscator, config.maxDatumSize)
     val export = Export(exportDAO, etagObfuscator)
-    val resource = Resource(rowDAO, datasetDAO, etagObfuscator, config.maxDatumSize, computedColumns, metricProvider, export, dc)
-    val compute = Compute(columnDAO, exportDAO, rowDAO, computedColumns, etagObfuscator)
+    val resource = Resource(rowDAO, datasetDAO, etagObfuscator, config.maxDatumSize, metricProvider, export, dc)
+    val compute = Compute(columnDAO)
     val suggest = Suggest(datasetDAO, columnDAO, httpClient, config.suggest)
     val snapshots = Snapshots(snapshotDAO)
 
     new SodaRouter(
       versionResource = Version.service,
-      healthZResource = healthZ.service,
+      healthZResource = HealthZ.service,
       datasetColumnResource = column.service,
       datasetColumnPKResource = column.pkservice,
       datasetCreateResource = dataset.createService,

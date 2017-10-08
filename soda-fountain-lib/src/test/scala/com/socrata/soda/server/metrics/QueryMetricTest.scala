@@ -6,7 +6,7 @@ import com.socrata.datacoordinator.client.HttpDatatCoordinatorClientTest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.Precondition
-import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RowUpdate}
+import com.socrata.soda.clients.datacoordinator.RowUpdate
 import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.highlevel.{DatasetDAO, ExportDAO, RowDAO}
@@ -120,7 +120,7 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
     val export = new Export(mock[ExportDAO], ETagObfuscator.noop)
     val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO],
-                                    NoopEtagObfuscator, 1000, null, provider, export, new HttpDatatCoordinatorClientTest.MyClient())
+                                    NoopEtagObfuscator, 1000, provider, export, new HttpDatatCoordinatorClientTest.MyClient())
     val mockServReq = new MockHttpServletRequest()
     mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}/some-row-id.json")
     headers.foreach(header => mockServReq.addHeader(header._1, header._2))
@@ -189,7 +189,7 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
     headers.foreach(header => mockServReq.addHeader(header._1, header._2))
     val httpReq = httpRequest(augReq)
     val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO],
-                                    NoopEtagObfuscator, 1000, null, provider, export, new HttpDatatCoordinatorClientTest.MyClient())
+                                    NoopEtagObfuscator, 1000, provider, export, new HttpDatatCoordinatorClientTest.MyClient())
 
     mockResource.service(OptionallyTypedPathComponent(dataset.resource, None)).get(httpReq)(new MockHttpServletResponse())
   }

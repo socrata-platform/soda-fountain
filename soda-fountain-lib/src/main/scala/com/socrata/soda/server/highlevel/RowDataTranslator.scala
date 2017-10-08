@@ -2,12 +2,10 @@ package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.conversions._
-import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
-import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.id.ColumnId
-import com.socrata.soda.server.{SodaInvalidRequestException, SodaInternalException}
+import com.socrata.soda.server.SodaInvalidRequestException
 import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecordLike}
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
 import com.socrata.soql.environment.ColumnName
@@ -61,15 +59,12 @@ class RowDataTranslator(requestId: RequestId,
     }
   }
 
-  def transformClientRowsForUpsert(cc: ComputedColumnsLike,
-                                   rows: Iterator[JValue]): Iterator[RowUpdate] = {
+  def transformClientRowsForUpsert(rows: Iterator[JValue]): Iterator[RowUpdate] = {
     val rowsAsSoql = rows.map(clientJsonToComputable)
-    transformRowsForUpsert(cc, cc.findComputedColumns(dataset), rowsAsSoql)
+    transformRowsForUpsert(rowsAsSoql)
   }
 
-  def transformDcRowsForUpsert(cc: ComputedColumnsLike,
-                               toCompute: Seq[ColumnRecordLike],
-                               schema: ExportDAO.CSchema,
+  def transformDcRowsForUpsert(schema: ExportDAO.CSchema,
                                rows: Iterator[Array[SoQLValue]]): Iterator[RowUpdate] = {
     val columnIds = schema.schema.map(_.id.underlying)
     val computableRows = rows.map { fields =>
@@ -79,23 +74,13 @@ class RowDataTranslator(requestId: RequestId,
       UpsertAsSoQL(fieldMap.toMap)
     }
 
-    transformRowsForUpsert(cc, toCompute,computableRows)
+    transformRowsForUpsert(computableRows)
   }
 
-  private def transformRowsForUpsert(cc: ComputedColumnsLike,
-                                     toCompute: Seq[ColumnRecordLike],
-                                     rows: Iterator[Computable]): Iterator[RowUpdate] = {
-    import ComputedColumnsLike._
-
-    val computedResult = cc.addComputedColumns(requestId, dataset.resourceName, rows, toCompute)
-    computedResult match {
-      case ComputeSuccess(computedRows) =>
-        val rowUpdates = computedRows.map {
-          case UpsertAsSoQL(rowData) => UpsertRow(soqlToDataCoordinatorJson(rowData))
-          case DeleteAsCJson(pk) => DeleteRow(pk)
-        }
-        rowUpdates
-      case HandlerNotFound(typ) => throw ComputationHandlerNotFoundEx(typ)
+  private def transformRowsForUpsert(rows: Iterator[Computable]): Iterator[RowUpdate] = {
+    rows.map {
+      case UpsertAsSoQL(rowData) => UpsertRow(soqlToDataCoordinatorJson(rowData))
+      case DeleteAsCJson(pk) => DeleteRow(pk)
     }
   }
 
@@ -165,5 +150,4 @@ object RowDataTranslator {
   case class UnknownColumnEx(col: ColumnName) extends SodaInvalidRequestException(s"Unrecognized column $col")
   case object DeleteNoPKEx extends SodaInvalidRequestException(s"Cannot delete row without giving primary key")
   case class NotAnObjectOrSingleElementArrayEx(obj: JValue) extends SodaInvalidRequestException(s"Inappropriate JValue $obj")
-  case class ComputationHandlerNotFoundEx(typ: StrategyType) extends SodaInternalException(s"Computation strategy $typ was not found")
 }
