@@ -19,14 +19,13 @@ import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RowUpdate}
 import com.socrata.soda.clients.querycoordinator.{QueryCoordinatorClient, QueryCoordinatorError}
 import com.socrata.soda.server.{responses => SodaErrors, _}
-import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{DatasetDAO, RowDAO, RowDataTranslator}
-import com.socrata.soda.server.id.{DatasetId, ResourceName, RowSpecifier, SecondaryId}
+import com.socrata.soda.server.id.{ResourceName, RowSpecifier, SecondaryId}
 import com.socrata.soda.server.metrics.{MetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.metrics.Metrics.{QuerySuccess => QuerySuccessMetric, _}
-import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike}
+import com.socrata.soda.server.persistence.DatasetRecordLike
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
 import com.socrata.thirdparty.metrics.Metrics
@@ -39,7 +38,6 @@ case class Resource(rowDAO: RowDAO,
                     datasetDAO: DatasetDAO,
                     etagObfuscator: ETagObfuscator,
                     maxRowSize: Long,
-                    cc: ComputedColumnsLike,
                     metricProvider: MetricProvider,
                     export: Export,
                     dc: DataCoordinatorClient) extends Metrics {
@@ -139,7 +137,7 @@ case class Resource(rowDAO: RowDAO,
     datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
         val transformer = new RowDataTranslator(requestId, datasetRecord, false)
-        val transformedRows = transformer.transformClientRowsForUpsert(cc, rows)
+        val transformedRows = transformer.transformClientRowsForUpsert(rows)
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(reportFunc))
       case DatasetDAO.DatasetNotFound(dataset) =>
         SodaUtils.response(req, SodaErrors.DatasetNotFound(resourceName))(response)

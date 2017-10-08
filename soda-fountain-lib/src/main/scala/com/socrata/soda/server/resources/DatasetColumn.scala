@@ -7,7 +7,6 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
 import com.socrata.soda.server._
-import com.socrata.soda.server.computation.ComputedColumnsLike
 import com.socrata.soda.server.responses._
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
@@ -16,9 +15,8 @@ import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 
-case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, computedColumns: ComputedColumnsLike, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
+case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetColumn])
-  val computeUtils = new ComputeUtils(columnDAO, exportDAO, rowDAO, computedColumns)
   val defaultSuffix = Array[Byte]('+')
 
   def withColumnSpec(request: HttpRequest, response: HttpServletResponse, logTags: LogTag*)(f: UserProvidedColumnSpec => Unit): Unit = {
@@ -108,29 +106,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       val requestId = RequestId.getFromRequest(req)
       withColumnSpec(req, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          columnDAO.replaceOrCreateColumn(userFromReq, resourceName, precondition, columnName,
-                                          spec, requestId) match {
-            case success: ColumnDAO.UpdateSuccessResult =>
-              if (spec.computationStrategy.isDefined &&
-                  // optionally break apart rows computation into separate call.
-                  "false" != req.getParameter("compute")) {
-                // We want to give computeUtils.compute its own temp scope to export from data-coordinator with
-                // so if computation on our side fails while we are exporting from DC we can close the http connection
-                // and hence the read query on the t-table in truth so we can make a request to DC to drop the column
-                val tempScope = req.resourceScope.open(new ResourceScope())
-                try {
-                  computeUtils.compute(req, resp, tempScope, resourceName, columnName, user(req)) {
-                    case (res, report) => response(req, success)(resp)
-                  }
-                } catch { case e: Exception =>
-                  req.resourceScope.close(tempScope)
-                  columnDAO.deleteColumn(userFromReq, resourceName, columnName, requestId)
-                  throw e
-                }
-              }
-              else response(req, success)(resp)
-            case other => response(req, other)(resp)
-          }
+          response(req, columnDAO.replaceOrCreateColumn(userFromReq, resourceName, precondition, columnName, spec, requestId))(resp)
         }
       }
     }
