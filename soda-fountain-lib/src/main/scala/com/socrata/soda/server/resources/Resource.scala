@@ -358,6 +358,7 @@ case class Resource(rowDAO: RowDAO,
                         ETags(etags.map(prepareTag)) ~>
                         optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
+                        optionalHeader("X-SODA2-Secondary-Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader ~>
                         exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId,
