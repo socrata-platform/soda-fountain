@@ -5,6 +5,7 @@ import com.socrata.soda.server.id.ResourceName
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.HttpServletResponse
 
+// TODO: delete compute endpoint when there are no more requests being sent to it
 case class Compute(columnDAO: ColumnDAO) {
   val computeUtils = new ComputeUtils(columnDAO)
 
