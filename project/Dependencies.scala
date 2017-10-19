@@ -6,7 +6,7 @@ object Dependencies {
     val balboa            = "0.14.0"
     val c3p0              = "0.9.5.2"
     val codahaleMetrics   = "3.0.2"
-    val computationStrategies = "0.0.4"
+    val computationStrategies = "0.1.0"
     val dropWizardMetrics = "3.1.0"
     val javaxServletApi   = "2.5"
     val liquibaseCore     = "2.0.0"

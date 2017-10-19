@@ -1,17 +1,15 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.v3.ast.JObject
-import com.rojoma.json.v3.codec.{JsonEncode, JsonDecode}
-import com.rojoma.json.v3.util.WrapperJsonDecode
+import com.rojoma.json.v3.util.WrapperJsonCodec
 import com.socrata.computation_strategies._
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.brita.IdentifierFilter
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.id.ColumnId
-import com.socrata.soql.types.{SoQLType, SoQLFixedTimestamp, SoQLVersion, SoQLID}
+import com.socrata.soql.types.{SoQLFixedTimestamp, SoQLID, SoQLType, SoQLVersion}
 import com.socrata.soql.types.obfuscation.Quadifier
-import scala.util.Random
 
+import scala.util.Random
 import ColumnSpecUtils._
 
 class ColumnSpecUtils(rng: Random) {
@@ -27,8 +25,8 @@ class ColumnSpecUtils(rng: Random) {
       case _ => false // worry about no ComputationStrategyType later...
     }
     if (isComputedSystemLike &&
-         (!columnName.name.startsWith(":") ||
-         systemColumns.exists { sysCol => columnName.name.equalsIgnoreCase(sysCol._1.name) }))
+      (!columnName.name.startsWith(":") ||
+        systemColumns.exists { sysCol => columnName.name.equalsIgnoreCase(sysCol._1.name) }))
       return false
 
     val cnamePart =
@@ -37,7 +35,7 @@ class ColumnSpecUtils(rng: Random) {
       else columnName
     IdentifierFilter(cnamePart.name) == cnamePart.name
   }
-  
+
   def duplicateColumnName(columnName: ColumnName, existingColumns: Map[ColumnName, ColumnId]): Boolean =
     existingColumns.map(_._1).exists(_.name.equalsIgnoreCase(columnName.name))
 
@@ -63,7 +61,7 @@ class ColumnSpecUtils(rng: Random) {
         DeleteSet
     }
 
-  implicit val columnNameDecode = WrapperJsonDecode[ColumnName][String](new ColumnName(_))
+  implicit val columnNameCodec = WrapperJsonCodec[ColumnName][String](new ColumnName(_), _.name)
 
   def freezeForCreation(existingColumns: Map[ColumnName, (ColumnId, SoQLType)],
                         datatype: SoQLType,
@@ -77,24 +75,42 @@ class ColumnSpecUtils(rng: Random) {
         if (datatype != targetDatatype)
           return WrongDatatypeForComputationStrategy(datatype, targetDatatype)
 
+        // Work around RojomaJsonSerializer.serialize annoying dropping fields when their value is an empty object
+        val augmentedDefintion: StrategyDefinition[ColumnName] = definition.typ match {
+          case StrategyType.Geocoding =>
+            GeocodingComputationStrategy.augment(definition, FlexibleGeocodingDefaults.empty) match {
+              case Right(augmented) => augmented
+              case Left(err) =>
+                log.error("Core passed a computation strategy that soda-fountain found to be invalid: {}", err)
+                return InvalidComputationStrategy(err)
+            }
+          case _ => definition
+        }
+
         // Validate the strategy and the datatypes of the source columns
-        ComputationStrategy.validate[ColumnName](definition, existingColumns.mapValues(_._2)) match {
+        ComputationStrategy.validate[ColumnName](augmentedDefintion, existingColumns.mapValues(_._2)) match {
           case Some(UnknownSourceColumn(_)) =>
             UnknownComputationStrategySourceColumn
           case Some(other) =>
+            log.error("Core passed a computation strategy that soda-fountain found to be invalid: {}", other)
             InvalidComputationStrategy(other)
           case None =>
             val existingColumnIds = existingColumns.mapValues(_._1)
-            val transformedParams = parameters.map(transformCSParameters(typ, existingColumnIds, _))
+            val transformedParams = typ match {
+              case StrategyType.Geocoding =>
+                GeocodingComputationStrategy.transform(augmentedDefintion, existingColumnIds) match {
+                  case Right(transformed) => transformed.parameters
+                  case Left(err) =>
+                    // this should not happen; we have already validated the computation strategy
+                    throw new InternalError(s"Failed to decode computation strategy parameters after validation: $err")
+                }
+              case _ => augmentedDefintion.parameters
+            }
             // The logic below assumes that the computed column is defined after the source column in the schema.
             // TODO : Validation should be independent of column ordering in the schema definition.
-            val sourceColumnSpecs = sourceColumns.map(_.map(sourceColumnSpec(_, existingColumnIds)))
-            sourceColumnSpecs match {
-              case Some(specs: Seq[Option[SourceColumnSpec]]) =>
-                ComputationStrategySuccess(Some(ComputationStrategySpec(typ, Some(specs.flatten), transformedParams)))
-              case None =>
-                ComputationStrategySuccess(Some(ComputationStrategySpec(typ, None, transformedParams)))
-            }
+            val sourceColumnSpecs = sourceColumns.map(_.flatMap(sourceColumnSpec(_, existingColumnIds)))
+
+            ComputationStrategySuccess(Some(ComputationStrategySpec(typ, sourceColumnSpecs, transformedParams)))
         }
       case Some(UserProvidedComputationStrategySpec(None, _, _)) => ComputationStrategyNoStrategyType
       case None => ComputationStrategySuccess(None)
@@ -103,45 +119,8 @@ class ColumnSpecUtils(rng: Random) {
   def sourceColumnSpec(sourceName: String, existingColumns: Map[ColumnName, ColumnId]): Option[SourceColumnSpec] =
     for {
       name <- existingColumns.keySet.find(_.name == sourceName)
-      id   <- existingColumns.get(name)
+      id <- existingColumns.get(name)
     } yield SourceColumnSpec(id, name)
-
-  // TODO: does this want to move to the `computation_strategies` library?
-  private def transformCSParameters(typ: StrategyType, sourceColumnIdMap: Map[ColumnName, ColumnId], parameters: JObject):
-  JObject = {
-    if (typ == StrategyType.Geocoding) {
-      JsonDecode.fromJValue[GeocodingParameterSchema[ColumnName]](parameters) match {
-        case Right(GeocodingParameterSchema(sources, defaults, version)) =>
-          def lookupId(opt: Option[ColumnName]): Option[ColumnId] = opt match {
-            case Some(fieldName) =>
-              sourceColumnIdMap.get(fieldName) match {
-                case some@Some(id) => some
-                case None => throw new InternalError(s"Computation strategy parameters reference a column " +
-                  s"not found in source columns after validation.")
-              }
-            case None => None
-          }
-          JsonEncode.toJValue(GeocodingParameterSchema[ColumnId](
-            sources =
-              GeocodingSources[ColumnId](
-                address = lookupId(sources.address),
-                locality = lookupId(sources.locality),
-                subregion = lookupId(sources.subregion),
-                region = lookupId(sources.region),
-                postalCode = lookupId(sources.postalCode),
-                country = lookupId(sources.country)
-              ),
-            defaults = defaults,
-            version = version
-          )).asInstanceOf[JObject] // this really should be a JObject
-        case Left(error) =>
-          // this should not happen; we have already validated the computation strategy
-          throw new InternalError(s"Failed to decode computation strategy parameters after valitation: ${error.english}")
-      }
-    } else {
-      parameters
-    }
-  }
 
   def selectId(existingIds: Iterable[ColumnId]): ColumnId = {
     var id = randomId()
