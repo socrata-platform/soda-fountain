@@ -34,8 +34,6 @@ object UpsertUtils {
         handleResponse(RowDAO.DeleteWithoutPrimaryKey)
       case NotAnObjectOrSingleElementArrayEx(obj)    =>
         handleResponse(RowDAO.RowNotAnObject(obj))
-      case ComputationHandlerNotFoundEx(typ)         =>
-        handleResponse(RowDAO.ComputationHandlerNotFound(typ))
     }
   }
 

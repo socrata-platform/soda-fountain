@@ -2,7 +2,7 @@ package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.ast._
 import com.socrata.soda.clients.datacoordinator._
-import com.socrata.soda.server.{TestComputedColumns, DatasetsForTesting}
+import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
@@ -24,7 +24,7 @@ class RowDataTranslatorTest extends FunSuite with Matchers with DatasetsForTesti
   }
 
   test("transformClientRowsForUpsert - no rows") {
-    val result = translator.transformClientRowsForUpsert(TestComputedColumns, Iterator())
+    val result = translator.transformClientRowsForUpsert(Iterator())
     result.toSeq should equal (Seq())
   }
 
@@ -37,19 +37,19 @@ class RowDataTranslatorTest extends FunSuite with Matchers with DatasetsForTesti
     val rows = Iterator(JObject(Map("source" -> JNumber(4))))
 
     a [MaltypedDataEx] should be thrownBy
-      translator.transformClientRowsForUpsert(TestComputedColumns, rows).next()
+      translator.transformClientRowsForUpsert(rows).next()
   }
 
   test("transformClientRowsForUpsert - delete as ID array") {
     val rows = Iterator(JArray(Seq(JString("row-7k7u_jfib~g6vw"))))
-    val result = translator.transformClientRowsForUpsert(TestComputedColumns, rows)
+    val result = translator.transformClientRowsForUpsert(rows)
 
     result.toSeq should equal (Seq(DeleteRow(JString("row-7k7u_jfib~g6vw"))))
   }
 
   test("transformClientRowsForUpsert - delete as legacy delete") {
     val rows = Iterator(JObject(Map(":id" -> JString("row-7k7u_jfib~g6vw"), ":deleted" -> JBoolean(true))))
-    val result = translator.transformClientRowsForUpsert(TestComputedColumns, rows)
+    val result = translator.transformClientRowsForUpsert(rows)
 
     result.toSeq should equal (Seq(DeleteRow(JString("row-7k7u_jfib~g6vw"))))
   }
@@ -57,10 +57,10 @@ class RowDataTranslatorTest extends FunSuite with Matchers with DatasetsForTesti
   test("transformClientRowsForUpsert - mixture of upserts and deletes") {
     val rows = Iterator(JObject(Map("source" -> JString("foo"))),
                         JArray(Seq(JString("row-7k7u_jfib~g6vw"))))
-    val result = translator.transformClientRowsForUpsert(TestComputedColumns, rows)
+    val result = translator.transformClientRowsForUpsert(rows)
 
     result.toSeq should equal (Seq(
-      UpsertRow(Map(ds.colId("source") -> JString("foo"), ds.colId(":computed") -> JString("foo fun"))),
+      UpsertRow(Map(ds.colId("source") -> JString("foo"))),
       DeleteRow(JString("row-7k7u_jfib~g6vw"))
     ))
   }
@@ -69,24 +69,22 @@ class RowDataTranslatorTest extends FunSuite with Matchers with DatasetsForTesti
     val colsExceptComputed = dsInfo.dcColumns.filterNot(_.fieldName.name == ":computed")
     val schema = ExportDAO.CSchema(
       Some(3), Some(2), Some(DateTime.now), "en_US", Some(ColumnName(":id")), Some(3), colsExceptComputed)
-    val result = translator.transformDcRowsForUpsert(TestComputedColumns, Seq(), schema, dsInfo.dcRows.take(1))
+    val result = translator.transformDcRowsForUpsert(schema, dsInfo.dcRows.take(1))
 
     result.toSeq should equal (Seq(
       UpsertRow(Map(ds.colId(":id") -> JString("row-7nu6~cenw_bx9a"), ds.colId("source") -> JString("giraffe")))
     ))
   }
 
-  test("transformDcRowsForUpsert - one column to compute") {
+  test("transformDcRowsForUpsert - one column to compute should not get computed") {
     val colsExceptComputed = dsInfo.dcColumns.filterNot(_.fieldName.name == ":computed")
     val schema = ExportDAO.CSchema(
       Some(3), Some(2), Some(DateTime.now), "en_US", Some(ColumnName(":id")), Some(3), colsExceptComputed)
-    val result = translator.transformDcRowsForUpsert(
-      TestComputedColumns, Seq(ds.col(":computed")), schema, dsInfo.dcRows.take(1))
+    val result = translator.transformDcRowsForUpsert(schema, dsInfo.dcRows.take(1))
 
     result.toSeq should equal (Seq(
       UpsertRow(Map(ds.colId(":id") -> JString("row-7nu6~cenw_bx9a"),
-                    ds.colId("source") -> JString("giraffe"),
-                    ds.colId(":computed") -> JString("giraffe fun")))
+                    ds.colId("source") -> JString("giraffe")))
     ))
   }
 }
