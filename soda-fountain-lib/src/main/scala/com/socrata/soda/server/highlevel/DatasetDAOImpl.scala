@@ -61,7 +61,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               ???
           }
         }
-        Right(DatasetSpec(resourceName, name, trueDesc, trueRID, trueLocale, None, trueColumns))
+        // idk what is going on in this method
+        getDataset(resourceName, None) match {
+          case Found(datasetRecord) =>
+            Right(DatasetSpec(resourceName, datasetRecord.systemId.underlying, name, trueDesc, trueRID, trueLocale, None, trueColumns))
+          case _ =>
+            // not found with that resourceName....
+            Left(DatasetNotFound(resourceName))
+        }
       // TODO: Not-success case
     }
   }
@@ -270,6 +277,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         Found(datasetRecord)
       case None =>
         DatasetNotFound(dataset)
+    }
+
+  override def getDatasetBySystemId(systemId: String): Result =
+    store.lookupDatasetBySystemId(systemId) match {
+      case Some(datasetRecord) =>
+        Found(datasetRecord)
+      case None =>
+        DatasetNotFoundBySystemId(systemId)
     }
 
   class Retry extends ControlThrowable
@@ -519,4 +534,5 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     log.info("internal error; tag = " + uuid)
     uuid
   }
+
 }

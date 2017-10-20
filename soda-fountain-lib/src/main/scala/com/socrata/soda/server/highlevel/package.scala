@@ -69,6 +69,7 @@ package object highlevel {
     def asSpec: DatasetSpec = {
       DatasetSpec(
         __underlying.resourceName,
+        __underlying.systemId.underlying,
         __underlying.name,
         __underlying.description,
         __underlying.columnsById(__underlying.primaryKey).fieldName,
