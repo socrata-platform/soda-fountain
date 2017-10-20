@@ -8,11 +8,10 @@ import com.socrata.http.server.util.RequestId
 import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.responses._
-//import com.socrata.soda.server.highlevel.DatasetDAO.{NonExistentColumn, DatasetAlreadyExists}
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
-import com.socrata.soda.server.wiremodels.{UserProvidedSpec, Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
+import com.socrata.soda.server.wiremodels.{Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
 import com.socrata.soda.server.wiremodels.{RequestProblem, IOProblem}
 import javax.servlet.http.HttpServletRequest
 
