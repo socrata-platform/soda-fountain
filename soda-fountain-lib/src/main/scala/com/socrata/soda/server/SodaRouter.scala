@@ -31,7 +31,6 @@ class SodaRouter(versionResource: HttpService,
                  datasetExportCopyResource: (ResourceName, OptionallyTypedPathComponent[String]) => HttpService,
                  exportExtensions: String => Boolean,
                  datasetRollupResource: (ResourceName, RollupName) => HttpService,
-                 computeResource: (ResourceName, ColumnName) => HttpService,
                  sampleResource: (ResourceName, ColumnName) => HttpService,
                  suggestResource: (ResourceName, ColumnName, String) => HttpService,
                  snapshotResources: SnapshotResources) {
@@ -81,7 +80,6 @@ class SodaRouter(versionResource: HttpService,
     Route("/snapshot/{ResourceName}", snapshotResources.listSnapshotsResource),
     Route("/snapshot/{ResourceName}/{Long}", snapshotResources.snapshotResource),
     Route("/dataset-rollup/{ResourceName}/{RollupName}", datasetRollupResource),
-    Route("/compute/{ResourceName}/{ColumnName}", computeResource),
     Route("/suggest/{ResourceName}/{ColumnName}", sampleResource),
     Route("/suggest/{ResourceName}/{ColumnName}/{String}", suggestResource)
   )
