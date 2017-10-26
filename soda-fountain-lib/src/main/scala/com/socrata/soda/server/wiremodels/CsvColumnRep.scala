@@ -1,7 +1,9 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.v3.ast.{JString, JObject}
-import com.rojoma.json.v3.codec.{JsonEncode, JsonDecode}
+import java.net.URLEncoder
+
+import com.rojoma.json.v3.ast.{JObject, JString}
+import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.soql.types._
@@ -173,6 +175,41 @@ object CsvColumnRep {
     }
   }
 
+  object DocumentRep extends CsvColumnRep {
+    /**
+      * phoneType: phoneNumber
+      * phoneNumber (if phoneType is null)
+      * phoneType (if phoneNumber is null)
+      */
+    def toString(value: SoQLValue) = {
+      value match {
+        case SoQLNull => null
+        case SoQLDocument(fileId, optContentType, optFilename) =>
+          val sb = new StringBuilder
+          sb.append(fileId)
+          val hasFilename = optFilename.nonEmpty
+          if (optContentType.nonEmpty || hasFilename) sb.append("?")
+          optFilename.foreach { x =>
+            sb.append("filename=")
+            sb.append(URLEncoder.encode(x, "UTF-8"))
+          }
+          optContentType.foreach { x =>
+            if (hasFilename) { sb.append("&") }
+            sb.append("content_type=")
+            sb.append(URLEncoder.encode(x, "UTF-8"))
+          }
+          sb.toString()
+        case _ => null
+      }
+    }
+  }
+
+  object PhotoRep extends CsvColumnRep {
+    def toString(value: SoQLValue) =
+      if(SoQLNull == value) null
+      else value.asInstanceOf[SoQLPhoto].value
+  }
+
   object UrlRep extends CsvColumnRep {
     def toString(value: SoQLValue) = {
       value match {
@@ -212,6 +249,8 @@ object CsvColumnRep {
     SoQLBlob -> BlobRep,
     SoQLPhone -> PhoneRep,
     SoQLLocation -> LocationRep,
+    SoQLDocument -> DocumentRep,
+    SoQLPhoto -> PhotoRep,
     SoQLUrl -> UrlRep
   )
 

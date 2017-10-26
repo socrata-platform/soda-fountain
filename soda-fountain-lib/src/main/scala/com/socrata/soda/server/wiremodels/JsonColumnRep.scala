@@ -56,6 +56,7 @@ object JsonColumnRep {
   object ObjectRep extends CodecBasedJsonColumnRep[JObject](SoQLObject, _.asInstanceOf[SoQLObject].value, SoQLObject(_))
   object ArrayRep extends CodecBasedJsonColumnRep[JArray](SoQLArray, _.asInstanceOf[SoQLArray].value, SoQLArray(_))
   object BlobRep extends CodecBasedJsonColumnRep[String](SoQLBlob, _.asInstanceOf[SoQLBlob].value, SoQLBlob(_))
+  object PhotoRep extends CodecBasedJsonColumnRep[String](SoQLPhoto, _.asInstanceOf[SoQLPhoto].value, SoQLPhoto(_))
 
   // Note: top-level `null's will be treated as SoQL nulls, not JSON nulls.  I think this is OK?
   object JValueRep extends CodecBasedJsonColumnRep[JValue](SoQLJson, _.asInstanceOf[SoQLJson].value, SoQLJson(_))
@@ -111,6 +112,25 @@ object JsonColumnRep {
     def toJValue(input: SoQLValue): JValue = {
       input match {
         case x: SoQLUrl => JsonEncode.toJValue(x)
+        case SoQLNull => JNull
+        case _ => stdBadValue
+      }
+    }
+  }
+
+  object DocumentRep extends JsonColumnRep {
+    val representedType = SoQLDocument
+
+    def fromJValue(input: JValue): Option[SoQLValue] = {
+      JsonDecode[SoQLDocument].decode(input) match {
+        case Right(x) => Some(x)
+        case _ => Some(SoQLNull)
+      }
+    }
+
+    def toJValue(input: SoQLValue): JValue = {
+      input match {
+        case x: SoQLDocument => JsonEncode.toJValue(x)
         case SoQLNull => JNull
         case _ => stdBadValue
       }
@@ -371,6 +391,8 @@ object JsonColumnRep {
       SoQLBlob -> BlobRep,
       SoQLPhone -> PhoneRep,
       SoQLUrl -> UrlRep,
+      SoQLDocument -> DocumentRep,
+      SoQLPhoto -> PhotoRep,
       SoQLLocation -> ClientLocationRep
     )
 
@@ -399,6 +421,8 @@ object JsonColumnRep {
       SoQLBlob -> BlobRep,
       SoQLPhone -> PhoneRep,
       SoQLUrl -> UrlRep,
+      SoQLDocument -> DocumentRep,
+      SoQLPhoto -> PhotoRep,
       SoQLLocation -> LocationRep
     )
 
