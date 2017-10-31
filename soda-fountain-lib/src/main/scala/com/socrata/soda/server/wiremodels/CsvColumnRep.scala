@@ -175,6 +175,11 @@ object CsvColumnRep {
     }
   }
 
+  /**
+    * Core is not supposed to use csv serialization format of document type directly.
+    * It will ask for cjson and perform its own serialization.
+    * Having an implementation will help development in some occasion.
+    */
   object DocumentRep extends CsvColumnRep {
     /**
       * phoneType: phoneNumber
@@ -204,6 +209,12 @@ object CsvColumnRep {
     }
   }
 
+
+  /**
+    * Core is not supposed to use csv serialization format of photo type directly.
+    * It will ask for cjson and perform its own serialization.
+    * Having an implementation will help development in some occasion.
+    */
   object PhotoRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
