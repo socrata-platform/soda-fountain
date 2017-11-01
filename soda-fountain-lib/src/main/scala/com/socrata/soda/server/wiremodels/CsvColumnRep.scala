@@ -9,6 +9,9 @@ import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.soql.types._
 import com.vividsolutions.jts.geom._
 
+/**
+  * EN-19815 - Rethink what we want to do about export format (csv) in Soda Fountain. Maybe it should be removed.
+  */
 trait CsvColumnWriteRep {
   def toString(value: SoQLValue): String
 }
