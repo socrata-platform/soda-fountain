@@ -1,12 +1,17 @@
 package com.socrata.soda.server.wiremodels
 
-import com.rojoma.json.v3.ast.{JString, JObject}
-import com.rojoma.json.v3.codec.{JsonEncode, JsonDecode}
+import java.net.URLEncoder
+
+import com.rojoma.json.v3.ast.{JObject, JString}
+import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.soql.types._
 import com.vividsolutions.jts.geom._
 
+/**
+  * EN-19815 - Rethink what we want to do about export format (csv) in Soda Fountain. Maybe it should be removed.
+  */
 trait CsvColumnWriteRep {
   def toString(value: SoQLValue): String
 }
@@ -173,6 +178,52 @@ object CsvColumnRep {
     }
   }
 
+  /**
+    * Core is not supposed to use csv serialization format of document type directly.
+    * It will ask for cjson and perform its own serialization.
+    * Having an implementation will help development in some occasion.
+    */
+  object DocumentRep extends CsvColumnRep {
+    /**
+      * phoneType: phoneNumber
+      * phoneNumber (if phoneType is null)
+      * phoneType (if phoneNumber is null)
+      */
+    def toString(value: SoQLValue) = {
+      value match {
+        case SoQLNull => null
+        case SoQLDocument(fileId, optContentType, optFilename) =>
+          val sb = new StringBuilder
+          sb.append(fileId)
+          val hasFilename = optFilename.nonEmpty
+          if (optContentType.nonEmpty || hasFilename) sb.append("?")
+          optFilename.foreach { x =>
+            sb.append("filename=")
+            sb.append(URLEncoder.encode(x, "UTF-8"))
+          }
+          optContentType.foreach { x =>
+            if (hasFilename) { sb.append("&") }
+            sb.append("content_type=")
+            sb.append(URLEncoder.encode(x, "UTF-8"))
+          }
+          sb.toString()
+        case _ => null
+      }
+    }
+  }
+
+
+  /**
+    * Core is not supposed to use csv serialization format of photo type directly.
+    * It will ask for cjson and perform its own serialization.
+    * Having an implementation will help development in some occasion.
+    */
+  object PhotoRep extends CsvColumnRep {
+    def toString(value: SoQLValue) =
+      if(SoQLNull == value) null
+      else value.asInstanceOf[SoQLPhoto].value
+  }
+
   object UrlRep extends CsvColumnRep {
     def toString(value: SoQLValue) = {
       value match {
@@ -212,6 +263,8 @@ object CsvColumnRep {
     SoQLBlob -> BlobRep,
     SoQLPhone -> PhoneRep,
     SoQLLocation -> LocationRep,
+    SoQLDocument -> DocumentRep,
+    SoQLPhoto -> PhotoRep,
     SoQLUrl -> UrlRep
   )
 
