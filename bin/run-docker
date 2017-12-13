@@ -14,7 +14,7 @@ AWS_PROFILE=infrastructure docker run \
            -e DATA_COORDINATORS_FOR_NEW_DATASETS="primus" \
            -e SPANDEX_HOST="local.dev.socrata.net" \
            -e SPANDEX_PORT=8042 \
-       -t 649617362025.dkr.ecr.us-west-2.amazonaws.com/internal/soda-fountain:latest
+           -d \
+           -t 649617362025.dkr.ecr.us-west-2.amazonaws.com/internal/soda-fountain:latest
 
 
-#       -d \
