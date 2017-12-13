@@ -1,0 +1,5 @@
+{
+    "start_process": "bin/start_soda_fountain.sh",
+    "start_container": "bin/run-docker",
+    "ports": [ 6010 ]
+}
