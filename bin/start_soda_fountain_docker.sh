@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-AWS_PROFILE=infrastructure docker pull 649617362025.dkr.ecr.us-west-2.amazonaws.com/internal/soda-fountain:latest
+image_tag="$1"
+AWS_PROFILE=infrastructure docker pull 649617362025.dkr.ecr.us-west-2.amazonaws.com/internal/soda-fountain:$image_tag
 
 AWS_PROFILE=infrastructure docker run \
            -p 6010:6010 \
@@ -15,6 +16,6 @@ AWS_PROFILE=infrastructure docker run \
            -e SPANDEX_HOST="local.dev.socrata.net" \
            -e SPANDEX_PORT=8042 \
            -d \
-           -t 649617362025.dkr.ecr.us-west-2.amazonaws.com/internal/soda-fountain:latest
+           -t 649617362025.dkr.ecr.us-west-2.amazonaws.com/internal/soda-fountain:$image_tag
 
 
