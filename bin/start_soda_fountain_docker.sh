@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 
 image_tag="$1"
-AWS_PROFILE=infrastructure docker pull 649617362025.dkr.ecr.us-west-2.amazonaws.com/internal/soda-fountain:$image_tag
+if [ "$image_tag" == "local" ]; then
+  image="soda-fountain"
+else
+  image="649617362025.dkr.ecr.us-west-2.amazonaws.com/internal/soda-fountain:$image_tag"
+fi
 
 AWS_PROFILE=infrastructure docker run \
            -p 6010:6010 \
@@ -15,7 +19,6 @@ AWS_PROFILE=infrastructure docker run \
            -e DATA_COORDINATORS_FOR_NEW_DATASETS="primus" \
            -e SPANDEX_HOST="local.dev.socrata.net" \
            -e SPANDEX_PORT=8042 \
-           -d \
-           -t 649617362025.dkr.ecr.us-west-2.amazonaws.com/internal/soda-fountain:$image_tag
+           -t "$image"
 
 
