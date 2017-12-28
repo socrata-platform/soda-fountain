@@ -1,6 +1,6 @@
 {
-    "aliases": [ "sf" ],
-    "start_process": "bin/start_soda_fountain.sh",
-    "start_container": "bin/start_soda_fountain_docker.sh",
-    "ports": [ 6010 ]
+  "aliases": [ "sf" ],
+  "ports": [ 6010 ],
+  "start_container": "bin/start_soda_fountain_docker.sh",
+  "start_process": "bin/start_soda_fountain.sh"
 }
