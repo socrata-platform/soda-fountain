@@ -5,7 +5,7 @@ if [ -z "$MARATHON_APP_ID" ]; then
   echo "Not compiling j2 config file because this is not running in Marathon!"
 else
   /bin/env_parse ${SERVER_CONFIG}.j2
-  CONFIG_LINE="-Dconfig.file=${SERVER_CONFIG}"  
+  export CONFIG_LINE="-Dconfig.file=${SERVER_CONFIG}"  
 fi
 
 su socrata -c '/usr/bin/java \
