@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 
-image_tag="$1"
-if [ -z "$image_tag" ]; then
-  echo "ERR>> must specify an image tag or `local` if you want to build your own container"
+image="$1"
+if [ -z "$image" ]; then
+  echo "ERR: must specify an image name as the first argument to this script!"
   exit 1
-elif [ "$image_tag" == "local" ]; then
-  image="soda-fountain"
-else
-  image="649617362025.dkr.ecr.us-west-2.amazonaws.com/internal/soda-fountain:$image_tag"
 fi
 
 AWS_PROFILE=infrastructure docker run \
