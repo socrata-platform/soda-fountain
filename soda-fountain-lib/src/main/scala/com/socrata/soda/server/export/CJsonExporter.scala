@@ -4,6 +4,7 @@ import com.rojoma.json.v3.ast.{JString, JNumber}
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.io.CompactJsonWriter
+import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.simplearm.util._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.common.util.AliasedCharset
@@ -52,7 +53,11 @@ object CJsonExporter extends Exporter {
           if(didOne) w.write(',')
           else didOne = true
           val ci = schema.schema(schemaOrdering(i))
-          w.write(s"""{"c":${JString(ci.fieldName.name)},"t":${JsonEncode.toJValue(ci.typ)}}""")
+          w.write(s"""{"c":${JString(ci.fieldName.name)},"t":${JsonEncode.toJValue(ci.typ)}""")
+          ci.computationStrategy.foreach { cs =>
+            w.write(s""","s":${CompactJsonWriter.toString(cs)}""")
+          }
+          w.write("}")
         }
         w.write("]\n }\n")
 
