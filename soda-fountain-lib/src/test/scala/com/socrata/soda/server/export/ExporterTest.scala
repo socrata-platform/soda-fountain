@@ -38,7 +38,8 @@ trait ExporterTest extends FunSuite with MockFactory with ProxyMockFactory with 
         decoded.schema.map { f =>
           ColumnInfo(dataset.columnsById(f.columnId).id,
                      dataset.columnsById(f.columnId).fieldName,
-                     f.typ)
+                     f.typ,
+                     None)
         })
 
 

@@ -1,5 +1,6 @@
 package com.socrata.soda.server.highlevel
 
+import com.rojoma.json.v3.ast.JValue
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.{Precondition, EntityTag, RequestId}
 import com.socrata.soda.server.copy.Stage
@@ -53,7 +54,7 @@ trait ExportDAO {
 object ExportDAO {
   val dateTimeParser = ISODateTimeFormat.dateTimeParser
 
-  case class ColumnInfo(id: ColumnId, fieldName: ColumnName, typ: SoQLType)
+  case class ColumnInfo(id: ColumnId, fieldName: ColumnName, typ: SoQLType, computationStrategy: Option[JValue])
   case class CSchema(approximateRowCount: Option[Long], dataVersion: Option[Long], lastModified: Option[DateTime], locale: String, pk: Option[ColumnName], rowCount: Option[Long], schema: Seq[ColumnInfo])
 
   sealed abstract class Result

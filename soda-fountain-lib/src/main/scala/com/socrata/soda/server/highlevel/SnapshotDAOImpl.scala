@@ -71,7 +71,7 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
                   rowCount = None,
                   schema = schema.schema.map { f =>
                     val fieldName = f.fieldName.getOrElse(ColumnName(f.columnId.underlying))
-                    ColumnInfo(f.columnId, fieldName, f.typ)
+                    ColumnInfo(f.columnId, fieldName, f.typ, None)
                   }.zip(toKeep).collect { case (v, true) => v }),
                 mappedRows))
           case SnapshotNotFoundResult(_, _) =>

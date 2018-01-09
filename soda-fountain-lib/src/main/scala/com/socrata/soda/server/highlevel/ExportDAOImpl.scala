@@ -1,14 +1,16 @@
 package com.socrata.soda.server.highlevel
 
+import com.rojoma.json.v3.ast._
 import com.rojoma.simplearm.v2._
 import com.socrata.http.server.util.{Precondition, RequestId}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord, ColumnRecordLike, NameAndSchemaStore}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.SodaUtils.traceHeaders
 import com.socrata.soda.server.wiremodels.JsonColumnRep
+import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import scala.util.control.ControlThrowable
@@ -22,6 +24,18 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
     store.lookupDataset(resourceName, copy)
   }
+
+  private def convertStrategy(strat: JValue, idNameMap: Map[ColumnId, ColumnName]): JValue =
+    strat match {
+      case JString(s) =>
+        idNameMap.get(ColumnId(s)) match {
+          case None => JString(s)
+          case Some(n) => JString(n.name)
+        }
+      case otherAtom: JAtom => otherAtom
+      case JArray(arr) => JArray(arr.map(convertStrategy(_, idNameMap)))
+      case JObject(fields) => JObject(fields.mapValues(convertStrategy(_, idNameMap)))
+    }
 
   def export[T](dataset: ResourceName,
                 precondition: Precondition,
@@ -60,7 +74,8 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 schema.schema.map { f =>
                   ColumnInfo(ds.columnsById(f.columnId).id,
                              ds.columnsById(f.columnId).fieldName,
-                             f.typ)
+                             f.typ,
+                             f.computationStrategy.map(convertStrategy(_, ds.columnsById.mapValues(_.fieldName))))
                 }
               )
               ExportDAO.Success(simpleSchema, etag, decodedSchema.rows)

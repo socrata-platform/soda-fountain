@@ -1,6 +1,7 @@
 package com.socrata.soda.server
 
 import com.rojoma.json.v3.ast.{JObject, JString}
+import com.rojoma.json.v3.codec.JsonEncode
 import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
@@ -80,7 +81,18 @@ trait DatasetsForTesting {
       DateTime.now
     )
 
-    val dcColumns = dataset.columns.map { col => ExportDAO.ColumnInfo(col.id, col.fieldName, col.typ) }
+    val dcColumns = dataset.columns.map { col =>
+      val csData = col.computationStrategy.map { cs =>
+        import com.rojoma.json.v3.interpolation._
+        val sourceColumns = cs.sourceColumns.getOrElse(Nil).map(_.id)
+        json""" {
+          type: ${cs.strategyType},
+          source_columns: ${sourceColumns},
+          parameters: ${cs.parameters.getOrElse(JObject.canonicalEmpty)}
+        }"""
+      }
+      ExportDAO.ColumnInfo(col.id, col.fieldName, col.typ, csData)
+    }
     val dcSchema = ExportDAO.CSchema(
       Some(3), Some(2), Some(DateTime.now), "en_US", Some(ColumnName(":id")), Some(3), dcColumns)
 

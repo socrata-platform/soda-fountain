@@ -14,7 +14,10 @@ import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import scala.runtime.AbstractFunction1
 
 object CJson {
-  case class Field(@JsonKey("c") columnId: ColumnId, @JsonKey("t") typ: SoQLType, @JsonKey("f") fieldName: Option[ColumnName])
+  case class Field(@JsonKey("c") columnId: ColumnId,
+                   @JsonKey("t") typ: SoQLType,
+                   @JsonKey("f") fieldName: Option[ColumnName],
+                   @JsonKey("s") computationStrategy: Option[JValue])
   private implicit val fieldCodec = AutomaticJsonCodecBuilder[Field]
 
   @JsonKeyStrategy(Strategy.Underscore)
