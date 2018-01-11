@@ -1,0 +1,37 @@
+package com.socrata.soda.server.resources
+
+import com.rojoma.json.v3.codec.DecodeError
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonUtil}
+import com.socrata.http.server.HttpRequest
+import com.socrata.soda.server.highlevel.DatasetDAO
+import com.socrata.soda.server.id.{DatasetId, ResourceName}
+
+
+case class DCCollocateOperation(collocations: Seq[Seq[DatasetId]])
+case class SFCollocateOperation(collocations: Seq[Seq[ResourceName]])
+
+object SFCollocateOperation{
+  private implicit val coCodec = AutomaticJsonCodecBuilder[SFCollocateOperation]
+  def getFromRequest(req: HttpRequest): Either[DecodeError, SFCollocateOperation] = {
+    JsonUtil.readJson[SFCollocateOperation](req.servletRequest.getReader)
+  }
+}
+object DCCollocateOperation{
+  def apply(sfCollocate: SFCollocateOperation, transformer: ResourceName => Option[DatasetId]): Either[DCCollocateOperation, DatasetDAO.FailResult] = {
+    val translatedIds = sfCollocate.collocations.map{_.map{
+      resource =>
+        transformer(resource) match {
+          case Some(id) => Left(id)
+          case None => Right(DatasetDAO.DatasetNotFound(resource))
+        }
+    }}
+
+    if(translatedIds.forall(_.forall(_.isLeft))) {
+      // Everything was able to be translated
+      Left(DCCollocateOperation(translatedIds.map(_.map(_.left.get))))
+    } else {
+      // Just get the first error to propogate up
+      Right(translatedIds.flatten.find(_.isRight).get.right.get)
+    }
+  }
+}

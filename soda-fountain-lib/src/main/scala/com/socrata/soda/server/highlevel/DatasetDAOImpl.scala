@@ -5,7 +5,7 @@ import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.highlevel.DatasetDAO.CannotAcquireDatasetWriteLock
 import com.socrata.soda.server.highlevel.DatasetDAO.FeedbackInProgress
-import com.socrata.soda.server.id.{ColumnId, ResourceName, RollupName, SecondaryId}
+import com.socrata.soda.server.id._
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec, UserProvidedRollupSpec}
 import com.socrata.soda.server.SodaUtils.traceHeaders
@@ -23,6 +23,7 @@ import DatasetDAO._
 
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
+import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation}
 
 class DatasetDAOImpl(dc: DataCoordinatorClient,
                      fbm: FeedbackSecondaryManifestClient,
@@ -511,6 +512,25 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         }
       case None =>
         DatasetNotFound(dataset)
+    }
+  }
+
+  def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean): Result = {
+    def translate(resource: ResourceName): Option[DatasetId] = store.translateResourceName(resource).map(_.systemId)
+    DCCollocateOperation(operation, translate) match {
+      case Left(op) =>
+        // TODO: Translate dc errors better, need to clarify what actually needs to be propogated
+        dc.collocate(secondaryId, op, explain) match {
+          case DataCoordinatorClient.CollocateResult(status, message) => CollocateDone(status, message)
+          case DataCoordinatorClient.InstanceNotExistResult(e) => GenericCollocateError(e)
+          case DataCoordinatorClient.StoreGroupNotExistResult(e) => GenericCollocateError(e)
+          case DataCoordinatorClient.StoreNotExistResult(e) => GenericCollocateError(e)
+          case DataCoordinatorClient.DatasetNotExistResult(e) => GenericCollocateError(e.underlying)
+          case x =>
+            log.warn("case is NOT implemented %s".format(x.toString))
+            InternalServerError("unknown", tag, x.toString)
+        }
+      case Right(err) => err
     }
   }
 

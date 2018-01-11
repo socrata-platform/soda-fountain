@@ -6,6 +6,7 @@ import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{Secondary
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
 import com.socrata.soda.server.persistence.DatasetRecord
+import com.socrata.soda.server.resources.SFCollocateOperation
 import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, UserProvidedDatasetSpec}
 import com.socrata.soql.environment.ColumnName
 
@@ -40,6 +41,7 @@ trait DatasetDAO {
                             requestId: RequestId): Result
   def getRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
   def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
+  def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean): Result
 }
 
 object DatasetDAO {
@@ -61,6 +63,7 @@ object DatasetDAO {
   case object PropagatedToSecondary extends SuccessResult
   case object RollupCreatedOrUpdated extends SuccessResult
   case object RollupDropped extends SuccessResult
+  case class CollocateDone(status: String, message: String) extends SuccessResult
 
   // FAILURES: DataCoordinator
   case class RollupNotFound(name: RollupName) extends FailResult
@@ -70,6 +73,7 @@ object DatasetDAO {
   case class IncorrectLifecycleStageResult(actualStage: String, expectedStage: Set[String]) extends FailResult
   case class InternalServerError(code: String, tag: String, data: String) extends FailResult
   case class UnexpectedInternalServerResponse(reason: String, tag: String) extends FailResult
+  case class GenericCollocateError(body: String) extends FailResult
 
   // FAILURES: Internally consumed
   case class InvalidDatasetName(name: ResourceName) extends FailResult

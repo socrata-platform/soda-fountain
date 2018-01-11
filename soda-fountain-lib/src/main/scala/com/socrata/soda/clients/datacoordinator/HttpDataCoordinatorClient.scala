@@ -2,7 +2,7 @@ package com.socrata.soda.clients.datacoordinator
 
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
-import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonArrayIterator}
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, AutomaticJsonEncodeBuilder, JsonArrayIterator}
 import com.rojoma.simplearm.v2._
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.common.util.HttpUtils
@@ -12,6 +12,7 @@ import com.socrata.http.server.util._
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
+import com.socrata.soda.server.resources.DCCollocateOperation
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 
@@ -37,6 +38,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def snapshottedUrl(host: RequestBuilder) = host.p("snapshotted")
   def snapshotsUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "snapshots")
   def snapshotUrl(host: RequestBuilder, datasetId: DatasetId, num: Long) = host.p("dataset", datasetId.underlying, "snapshots", num.toString)
+  def collocateUrl(host: RequestBuilder) = host.p("secondary-manifest", "_DEFAULT_", "collocate")
 
   def withHost[T](instance: String)(f: RequestBuilder => T): T =
     hostO(instance) match {
@@ -262,6 +264,15 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 f(Left(NotPrimaryKeyResult(dataset, column, commandIndex)))
               case DeleteOnRowId(dataset, column, commandIndex) =>
                 f(Left(CannotDeleteRowIdResult(commandIndex)))  // commandIndex available
+              case DatasetNotExist(dataset) =>
+                f(Left(DatasetNotExistResult(dataset)))
+              case InstanceNotExist(instance) =>
+                f(Left(InstanceNotExistResult(instance)))
+              case StoreGroupNotExist(group) =>
+                f(Left(StoreGroupNotExistResult(group)))
+              case StoreNotExist(store) =>
+                f(Left(StoreNotExistResult(store)))
+
             }
             case (dcError: DataCoordinatorError) => dcError match {
               case ThreadsMutationError() =>
@@ -605,6 +616,45 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         }
       }
     }
+
+  override def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean): Result = {
+    implicit val encoder = AutomaticJsonEncodeBuilder[DCCollocateOperation]
+
+    // Use any of the dcs mentioned in the operation as a host
+    withHost(operation.collocations.head.head) { host =>
+      val request = collocateUrl(host)
+        .addParameter("explain" -> explain.toString)
+        .jsonBody[DCCollocateOperation](operation)
+      httpClient.execute(request).run { r =>
+        errorFrom(r) match {
+          case None =>
+            case class Cost(moves: Int)
+            case class CollocateResponse(
+              status: String,
+              message: String,
+              cost: Cost,
+              moves: Seq[String]
+            )
+
+            implicit val coCodec = AutomaticJsonCodecBuilder[Cost]
+            implicit val cCodec = AutomaticJsonCodecBuilder[CollocateResponse]
+
+            r.value[CollocateResponse]() match {
+              case Right(e) => CollocateResult(e.status, e.message)
+              case Left(e) => throw new Exception("Unable to parse response from data coordinator: " + e.english)
+            }
+            //NOTE: These are duplicated in sendScript, is there any way to prevent this?
+          case Some(InstanceNotExist(instance)) => InstanceNotExistResult(instance)
+          case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
+          case Some(StoreNotExist(store)) => StoreNotExistResult(store)
+          case Some(DatasetNotExist(dataset)) => DatasetNotExistResult(dataset)
+          case Some(e) =>
+            throw new Exception("Unexpected error from data-coordinator on collocation: " + e)
+        }
+      }
+    }
+  }
+
   /**
    * EntityTag Seq from response object
    * @param r
