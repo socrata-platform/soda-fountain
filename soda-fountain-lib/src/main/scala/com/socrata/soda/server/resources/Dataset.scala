@@ -76,6 +76,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         NoContent
       case DatasetDAO.Undeleted =>
         NoContent
+      case DatasetDAO.CollocateDone(status, message) =>
+        OK ~> Json(Map("status" -> status, "message" -> message))
       // fail cases
       case DatasetDAO.DatasetAlreadyExists(dataset) =>
         SodaUtils.response(req, DatasetAlreadyExistsSodaErr(dataset))
@@ -105,6 +107,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         SodaUtils.response(req, InternalError(tag, "code"  -> JString(code), "data" -> JString(data)))
       case DatasetDAO.UnexpectedInternalServerResponse(reason, tag) =>
         SodaUtils.response(req, InternalError(tag, "reason"  -> JString(reason)))
+      case DatasetDAO.GenericCollocateError(err) =>
+        SodaUtils.response(req, CollocateError(err))
 
     }
   }
@@ -185,6 +189,19 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   case class secondaryCopyService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
     override def post = { req =>
       response(req, datasetDAO.propagateToSecondary(resourceName, secondary, RequestId.getFromRequest(req)))
+    }
+  }
+
+  case class secondaryCollocateService(secondaryId: SecondaryId) extends SodaResource{
+    override def post = { req =>
+       SFCollocateOperation.getFromRequest(req) match {
+        case Right(operation) =>
+          val explain = req.getParameter("explain") == "true"
+          response(req, datasetDAO.collocate(secondaryId, operation, explain))
+        case Left(_) =>
+          // NOTE: Is there a better error I could be throwing?
+          BadRequest
+      }
     }
   }
 

@@ -73,7 +73,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
         }
       }
       }
-      }
+    }
 
 
   // Below this line is all setup.
@@ -207,6 +207,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       resourceRowResource = resource.rowService,
       datasetCopyResource = dataset.copyService,
       datasetSecondaryCopyResource = dataset.secondaryCopyService,
+      datasetSecondaryCollocateResource = dataset.secondaryCollocateService,
       datasetSecondaryVersionsResource = dataset.secondaryVersionsService,
       datasetVersionResource = dataset.versionService,
       datasetExportResource = export.publishedService,

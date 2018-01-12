@@ -8,6 +8,7 @@ import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soda.server.util.CopySpecifier
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.http.server.util.{Precondition, EntityTag}
+import com.socrata.soda.server.resources.DCCollocateOperation
 import org.joda.time.DateTime
 
 object DataCoordinatorClient {
@@ -45,6 +46,7 @@ object DataCoordinatorClient {
   // SUCCESS CASES
   case class NonCreateScriptResult(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, lastModified: DateTime) extends SuccessResult
   case class ExportResult(json: Iterator[JValue], lastModified: Option[DateTime], etag: Option[EntityTag]) extends SuccessResult
+  case class CollocateResult(status: String, message: String) extends SuccessResult
 
 
 
@@ -100,6 +102,12 @@ object DataCoordinatorClient {
   case class VersionOnNewRowResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
   case class ScriptRowDataInvalidValueResult(datasetId: DatasetId, value: JValue,
                                              commandIndex: Long, commandSubIndex: Long) extends FailResult
+
+  // FAIL CASES: Collocation
+  case class InstanceNotExistResult(instance: String) extends FailResult
+  case class StoreGroupNotExistResult(storeGroup: String) extends FailResult
+  case class StoreNotExistResult(store: String) extends FailResult
+  case class DatasetNotExistResult(dataset: DatasetId) extends FailResult
 }
 
 trait DataCoordinatorClient {
@@ -178,4 +186,6 @@ trait DataCoordinatorClient {
              rowId: Option[String],
              extraHeaders: Map[String, String],
              resourceScope: ResourceScope): Result
+
+  def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean): Result
 }

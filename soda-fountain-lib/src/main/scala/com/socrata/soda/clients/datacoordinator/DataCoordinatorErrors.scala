@@ -186,6 +186,19 @@ case class NotPrimaryKey(dataset: DatasetId, column: ColumnId, commandIndex: Lon
 case class DeleteOnRowId(dataset: DatasetId, column: ColumnId, commandIndex: Long) extends DCUpdateError
 
 
+// Collocate Errors
+
+@Tag("collocation.instance.does-not-exist")
+case class InstanceNotExist(instance: String) extends DCUpdateError
+
+@Tag("collocation.secondary.store-group-does-not-exist")
+case class StoreGroupNotExist(storeGroup: String) extends DCUpdateError
+
+@Tag("collocation.secondary.store-does-not-exist")
+case class StoreNotExist(store: String) extends DCUpdateError
+
+@Tag("collocation.datataset.does-not-exist")
+case class DatasetNotExist(dataset: DatasetId) extends DCUpdateError
 
 // Unknown Errors not found in Data-Coodinator:
 

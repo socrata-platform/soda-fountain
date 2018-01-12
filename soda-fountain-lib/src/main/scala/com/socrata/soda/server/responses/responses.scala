@@ -271,3 +271,7 @@ case class UnsupportedUpdateOperation(errMessage: String)
 case object InvalidRowId
   extends SodaResponse(SC_BAD_REQUEST, "soda.invalid-row-identifier",
     s"Row-identifier is invalid")
+
+case class CollocateError(msg: String)
+  extends SodaResponse(SC_BAD_REQUEST, "soda.collocate-error", //Does this string need to be referring to something in a different project?
+      s"Collocate failed with: $msg")
