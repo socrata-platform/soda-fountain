@@ -2,7 +2,7 @@ package com.socrata.soda.clients.datacoordinator
 
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
-import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, AutomaticJsonEncodeBuilder, JsonArrayIterator}
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, AutomaticJsonEncodeBuilder, JsonArrayIterator, JsonKeyStrategy, Strategy}
 import com.rojoma.simplearm.v2._
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.common.util.HttpUtils
@@ -12,6 +12,7 @@ import com.socrata.http.server.util._
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
+
 import com.socrata.soda.server.resources.DCCollocateOperation
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -629,14 +630,17 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         errorFrom(r) match {
           case None =>
             case class Cost(moves: Int)
+            @JsonKeyStrategy(Strategy.Underscore)
+            case class Move(datasetInternalName: String, storeId_From: String, storeIdTo: String)
             case class CollocateResponse(
               status: String,
               message: String,
               cost: Cost,
-              moves: Seq[String]
+              moves: Seq[Move]
             )
 
             implicit val coCodec = AutomaticJsonCodecBuilder[Cost]
+            implicit val moCodec = AutomaticJsonCodecBuilder[Move]
             implicit val cCodec = AutomaticJsonCodecBuilder[CollocateResponse]
 
             r.value[CollocateResponse]() match {
