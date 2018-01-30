@@ -515,13 +515,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean): Result = {
+  def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result = {
     def translate(resource: ResourceName): Option[DatasetId] = store.translateResourceName(resource).map(_.systemId)
     DCCollocateOperation(operation, translate) match {
       case Left(op) =>
         // TODO: Translate dc errors better, need to clarify what actually needs to be propogated
-        dc.collocate(secondaryId, op, explain) match {
-          case DataCoordinatorClient.CollocateResult(status, message) => CollocateDone(status, message)
+        dc.collocate(secondaryId, op, explain, jobId) match {
+          case res: DataCoordinatorClient.CollocateResult =>
+            CollocateDone(res.jobId, res.status, res.message, Cost(res.cost), res.moves.map(Move(_)))
           case DataCoordinatorClient.InstanceNotExistResult(e) => GenericCollocateError(e)
           case DataCoordinatorClient.StoreGroupNotExistResult(e) => GenericCollocateError(e)
           case DataCoordinatorClient.StoreNotExistResult(e) => GenericCollocateError(e)
