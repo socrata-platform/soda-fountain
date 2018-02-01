@@ -6,4 +6,4 @@
 keystore.jks
 /*.log
 target/
-configs/local-soda-fountain.conf
+configs/local*.conf
