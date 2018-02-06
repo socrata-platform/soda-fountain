@@ -15,6 +15,8 @@ import com.socrata.soda.server.wiremodels.{Extracted, UserProvidedDatasetSpec, U
 import com.socrata.soda.server.wiremodels.{RequestProblem, IOProblem}
 import javax.servlet.http.HttpServletRequest
 
+import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
+
 /**
  * Dataset: CRUD operations for dataset schema and metadata
  */
@@ -76,8 +78,9 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         NoContent
       case DatasetDAO.Undeleted =>
         NoContent
-      case DatasetDAO.CollocateDone(status, message) =>
-        OK ~> Json(Map("status" -> status, "message" -> message))
+      case collocateResult: DatasetDAO.CollocateDone =>
+        implicit val codec = AutomaticJsonCodecBuilder[DatasetDAO.CollocateDone]
+        OK ~> Json(collocateResult)
       // fail cases
       case DatasetDAO.DatasetAlreadyExists(dataset) =>
         SodaUtils.response(req, DatasetAlreadyExistsSodaErr(dataset))
@@ -197,7 +200,10 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
        SFCollocateOperation.getFromRequest(req) match {
         case Right(operation) =>
           val explain = req.getParameter("explain") == "true"
-          response(req, datasetDAO.collocate(secondaryId, operation, explain))
+
+          // TODO: Proper error handling
+          val jobId = Option(req.getParameter("job")).getOrElse(throw new Exception)
+          response(req, datasetDAO.collocate(secondaryId, operation, explain, jobId))
         case Left(_) =>
           // NOTE: Is there a better error I could be throwing?
           BadRequest

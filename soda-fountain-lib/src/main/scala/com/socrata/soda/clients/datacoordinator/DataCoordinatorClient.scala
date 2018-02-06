@@ -38,6 +38,16 @@ object DataCoordinatorClient {
   case class UpsertReportItem(data: Iterator[JValue] /* Note: this MUST be completely consumed before calling hasNext/next on parent iterator! */) extends ReportItem
   case object OtherReportItem extends ReportItem
 
+  case class Cost(moves: Int)
+  object Cost {
+    implicit val codec = AutomaticJsonCodecBuilder[Cost]
+  }
+
+  @JsonKeyStrategy(Strategy.Underscore)
+  case class Move(datasetInternalName: String, storeIdFrom: String, storeIdTo: String)
+  object Move {
+    implicit val codec = AutomaticJsonCodecBuilder[Move]
+  }
 
   sealed abstract class Result
   sealed class FailResult extends Result
@@ -46,7 +56,7 @@ object DataCoordinatorClient {
   // SUCCESS CASES
   case class NonCreateScriptResult(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, lastModified: DateTime) extends SuccessResult
   case class ExportResult(json: Iterator[JValue], lastModified: Option[DateTime], etag: Option[EntityTag]) extends SuccessResult
-  case class CollocateResult(status: String, message: String) extends SuccessResult
+  case class CollocateResult(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
 
 
 
@@ -187,5 +197,5 @@ trait DataCoordinatorClient {
              extraHeaders: Map[String, String],
              resourceScope: ResourceScope): Result
 
-  def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean): Result
+  def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result
 }

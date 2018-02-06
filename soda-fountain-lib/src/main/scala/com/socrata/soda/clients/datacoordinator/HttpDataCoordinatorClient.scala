@@ -618,33 +618,37 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       }
     }
 
-  override def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean): Result = {
+  override def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result = {
     implicit val encoder = AutomaticJsonEncodeBuilder[DCCollocateOperation]
 
     // Use any of the dcs mentioned in the operation as a host
     withHost(operation.collocations.head.head) { host =>
       val request = collocateUrl(host)
         .addParameter("explain" -> explain.toString)
+        .addParameter("job" -> jobId)
         .jsonBody[DCCollocateOperation](operation)
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None =>
-            case class Cost(moves: Int)
-            @JsonKeyStrategy(Strategy.Underscore)
-            case class Move(datasetInternalName: String, storeId_From: String, storeIdTo: String)
             case class CollocateResponse(
+              id: Option[String],
               status: String,
               message: String,
               cost: Cost,
               moves: Seq[Move]
             )
 
-            implicit val coCodec = AutomaticJsonCodecBuilder[Cost]
-            implicit val moCodec = AutomaticJsonCodecBuilder[Move]
             implicit val cCodec = AutomaticJsonCodecBuilder[CollocateResponse]
 
             r.value[CollocateResponse]() match {
-              case Right(e) => CollocateResult(e.status, e.message)
+              //NOTE: It seems silly to be parsing the response only to reform it and pass it back to core. Is there a way around this?
+              case Right(resp) => CollocateResult(
+                resp.id,
+                resp.status,
+                resp.message,
+                resp.cost,
+                resp.moves
+              )
               case Left(e) => throw new Exception("Unable to parse response from data coordinator: " + e.english)
             }
             //NOTE: These are duplicated in sendScript, is there any way to prevent this?

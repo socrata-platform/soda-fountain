@@ -1,8 +1,10 @@
 package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{SecondaryVersionsReport, VersionReport}
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
 import com.socrata.soda.server.persistence.DatasetRecord
@@ -41,10 +43,25 @@ trait DatasetDAO {
                             requestId: RequestId): Result
   def getRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
   def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
-  def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean): Result
+  def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result
 }
 
 object DatasetDAO {
+  case class Cost(moves: Int)
+  object Cost {
+    implicit val codec = AutomaticJsonCodecBuilder[Cost]
+    def apply(c: DataCoordinatorClient.Cost): Cost = {
+      Cost(c.moves)
+    }
+  }
+  case class Move(datasetInternalName: String, storeIdFrom: String, storeIdTo: String)
+  object Move {
+    implicit val codec = AutomaticJsonCodecBuilder[Move]
+    def apply(m: DataCoordinatorClient.Move): Move = {
+      Move(m.datasetInternalName, m.storeIdFrom, m.storeIdTo)
+    }
+  }
+
   sealed abstract class Result
   sealed abstract class SuccessResult extends Result
   sealed abstract class FailResult extends Result
@@ -63,7 +80,7 @@ object DatasetDAO {
   case object PropagatedToSecondary extends SuccessResult
   case object RollupCreatedOrUpdated extends SuccessResult
   case object RollupDropped extends SuccessResult
-  case class CollocateDone(status: String, message: String) extends SuccessResult
+  case class CollocateDone(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
 
   // FAILURES: DataCoordinator
   case class RollupNotFound(name: RollupName) extends FailResult
