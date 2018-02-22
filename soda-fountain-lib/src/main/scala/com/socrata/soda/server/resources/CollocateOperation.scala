@@ -3,12 +3,13 @@ package com.socrata.soda.server.resources
 import com.rojoma.json.v3.codec.DecodeError
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonUtil}
 import com.socrata.http.server.HttpRequest
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.Cost
 import com.socrata.soda.server.highlevel.DatasetDAO
 import com.socrata.soda.server.id.{DatasetId, ResourceName}
 
 
-case class DCCollocateOperation(collocations: Seq[Seq[DatasetId]])
-case class SFCollocateOperation(collocations: Seq[Seq[ResourceName]])
+case class DCCollocateOperation(collocations: Seq[Seq[DatasetId]], limits: Cost)
+case class SFCollocateOperation(collocations: Seq[Seq[ResourceName]], limits: Cost)
 
 object SFCollocateOperation{
   private implicit val coCodec = AutomaticJsonCodecBuilder[SFCollocateOperation]
@@ -28,7 +29,7 @@ object DCCollocateOperation{
 
     if(translatedIds.forall(_.forall(_.isLeft))) {
       // Everything was able to be translated
-      Left(DCCollocateOperation(translatedIds.map(_.map(_.left.get))))
+      Left(DCCollocateOperation(translatedIds.map(_.map(_.left.get)), sfCollocate.limits))
     } else {
       // Just get the first error to propogate up
       Right(translatedIds.flatten.find(_.isRight).get.right.get)
