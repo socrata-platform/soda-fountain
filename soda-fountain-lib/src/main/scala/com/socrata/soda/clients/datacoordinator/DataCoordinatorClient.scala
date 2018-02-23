@@ -7,7 +7,7 @@ import com.socrata.soda.server.id._
 import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soda.server.util.CopySpecifier
 import com.socrata.soda.server.util.schema.SchemaSpec
-import com.socrata.http.server.util.{Precondition, EntityTag}
+import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.resources.DCCollocateOperation
 import org.joda.time.DateTime
 
@@ -38,13 +38,18 @@ object DataCoordinatorClient {
   case class UpsertReportItem(data: Iterator[JValue] /* Note: this MUST be completely consumed before calling hasNext/next on parent iterator! */) extends ReportItem
   case object OtherReportItem extends ReportItem
 
-  case class Cost(moves: Int)
+  @JsonKeyStrategy(Strategy.Underscore)
+  case class Cost(moves: Int, totalSizeBytes: Long, moveSizeMaxBytes: Option[Long] = None)
   object Cost {
     implicit val codec = AutomaticJsonCodecBuilder[Cost]
   }
 
   @JsonKeyStrategy(Strategy.Underscore)
-  case class Move(datasetInternalName: String, storeIdFrom: String, storeIdTo: String)
+  case class Move(datasetInternalName: String,
+                  storeIdFrom: String,
+                  storeIdTo: String,
+                  cost: Cost,
+                  complete: Option[Boolean] = None)
   object Move {
     implicit val codec = AutomaticJsonCodecBuilder[Move]
   }
