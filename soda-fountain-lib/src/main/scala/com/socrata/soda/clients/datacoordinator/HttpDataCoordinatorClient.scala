@@ -39,7 +39,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def snapshottedUrl(host: RequestBuilder) = host.p("snapshotted")
   def snapshotsUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "snapshots")
   def snapshotUrl(host: RequestBuilder, datasetId: DatasetId, num: Long) = host.p("dataset", datasetId.underlying, "snapshots", num.toString)
-  def collocateUrl(host: RequestBuilder) = host.p("secondary-manifest", "_DEFAULT_", "collocate")
+  def collocateUrl(host: RequestBuilder, secondaryId: SecondaryId) = host.p("secondary-manifest", secondaryId.underlying, "collocate")
+  def collocateStatusUrl(host: RequestBuilder, secondaryId: SecondaryId, jobId: String) = host.p("secondary-manifest", "move", secondaryId.underlying, "job", jobId)
 
   def withHost[T](instance: String)(f: RequestBuilder => T): T =
     hostO(instance) match {
@@ -618,39 +619,40 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       }
     }
 
+  private def collocateResult(response: Response): CollocateResult = {
+    case class CollocateResponse(id: Option[String],
+                                 status: String,
+                                 message: String,
+                                 cost: Cost,
+                                 moves: Seq[Move])
+
+    implicit val cCodec = AutomaticJsonCodecBuilder[CollocateResponse]
+
+    response.value[CollocateResponse]() match {
+      // NOTE: data-coordinator response has the field "id" where core expects "jobId"
+      case Right(resp) => CollocateResult(
+        resp.id,
+        resp.status,
+        resp.message,
+        resp.cost,
+        resp.moves
+      )
+      case Left(e) => throw new Exception("Unable to parse response from data coordinator: " + e.english)
+    }
+  }
+
   override def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result = {
     implicit val encoder = AutomaticJsonEncodeBuilder[DCCollocateOperation]
 
     // Use any of the dcs mentioned in the operation as a host
     withHost(operation.collocations.head.head) { host =>
-      val request = collocateUrl(host)
+      val request = collocateUrl(host, secondaryId)
         .addParameter("explain" -> explain.toString)
         .addParameter("job" -> jobId)
         .jsonBody[DCCollocateOperation](operation)
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
-          case None =>
-            case class CollocateResponse(
-              id: Option[String],
-              status: String,
-              message: String,
-              cost: Cost,
-              moves: Seq[Move]
-            )
-
-            implicit val cCodec = AutomaticJsonCodecBuilder[CollocateResponse]
-
-            r.value[CollocateResponse]() match {
-              //NOTE: It seems silly to be parsing the response only to reform it and pass it back to core. Is there a way around this?
-              case Right(resp) => CollocateResult(
-                resp.id,
-                resp.status,
-                resp.message,
-                resp.cost,
-                resp.moves
-              )
-              case Left(e) => throw new Exception("Unable to parse response from data coordinator: " + e.english)
-            }
+          case None => collocateResult(r)
             //NOTE: These are duplicated in sendScript, is there any way to prevent this?
           case Some(InstanceNotExist(instance)) => InstanceNotExistResult(instance)
           case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
@@ -658,6 +660,20 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
           case Some(DatasetNotExist(dataset)) => DatasetNotExistResult(dataset)
           case Some(e) =>
             throw new Exception("Unexpected error from data-coordinator on collocation: " + e)
+        }
+      }
+    }
+  }
+
+  override def collocateStatus(datasetId: DatasetId, secondaryId: SecondaryId, jobId: String): Result = {
+    withHost(datasetId) { host =>
+      val request = collocateStatusUrl(host, secondaryId, jobId).get
+      httpClient.execute(request).run { r =>
+        errorFrom(r) match {
+          case None => collocateResult(r)
+          case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
+          case Some(e) =>
+            throw new Exception("Unexpected error from data-coordinator on collocation status: " + e)
         }
       }
     }

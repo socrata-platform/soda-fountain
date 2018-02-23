@@ -522,7 +522,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         // TODO: Translate dc errors better, need to clarify what actually needs to be propogated
         dc.collocate(secondaryId, op, explain, jobId) match {
           case res: DataCoordinatorClient.CollocateResult =>
-            CollocateDone(res.jobId, res.status, res.message, Cost(res.cost), res.moves.map(Move(_)))
+            CollocateDone(res, store.translateDatasetId(_))
           case DataCoordinatorClient.InstanceNotExistResult(e) => GenericCollocateError(e)
           case DataCoordinatorClient.StoreGroupNotExistResult(e) => GenericCollocateError(e)
           case DataCoordinatorClient.StoreNotExistResult(e) => GenericCollocateError(e)
@@ -532,6 +532,22 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
             InternalServerError("unknown", tag, x.toString)
         }
       case Right(err) => err
+    }
+  }
+
+  def collocateStatus(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result = {
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        dc.collocateStatus(datasetRecord.systemId, secondaryId, jobId) match {
+          case res: DataCoordinatorClient.CollocateResult =>
+            CollocateDone(res, store.translateDatasetId(_))
+          case DataCoordinatorClient.StoreGroupNotExistResult(e) => GenericCollocateError(e)
+          case x =>
+            log.warn("case is NOT implemented %s".format(x.toString))
+            InternalServerError("unknown", tag, x.toString)
+        }
+      case None =>
+        DatasetNotFound(dataset)
     }
   }
 
