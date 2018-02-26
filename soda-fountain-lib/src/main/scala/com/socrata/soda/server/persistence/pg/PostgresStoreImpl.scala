@@ -126,31 +126,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def translateDatasetId(datasetId: DatasetId, isDeleted: Boolean = false): Option[ResourceName] = {
-    using(dataSource.getConnection) { connection =>
-      val dDeletedFilter = if (!isDeleted) " AND d.deleted_at is null" else " AND d.deleted_at is not null"
-      val latestCopyDeletedFilter = if (!isDeleted) "AND latest_dc.deleted_at is null" else "AND latest_dc.deleted_at is not null"
-      using(connection.prepareStatement(
-        s"""SELECT d.resource_name
-           |  FROM datasets d
-           |  JOIN dataset_copies dc ON dc.dataset_system_id = d.dataset_system_id
-           | WHERE d.dataset_system_id = ?
-           |   AND dc.id = (SELECT id FROM dataset_copies latest_dc
-           |                WHERE latest_dc.dataset_system_id = d.dataset_system_id
-           |                $latestCopyDeletedFilter
-           |                ORDER BY copy_number DESC
-           |                LIMIT 1)
-           |       $dDeletedFilter""".stripMargin
-      )) { stmt =>
-        stmt.setString(1, datasetId.underlying)
-        val rs = stmt.executeQuery()
-
-        if (rs.next()) Some(new ResourceName(rs.getString("resource_name")))
-        else None
-      }
-    }
-  }
-
   def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord] = {
     val datasets = lookupDataset(resourceName, Some(copyNumber))
     if (datasets.isEmpty) None

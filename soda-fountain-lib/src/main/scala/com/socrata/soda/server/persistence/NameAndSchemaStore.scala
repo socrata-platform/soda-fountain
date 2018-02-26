@@ -24,7 +24,6 @@ trait NameAndSchemaStore {
   def unmarkResourceForDeletion (resourceName: ResourceName)
   def patchResource(toPatch: ResourceName, newResourceName: ResourceName)
   def translateResourceName(resourceName: ResourceName, stage: Option[Stage] = None, deleted: Boolean = false): Option[MinimalDatasetRecord]
-  def translateDatasetId(datasetId: DatasetId, deleted: Boolean = false): Option[ResourceName]
   def latestCopyNumber(resourceName: ResourceName): Long
   def lookupCopyNumber(resourceName: ResourceName, copy: Option[Stage]): Option[Long]
   def latestCopyNumber(resourceName: DatasetRecord): Long

@@ -522,7 +522,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         // TODO: Translate dc errors better, need to clarify what actually needs to be propogated
         dc.collocate(secondaryId, op, explain, jobId) match {
           case res: DataCoordinatorClient.CollocateResult =>
-            CollocateDone(res, store.translateDatasetId(_))
+            CollocateDone(res, { datasetId => store.bulkDatasetLookup(Set(datasetId)).headOption })
           case DataCoordinatorClient.InstanceNotExistResult(e) => GenericCollocateError(e)
           case DataCoordinatorClient.StoreGroupNotExistResult(e) => GenericCollocateError(e)
           case DataCoordinatorClient.StoreNotExistResult(e) => GenericCollocateError(e)
@@ -540,7 +540,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       case Some(datasetRecord) =>
         dc.collocateStatus(datasetRecord.systemId, secondaryId, jobId) match {
           case res: DataCoordinatorClient.CollocateResult =>
-            CollocateDone(res, store.translateDatasetId(_))
+            CollocateDone(res, { datasetId => store.bulkDatasetLookup(Set(datasetId)).headOption })
           case DataCoordinatorClient.StoreGroupNotExistResult(e) => GenericCollocateError(e)
           case x =>
             log.warn("case is NOT implemented %s".format(x.toString))

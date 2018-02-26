@@ -102,7 +102,7 @@ object DatasetDAO {
         r.status,
         r.message,
         Cost(r.cost),
-        r.moves.flatMap(Move(_, translator)) // TODO: this will filter out datasets that have been deleted (not yet seen by truth), not sure what the right thing to do is here?
+        r.moves.flatMap(Move(_, translator)) // NOTE: currently this will not filter out datasets marked as deleted in soda-fountain
       )
     }
   }
