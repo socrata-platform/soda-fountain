@@ -211,6 +211,12 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
   }
 
+  case class secondaryCollocateStatusService(resourceName: ResourceName, secondaryId: SecondaryId, jobId: String) extends SodaResource {
+    override def get = { req =>
+      response(req, datasetDAO.collocateStatus(resourceName, secondaryId, jobId))
+    }
+  }
+
   case class rollupService(resourceName: ResourceName, rollupName: RollupName) extends SodaResource {
     override def get = { req =>
       // TODO Not implemented yet

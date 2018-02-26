@@ -126,7 +126,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-
   def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord] = {
     val datasets = lookupDataset(resourceName, Some(copyNumber))
     if (datasets.isEmpty) None

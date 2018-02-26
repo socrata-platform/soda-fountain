@@ -1,15 +1,14 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.v3.ast.JValue
-import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Strategy}
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{SecondaryVersionsReport, VersionReport}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
+import com.socrata.soda.server.id.{DatasetId, ResourceName, RollupName, SecondaryId}
 import com.socrata.soda.server.persistence.DatasetRecord
 import com.socrata.soda.server.resources.SFCollocateOperation
-import com.socrata.soda.server.wiremodels.{UserProvidedRollupSpec, UserProvidedDatasetSpec}
+import com.socrata.soda.server.wiremodels.{UserProvidedDatasetSpec, UserProvidedRollupSpec}
 import com.socrata.soql.environment.ColumnName
 
 trait DatasetDAO {
@@ -44,21 +43,36 @@ trait DatasetDAO {
   def getRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
   def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
   def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result
+  def collocateStatus(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
 }
 
 object DatasetDAO {
-  case class Cost(moves: Int)
+  @JsonKeyStrategy(Strategy.Underscore)
+  case class Cost(moves: Int, totalSizeBytes: Long, moveSizeMaxBytes: Option[Long] = None)
   object Cost {
     implicit val codec = AutomaticJsonCodecBuilder[Cost]
     def apply(c: DataCoordinatorClient.Cost): Cost = {
-      Cost(c.moves)
+      Cost(c.moves, c.totalSizeBytes, c.moveSizeMaxBytes)
     }
   }
-  case class Move(datasetInternalName: String, storeIdFrom: String, storeIdTo: String)
+  @JsonKeyStrategy(Strategy.Underscore)
+  case class Move(resourceName: ResourceName,
+                  storeIdFrom: String,
+                  storeIdTo: String,
+                  cost: Cost,
+                  complete: Option[Boolean] = None)
   object Move {
     implicit val codec = AutomaticJsonCodecBuilder[Move]
-    def apply(m: DataCoordinatorClient.Move): Move = {
-      Move(m.datasetInternalName, m.storeIdFrom, m.storeIdTo)
+    def apply(m: DataCoordinatorClient.Move, translator: DatasetId => Option[ResourceName]): Option[Move] = {
+      translator(m.datasetInternalName).map { resourceName =>
+        Move(
+          resourceName,
+          m.storeIdFrom,
+          m.storeIdTo,
+          Cost(m.cost),
+          m.complete
+        )
+      }
     }
   }
 
@@ -81,6 +95,17 @@ object DatasetDAO {
   case object RollupCreatedOrUpdated extends SuccessResult
   case object RollupDropped extends SuccessResult
   case class CollocateDone(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
+  object CollocateDone {
+    def apply(r: DataCoordinatorClient.CollocateResult, translator: DatasetId => Option[ResourceName]): CollocateDone = {
+      CollocateDone(
+        r.jobId,
+        r.status,
+        r.message,
+        Cost(r.cost),
+        r.moves.flatMap(Move(_, translator)) // NOTE: currently this will not filter out datasets marked as deleted in soda-fountain
+      )
+    }
+  }
 
   // FAILURES: DataCoordinator
   case class RollupNotFound(name: RollupName) extends FailResult

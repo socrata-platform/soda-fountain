@@ -4,7 +4,6 @@ import com.rojoma.json.v3.util._
 import com.rojoma.json.v3.ast._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.soda.server.id._
-import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soda.server.util.CopySpecifier
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.http.server.util.{EntityTag, Precondition}
@@ -45,7 +44,7 @@ object DataCoordinatorClient {
   }
 
   @JsonKeyStrategy(Strategy.Underscore)
-  case class Move(datasetInternalName: String,
+  case class Move(datasetInternalName: DatasetId,
                   storeIdFrom: String,
                   storeIdTo: String,
                   cost: Cost,
@@ -203,4 +202,5 @@ trait DataCoordinatorClient {
              resourceScope: ResourceScope): Result
 
   def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result
+  def collocateStatus(datasetId: DatasetId, secondaryId: SecondaryId, jobId: String): Result
 }
