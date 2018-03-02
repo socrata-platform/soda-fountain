@@ -14,7 +14,7 @@ import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClien
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
-import com.socrata.soda.server.id.SecondaryId
+import com.socrata.soda.server.id.{ResourceName, SecondaryId}
 import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaStore}
 import com.socrata.soda.server.metrics.NoopMetricProvider
@@ -214,7 +214,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       datasetExportResource = export.publishedService,
       datasetExportCopyResource = export.service,
       exportExtensions = export.extensions,
-      datasetRollupResource = dataset.rollupService,
+      datasetRollupsResource = dataset.rollupService(_, None),
+      datasetRollupResource = { case (resourceName, rollupName) => dataset.rollupService(resourceName, Some(rollupName)) },
       sampleResource = suggest.sampleService,
       suggestResource = suggest.service,
       snapshotResources = SnapshotResources(snapshots.findDatasetsService, snapshots.listSnapshotsService, snapshots.snapshotsService)

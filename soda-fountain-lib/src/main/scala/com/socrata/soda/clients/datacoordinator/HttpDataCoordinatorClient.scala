@@ -2,7 +2,7 @@ package com.socrata.soda.clients.datacoordinator
 
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
-import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, AutomaticJsonEncodeBuilder, JsonArrayIterator, JsonKeyStrategy, Strategy}
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, AutomaticJsonEncodeBuilder, JsonArrayIterator}
 import com.rojoma.simplearm.v2._
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.common.util.HttpUtils
@@ -13,6 +13,7 @@ import com.socrata.soda.server.id._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
 
+import com.socrata.soda.server.highlevel.ColumnDAO.DatasetNotFound
 import com.socrata.soda.server.resources.DCCollocateOperation
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
@@ -39,6 +40,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def snapshottedUrl(host: RequestBuilder) = host.p("snapshotted")
   def snapshotsUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "snapshots")
   def snapshotUrl(host: RequestBuilder, datasetId: DatasetId, num: Long) = host.p("dataset", datasetId.underlying, "snapshots", num.toString)
+  def rollupUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset-rollup", datasetId.underlying)
   def collocateUrl(host: RequestBuilder, secondaryId: SecondaryId) = host.p("secondary-manifest", secondaryId.underlying, "collocate")
   def collocateStatusUrl(host: RequestBuilder, secondaryId: SecondaryId, jobId: String) = host.p("secondary-manifest", "move", secondaryId.underlying, "job", jobId)
 
@@ -618,6 +620,23 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
         }
       }
     }
+
+  override def getRollups(datasetId: DatasetId, extraHeaders: Map[String, String] = Map.empty): Result = {
+    withHost(datasetId) { host =>
+      val request = rollupUrl(host, datasetId).headers(extraHeaders).get
+      httpClient.execute(request).run { r =>
+        errorFrom(r) match {
+          case None => r.value[Seq[RollupInfo]]() match {
+            case Right(resp) => RollupResult(resp)
+            case Left(err) => throw new Exception("Unable to parse response from data coordinator: " + err.english)
+          }
+          case Some(NoSuchDataset(dataset)) => DatasetNotFoundResult(dataset)
+          case Some(err) =>
+            throw new Exception(s"Unexpected error from data-coordinator getting rollups for dataset $datasetId: $err")
+        }
+      }
+    }
+  }
 
   private def collocateResult(response: Response): CollocateResult = {
     case class CollocateResponse(id: Option[String],
