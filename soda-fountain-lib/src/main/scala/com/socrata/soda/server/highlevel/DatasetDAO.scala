@@ -5,10 +5,10 @@ import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{SecondaryVersionsReport, VersionReport}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{DatasetId, ResourceName, RollupName, SecondaryId}
+import com.socrata.soda.server.id._
 import com.socrata.soda.server.persistence.DatasetRecord
 import com.socrata.soda.server.resources.SFCollocateOperation
-import com.socrata.soda.server.wiremodels.{UserProvidedDatasetSpec, UserProvidedRollupSpec}
+import com.socrata.soda.server.wiremodels.{RollupSpec, UserProvidedDatasetSpec, UserProvidedRollupSpec}
 import com.socrata.soql.environment.ColumnName
 
 trait DatasetDAO {
@@ -40,7 +40,7 @@ trait DatasetDAO {
                             rollup: RollupName,
                             spec: UserProvidedRollupSpec,
                             requestId: RequestId): Result
-  def getRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
+  def getRollups(dataset: ResourceName, requestId: RequestId): Result
   def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
   def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result
   def collocateStatus(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
@@ -92,6 +92,7 @@ object DatasetDAO {
   case object WorkingCopyDropped extends SuccessResult
   case object WorkingCopyPublished extends SuccessResult
   case object PropagatedToSecondary extends SuccessResult
+  case class Rollups(rollups: Seq[RollupSpec]) extends SuccessResult
   case object RollupCreatedOrUpdated extends SuccessResult
   case object RollupDropped extends SuccessResult
   case class CollocateDone(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult

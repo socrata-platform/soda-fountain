@@ -7,7 +7,7 @@ import com.socrata.soda.server.highlevel.DatasetDAO.CannotAcquireDatasetWriteLoc
 import com.socrata.soda.server.highlevel.DatasetDAO.FeedbackInProgress
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
-import com.socrata.soda.server.wiremodels.{ColumnSpec, DatasetSpec, UserProvidedDatasetSpec, UserProvidedRollupSpec}
+import com.socrata.soda.server.wiremodels._
 import com.socrata.soda.server.SodaUtils.traceHeaders
 import com.socrata.soql.collection.OrderedMap
 import com.socrata.soql.exceptions.{NoSuchColumn, SoQLException}
@@ -485,8 +485,45 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  // TODO implement
-  def getRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result = ???
+  def getRollups(dataset: ResourceName, requestId: RequestId): Result = {
+    store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
+      case Some(datasetRecord) =>
+        val columnNameMap = datasetRecord.columns.map { columnRecord =>
+          (rollupColumnNameToIdMapping(columnRecord.id), columnRecord.fieldName)
+        }.toMap
+
+        dc.getRollups(datasetRecord.systemId, traceHeaders(requestId, dataset)) match {
+          case result: DataCoordinatorClient.RollupResult =>
+            val rollups = result.rollups.map { rollup =>
+              val parsedQuery = new StandaloneParser().selectStatement(rollup.soql)
+              val mappedQueries = new ColumnNameMapper(columnNameMap).mapSelect(parsedQuery)
+
+              mappedQueries.size match {
+                case 1 =>
+                  val mappedQuery = mappedQueries.head
+                  log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
+                  log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
+
+                  RollupSpec(name = rollup.name, soql = mappedQuery.toString())
+                case _ =>
+                  log.error("found saved rollup to be chained soql")
+                  return InternalServerError("unknown", tag, "found saved rollup to be chained soql")
+              }
+            }
+
+            Rollups(rollups)
+          case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+            DatasetNotFound(dataset)
+          case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+            InternalServerError(code, tag, data)
+          case x =>
+            log.warn("case is NOT implemented %s".format(x.toString))
+            InternalServerError("unknown", tag, x.toString)
+        }
+      case None =>
+        DatasetNotFound(dataset)
+    }
+  }
 
   def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result = {
     store.translateResourceName(dataset) match {

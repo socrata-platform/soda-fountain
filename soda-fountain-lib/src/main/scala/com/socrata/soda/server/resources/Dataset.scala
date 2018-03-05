@@ -10,9 +10,9 @@ import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.responses._
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
-import com.socrata.soda.server.id.{RollupName, SecondaryId, ResourceName}
+import com.socrata.soda.server.id.{ResourceName, RollupName, SecondaryId}
 import com.socrata.soda.server.wiremodels.{Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
-import com.socrata.soda.server.wiremodels.{RequestProblem, IOProblem}
+import com.socrata.soda.server.wiremodels.{IOProblem, RequestProblem}
 import javax.servlet.http.HttpServletRequest
 
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
@@ -78,6 +78,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         NoContent
       case DatasetDAO.Undeleted =>
         NoContent
+      case DatasetDAO.Rollups(rollups) =>
+        OK ~> Json(rollups)
       case collocateResult: DatasetDAO.CollocateDone =>
         implicit val codec = AutomaticJsonCodecBuilder[DatasetDAO.CollocateDone]
         OK ~> Json(collocateResult)
@@ -217,22 +219,33 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
   }
 
-  case class rollupService(resourceName: ResourceName, rollupName: RollupName) extends SodaResource {
+  case class rollupService(resourceName: ResourceName, rollupName: Option[RollupName]) extends SodaResource {
     override def get = { req =>
-      // TODO Not implemented yet
-//      response(req, datasetDAO.getRollup(user(req), resourceName, rollupName))
-      MethodNotAllowed
+      rollupName match {
+        case Some(_) => MethodNotAllowed
+        case None =>
+          response(req, datasetDAO.getRollups(resourceName, RequestId.getFromRequest(req)))
+      }
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.deleteRollup(user(req), resourceName, rollupName,
-                                            RequestId.getFromRequest(req)))
+      rollupName match {
+        case Some(rollup) =>
+          response(req, datasetDAO.deleteRollup(user(req), resourceName, rollup,
+            RequestId.getFromRequest(req)))
+        case None => MethodNotAllowed
+      }
     }
 
     override def put = { req =>
       withRollupSpec(req) { spec =>
-        response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, rollupName, spec,
-                                                       RequestId.getFromRequest(req)))
+        rollupName match {
+          case Some(rollup) =>
+            response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, rollup, spec,
+              RequestId.getFromRequest(req)))
+          case None => MethodNotAllowed
+        }
+
       }
     }
   }
