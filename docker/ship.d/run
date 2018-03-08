@@ -5,11 +5,12 @@ if [ -z "$MARATHON_APP_ID" ]; then
   echo "Not compiling j2 config file because this is not running in Marathon!"
 else
   /bin/env_parse ${SERVER_CONFIG}.j2
-  export CONFIG_LINE="-Dconfig.file=${SERVER_CONFIG}"  
 fi
 
+echo "Using config $SERVER_CONFIG"
+
 su socrata -c '/usr/bin/java \
-    $CONFIG_LINE \
+    -Dconfig.file=${SERVER_CONFIG} \
     -cp $SERVER_ARTIFACT \
     com.socrata.soda.server.MigrateSchema migrate'
 
@@ -17,7 +18,7 @@ exec su socrata -c '/usr/bin/java \
     -Xmx${JAVA_XMX} \
     -Xms${JAVA_XMX} \
     -XX:MaxMetaspaceSize=${JAVA_MAX_METASPACE} \
-    $CONFIG_LINE \
+    -Dconfig.file=${SERVER_CONFIG} \
     -Djava.net.preferIPv4Stack=true \
     -Dcom.sun.management.jmxremote.port=${JMX_PORT} \
     -Dcom.sun.management.jmxremote.rmi.port=${JMX_PORT} \

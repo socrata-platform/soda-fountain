@@ -6,7 +6,7 @@ set -e
 REALPATH=$(python -c "import os; print(os.path.realpath('$0'))")
 BINDIR=$(dirname "$REALPATH")
 
-CONFIG="configs/application.conf"
+CONFIG="$BINDIR/../configs/application.conf"
 JARFILE=$("$BINDIR"/build.sh "$@")
 
 COMMAND=${1:-migrate}
