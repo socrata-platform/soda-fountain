@@ -6,7 +6,11 @@ if [ -z "$image" ]; then
   exit 1
 fi
 
+local_config_dir="$(dirname "$(realpath "$0")")/../configs"
+
 AWS_PROFILE=infrastructure docker run \
+           -e SERVER_CONFIG=/etc/configs/application.conf \
+           -v "$local_config_dir":/etc/configs \
            -p 6010:6010 \
            -d -t "$image"
 
