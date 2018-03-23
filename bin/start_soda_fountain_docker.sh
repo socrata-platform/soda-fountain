@@ -12,6 +12,6 @@ AWS_PROFILE=infrastructure docker run \
            -e SERVER_CONFIG=/etc/configs/application.conf \
            -v "$local_config_dir":/etc/configs \
            -p 6010:6010 \
-           -d -t "$image"
+           -t "$image"
 
 
