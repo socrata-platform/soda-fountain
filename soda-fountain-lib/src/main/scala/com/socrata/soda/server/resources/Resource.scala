@@ -196,6 +196,7 @@ case class Resource(rowDAO: RowDAO,
                   RequestId.getFromRequest(req),
                   Option(req.getHeader("X-Socrata-Fuse-Columns")),
                   Option(req.getParameter(qpQueryTimeoutSeconds)),
+                  Option(req.getHeader("X-Socrata-Debug")).isDefined,
                   req.resourceScope) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                     metric(QuerySuccessMetric)
@@ -344,6 +345,7 @@ case class Resource(rowDAO: RowDAO,
                     RequestId.getFromRequest(req),
                     Option(req.getHeader("X-Socrata-Fuse-Columns")),
                     Option(req.getParameter(qpQueryTimeoutSeconds)),
+                    Option(req.getHeader("X-Socrata-Debug")).isDefined,
                     resourceScope) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
