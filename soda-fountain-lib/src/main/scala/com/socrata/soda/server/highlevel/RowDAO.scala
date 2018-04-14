@@ -30,6 +30,7 @@ trait RowDAO {
             requestId: RequestId,
             fuseColumns: Option[String],
             queryTimeoutSeconds: Option[String],
+            debug: Boolean,
             resourceScope: ResourceScope): Result
 
   def getRow(dataset: ResourceName,
@@ -43,6 +44,7 @@ trait RowDAO {
              requestId: RequestId,
              fuseColumns: Option[String],
              queryTimeoutSeconds: Option[String],
+             debug: Boolean,
              resourceScope: ResourceScope): Result
 
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
