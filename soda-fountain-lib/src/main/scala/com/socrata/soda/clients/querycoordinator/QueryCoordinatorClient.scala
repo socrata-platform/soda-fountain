@@ -18,7 +18,7 @@ object QueryCoordinatorClient {
   sealed abstract class FailResult extends Result
 
   // Success Cases
-  case class Success(etags: Seq[EntityTag], rollup: Option[String], response: Iterator[JValue]) extends SuccessResult
+  case class Success(etags: Seq[EntityTag], rollup: Option[String], lastModified: String, response: Iterator[JValue]) extends SuccessResult
 
   // Fail Cases
   case class NotModified(etags: Seq[EntityTag]) extends FailResult

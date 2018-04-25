@@ -133,7 +133,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
       (if (debugInfo.analyze) Map("X-Socrata-Analyze" -> "true") else Map.empty)
     qc.query(ds.systemId, precondition, ifModifiedSince, query, rowCount,
              copy, secondaryInstance, noRollup, obfuscateId, extraHeaders, queryTimeoutSeconds, resourceScope) {
-      case QueryCoordinatorClient.Success(etags, rollup, response) if !debugInfo.explain =>
+      case QueryCoordinatorClient.Success(etags, rollup, lastModified, response) if !debugInfo.explain =>
         val jsonColumnReps = if (obfuscateId) JsonColumnRep.forDataCoordinatorType
                              else JsonColumnRep.forDataCoordinatorTypeClearId
         val decodedResult = CJson.decode(response, jsonColumnReps)
@@ -141,7 +141,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         val simpleSchema = ExportDAO.CSchema(
           schema.approximateRowCount,
           schema.dataVersion,
-          schema.lastModified.map(time => dateTimeParser.parseDateTime(time)),
+          Option(dateTimeParser.parseDateTime(lastModified)),
           schema.locale,
           schema.pk.map(ds.columnsById(_).fieldName),
           schema.rowCount,
@@ -150,7 +150,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           }
         )
         QuerySuccess(etags, ds.truthVersion, ds.lastModified, rollup, simpleSchema, decodedResult.rows)
-      case QueryCoordinatorClient.Success(_, _, response) if debugInfo.explain =>
+      case QueryCoordinatorClient.Success(_, _, _, response) if debugInfo.explain =>
         // Just forward this along up
         InfoSuccess(200, response)
 

@@ -88,7 +88,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient with ThreadLimit
         val jsonEventIt = response.jsonEvents()
         val jvIt = JsonArrayIterator.fromEvents[JValue](jsonEventIt)
         val umJvIt = rs.openUnmanaged(jvIt, Seq(response))
-        Success(response.headers("ETag").map(EntityTagParser.parse(_)), response.headers(HeaderRollup).headOption, umJvIt)
+        Success(response.headers("ETag").map(EntityTagParser.parse(_)), response.headers(HeaderRollup).headOption, response.headers("last-modified").head, umJvIt)
       case SC_NOT_MODIFIED =>
         NotModified(response.headers("ETag").map(EntityTagParser.parse(_)))
       case SC_PRECONDITION_FAILED =>
