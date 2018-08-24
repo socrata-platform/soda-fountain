@@ -588,6 +588,22 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
+  def deleteCollocate(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result = {
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        dc.deleteCollocate(datasetRecord.systemId, secondaryId, jobId) match {
+          case res: DataCoordinatorClient.CollocateResult =>
+            CollocateDone(res, { datasetId => store.bulkDatasetLookup(Set(datasetId)).headOption })
+          case DataCoordinatorClient.StoreGroupNotExistResult(e) => GenericCollocateError(e)
+          case x =>
+            log.warn("case is NOT implemented %s".format(x.toString))
+            InternalServerError("unknown", tag, x.toString)
+        }
+      case None =>
+        DatasetNotFound(dataset)
+    }
+  }
+
   private def tag: String = {
     val uuid = java.util.UUID.randomUUID().toString
     log.info("internal error; tag = " + uuid)

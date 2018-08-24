@@ -43,6 +43,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def rollupUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset-rollup", datasetId.underlying)
   def collocateUrl(host: RequestBuilder, secondaryId: SecondaryId) = host.p("secondary-manifest", secondaryId.underlying, "collocate")
   def collocateStatusUrl(host: RequestBuilder, secondaryId: SecondaryId, jobId: String) = host.p("secondary-manifest", "move", secondaryId.underlying, "job", jobId)
+  def collocateJobUrl(host: RequestBuilder, jobId: String) = host.p("secondary-move-jobs", "job", jobId)
 
   def withHost[T](instance: String)(f: RequestBuilder => T): T =
     hostO(instance) match {
@@ -690,6 +691,20 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None => collocateResult(r)
+          case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
+          case Some(e) =>
+            throw new Exception("Unexpected error from data-coordinator on collocation status: " + e)
+        }
+      }
+    }
+  }
+
+  override def deleteCollocate(datasetId: DatasetId, secondaryId: SecondaryId, jobId: String): Result = {
+    withHost(datasetId) { host =>
+      val request = collocateJobUrl(host, jobId).delete
+      httpClient.execute(request).run { r =>
+        errorFrom(r) match {
+          case None => CollocateResult(Some(jobId), "deleted", "deleted", Cost(0, 0), Seq.empty)
           case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
           case Some(e) =>
             throw new Exception("Unexpected error from data-coordinator on collocation status: " + e)

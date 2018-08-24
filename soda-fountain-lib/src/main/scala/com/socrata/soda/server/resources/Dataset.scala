@@ -213,9 +213,13 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
   }
 
-  case class secondaryCollocateStatusService(resourceName: ResourceName, secondaryId: SecondaryId, jobId: String) extends SodaResource {
+  case class secondaryCollocateJobService(resourceName: ResourceName, secondaryId: SecondaryId, jobId: String) extends SodaResource {
     override def get = { req =>
       response(req, datasetDAO.collocateStatus(resourceName, secondaryId, jobId))
+    }
+
+    override def delete = { req =>
+      response(req, datasetDAO.deleteCollocate(resourceName, secondaryId, jobId))
     }
   }
 
