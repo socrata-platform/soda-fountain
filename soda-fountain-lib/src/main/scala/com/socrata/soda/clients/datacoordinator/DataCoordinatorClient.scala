@@ -206,4 +206,5 @@ trait DataCoordinatorClient {
 
   def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result
   def collocateStatus(datasetId: DatasetId, secondaryId: SecondaryId, jobId: String): Result
+  def deleteCollocate(datasetId: DatasetId, secondaryId: SecondaryId, jobId: String): Result
 }

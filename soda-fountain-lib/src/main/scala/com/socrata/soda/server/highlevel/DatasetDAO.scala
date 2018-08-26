@@ -44,6 +44,7 @@ trait DatasetDAO {
   def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
   def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result
   def collocateStatus(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
+  def deleteCollocate(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
 }
 
 object DatasetDAO {
