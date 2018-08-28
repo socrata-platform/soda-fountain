@@ -16,7 +16,7 @@ trait SodaFountainDatabaseTest extends FunSuite with BeforeAndAfterAll {
     setupDatabase(config.database.database)
   }
 
-  private def setupDatabase(dbName: String) {
+  private def setupDatabase(dbName: String): Unit = {
     synchronized {
       try {
         Class.forName("org.postgresql.Driver").newInstance()

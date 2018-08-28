@@ -28,12 +28,12 @@ trait SpandexTestSuite extends FunSuiteLike with BeforeAndAfterAll with BeforeAn
     super.beforeEach()
     WireMock.reset()
   }
-  
+
   def mockServerUri(path: String): URI = {
     val separator = if (path.startsWith("/")) "" else "/"
     new URI(s"http://$mockServerHost:$mockServerPort$separator$path")
   }
-  
+
   def setSpandexResponse(method: UrlMatchingStrategy => MappingBuilder = WireMock.get,
                          url: String,
                          status: Int = 200,

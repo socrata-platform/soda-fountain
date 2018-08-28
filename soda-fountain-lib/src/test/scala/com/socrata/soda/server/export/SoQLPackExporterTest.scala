@@ -83,7 +83,7 @@ class SoQLPackExporterTest  extends ExporterTest {
                          rows: Seq[Array[SoQLValue]],
                          singleRow: Boolean): (Seq[(String, SoQLType)], Int, Seq[Array[SoQLValue]]) = {
     for { baos   <- managed(new ByteArrayOutputStream)
-          stream <- managed(new ServletOutputStream { def write(b: Int) { baos.write(b) }} ) } yield {
+          stream <- managed(new ServletOutputStream { def write(b: Int): Unit = { baos.write(b) }} ) } yield {
       val mockResponse = mock[HttpServletResponse]
       mockResponse.expects('setContentType)("application/octet-stream")
       mockResponse.expects('getOutputStream)().returning(stream)

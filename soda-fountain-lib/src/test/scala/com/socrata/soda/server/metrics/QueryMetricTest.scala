@@ -71,7 +71,7 @@ trait QueryMetricTestBase extends FunSuite with MockFactory {
     mockProvider
   }
 
-  def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String])
+  def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]): Unit
 }
 
 /**
@@ -117,7 +117,7 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
     )
   }
 
-  def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
+  def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]): Unit = {
     val export = new Export(mock[ExportDAO], ETagObfuscator.noop)
     val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO],
                                     NoopEtagObfuscator, 1000, provider, export, new HttpDatatCoordinatorClientTest.MyClient())
@@ -181,7 +181,7 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
     )
   }
 
-  def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
+  def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]): Unit = {
     val export = new Export(mock[ExportDAO], ETagObfuscator.noop)
     val mockServReq = new MockHttpServletRequest()
     val augReq = new AugmentedHttpServletRequest(mockServReq)

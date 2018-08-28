@@ -21,7 +21,7 @@ class StringToSoQLLiteralValueTranslation extends FunSuite with MustMatchers {
     }
   }
 
-  def testRep(in :String, out :String, typ: SoQLType ){
+  def testRep(in :String, out :String, typ: SoQLType ): Unit = {
     val inRep = StringColumnRep.forType(typ)
     val outRep = SoQLLiteralColumnRep.forType(typ)
     val inVal = inRep.fromString(in).getOrElse(throw new Exception("Rep did not produce value translating input"))
@@ -34,7 +34,7 @@ class StringToSoQLLiteralValueTranslation extends FunSuite with MustMatchers {
 
   test("JSON rep type check with text"){ testRep("this is input", "((\"this is input\")::text)", SoQLText) }
   test("JSON rep type check with unicode text"){
-    val input = "this is unicode input text   صص صꕥꔚꔄꔞഝആ"
+    val input = "this is unicode input text   صص صꕥꔚꔄꔞഝആ" //scalastyle:ignore
     testRep(input, "((\"" + input + "\")::text)", SoQLText)
   }
   test("JSON rep type check with number"){ testRep("12345", "((12345)::number)", SoQLNumber) }

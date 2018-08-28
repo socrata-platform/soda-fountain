@@ -9,7 +9,7 @@ import com.socrata.soda.server.persistence.pg.Migration.{Migrate, Undo, Redo}
 
 object MigrateSchema extends App {
 
-  override def main(args: Array[String]) {
+  override def main(args: Array[String]): Unit = {
 
     val numChanges = args.length match {
       case 2 => args(1).toInt

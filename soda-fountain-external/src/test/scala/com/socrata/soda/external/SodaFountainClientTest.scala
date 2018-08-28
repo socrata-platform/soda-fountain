@@ -30,7 +30,7 @@ class SodaFountainClientTest extends FunSuite with Matchers with BeforeAndAfterA
 
   override def getFallback = ConfigFactory.load("client-test-config")
 
-  override def beforeAll() {
+  override def beforeAll(): Unit = {
     startServices()            // Start in-process ZK, Curator, service discovery
     mockServer.start()
     cookie                     // register mock HTTP service with Curator/ZK
@@ -38,7 +38,7 @@ class SodaFountainClientTest extends FunSuite with Matchers with BeforeAndAfterA
     WM.configureFor("localhost", mockServerPort)
   }
 
-  override def afterAll() {
+  override def afterAll(): Unit = {
     sodaFountain.close()
     broker.deregister(cookie)
     mockServer.stop()
@@ -49,7 +49,7 @@ class SodaFountainClientTest extends FunSuite with Matchers with BeforeAndAfterA
                             route: String,
                             status: Int,
                             returnedBody: String,
-                            contentType: String = "application/json") {
+                            contentType: String = "application/json"): Unit = {
     WM.stubFor(httpMethod(WM.urlEqualTo(route)).
       willReturn(WM.aResponse()
       .withStatus(status)

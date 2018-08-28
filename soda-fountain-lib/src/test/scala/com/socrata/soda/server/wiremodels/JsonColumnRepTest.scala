@@ -25,7 +25,7 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
   }
 
   test("JSON type checker with unicode text"){
-    val input = "this is unicode input text   صص صꕥꔚꔄꔞഝആ"
+    val input = "this is unicode input text   صص صꕥꔚꔄꔞഝആ" // scalastyle:ignore
     JsonColumnRep.forClientType(SoQLText).fromJValue(JString(input)) must equal (Some(SoQLText(input)))
   }
 

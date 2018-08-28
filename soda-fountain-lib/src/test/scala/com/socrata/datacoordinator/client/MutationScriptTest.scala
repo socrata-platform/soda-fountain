@@ -22,7 +22,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     Some(JObject(Map("param" -> JString("some value"))))
   )
 
-  def testCompare(mc: MutationScript, expected: String) {
+  def testCompare(mc: MutationScript, expected: String): Unit = {
     val sw = new StringWriter()
     mc.streamJson(sw)
     JsonReader.fromString(sw.toString) must equal (JsonReader.fromString(expected))
