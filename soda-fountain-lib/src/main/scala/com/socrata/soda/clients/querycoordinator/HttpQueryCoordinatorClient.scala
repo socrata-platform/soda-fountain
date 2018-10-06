@@ -93,6 +93,10 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
       case SC_REQUEST_TIMEOUT =>
         // if we can't read the timeout for some reason, pass through null but keep it as a RequestTimedOut
         response.value[RequestTimedOut]().right.toOption.getOrElse(RequestTimedOut(JNull))
+      case SC_SERVICE_UNAVAILABLE =>
+        ServiceUnavailable
+      case 429 =>
+        TooManyRequests
       case status =>
         val r = response.value[QueryCoordinatorError]().right.toOption.getOrElse(
           throw new Exception(s"Response was JSON but not decodable as an error -  query: $query; code $status"))

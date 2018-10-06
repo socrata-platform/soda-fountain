@@ -158,6 +158,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         RowDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch)
       case QueryCoordinatorClient.RequestTimedOut(timeout) =>
         RowDAO.RequestTimedOut(timeout)
+      case QueryCoordinatorClient.ServiceUnavailable =>
+        RowDAO.ServiceUnavailable
+      case QueryCoordinatorClient.TooManyRequests =>
+        RowDAO.TooManyRequests
       case QueryCoordinatorClient.QueryCoordinatorResult(status, result) =>
         RowDAO.QCError(status, result)
       case QueryCoordinatorClient.InternalServerErrorResult(status, code, tag, data) =>

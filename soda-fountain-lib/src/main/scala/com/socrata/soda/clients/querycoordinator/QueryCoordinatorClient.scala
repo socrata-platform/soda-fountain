@@ -23,6 +23,8 @@ object QueryCoordinatorClient {
   // Fail Cases
   case class NotModified(etags: Seq[EntityTag]) extends FailResult
   case object PreconditionFailed extends FailResult
+  case object ServiceUnavailable extends FailResult
+  case object TooManyRequests extends FailResult
   case class RequestTimedOut(timeout: JValue) extends FailResult
   object RequestTimedOut {
     implicit val jCodec = AutomaticJsonCodecBuilder[RequestTimedOut]
