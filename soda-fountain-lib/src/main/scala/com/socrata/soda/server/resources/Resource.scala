@@ -248,7 +248,12 @@ case class Resource(rowDAO: RowDAO,
                       "code"  -> JString(code),
                       "data" -> JString(data),
                       "tag" -> JString(tag)))
-
+                  case RowDAO.ServiceUnavailable =>
+                    metricByStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE)
+                    SodaUtils.response(req, SodaErrors.ServiceUnavailable)
+                  case RowDAO.TooManyRequests =>
+                    metricByStatus(429)
+                    SodaUtils.response(req, SodaErrors.TooManyRequests)
                 }
               case None =>
                 metric(QueryErrorUser)

@@ -43,6 +43,14 @@ case class InternalException(th: Throwable, tag: String)
   override def excludedFields = Set("errorMessage", "errorClass", "stackTrace")
 }
 
+case object ServiceUnavailable
+  extends SodaResponse(SC_SERVICE_UNAVAILABLE, "service-unavailable",
+    "Service unavailable")
+
+case object TooManyRequests
+  extends SodaResponse(429, "too-many-requests",
+      "Too many requests")
+
 case class SodaInvalidRequest(th: Throwable, tag: String)
   extends SodaResponse(SC_BAD_REQUEST, "invalid-request",
     s"Invalid request: ${Option(th.getMessage).getOrElse("")}",

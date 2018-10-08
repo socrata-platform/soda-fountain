@@ -73,6 +73,8 @@ object RowDAO {
   // FAILURE: QueryCoordinator
   case class PreconditionFailed(failure: Precondition.Failure) extends FailResult
   case class RequestTimedOut(timeout: JValue) extends FailResult
+  case object ServiceUnavailable extends FailResult
+  case object TooManyRequests extends FailResult
 
   // FAILURES: Internally consumed
   case object TooManyRows extends FailResult
