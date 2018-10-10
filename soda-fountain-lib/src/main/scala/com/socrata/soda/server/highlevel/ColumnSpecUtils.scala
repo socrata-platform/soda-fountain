@@ -39,12 +39,13 @@ class ColumnSpecUtils(rng: Random) {
   def duplicateColumnName(columnName: ColumnName, existingColumns: Map[ColumnName, ColumnId]): Boolean =
     existingColumns.map(_._1).exists(_.name.equalsIgnoreCase(columnName.name))
 
-  def freezeForCreation(existingColumns: Map[ColumnName, (ColumnId, SoQLType)], ucs: UserProvidedColumnSpec): CreateResult =
+  def freezeForCreation(existingColumns: Map[ColumnName, (ColumnId, SoQLType)], ucs: UserProvidedColumnSpec,
+                        forUpdate: Boolean = false): CreateResult =
     ucs match {
       case UserProvidedColumnSpec(None, Some(fieldName), Some(typ), None, uCompStrategy) =>
         if (!validColumnName(fieldName, uCompStrategy)) return InvalidFieldName(fieldName)
         val existingColumnIds = existingColumns.mapValues(_._1)
-        if (duplicateColumnName(fieldName, existingColumnIds)) return DuplicateColumnName(fieldName)
+        if (!forUpdate && duplicateColumnName(fieldName, existingColumnIds)) return DuplicateColumnName(fieldName)
         val id = selectId(existingColumnIds.values)
         freezeForCreation(existingColumns, typ, uCompStrategy) match {
           case ComputationStrategySuccess(compStrategy) =>

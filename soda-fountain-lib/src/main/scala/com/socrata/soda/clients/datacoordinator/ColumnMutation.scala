@@ -41,6 +41,19 @@ case class AddColumnInstruction(dataType: SoQLType, fieldName: ColumnName, id: O
   })
 }
 
+case class AddComputationStrategyInstruction(name: ColumnId, strategy: ComputationStrategySpec) extends CM {
+  def asJson = JObject(Map(
+    "c"                    -> JString("add computation strategy"),
+    "column"               -> JString(name.underlying),
+    "computation_strategy" -> JsonEncode.toJValue[ComputationStrategyInfo](ComputationStrategyInfo(strategy))))
+}
+
+case class DropComputationStrategyInstruction(name: ColumnId) extends CM {
+  def asJson = JObject(Map(
+    "c"      -> JString("drop computation strategy"),
+    "column" -> JString(name.underlying)))
+}
+
 case class DropColumnInstruction(name: ColumnId) extends CM {
   def asJson = JObject(Map(
     "c"     -> JString("drop column"),

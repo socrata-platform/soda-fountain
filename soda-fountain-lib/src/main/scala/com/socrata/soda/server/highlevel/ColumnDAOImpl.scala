@@ -33,7 +33,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
       case Some(datasetRecord) =>
         datasetRecord.columnsByName.get(column) match {
           case Some(columnRecord) =>
-            doUpdateColumn(datasetRecord, columnRecord, user, precondition, column, spec, requestId)
+            doUpdateColumn(datasetRecord, store.latestCopyNumber(dataset), columnRecord, user, precondition, column, spec, requestId)
           case None =>
             createColumn(user, datasetRecord, precondition, column, spec, requestId)
         }
@@ -184,7 +184,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
             case Some(datasetRecord) =>
               datasetRecord.columnsByName.get(column) match {
                 case Some(columnRef) =>
-                  doUpdateColumn(datasetRecord, columnRef, user, NoPrecondition, column, spec, requestId)
+                  doUpdateColumn(datasetRecord, copyNumber, columnRef, user, NoPrecondition, column, spec, requestId)
 //                  if (datatype.exists (_ != columnRef.typ)) {
 //                    // TODO: Allow some datatype conversions?
 //                    throw new Exception("Does not support changing datatype.")
@@ -209,7 +209,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def doUpdateColumn(datasetRecord: DatasetRecord, columnRecord: ColumnRecord, user: String, precondition: Precondition, column: ColumnName, spec: UserProvidedColumnSpec, requestId: RequestId): Result = {
+  def doUpdateColumn(datasetRecord: DatasetRecord, copyNumber: Long, columnRecord: ColumnRecord, user: String, precondition: Precondition, column: ColumnName, spec: UserProvidedColumnSpec, requestId: RequestId): Result = {
     // ok.  Bleh.  We have a thing and a thing, and we need to decide what's changed.
     // we need to prevent "fieldName" from colliding with existing names.
 
@@ -226,11 +226,31 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
     }
 
     store.withColumnUpdater(datasetRecord.systemId, columnRecord.id) { updater =>
-      val instructions = List.newBuilder[DataCoordinatorInstruction]
+      val instructionsBuilder = List.newBuilder[DataCoordinatorInstruction]
       spec.fieldName.foreach { fn =>
-        updater.updateFieldName(fn)
-        instructions += SetFieldNameInstruction(columnRecord.id, fn)
+        if (columnRecord.fieldName != fn) {
+          updater.updateFieldName(fn)
+          instructionsBuilder += SetFieldNameInstruction(columnRecord.id, fn)
+        }
       }
+
+      columnSpecUtils.freezeForCreation(datasetRecord.columnsByName.mapValues(col => (col.id, col.typ)), spec, forUpdate = true) match {
+        case ColumnSpecUtils.Success(spec) =>
+          spec.computationStrategy.foreach { cs =>
+            if (columnRecord.computationStrategy.isEmpty) {
+              store.addComputationStrategy(datasetRecord.systemId, copyNumber, spec.copy(id = columnRecord.id))
+              instructionsBuilder += AddComputationStrategyInstruction(columnRecord.id, cs)
+            }
+          }
+          if (spec.computationStrategy.isEmpty && columnRecord.computationStrategy.nonEmpty) {
+            store.dropComputationStrategy(datasetRecord.systemId, copyNumber, spec.copy(id = columnRecord.id))
+            instructionsBuilder += DropComputationStrategyInstruction(columnRecord.id)
+          }
+        case x =>
+          log.warn("columnSpecUtils.freezeForCreate(update) failed and ignored", x)
+      }
+
+      val instructions = instructionsBuilder.result()
 
       val extraHeaders = Map(ReqIdHeader -> requestId,
                              SodaUtils.ResourceHeader -> datasetRecord.name)
@@ -238,10 +258,17 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
         dc.update(datasetRecord.systemId,
           datasetRecord.schemaHash,
           user,
-          instructions.result().iterator,
+          instructions.iterator,
           extraHeaders) {
           case DataCoordinatorClient.NonCreateScriptResult(_, etag, copyNumber, newVersion, lastModified) =>
             val updatedColumnRec = columnRecord.copy(fieldName = spec.fieldName.getOrElse(columnRecord.fieldName))
+
+            // maybe add secondary manifest
+            val newComputationStrategies = instructions.collect { case x: AddComputationStrategyInstruction => x }
+            newComputationStrategies.foreach { strategy =>
+              fbm.maybeReplicate(datasetRecord.systemId, Set(strategy.strategy.strategyType), extraHeaders)
+            }
+
             ColumnDAO.Updated(updatedColumnRec, etag)
           case DataCoordinatorClient.SchemaOutOfDateResult(realSchema) =>
             store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)
