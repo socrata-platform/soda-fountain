@@ -15,7 +15,7 @@ object Dependencies {
     val metricsScala      = "3.3.0"
     val mortbayJetty      = "6.1.22"
     val msgpack4s         = "0.4.2"
-    val postgresql        = "9.1-901-1.jdbc4"
+    val postgresql        = "42.2.5"
     val quasiQuotes       = "2.0.0"
     val rojomaJson        = "3.5.0"
     val rojomaJsonGrisu   = "1.0.0"
@@ -65,7 +65,7 @@ object Dependencies {
 
   val mortbayJetty             = "org.mortbay.jetty" % "jetty"                      % versions.mortbayJetty % "container"
 
-  val postgresql               = "postgresql"       % "postgresql"                  % versions.postgresql
+  val postgresql               = "org.postgresql"   % "postgresql"                  % versions.postgresql
 
   val quasiQuotes              = "org.scalamacros" %% "quasiquotes"                 % versions.quasiQuotes
 
