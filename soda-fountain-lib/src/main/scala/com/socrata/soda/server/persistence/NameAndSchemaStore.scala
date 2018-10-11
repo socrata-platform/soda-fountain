@@ -41,6 +41,8 @@ trait NameAndSchemaStore {
   def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId, copyNumber: Long)
 
   def addColumn(datasetId: DatasetId, copyNumber: Long, columnSpec: ColumnSpec) : ColumnRecord
+  def addComputationStrategy(datasetId: DatasetId, copyNumber: Long, columnSpec: ColumnSpec): ColumnRecord
+  def dropComputationStrategy(datasetId: DatasetId, copyNumber: Long, columnSpec: ColumnSpec): ColumnRecord
   def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName, copyNumber: Long) : Int
   def dropColumn(datasetId: DatasetId, columnId: ColumnId, copyNumber: Long) : Unit
   def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]): Unit

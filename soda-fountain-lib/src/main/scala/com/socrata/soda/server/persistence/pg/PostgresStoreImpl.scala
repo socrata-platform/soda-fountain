@@ -471,30 +471,47 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         colAdder.executeBatch
       }
 
+      addComputationStrategy(connection, datasetId, copyNumber, columns)
+    }
+  }
 
-      using (connection.prepareStatement(addCompStrategySql)) { csAdder =>
-        for (crec <- columns.filter(col => col.computationStrategy.isDefined)) {
-          val cs = crec.computationStrategy.get
-          csAdder.setString(1, datasetId.underlying)
-          csAdder.setString(2, crec.id.underlying)
-          csAdder.setString(3, cs.strategyType.toString)
-          cs.sourceColumns match {
-            case Some(seq) => csAdder.setString(4, seq.mkString(","))
-            case None      => csAdder.setNull(4, Types.ARRAY)
-          }
-          csAdder.setString(5, datasetId.underlying)
-          csAdder.setLong(6, copyNumber)
-          cs.parameters match {
-            case Some(jObj) => csAdder.setString(7, jObj.toString)
-            case None       => csAdder.setNull(7, Types.VARCHAR)
-          }
-          csAdder.setString(8, datasetId.underlying)
-          csAdder.setLong(9, copyNumber)
-          csAdder.addBatch
+  def addComputationStrategy(connection: Connection, datasetId: DatasetId, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
+    using (connection.prepareStatement(addCompStrategySql)) { csAdder =>
+      for (crec <- columns.filter(col => col.computationStrategy.isDefined)) {
+        val cs = crec.computationStrategy.get
+        csAdder.setString(1, datasetId.underlying)
+        csAdder.setString(2, crec.id.underlying)
+        csAdder.setString(3, cs.strategyType.toString)
+        cs.sourceColumns match {
+          case Some(seq) => csAdder.setString(4, seq.mkString(","))
+          case None      => csAdder.setNull(4, Types.ARRAY)
         }
-
-        csAdder.executeBatch
+        csAdder.setString(5, datasetId.underlying)
+        csAdder.setLong(6, copyNumber)
+        cs.parameters match {
+          case Some(jObj) => csAdder.setString(7, jObj.toString)
+          case None       => csAdder.setNull(7, Types.VARCHAR)
+        }
+        csAdder.setString(8, datasetId.underlying)
+        csAdder.setLong(9, copyNumber)
+        csAdder.addBatch()
       }
+
+      csAdder.executeBatch()
+    }
+  }
+
+  def dropComputationStrategy(connection: Connection, datasetId: DatasetId, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
+    using (connection.prepareStatement(dropCompStrategySql)) { batch =>
+      for (crec <- columns) {
+        batch.setString(1, datasetId.underlying)
+        batch.setString(2, crec.id.underlying)
+        batch.setString(3, datasetId.underlying)
+        batch.setLong(4, copyNumber)
+        batch.addBatch()
+      }
+
+      batch.executeBatch()
     }
   }
 
@@ -671,6 +688,22 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
       addColumns(conn, datasetId, copyNumber, Seq(result))
       updateSchemaHash(conn, datasetId, copyNumber)
+      result
+    }
+
+  def addComputationStrategy(datasetId: DatasetId, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
+    using(dataSource.getConnection()) { conn =>
+      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
+      addComputationStrategy(conn, datasetId, copyNumber, Seq(result))
+      // computation strategy is not part of schema hash
+      result
+    }
+
+  def dropComputationStrategy(datasetId: DatasetId, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
+    using(dataSource.getConnection()) { conn =>
+      val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
+      dropComputationStrategy(conn, datasetId, copyNumber, Seq(result))
+      // computation strategy is not part of schema hash
       result
     }
 
@@ -942,6 +975,17 @@ object PostgresStoreImpl {
           WHERE dataset_system_id = ?
             And copy_number = ?
             And deleted_at is null
+    """.stripMargin
+
+  val dropCompStrategySql =
+    s"""
+    DELETE FROM computation_strategies
+     WHERE dataset_system_id = ?
+       And column_id = ?
+       And copy_id in (SELECT id FROM dataset_copies
+                        WHERE dataset_system_id = ?
+                          And copy_number = ?
+                          And deleted_at is null)
     """.stripMargin
 
   private val updateVersionInfoSqls = Seq(
