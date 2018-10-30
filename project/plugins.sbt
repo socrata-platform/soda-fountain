@@ -9,5 +9,5 @@ addSbtPlugin("io.spray" % "sbt-revolver" % "0.7.2")
 
 libraryDependencies ++= Seq(
   "com.rojoma" %% "simple-arm" % "1.2.0",
-  "com.rojoma" %% "rojoma-json" % "2.4.3"
+  "com.rojoma" %% "rojoma-json-v3" % "3.9.1"
 )
