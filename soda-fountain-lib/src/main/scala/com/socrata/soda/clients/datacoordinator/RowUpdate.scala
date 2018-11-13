@@ -18,7 +18,8 @@ case class DeleteRow(rowId: JValue) extends RowUpdate {
 
 case class RowUpdateOptionChange(truncate: Boolean = false,
                                  mergeInsteadOfReplace: Boolean = true,
-                                 errorsAreFatal: Boolean = true)
+                                 errorsAreFatal: Boolean = true,
+                                 nonFatalRowErrors: Seq[String] = Seq())
   extends RowUpdate  {
 //  def asJson = {
 //    val map = scala.collection.mutable.Map[String, JValue]("c" -> JString("row data"))
@@ -35,6 +36,7 @@ case class RowUpdateOptionChange(truncate: Boolean = false,
       case true => JString("merge")
       case false => JString("replace")
     }),
-    "fatal_row_errors" -> JBoolean(errorsAreFatal)
+    "fatal_row_errors" -> JBoolean(errorsAreFatal),
+    "nonfatal_row_errors" -> JArray(nonFatalRowErrors.map(JString(_)))
   ))
 }
