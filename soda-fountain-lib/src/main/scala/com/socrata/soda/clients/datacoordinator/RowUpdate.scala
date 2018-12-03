@@ -33,11 +33,11 @@ case class RowUpdateOptionChange(var truncate: Boolean = false,
       }
       parameterMap.get("mergeInsteadOfReplace") match {
         case null =>
-        case mior => this.mergeInsteadOfReplace = Try(mior.asInstanceOf[Array[String]].head.toBoolean).getOrElse(false)
+        case mior => this.mergeInsteadOfReplace = Try(mior.asInstanceOf[Array[String]].head.toBoolean).getOrElse(true)
       }
       parameterMap.get("errorsAreFatal") match {
         case null =>
-        case eaf => this.errorsAreFatal = Try(eaf.asInstanceOf[Array[String]].head.toBoolean).getOrElse(false)
+        case eaf => this.errorsAreFatal = Try(eaf.asInstanceOf[Array[String]].head.toBoolean).getOrElse(true)
       }
       parameterMap.get("nonFatalRowErrors") match {
         case null =>
