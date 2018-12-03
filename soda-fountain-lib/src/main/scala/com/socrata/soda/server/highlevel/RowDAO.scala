@@ -5,7 +5,7 @@ import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
-import com.socrata.soda.clients.datacoordinator.RowUpdate
+import com.socrata.soda.clients.datacoordinator.{RowUpdate, RowUpdateOptionChange}
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError
 import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
 import com.socrata.soda.server.persistence.DatasetRecordLike
@@ -49,6 +49,9 @@ trait RowDAO {
 
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
                (f: UpsertResult => T): T
+
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId, rowUpdateOption: RowUpdateOptionChange)
+              (f: UpsertResult => T): T
 
   def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
                 (f: UpsertResult => T): T

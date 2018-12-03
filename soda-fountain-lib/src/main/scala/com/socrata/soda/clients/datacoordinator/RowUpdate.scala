@@ -3,6 +3,8 @@ package com.socrata.soda.clients.datacoordinator
 import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.json.v3.ast._
 import scala.collection.Map
+import com.socrata.http.server.HttpRequest
+import scala.util.Try
 
 sealed abstract class RowUpdate extends DataCoordinatorInstruction {
   override def toString = JsonUtil.renderJson(asJson)
@@ -16,18 +18,32 @@ case class DeleteRow(rowId: JValue) extends RowUpdate {
   def asJson = JArray(Seq(rowId))
 }
 
-case class RowUpdateOptionChange(truncate: Boolean = false,
-                                 mergeInsteadOfReplace: Boolean = true,
-                                 errorsAreFatal: Boolean = true,
-                                 nonFatalRowErrors: Seq[String] = Seq())
-  extends RowUpdate  {
-//  def asJson = {
-//    val map = scala.collection.mutable.Map[String, JValue]("c" -> JString("row data"))
-//    if (truncate) map.put("truncate", JString(truncate.toString))
-//    if (!mergeInsteadOfReplace) map.put("update", JString("replace"))
-//    if (!errorsAreFatal) map.put("fatal_row_errors", JString(errorsAreFatal.toString))
-//    JObject(map)
-//  }
+// NOTE: If this class is changed, you may want to consider making similar changes
+// to RowUpdateOption.java of the soda-java project
+case class RowUpdateOptionChange(var truncate: Boolean = false,
+                                 var mergeInsteadOfReplace: Boolean = true,
+                                 var errorsAreFatal: Boolean = true,
+                                 var nonFatalRowErrors: Seq[String] = Seq())
+  extends RowUpdate {
+    def updateFromMap(req: HttpRequest) {
+      val parameterMap = req.servletRequest.getParameterMap()
+      parameterMap.get("truncate") match {
+        case null =>
+        case trunc => this.truncate = Try(trunc.asInstanceOf[Array[String]].head.toBoolean).getOrElse(false)
+      }
+      parameterMap.get("mergeInsteadOfReplace") match {
+        case null =>
+        case mior => this.mergeInsteadOfReplace = Try(mior.asInstanceOf[Array[String]].head.toBoolean).getOrElse(false)
+      }
+      parameterMap.get("errorsAreFatal") match {
+        case null =>
+        case eaf => this.errorsAreFatal = Try(eaf.asInstanceOf[Array[String]].head.toBoolean).getOrElse(false)
+      }
+      parameterMap.get("nonFatalRowErrors") match {
+        case null =>
+        case nfre => this.nonFatalRowErrors = nfre.asInstanceOf[Array[String]]
+      }
+    }
 
   def asJson = JObject(Map(
     "c" -> JString("row data"),

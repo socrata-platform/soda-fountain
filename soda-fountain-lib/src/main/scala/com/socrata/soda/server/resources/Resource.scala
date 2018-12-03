@@ -7,6 +7,7 @@ import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
 
 import scala.collection.JavaConverters._
 import scala.language.existentials
+import scala.util.Try
 import com.rojoma.json.v3.ast.{JArray, JNumber, JString, JValue}
 import com.rojoma.simplearm.util._
 import com.rojoma.simplearm.v2.ResourceScope
@@ -16,7 +17,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
-import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RowUpdate}
+import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RowUpdate, RowUpdateOptionChange}
 import com.socrata.soda.clients.querycoordinator.{QueryCoordinatorClient, QueryCoordinatorError}
 import com.socrata.soda.server.{responses => SodaErrors, _}
 import com.socrata.soda.server.copy.Stage
@@ -274,7 +275,9 @@ case class Resource(rowDAO: RowDAO,
 
     override def post = { req => response =>
       val requestId = RequestId.getFromRequest(req)
-      upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId), allowSingleItem = true)
+      var options = RowUpdateOptionChange()
+      options.updateFromMap(req)
+      upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId, options), allowSingleItem = true)
     }
 
     override def put = { req => response =>
