@@ -75,7 +75,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
+        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true,"nonfatal_row_errors":[]},
         | {a:'aaa', b:'bbb'}
         |]""".stripMargin
     testCompare(mc, expected)
@@ -90,7 +90,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
+        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true,"nonfatal_row_errors":[]},
         | ['row id string']
         |]""".stripMargin
     testCompare(mc, expected)
@@ -121,7 +121,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
         | {c:'add column', field_name:'field_name', type:'number', id:'a column id'},
-        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
+        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true,"nonfatal_row_errors":[]},
         | {a:'aaa', b:'bbb'}
         |]""".stripMargin
     testCompare(mc, expected)
@@ -137,7 +137,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
+        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true,"nonfatal_row_errors":[]},
         | {a:'aaa'},
         | null,
         | {c:'add column', field_name:'field_name', type:'number', id:'a column id'}
@@ -155,7 +155,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'row data',"truncate":true,"update":"replace","fatal_row_errors":false},
+        | {c:'row data',"truncate":true,"update":"replace","fatal_row_errors":false, "nonfatal_row_errors":[]},
         | {a:'aaa'}
         |]""".stripMargin
     testCompare(mc, expected)
@@ -194,9 +194,9 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'row data',"truncate":true,"update":"replace","fatal_row_errors":false},
+        | {c:'row data',"truncate":true,"update":"replace","fatal_row_errors":false,"nonfatal_row_errors":[]},
         | null,
-        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true},
+        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true,"nonfatal_row_errors":[]},
         | {a:'aaa'}
         |]""".stripMargin
     testCompare(mc, expected)
