@@ -39,7 +39,7 @@ case class RowUpdateOptionChange(var truncate: Boolean = false,
         case null =>
         case eaf => this.errorsAreFatal = Try(eaf.asInstanceOf[Array[String]].head.toBoolean).getOrElse(true)
       }
-      parameterMap.get("nonFatalRowErrors") match {
+      parameterMap.get("nonFatalRowErrors[]") match {
         case null =>
         case nfre => this.nonFatalRowErrors = nfre.asInstanceOf[Array[String]]
       }
