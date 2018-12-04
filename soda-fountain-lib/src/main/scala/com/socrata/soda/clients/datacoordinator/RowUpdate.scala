@@ -25,7 +25,7 @@ case class RowUpdateOptionChange(var truncate: Boolean = false,
                                  var errorsAreFatal: Boolean = true,
                                  var nonFatalRowErrors: Seq[String] = Seq())
   extends RowUpdate {
-    def updateFromMap(req: HttpRequest) {
+    def updateFromReq(req: HttpRequest) {
       val parameterMap = req.servletRequest.getParameterMap()
       parameterMap.get("truncate") match {
         case null =>

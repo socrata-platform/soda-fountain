@@ -276,7 +276,7 @@ case class Resource(rowDAO: RowDAO,
     override def post = { req => response =>
       val requestId = RequestId.getFromRequest(req)
       var options = RowUpdateOptionChange()
-      options.updateFromMap(req)
+      options.updateFromReq(req)
       upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId, options), allowSingleItem = true)
     }
 
