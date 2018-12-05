@@ -273,11 +273,13 @@ case class Resource(rowDAO: RowDAO,
     }
 
 
-    override def post = { req => response =>
+    override def post = { req =>
       val requestId = RequestId.getFromRequest(req)
       RowUpdateOption.fromReq(req) match {
         case Right(options) =>
-          upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId, options), allowSingleItem = true)
+          { response =>
+            upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId, options), allowSingleItem = true)
+          }
         case Left((badParam, badValue)) =>
           SodaUtils.response(req, SodaErrors.BadParameter(badParam, badValue))
       }
