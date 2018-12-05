@@ -1,12 +1,12 @@
 package com.socrata.soda.server
 
-import com.ibm.icu.text.Normalizer
+import com.ibm.icu.text.Normalizer2
 import com.rojoma.json.v3.io._
 
 object InputNormalizer {
-  val normalizationMode: Normalizer.Mode = Normalizer.NFC
+  val normalizer = Normalizer2.getNFCInstance
 
-  def normalize(s: String): String = Normalizer.normalize(s, normalizationMode)
+  def normalize(s: String): String = normalizer.normalize(s)
 
   def normalizeEvent(event: JsonEvent): JsonEvent = {
     def p(e: JsonEvent) = { e.positionedAt(event.position) }
