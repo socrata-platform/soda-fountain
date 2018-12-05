@@ -215,17 +215,13 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
-               (f: UpsertResult => T): T =
-    doUpsertish(user, datasetRecord, data, Iterator.empty, requestId, f)
-
-  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId, rowUpdateOption: RowUpdateOptionChange)
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId, rowUpdateOption: RowUpdateOption)
                (f: UpsertResult => T): T =
     doUpsertish(user, datasetRecord, data, Iterator.single(rowUpdateOption), requestId, f)
 
   def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
                 (f: UpsertResult => T): T =
-    doUpsertish(user, datasetRecord, data, Iterator.single(RowUpdateOptionChange(truncate = true)),
+    doUpsertish(user, datasetRecord, data, Iterator.single(RowUpdateOption.default.copy(truncate = true)),
                 requestId, f)
 
   def deleteRow[T](user: String, resourceName: ResourceName, rowId: RowSpecifier, requestId: RequestId)

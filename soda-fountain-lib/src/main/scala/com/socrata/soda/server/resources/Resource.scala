@@ -17,7 +17,7 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
-import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RowUpdate, RowUpdateOptionChange}
+import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RowUpdate, RowUpdateOption}
 import com.socrata.soda.clients.querycoordinator.{QueryCoordinatorClient, QueryCoordinatorError}
 import com.socrata.soda.server.{responses => SodaErrors, _}
 import com.socrata.soda.server.copy.Stage
@@ -275,9 +275,12 @@ case class Resource(rowDAO: RowDAO,
 
     override def post = { req => response =>
       val requestId = RequestId.getFromRequest(req)
-      var options = RowUpdateOptionChange()
-      options.updateFromReq(req)
-      upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId, options), allowSingleItem = true)
+      RowUpdateOption.fromReq(req) match {
+        case Right(options) =>
+          upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId, options), allowSingleItem = true)
+        case Left((badParam, badValue)) =>
+          SodaUtils.response(req, SodaErrors.BadParameter(badParam, badValue))
+      }
     }
 
     override def put = { req => response =>

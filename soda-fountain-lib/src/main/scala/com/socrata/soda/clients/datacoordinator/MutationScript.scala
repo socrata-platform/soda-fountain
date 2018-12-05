@@ -16,7 +16,7 @@ class MutationScript(
 
   def it : Iterator[JsonEvent] = {
     var rowDataDeclared = false
-    var declaredOptions = RowUpdateOptionChange()
+    var declaredOptions = RowUpdateOption.default
     var seqNum = 0
 
     val dcInstructions = instructions.map { instruction =>
@@ -35,7 +35,7 @@ class MutationScript(
         }
         case i: RowUpdate => {
           i match {
-            case options: RowUpdateOptionChange => {
+            case options: RowUpdateOption => {
               if (options != declaredOptions){
                 if (rowDataDeclared){
                   rowDataDeclared = false
@@ -77,7 +77,7 @@ class MutationScript(
 
   def streamJson(out: Writer){
     var rowDataDeclared = false
-    var declaredOptions = RowUpdateOptionChange()
+    var declaredOptions = RowUpdateOption.default
     var seqNum = 0
 
     out.write('[')
@@ -100,7 +100,7 @@ class MutationScript(
         }
         case i: RowUpdate => {
           i match {
-            case ops: RowUpdateOptionChange => {
+            case ops: RowUpdateOption => {
               if (ops != declaredOptions){
                 if (rowDataDeclared){
                   out.write("null,")

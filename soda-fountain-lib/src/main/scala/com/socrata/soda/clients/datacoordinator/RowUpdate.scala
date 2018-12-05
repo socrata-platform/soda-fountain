@@ -1,10 +1,10 @@
 package com.socrata.soda.clients.datacoordinator
 
+import scala.collection.JavaConverters._
 import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.json.v3.ast._
-import scala.collection.Map
-import com.socrata.http.server.HttpRequest
-import scala.util.Try
+import com.rojoma.json.v3.codec.JsonEncode
+import com.socrata.http.server.{HttpRequest, ParsedParam, UnparsableParam}
 
 sealed abstract class RowUpdate extends DataCoordinatorInstruction {
   override def toString = JsonUtil.renderJson(asJson)
@@ -20,30 +20,10 @@ case class DeleteRow(rowId: JValue) extends RowUpdate {
 
 // NOTE: If this class is changed, you may want to consider making similar changes
 // to RowUpdateOption.java of the soda-java project
-case class RowUpdateOptionChange(var truncate: Boolean = false,
-                                 var mergeInsteadOfReplace: Boolean = true,
-                                 var errorsAreFatal: Boolean = true,
-                                 var nonFatalRowErrors: Seq[String] = Seq())
+case class RowUpdateOption(truncate: Boolean,
+                           mergeInsteadOfReplace: Boolean,
+                           errorPolicy: RowUpdateOption.ErrorPolicy)
   extends RowUpdate {
-    def updateFromReq(req: HttpRequest) {
-      val parameterMap = req.servletRequest.getParameterMap()
-      parameterMap.get("truncate") match {
-        case null =>
-        case trunc => this.truncate = Try(trunc.asInstanceOf[Array[String]].head.toBoolean).getOrElse(false)
-      }
-      parameterMap.get("mergeInsteadOfReplace") match {
-        case null =>
-        case mior => this.mergeInsteadOfReplace = Try(mior.asInstanceOf[Array[String]].head.toBoolean).getOrElse(true)
-      }
-      parameterMap.get("errorsAreFatal") match {
-        case null =>
-        case eaf => this.errorsAreFatal = Try(eaf.asInstanceOf[Array[String]].head.toBoolean).getOrElse(true)
-      }
-      parameterMap.get("nonFatalRowErrors[]") match {
-        case null =>
-        case nfre => this.nonFatalRowErrors = nfre.asInstanceOf[Array[String]]
-      }
-    }
 
   def asJson = JObject(Map(
     "c" -> JString("row data"),
@@ -51,8 +31,62 @@ case class RowUpdateOptionChange(var truncate: Boolean = false,
     "update" -> (mergeInsteadOfReplace match {
       case true => JString("merge")
       case false => JString("replace")
-    }),
-    "fatal_row_errors" -> JBoolean(errorsAreFatal),
-    "nonfatal_row_errors" -> JArray(nonFatalRowErrors.map(JString(_)))
-  ))
+    })
+  ) + errorPolicy.fold("fatal_row_errors" -> JsonEncode.toJValue(false)) { nonFatalRowErrors =>
+    "nonfatal_row_errors" -> JsonEncode.toJValue(nonFatalRowErrors)
+  })
+}
+
+object RowUpdateOption {
+  val default = RowUpdateOption(
+    truncate = false,
+    mergeInsteadOfReplace = true,
+    errorPolicy = NonFatalRowErrors(Nil)
+  )
+
+  sealed abstract class ErrorPolicy {
+    def fold[T](noFatal: T)(nonFatals: Seq[String] => T): T
+  }
+  case object NoRowErrorsAreFatal extends ErrorPolicy {
+    def fold[T](noFatal: T)(nonFatals: Seq[String] => T) = noFatal
+  }
+  case class NonFatalRowErrors(errors: Seq[String]) extends ErrorPolicy {
+    def fold[T](noFatal: T)(nonFatals: Seq[String] => T) = nonFatals(errors)
+  }
+
+  def fromReq(req: HttpRequest): Either[(String, String), RowUpdateOption] = {
+    def boolParam(name: String, default: Boolean) = {
+      req.parseQueryParameterAs[Boolean](name) match {
+        case ParsedParam(Some(b)) => Right(b)
+        case ParsedParam(None) => Right(default)
+        case UnparsableParam(_, value) => Left((name, value))
+      }
+    }
+
+    def errorPolicyParam() = {
+      val interesting = req.queryParametersSeq.collect {
+        case ("nonFatalRowErrors[]", Some(value)) => value
+      }
+      if(interesting.nonEmpty) {
+        Right(NonFatalRowErrors(interesting))
+      } else {
+        boolParam("errorsAreFatal", true).right.map {
+          case true => NonFatalRowErrors(Nil)
+          case false => NoRowErrorsAreFatal
+        }
+      }
+    }
+
+    for {
+      truncate <- boolParam("truncate", false).right
+      mergeInsteadOfReplace <- boolParam("mergeInsteadOfReplace", true).right
+      errorPolicy <- errorPolicyParam().right
+    } yield {
+      RowUpdateOption(
+        truncate = truncate,
+        mergeInsteadOfReplace = mergeInsteadOfReplace,
+        errorPolicy = errorPolicy
+      )
+    }
+  }
 }
