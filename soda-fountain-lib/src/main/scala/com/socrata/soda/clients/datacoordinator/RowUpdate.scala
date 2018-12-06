@@ -71,16 +71,18 @@ object RowUpdateOption {
       if(interesting.nonEmpty) {
         Right(NonFatalRowErrors(interesting))
       } else {
-        boolParam("errorsAreFatal", true).right.map {
-          case true => NonFatalRowErrors(Nil)
-          case false => NoRowErrorsAreFatal
+        req.parseQueryParameterAs[Boolean]("errorsAreFatal") match {
+          case ParsedParam(Some(true)) => Right(NonFatalRowErrors(Nil))
+          case ParsedParam(Some(false)) => Right(NoRowErrorsAreFatal)
+          case ParsedParam(None) => Right(default.errorPolicy)
+          case UnparsableParam(name, value) => Left((name, value))
         }
       }
     }
 
     for {
-      truncate <- boolParam("truncate", false).right
-      mergeInsteadOfReplace <- boolParam("mergeInsteadOfReplace", true).right
+      truncate <- boolParam("truncate", default.truncate).right
+      mergeInsteadOfReplace <- boolParam("mergeInsteadOfReplace", default.mergeInsteadOfReplace).right
       errorPolicy <- errorPolicyParam().right
     } yield {
       RowUpdateOption(
