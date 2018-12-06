@@ -37,6 +37,7 @@ case class RowUpdateOption(truncate: Boolean,
   })
 }
 
+// Note: nonfatal_row_errors = [] implies fatal_row_errors = true unless otherwise set
 object RowUpdateOption {
   val default = RowUpdateOption(
     truncate = false,

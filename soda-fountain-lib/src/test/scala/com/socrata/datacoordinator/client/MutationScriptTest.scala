@@ -75,7 +75,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true,"nonfatal_row_errors":[]},
+        | {c:'row data',"truncate":false,"update":"merge","nonfatal_row_errors":[]},
         | {a:'aaa', b:'bbb'}
         |]""".stripMargin
     testCompare(mc, expected)
@@ -90,7 +90,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true,"nonfatal_row_errors":[]},
+        | {c:'row data',"truncate":false,"update":"merge","nonfatal_row_errors":[]},
         | ['row id string']
         |]""".stripMargin
     testCompare(mc, expected)
@@ -121,7 +121,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
         | {c:'add column', field_name:'field_name', type:'number', id:'a column id'},
-        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true,"nonfatal_row_errors":[]},
+        | {c:'row data',"truncate":false,"update":"merge","nonfatal_row_errors":[]},
         | {a:'aaa', b:'bbb'}
         |]""".stripMargin
     testCompare(mc, expected)
@@ -137,7 +137,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true,"nonfatal_row_errors":[]},
+        | {c:'row data',"truncate":false,"update":"merge","nonfatal_row_errors":[]},
         | {a:'aaa'},
         | null,
         | {c:'add column', field_name:'field_name', type:'number', id:'a column id'}
@@ -146,7 +146,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   }
 
   test("Mutation Script encodes a row option change and row update"){
-    val roc = new RowUpdateOption(true, false, false)
+    val roc = RowUpdateOption.default.copy(truncate = true, mergeInsteadOfReplace = false, errorPolicy = RowUpdateOption.NoRowErrorsAreFatal)
     val ru = new UpsertRow(Map("a" -> JString("aaa")))
     val mc = new MutationScript(
       user,
@@ -155,7 +155,7 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'row data',"truncate":true,"update":"replace","fatal_row_errors":false, "nonfatal_row_errors":[]},
+        | {c:'row data',"truncate":true,"update":"replace","fatal_row_errors":false},
         | {a:'aaa'}
         |]""".stripMargin
     testCompare(mc, expected)
@@ -184,8 +184,12 @@ class MutationScriptTest extends DataCoordinatorClientTest {
   // ]}]"
 
   test("Mutation Script encodes a multiple row option changes and row update"){
-    val roc1 = new RowUpdateOption(true, false, false)
-    val roc2 = new RowUpdateOption()
+    val roc1 = RowUpdateOption.default.copy(
+            truncate = true,
+            mergeInsteadOfReplace = false,
+            errorPolicy = RowUpdateOption.NonFatalRowErrors(Array("no_such_row_to_delete"))
+    )
+    val roc2 = RowUpdateOption.default
     val ru = new UpsertRow(Map("a" -> JString("aaa")))
     val mc = new MutationScript(
       user,
@@ -194,9 +198,9 @@ class MutationScriptTest extends DataCoordinatorClientTest {
     val expected =
       """[
         | {c:'normal',  user:'Daniel the tester', schema:'fake_schema_hash'},
-        | {c:'row data',"truncate":true,"update":"replace","fatal_row_errors":false,"nonfatal_row_errors":[]},
+        | {c:'row data',"truncate":true,"update":"replace","nonfatal_row_errors":["no_such_row_to_delete"]},
         | null,
-        | {c:'row data',"truncate":false,"update":"merge","fatal_row_errors":true,"nonfatal_row_errors":[]},
+        | {c:'row data',"truncate":false,"update":"merge","nonfatal_row_errors":[]},
         | {a:'aaa'}
         |]""".stripMargin
     testCompare(mc, expected)
