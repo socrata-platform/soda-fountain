@@ -6,7 +6,7 @@ import com.socrata.datacoordinator.client.HttpDatatCoordinatorClientTest
 import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.Precondition
-import com.socrata.soda.clients.datacoordinator.RowUpdate
+import com.socrata.soda.clients.datacoordinator.{RowUpdate, RowUpdateOption}
 import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.highlevel.{DatasetDAO, ExportDAO, RowDAO}
@@ -256,6 +256,7 @@ private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
           reqId, fuseColumns, None, debug, rs)
   }
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], reqId: String, rowUpdateOption: RowUpdateOption)(f: UpsertResult => T): T = ???
   def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
   def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier, reqId: String)(f: UpsertResult => T): T = ???
 }
