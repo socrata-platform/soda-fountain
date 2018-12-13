@@ -33,14 +33,11 @@ object CJsonExporter extends Exporter {
     else JsonColumnRep.forClientTypeClearId
     val reps: Array[JsonColumnWriteRep] = schema.schema.map { ci => jsonColumnReps(ci.typ) }.toArray
 
-    //val fuser = new LocationFuser(schema, reps, "loc")
     val fusers = fuseMap.foldLeft(Seq.empty[LocationFuser]) { (acc, x) =>
       val (name, typ) = x
       typ match {
-        case "location" =>
-          acc :+ new LocationFuser(schema, reps, name)
-        case _ =>
-          acc
+        case "location" => acc :+ new LocationFuser(schema, reps, name)
+        case _ => acc
       }
     }
 
@@ -53,11 +50,8 @@ object CJsonExporter extends Exporter {
         val jw = new CompactJsonWriter(w)
         val schemaOrdering = schema.schema.zipWithIndex.sortBy(_._1.fieldName).map(_._2).toArray
         val fusedSchemaOrdering =
-          if (fusers.isEmpty) {
-            schemaOrdering
-          } else {
-            fusedSchema.schema.zipWithIndex.sortBy(_._1.fieldName).map(_._2).toArray
-          }
+          if (fusers.isEmpty) schemaOrdering
+          else fusedSchema.schema.zipWithIndex.sortBy(_._1.fieldName).map(_._2).toArray
         w.write("""[{""")
         schema.approximateRowCount.foreach { count =>
           w.write(s""""approximate_row_count":${JNumber(count)}""")
