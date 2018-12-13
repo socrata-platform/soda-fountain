@@ -41,9 +41,7 @@ object CJsonExporter extends Exporter {
       }
     }
 
-    val fusedSchema = fusers.foldLeft(schema) { (acc, fuser) =>
-      fuser.convertSchema(acc)
-    }
+    val fusedSchema = fusers.foldLeft(schema) { (acc, fuser) => fuser.convertSchema(acc) }
 
     exporterHeaders(fusedSchema) ~> Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
@@ -81,7 +79,6 @@ object CJsonExporter extends Exporter {
         }
         w.write("]\n }\n")
         // end of header
-
         for(row <- rows) {
           w.write(",[")
           if(row.length > 0) {
