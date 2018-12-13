@@ -28,9 +28,6 @@ object CJsonExporter extends Exporter {
              obfuscateId: Boolean = true, bom: Boolean = false,
              fuseMap: Map[String, String] = Map.empty): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
-
-    var ct = 0
-
     mt.setParameter("charset", charset.alias)
     val jsonColumnReps = if (obfuscateId) JsonColumnRep.forClientType
     else JsonColumnRep.forClientTypeClearId
@@ -95,8 +92,6 @@ object CJsonExporter extends Exporter {
           w.write(",[")
           if(row.length > 0) {
             fusers.foreach(fuser => fuser.convert(row))
-            ct += 1
-            println(ct)
             jw.write(reps(schemaOrdering(0)).toJValue(row(schemaOrdering(0))))
             var i = 1
             while(i < row.length) {
