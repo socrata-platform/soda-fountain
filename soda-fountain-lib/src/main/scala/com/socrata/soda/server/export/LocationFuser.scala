@@ -15,21 +15,20 @@ import com.rojoma.json.util.JsonUtil
   */
 class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], loc: String) {
 
-  val fieldNameIdxMap = schema.schema.zipWithIndex.map {
+  private val fieldNameIdxMap = schema.schema.zipWithIndex.map {
     case (columnInfo, idx) => (columnInfo.fieldName.caseFolded, idx)
   }.toMap
 
+  private val LocStreet = loc + "_address"
+  private val LocCity = loc + "_city"
+  private val LocState = loc + "_state"
+  private val LocZip = loc + "_zip"
 
-  val LocStreet = loc + "_address"
-  val LocCity = loc + "_city"
-  val LocState = loc + "_state"
-  val LocZip = loc + "_zip"
-
-  val pointIdx = fieldNameIdxMap(loc)
-  val streetIdx = fieldNameIdxMap(LocStreet)
-  val cityIdx = fieldNameIdxMap(LocCity)
-  val stateIdx = fieldNameIdxMap(LocState)
-  val zipIdx = fieldNameIdxMap(LocZip)
+  private val pointIdx = fieldNameIdxMap(loc)
+  private val streetIdx = fieldNameIdxMap(LocStreet)
+  private val cityIdx = fieldNameIdxMap(LocCity)
+  private val stateIdx = fieldNameIdxMap(LocState)
+  private val zipIdx = fieldNameIdxMap(LocZip)
 
   // ouch, mutate the reps
   reps(pointIdx) = JsonColumnRep.LocationRep
