@@ -111,7 +111,8 @@ object UpsertUtils {
                         Some("json"),
                         excludeSystemFields = false,
                         param,
-                        true)(req)(response)
+                        true,
+                        Map.empty)(req)(response)
     }
     while(report.hasNext) {
       report.next() match {

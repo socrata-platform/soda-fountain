@@ -216,7 +216,7 @@ case class Resource(rowDAO: RowDAO,
                         optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader ~>
-                      exporter.export(charset, schema, rows, singleRow = false, obfuscateId,
+                      exporter.export(charset, schema, rows, singleRow = false, obfuscateId = obfuscateId,
                                       bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))
                   case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
                     metric(QueryCacheHit)
@@ -366,7 +366,7 @@ case class Resource(rowDAO: RowDAO,
                         optionalHeader("X-SODA2-Secondary-Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader ~>
-                        exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId,
+                        exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId = obfuscateId,
                                         bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
