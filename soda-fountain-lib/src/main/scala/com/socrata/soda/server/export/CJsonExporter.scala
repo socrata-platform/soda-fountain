@@ -41,7 +41,7 @@ object CJsonExporter extends Exporter {
       val (name, typ) = x
       typ match {
         case "location" =>
-          acc :+ new LocationFuser(schema, reps, "loc")
+          acc :+ new LocationFuser(schema, reps, name)
         case _ =>
           acc
       }
