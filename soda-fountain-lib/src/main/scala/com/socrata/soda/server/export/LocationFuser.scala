@@ -10,6 +10,9 @@ import com.socrata.soql.types._
 
 import com.rojoma.json.util.JsonUtil
 
+/**
+  * Ouch, this class mutates the reps
+  */
 class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], loc: String) {
 
   val fieldNameIdxMap = schema.schema.zipWithIndex.map {
@@ -28,6 +31,7 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
   val stateIdx = fieldNameIdxMap(LocState)
   val zipIdx = fieldNameIdxMap(LocZip)
 
+  // ouch, mutate the reps
   reps(pointIdx) = JsonColumnRep.LocationRep
 
   def convertSchema(schema: ExportDAO.CSchema): ExportDAO.CSchema = {
@@ -43,6 +47,9 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
     })
   }
 
+  /**
+    * This function mutate the row
+    */
   def convert(row: Array[SoQLValue]): Unit = {
     val latLon = row(pointIdx)
     val street = row(streetIdx)
@@ -66,6 +73,7 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
       case _ =>
         SoQLNull
     }
+    // ouch, mutate the row
     row(pointIdx) = svLoc
   }
 }
