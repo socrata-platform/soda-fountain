@@ -80,6 +80,22 @@ object JsonColumnRep {
     }
   }
 
+  object LegacyLocationWriteRep extends JsonColumnWriteRep {
+    val representedType = SoQLLocation
+
+    def toJValue(input: SoQLValue): JValue = {
+      input match {
+        case loc: SoQLLocation =>
+          JArray(Seq(
+            loc.address.map(JString(_)).getOrElse(JNull),
+            loc.latitude.map(x => JString(x.toPlainString)).getOrElse(JNull),
+            loc.longitude.map(x => JString(x.toPlainString)).getOrElse(JNull)))
+        case SoQLNull => JNull
+        case _ => stdBadValue
+      }
+    }
+  }
+
   object PhoneRep extends JsonColumnRep {
     val representedType = SoQLPhone
 
