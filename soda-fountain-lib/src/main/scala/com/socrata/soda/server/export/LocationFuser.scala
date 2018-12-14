@@ -31,7 +31,7 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
   private val zipIdx = fieldNameIdxMap(LocZip)
 
   // ouch, mutate the reps
-  reps(pointIdx) = JsonColumnRep.LocationRep
+  reps(pointIdx) = JsonColumnRep.LegacyLocationWriteRep
 
   def convertSchema(schema: ExportDAO.CSchema): ExportDAO.CSchema = {
     schema.copy(schema = schema.schema.foldLeft(Seq.empty[ExportDAO.ColumnInfo]) { (acc, ci) =>
