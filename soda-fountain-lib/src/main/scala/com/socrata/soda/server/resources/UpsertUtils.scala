@@ -2,7 +2,7 @@ package com.socrata.soda.server.resources
 
 import com.rojoma.json.v3.ast.{JObject, JNumber, JString}
 import com.rojoma.json.v3.io.CompactJsonWriter
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 import com.socrata.http.server.HttpRequest
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{OtherReportItem, UpsertReportItem, ReportItem}
 import com.socrata.soda.server.{responses => SodaErrors, _}

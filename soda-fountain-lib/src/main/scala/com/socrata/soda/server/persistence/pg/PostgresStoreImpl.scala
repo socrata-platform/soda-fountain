@@ -11,7 +11,7 @@ import scala.concurrent.duration.FiniteDuration
 
 import com.rojoma.json.v3.ast.JObject
 import com.rojoma.json.v3.io.{JsonReaderException, JsonReader}
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 import com.socrata.soda.server.copy.{Latest, Published, Stage}
 import com.socrata.soda.server.highlevel.csrec
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}

@@ -2,7 +2,7 @@ package com.socrata.soda.external
 
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 import com.socrata.http.client._
 import com.socrata.http.common.AuxiliaryData
 import com.socrata.curator.{CuratorServerProvider, CuratorServiceBase}
@@ -140,7 +140,7 @@ class SodaFountainClient(httpClient: HttpClient,
     try {
       serverProvider.withRetries(retryCount, request, retryWhen) {
         case Some(response) =>
-          for { reader <- managed(response.reader()) } yield {
+          for { reader <- managed(response.reader()) } {
             try {
               // TODO : Distinguish between empty response and invalid-JSON response
               // TODO : May need to support non-JSON body (eg. CSV) in the future

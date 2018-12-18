@@ -2,7 +2,7 @@ package com.socrata.soda.server.export
 
 import javax.servlet.ServletOutputStream
 
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.conversions._
@@ -145,7 +145,7 @@ class TableExporterTest extends ExporterTest {
     for {
       out <- managed(new ByteArrayOutputStream)
       wrapped <- managed(new FakeServletOutputStream(out))
-    } yield {
+    } {
       val mockResponse = mock[HttpServletResponse]
       mockResponse.expects('setContentType)(s"$contentType; charset=UTF-8")
       mockResponse.expects('getOutputStream)().returning(wrapped)

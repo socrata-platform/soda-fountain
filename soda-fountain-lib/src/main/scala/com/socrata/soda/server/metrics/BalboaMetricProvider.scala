@@ -2,7 +2,7 @@ package com.socrata.soda.server.metrics
 
 import com.blist.metrics.impl.queue.MetricJmsQueueNotSingleton
 import com.socrata.metrics.Fluff
-import com.socrata.metrics.impl.AsyncActiveMQQueue
+import com.socrata.balboa.impl.AsyncActiveMQQueue
 
 import com.socrata.soda.server.config.BalboaConfig
 import com.socrata.soda.server.metrics.Metrics._
@@ -15,7 +15,7 @@ import java.io.Closeable
  */
 class BalboaMetricProvider(config: BalboaConfig) extends MetricProvider with Closeable {
   private val log = org.slf4j.LoggerFactory.getLogger(classOf[BalboaMetricProvider])
-  private val metricQueue = new AsyncActiveMQQueue(config.activeMQConnectionUri, config.jmsQueue)
+  private val metricQueue = new AsyncActiveMQQueue(config.activeMQConnectionUri, config.jmsQueue, 10)
 
   /**
    * Initializes necessary connections with external services.

@@ -3,10 +3,10 @@ import sbt._
 object Dependencies {
   object versions {
     val apacheCurator     = "2.4.2"
-    val balboa            = "0.14.0"
+    val balboa            = "0.19.2"
     val c3p0              = "0.9.5.2"
     val codahaleMetrics   = "3.0.2"
-    val computationStrategies = "0.1.0"
+    val computationStrategies = "0.1.2"
     val dropWizardMetrics = "3.1.0"
     val javaxServletApi   = "2.5"
     val liquibaseCore     = "2.0.0"
@@ -22,11 +22,11 @@ object Dependencies {
     val rojomaSimpleArm   = "1.2.0"
     val rojomaSimpleArmV2 = "2.1.0"
     val scalaj            = "0.3.15"
-    val socrataHttp       = "3.11.2"
-    val soqlBrita         = "1.3.0"
-    val soqlReference     = "2.11.3"
-    val thirdPartyUtils   = "4.0.5"
-    val curatorUtils      = "1.0.3"
+    val socrataHttp       = "3.11.4"
+    val soqlBrita         = "1.4.1"
+    val soqlReference     = "2.11.4"
+    val thirdPartyUtils   = "4.0.16"
+    val curatorUtils      = "1.1.2"
     val typesafeConfig    = "1.0.2"
 
     // Test
@@ -40,7 +40,7 @@ object Dependencies {
 
   val apacheCuratorDiscovery   = "org.apache.curator" % "curator-x-discovery"   % versions.apacheCurator
 
-  val balboaClient             = "com.socrata"     %% "balboa-client"               % versions.balboa exclude("org.slf4j", "slf4j-simple")
+  val balboaClient             = "com.socrata"     %% "balboa-client-jms"               % versions.balboa exclude("org.slf4j", "slf4j-simple")
 
   val c3p0                     = "com.mchange"      % "c3p0"                        % versions.c3p0
 

@@ -1,6 +1,6 @@
 package com.socrata.soda.server.export
 
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soql.environment.ColumnName
@@ -83,7 +83,7 @@ class SoQLPackExporterTest  extends ExporterTest {
                          rows: Seq[Array[SoQLValue]],
                          singleRow: Boolean): (Seq[(String, SoQLType)], Int, Seq[Array[SoQLValue]]) = {
     for { baos   <- managed(new ByteArrayOutputStream)
-          stream <- managed(new ServletOutputStream { def write(b: Int) { baos.write(b) }} ) } yield {
+          stream <- managed(new ServletOutputStream { def write(b: Int) { baos.write(b) }} ) } {
       val mockResponse = mock[HttpServletResponse]
       mockResponse.expects('setContentType)("application/octet-stream")
       mockResponse.expects('getOutputStream)().returning(stream)

@@ -9,8 +9,7 @@ import scala.collection.JavaConverters._
 import scala.language.existentials
 import scala.util.Try
 import com.rojoma.json.v3.ast.{JArray, JNumber, JString, JValue}
-import com.rojoma.simplearm.util._
-import com.rojoma.simplearm.v2.ResourceScope
+import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.ContentNegotiation
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._

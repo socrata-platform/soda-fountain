@@ -2,7 +2,7 @@ package com.socrata.soda.server
 
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 import com.socrata.http.server.SocrataServerJetty
 import com.socrata.http.server.curator.CuratorBroker
 import com.socrata.soda.server.config.SodaFountainConfig

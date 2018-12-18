@@ -3,7 +3,7 @@ import sbt._
 import Keys._
 
 import com.rojoma.json.v3.util.JsonUtil.writeJson
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 
 import Dependencies._
 import Dependencies.Test

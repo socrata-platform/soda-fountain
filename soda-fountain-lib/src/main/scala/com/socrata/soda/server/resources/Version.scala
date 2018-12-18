@@ -1,7 +1,7 @@
 package com.socrata.soda.server.resources
 
 import com.rojoma.json.v3.io.JsonReader
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
@@ -19,7 +19,7 @@ object Version {
     val responseJ = for {
       stream <- managed(getClass.getClassLoader.getResourceAsStream("soda-fountain-version.json"))
       reader <- managed(new InputStreamReader(stream, StandardCharsets.UTF_8))
-    } yield JsonReader.fromReader(reader)
+    } JsonReader.fromReader(reader)
 
     def response = {
       // TODO: Negotiate content-type

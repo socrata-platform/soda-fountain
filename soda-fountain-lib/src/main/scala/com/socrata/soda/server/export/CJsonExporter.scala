@@ -5,8 +5,7 @@ import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.json.v3.io.CompactJsonWriter
-import com.rojoma.simplearm.util._
-import com.rojoma.simplearm.v2.ResourceScope
+import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.http.server.HttpResponse
 import com.socrata.soda.server.highlevel.ExportDAO

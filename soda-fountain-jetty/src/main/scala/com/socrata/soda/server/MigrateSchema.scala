@@ -1,6 +1,6 @@
 package com.socrata.soda.server
 
-import com.rojoma.simplearm.util._
+import com.rojoma.simplearm.v2._
 import com.typesafe.config.ConfigFactory
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.persistence.DataSourceFromConfig

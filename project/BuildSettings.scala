@@ -15,7 +15,10 @@ object BuildSettings {
         styleCheck in Compile := {},
         scalaVersion := "2.10.4",
 
-        resolvers += "velvia maven" at "http://dl.bintray.com/velvia/maven"
+        resolvers ++= Seq(
+          "socrata" at "https://repo.socrata.com/artifactory/libs-release",
+          "velvia maven" at "http://dl.bintray.com/velvia/maven"
+        )
       )
 
   def projectSettings(assembly: Boolean = false): Seq[Setting[_]] =
