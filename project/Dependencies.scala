@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
   object versions {
     val apacheCurator     = "2.4.2"
-    val balboa            = "0.19.2"
+    val balboa            = "0.19.3"
     val c3p0              = "0.9.5.2"
     val codahaleMetrics   = "3.0.2"
     val computationStrategies = "0.1.2"
