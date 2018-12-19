@@ -18,7 +18,8 @@ object BuildSettings {
         resolvers ++= Seq(
           "socrata" at "https://repo.socrata.com/artifactory/libs-release",
           "velvia maven" at "http://dl.bintray.com/velvia/maven"
-        )
+        ),
+        organization := "com.socrata"
       )
 
   def projectSettings(assembly: Boolean = false): Seq[Setting[_]] =
