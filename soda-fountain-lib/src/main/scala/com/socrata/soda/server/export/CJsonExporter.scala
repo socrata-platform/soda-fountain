@@ -35,12 +35,13 @@ object CJsonExporter extends Exporter {
     val fusers = fuseMap.foldLeft(Seq.empty[LocationFuser]) { (acc, x) =>
       val (name, typ) = x
       typ match {
-        case "location" => acc :+ new LocationFuser(schema, reps, name)
+        case "location" => acc :+ new LocationFuser(schema, name)
         case _ => acc
       }
     }
 
     val fusedSchema = fusers.foldLeft(schema) { (acc, fuser) => fuser.convertSchema(acc) }
+    val fusedReps = fusers.foldLeft(reps) { (acc, fuser) => fuser.fusedReps(acc) }
 
     exporterHeaders(fusedSchema) ~> Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
@@ -84,11 +85,11 @@ object CJsonExporter extends Exporter {
             val fusedRow = fusers.foldLeft(row) { (acc, fuser) =>
               fuser.convert(acc)
             }
-            jw.write(reps(schemaOrdering(0)).toJValue(fusedRow(fusedSchemaOrdering(0))))
+            jw.write(fusedReps(fusedSchemaOrdering(0)).toJValue(fusedRow(fusedSchemaOrdering(0))))
             var i = 1
             while(i < fusedRow.length) {
               w.write(',')
-              jw.write(reps(schemaOrdering(i)).toJValue(fusedRow(fusedSchemaOrdering(i))))
+              jw.write(fusedReps(fusedSchemaOrdering(i)).toJValue(fusedRow(fusedSchemaOrdering(i))))
               i += 1
             }
           }

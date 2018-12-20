@@ -7,14 +7,12 @@ import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.types._
-
 import com.rojoma.json.util.JsonUtil
 
 /**
-  * Ouch, this class mutates the reps
   * TODO: Not sure if this will work right for multiple locations.
   */
-class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], loc: String) {
+class LocationFuser(schema: ExportDAO.CSchema, loc: String) {
 
   private val fieldNameIdxMap = schema.schema.zipWithIndex.map {
     case (columnInfo, idx) => (columnInfo.fieldName.caseFolded, idx)
@@ -31,9 +29,6 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
   private val StateIdx = fieldNameIdxMap(LocState)
   private val ZipIdx = fieldNameIdxMap(LocZip)
 
-  // ouch, mutate the reps
-  reps(PointIdx) = JsonColumnRep.LegacyLocationWriteRep
-
   def convertSchema(schema: ExportDAO.CSchema): ExportDAO.CSchema = {
     schema.copy(schema = schema.schema.foldLeft(Seq.empty[ExportDAO.ColumnInfo]) { (acc, ci) =>
       ci.fieldName.caseFolded match {
@@ -45,6 +40,23 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
           acc :+ ci
       }
     })
+  }
+
+  def fusedReps(reps: Array[JsonColumnWriteRep]): Array[JsonColumnWriteRep] = {
+    var i = 0
+    val fused = reps.foldLeft(Array.empty[JsonColumnWriteRep]) { (acc, rep) =>
+      val appended = i match {
+        case StreetIdx | CityIdx | StateIdx | ZipIdx =>
+          acc
+        case PointIdx =>
+          acc :+ JsonColumnRep.LegacyLocationWriteRep
+        case _ =>
+          acc :+ rep
+      }
+      i += 1
+      appended
+    }
+    fused
   }
 
   def convert(row: Array[SoQLValue]): Array[SoQLValue] = {
