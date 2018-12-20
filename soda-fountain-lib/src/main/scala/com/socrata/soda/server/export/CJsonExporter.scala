@@ -81,12 +81,14 @@ object CJsonExporter extends Exporter {
         for(row <- rows) {
           w.write(",[")
           if(row.length > 0) {
-            fusers.foreach(fuser => fuser.convert(row))
-            jw.write(reps(schemaOrdering(0)).toJValue(row(schemaOrdering(0))))
+            val fusedRow = fusers.foldLeft(row) { (acc, fuser) =>
+              fuser.convert(acc)
+            }
+            jw.write(reps(schemaOrdering(0)).toJValue(fusedRow(fusedSchemaOrdering(0))))
             var i = 1
-            while(i < row.length) {
+            while(i < fusedRow.length) {
               w.write(',')
-              jw.write(reps(schemaOrdering(i)).toJValue(row(schemaOrdering(i))))
+              jw.write(reps(schemaOrdering(i)).toJValue(fusedRow(fusedSchemaOrdering(i))))
               i += 1
             }
           }

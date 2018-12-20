@@ -12,6 +12,7 @@ import com.rojoma.json.util.JsonUtil
 
 /**
   * Ouch, this class mutates the reps
+  * TODO: Not sure if this will work right for multiple locations.
   */
 class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], loc: String) {
 
@@ -24,14 +25,14 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
   private val LocState = loc + "_state"
   private val LocZip = loc + "_zip"
 
-  private val pointIdx = fieldNameIdxMap(loc)
-  private val streetIdx = fieldNameIdxMap(LocStreet)
-  private val cityIdx = fieldNameIdxMap(LocCity)
-  private val stateIdx = fieldNameIdxMap(LocState)
-  private val zipIdx = fieldNameIdxMap(LocZip)
+  private val PointIdx = fieldNameIdxMap(loc)
+  private val StreetIdx = fieldNameIdxMap(LocStreet)
+  private val CityIdx = fieldNameIdxMap(LocCity)
+  private val StateIdx = fieldNameIdxMap(LocState)
+  private val ZipIdx = fieldNameIdxMap(LocZip)
 
   // ouch, mutate the reps
-  reps(pointIdx) = JsonColumnRep.LegacyLocationWriteRep
+  reps(PointIdx) = JsonColumnRep.LegacyLocationWriteRep
 
   def convertSchema(schema: ExportDAO.CSchema): ExportDAO.CSchema = {
     schema.copy(schema = schema.schema.foldLeft(Seq.empty[ExportDAO.ColumnInfo]) { (acc, ci) =>
@@ -46,15 +47,12 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
     })
   }
 
-  /**
-    * This function mutate the row
-    */
-  def convert(row: Array[SoQLValue]): Unit = {
-    val latLon = row(pointIdx)
-    val street = row(streetIdx)
-    val city = row(cityIdx)
-    val state = row(stateIdx)
-    val zip = row(zipIdx)
+  def convert(row: Array[SoQLValue]): Array[SoQLValue] = {
+    val latLon = row(PointIdx)
+    val street = row(StreetIdx)
+    val city = row(CityIdx)
+    val state = row(StateIdx)
+    val zip = row(ZipIdx)
 
     val address = JObject(Map(
       "address" -> JsonColumnRep.TextRep.toJValue(street),
@@ -72,7 +70,19 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
       case _ =>
         SoQLNull
     }
-    // ouch, mutate the row
-    row(pointIdx) = svLoc
+
+    var i = 0
+    row.foldLeft(Array.empty[SoQLValue]) { (acc, cell) =>
+      val appended = i match {
+        case StreetIdx | CityIdx | StateIdx | ZipIdx =>
+          acc
+        case PointIdx =>
+          acc :+ svLoc
+        case _ =>
+          acc :+ cell
+      }
+      i += 1
+      appended
+    }
   }
 }
