@@ -10,9 +10,9 @@ import com.socrata.soql.types._
 import com.rojoma.json.util.JsonUtil
 
 /**
-  * TODO: Not sure if this will work right for multiple locations.
+  * This class supports chaining multiple location fusers.
   */
-class LocationFuser(schema: ExportDAO.CSchema, loc: String) {
+class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], loc: String) {
 
   private val fieldNameIdxMap = schema.schema.zipWithIndex.map {
     case (columnInfo, idx) => (columnInfo.fieldName.caseFolded, idx)
@@ -29,7 +29,7 @@ class LocationFuser(schema: ExportDAO.CSchema, loc: String) {
   private val StateIdx = fieldNameIdxMap(LocState)
   private val ZipIdx = fieldNameIdxMap(LocZip)
 
-  def convertSchema(schema: ExportDAO.CSchema): ExportDAO.CSchema = {
+  def fusedSchema(): ExportDAO.CSchema = {
     schema.copy(schema = schema.schema.foldLeft(Seq.empty[ExportDAO.ColumnInfo]) { (acc, ci) =>
       ci.fieldName.caseFolded match {
         case x if x == loc =>
@@ -42,7 +42,7 @@ class LocationFuser(schema: ExportDAO.CSchema, loc: String) {
     })
   }
 
-  def fusedReps(reps: Array[JsonColumnWriteRep]): Array[JsonColumnWriteRep] = {
+  def fusedReps(): Array[JsonColumnWriteRep] = {
     var i = 0
     val fused = reps.foldLeft(Array.empty[JsonColumnWriteRep]) { (acc, rep) =>
       val appended = i match {

@@ -34,14 +34,16 @@ object CJsonExporter extends Exporter {
 
     val fusers = fuseMap.foldLeft(Seq.empty[LocationFuser]) { (acc, x) =>
       val (name, typ) = x
+      val prevSchema = acc.lastOption.map(_.fusedSchema).getOrElse(schema)
+      val prevReps = acc.lastOption.map(_.fusedReps).getOrElse(reps)
       typ match {
-        case "location" => acc :+ new LocationFuser(schema, name)
+        case "location" => acc :+ new LocationFuser(prevSchema, prevReps, name)
         case _ => acc
       }
     }
 
-    val fusedSchema = fusers.foldLeft(schema) { (acc, fuser) => fuser.convertSchema(acc) }
-    val fusedReps = fusers.foldLeft(reps) { (acc, fuser) => fuser.fusedReps(acc) }
+    val fusedSchema = fusers.lastOption.map(_.fusedSchema).getOrElse(schema)
+    val fusedReps = fusers.lastOption.map(_.fusedReps).getOrElse(reps)
 
     exporterHeaders(fusedSchema) ~> Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
