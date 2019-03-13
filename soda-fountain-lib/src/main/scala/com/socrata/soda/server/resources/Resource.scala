@@ -15,7 +15,7 @@ import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
-import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
+import com.socrata.http.server.util._
 import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RowUpdate, RowUpdateOption}
 import com.socrata.soda.clients.querycoordinator.{QueryCoordinatorClient, QueryCoordinatorError}
 import com.socrata.soda.server.{responses => SodaErrors, _}
@@ -177,6 +177,15 @@ case class Resource(rowDAO: RowDAO,
         val suffix = headerHash(req)
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
         def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
+        def updatePrecondition(newPrecondition: Precondition) = {
+          // If there were originally etags in the precondition we need to add an invalid one back in
+          // so that lower services are aware that the request was made with the If-None-Match header
+          if(precondition.isInstanceOf[IfNoneOf] && newPrecondition == NoPrecondition){
+            emptyINMHeader
+          } else {
+            newPrecondition
+          }
+        }
         precondition.filter(_.endsWith(suffix)) match {
           case Right(newPrecondition) =>
             req.negotiateContent match {
@@ -185,7 +194,7 @@ case class Resource(rowDAO: RowDAO,
                 val obfuscateId = reqObfuscateId(req)
                 rowDAO.query(
                   resourceName.value,
-                  newPrecondition.map(_.dropRight(suffix.length)),
+                  updatePrecondition(newPrecondition).map(_.dropRight(suffix.length)),
                   req.dateTimeHeader("If-Modified-Since"),
                   Option(req.getParameter(qpQuery)).getOrElse(qpQueryDefault),
                   Option(req.getParameter(qpRowCount)),
@@ -448,4 +457,6 @@ object Resource {
   val qpQueryTimeoutSeconds = "queryTimeoutSeconds"
 
   val qpQueryDefault = "select *"
+
+  val emptyINMHeader = IfNoneOf(Seq(WeakEntityTag(Array(0))))
 }
