@@ -76,7 +76,7 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
     val svLoc: SoQLValue = latLon match {
       case p@SoQLPoint(pt) =>
         val coord = pt.getCoordinate
-        new SoQLLocation(Option(BigDecimal(coord.x).bigDecimal), Option(BigDecimal(coord.y).bigDecimal), addressStr)
+        new SoQLLocation(Option(BigDecimal(coord.y).bigDecimal), Option(BigDecimal(coord.x).bigDecimal), addressStr)
       case SoQLNull =>
         new SoQLLocation(None, None, addressStr)
       case _ =>
