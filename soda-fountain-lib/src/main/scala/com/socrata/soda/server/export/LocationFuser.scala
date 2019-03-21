@@ -14,6 +14,8 @@ import com.rojoma.json.util.JsonUtil
   */
 class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], loc: String) {
 
+  val log = org.slf4j.LoggerFactory.getLogger(classOf[LocationFuser])
+
   private val fieldNameIdxMap = schema.schema.zipWithIndex.map {
     case (columnInfo, idx) => (columnInfo.fieldName.caseFolded, idx)
   }.toMap
@@ -22,6 +24,10 @@ class LocationFuser(schema: ExportDAO.CSchema, reps: Array[JsonColumnWriteRep], 
   private val LocCity = loc + "_city"
   private val LocState = loc + "_state"
   private val LocZip = loc + "_zip"
+
+  schema.schema.foreach { ci =>
+    log.info(s"${ci.fieldName} ${ci.fieldName.caseFolded} ${ci.typ} ${ci.id.underlying}")
+  }
 
   private val PointIdx = fieldNameIdxMap(loc)
   private val StreetIdx = fieldNameIdxMap(LocStreet)
