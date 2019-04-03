@@ -95,8 +95,8 @@ class RowDataTranslator(requestId: RequestId,
               case None => throw MaltypedDataEx(cr.fieldName, rRep.representedType, uVal)
             }
           case NoColumn(colName) =>
-            if(colName == legacyDeleteFlag && JBoolean.canonicalTrue == uVal) {
-              rowHasLegacyDeleteFlag = true
+            if(colName == legacyDeleteFlag) {
+              rowHasLegacyDeleteFlag = (JBoolean.canonicalTrue == uVal)
               Nil
             } else if(ignoreUnknownColumns) {
               Nil
