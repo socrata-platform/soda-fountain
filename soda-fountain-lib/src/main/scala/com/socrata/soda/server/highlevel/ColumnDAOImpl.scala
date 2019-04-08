@@ -326,7 +326,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                           Iterator.single(DropColumnInstruction(columnRef.id)),
                           extraHeaders) {
                   case DataCoordinatorClient.NonCreateScriptResult(_, etag, copyNumber, newVersion, lastModified) =>
-                    store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber)
+                    store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber, datasetRecord.primaryKey)
                     store.updateVersionInfo(datasetRecord.systemId,
                                             newVersion,
                                             lastModified,

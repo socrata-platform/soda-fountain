@@ -709,13 +709,17 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId, copyNumber: Long) {
     using(dataSource.getConnection()) { conn =>
-      using(conn.prepareStatement("update dataset_copies set primary_key_column_id = ? where dataset_system_id = ? and copy_number = ?")) { stmt =>
-        stmt.setString(1, pkCol.underlying)
-        stmt.setString(2, datasetId.underlying)
-        stmt.setLong(3, copyNumber)
-        stmt.executeUpdate()
-        updateSchemaHash(conn, datasetId, copyNumber)
-      }
+      setPrimaryKeyGuts(conn, datasetId, pkCol, copyNumber)
+    }
+  }
+
+  private def setPrimaryKeyGuts(conn: Connection, datasetId: DatasetId, pkCol: ColumnId, copyNumber: Long) {
+    using(conn.prepareStatement("update dataset_copies set primary_key_column_id = ? where dataset_system_id = ? and copy_number = ?")) { stmt =>
+      stmt.setString(1, pkCol.underlying)
+      stmt.setString(2, datasetId.underlying)
+      stmt.setLong(3, copyNumber)
+      stmt.executeUpdate()
+      updateSchemaHash(conn, datasetId, copyNumber)
     }
   }
 
@@ -826,7 +830,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def dropColumn(datasetId: DatasetId, columnId: ColumnId, copyNumber: Long) : Unit = {
+  def dropColumn(datasetId: DatasetId, columnId: ColumnId, copyNumber: Long, pkColId: ColumnId) : Unit = {
     using(dataSource.getConnection) { conn =>
       using(conn.prepareStatement(
         """
@@ -843,6 +847,9 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         }
         stmt.execute()
         updateSchemaHash(conn, datasetId, copyNumber)
+      }
+      if (columnId == pkColId) {
+        setPrimaryKeyGuts(conn, datasetId, ColumnId(":id"), copyNumber)
       }
     }
   }
