@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+
+    <changeSet author="robertm" id="20190408-give-defaults-to-obsolete-datasets-columns">
+        <sql>
+          ALTER TABLE datasets ALTER COLUMN schema_hash SET DEFAULT '', ALTER COLUMN primary_key_column_id SET DEFAULT ''
+        </sql>
+    </changeSet>
+</databaseChangeLog>

@@ -114,6 +114,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             rs.getString("schema_hash"),
             ColumnId(rs.getString("primary_key_column_id")),
             fetchMinimalColumns (connection, datasetId, copyNumber, isDeleted = isDeleted),
+            copyNumber,
             rs.getLong("latest_version"),
             Stage(rs.getString("lifecycle_stage")),
             toDateTime(rs.getTimestamp("last_modified")),
@@ -164,6 +165,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
               rs.getString("schema_hash"),
               ColumnId(rs.getString("primary_key_column_id")),
               fetchFullColumns(conn, datasetId, copyNumber),
+              copyNumber,
               rs.getLong("latest_version"),
               Stage(rs.getString("lifecycle_stage")),
               toDateTime(rs.getTimestamp("updated_at")))
@@ -216,11 +218,12 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def resolveSchemaInconsistency(datasetId: DatasetId, newSchema: SchemaSpec) {
+  def resolveSchemaInconsistency(datasetId: DatasetId, copyNumber: Long, newSchema: SchemaSpec) {
     using(dataSource.getConnection()) { conn =>
-      conn.setAutoCommit(false)
-      val schemaHash = using(conn.prepareStatement("select schema_hash from datasets where dataset_system_id = ? for update")) { stmt =>
+     conn.setAutoCommit(false)
+      val schemaHash = using(conn.prepareStatement("select schema_hash from dataset_copies where dataset_system_id = ? and copy_number = ? for update")) { stmt =>
         stmt.setString(1, datasetId.underlying)
+        stmt.setLong(2, copyNumber)
         using(stmt.executeQuery()) { rs =>
           if(!rs.next()) return // huh
           else rs.getString("schema_hash")
@@ -279,7 +282,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             fns.result()
           }
         }
-        val copyNumber = lookupCopyNumber(datasetId, Some(Latest)).getOrElse(throw new Exception("cannot find the latest copy"))
         addColumns(conn, datasetId, copyNumber, toCreate.iterator.map { cid =>
           var newFieldName = ColumnName("unknown_" + cid.underlying)
           if(existingFieldNames.contains(newFieldName)) {
@@ -295,6 +297,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         })
       }
 
+
       if(toChange.nonEmpty) {
         using(conn.prepareStatement("update columns set type_name = ? where dataset_system_id = ? and column_id = ?")) { stmt =>
           for(col <- toChange) {
@@ -308,11 +311,17 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         }
       }
 
-      using(conn.prepareStatement("update datasets set locale = ?, primary_key_column_id = ?, schema_hash = ? where dataset_system_id = ?")) { stmt =>
+      using(conn.prepareStatement("update dataset_copies set primary_key_column_id = ?, schema_hash = ? where dataset_system_id = ? and copy_number = ?")) { stmt =>
+        stmt.setString(1, newSchema.pk.underlying)
+        stmt.setString(2, newSchema.hash)
+        stmt.setString(3, datasetId.underlying)
+        stmt.setLong(4, copyNumber)
+        stmt.executeUpdate()
+      }
+
+      using(conn.prepareStatement("update datasets set locale = ? where dataset_system_id = ?")) { stmt =>
         stmt.setString(1, newSchema.locale)
-        stmt.setString(2, newSchema.pk.underlying)
-        stmt.setString(3, newSchema.hash)
-        stmt.setString(4, datasetId.underlying)
+        stmt.setString(2, datasetId.underlying)
         stmt.executeUpdate()
       }
 
@@ -520,7 +529,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       connection.setAutoCommit(false)
       using(connection.prepareStatement(
         """
-        insert into datasets (resource_name_casefolded, resource_name, dataset_system_id, name, description, locale, schema_hash, primary_key_column_id) values(?, ?, ?, ?, ?, ?, ?, ?);
+        insert into datasets (resource_name_casefolded, resource_name, dataset_system_id, name, description, locale) values(?, ?, ?, ?, ?, ?);
         insert into dataset_copies(dataset_system_id, copy_number, schema_hash, primary_key_column_id, lifecycle_stage, latest_version) values(?, 1, ?, ?, 'Unpublished', 1);
         """)) { adder =>
         // TODO: Ensure the names will fit in the space available
@@ -530,11 +539,9 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         adder.setString(4, newRecord.name)
         adder.setString(5, newRecord.description)
         adder.setString(6, newRecord.locale)
-        adder.setString(7, newRecord.schemaHash)
-        adder.setString(8, newRecord.primaryKey.underlying)
-        adder.setString(9, newRecord.systemId.underlying)
-        adder.setString(10, newRecord.schemaHash)
-        adder.setString(11, newRecord.primaryKey.underlying)
+        adder.setString(7, newRecord.systemId.underlying)
+        adder.setString(8, newRecord.schemaHash)
+        adder.setString(9, newRecord.primaryKey.underlying)
         adder.execute()
       }
       addColumns(connection, newRecord.systemId, Stage.InitialCopyNumber, newRecord.columns)
@@ -671,6 +678,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             rs.getString("schema_hash"),
             ColumnId(rs.getString("primary_key_column_id")),
             fetchMinimalColumns(conn, datasetId, copyNumber),
+            copyNumber,
             rs.getLong("latest_version"),
             Stage(rs.getString("lifecycle_stage")),
             toDateTime(rs.getTimestamp("last_modified")),

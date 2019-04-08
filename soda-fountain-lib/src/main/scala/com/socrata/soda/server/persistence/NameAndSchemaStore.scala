@@ -36,7 +36,7 @@ trait NameAndSchemaStore {
    * Return all copies most recent first
    */
   def lookupDataset(resourceName: ResourceName): Seq[DatasetRecord]
-  def resolveSchemaInconsistency(datasetId: DatasetId, newSchema: SchemaSpec)
+  def resolveSchemaInconsistency(datasetId: DatasetId, copyNumber: Long, newSchema: SchemaSpec)
 
   def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId, copyNumber: Long)
 
@@ -68,6 +68,7 @@ trait DatasetRecordLike {
   val locale: String
   val schemaHash: String
   val primaryKey: ColumnId
+  val copyNumber: Long
   val truthVersion: Long
   val stage: Option[Stage]
   val lastModified: DateTime
@@ -109,6 +110,7 @@ case class MinimalDatasetRecord(
   schemaHash: String,
   primaryKey: ColumnId,
   columns: Seq[MinimalColumnRecord],
+  copyNumber: Long,
   truthVersion: Long,
   stage: Option[Stage],
   lastModified: DateTime,
@@ -134,6 +136,7 @@ case class DatasetRecord(
   schemaHash: String,
   primaryKey: ColumnId,
   columns: Seq[ColumnRecord],
+  copyNumber: Long,
   truthVersion: Long,
   stage: Option[Stage],
   lastModified: DateTime,
