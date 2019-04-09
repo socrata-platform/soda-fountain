@@ -46,7 +46,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
 
   val datasetRecord = new DatasetRecord(
     resourceName, new DatasetId(expectedDatasetId),
-    "", "", "", "", new ColumnId(""), Seq.empty, 0L, 0L, None, DateTime.now()
+    "", "", "", "", new ColumnId(""), Seq.empty, 0L, None, DateTime.now()
   )
   val columnRecord = new ColumnRecord(
     new ColumnId(expectedColumnId), columnName,

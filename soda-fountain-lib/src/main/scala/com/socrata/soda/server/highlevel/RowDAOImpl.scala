@@ -190,7 +190,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         // that SHOULD occur with only low probability that's pretty expensive.
         //
         // I guess we'll refresh our own schema and then toss an error to the user?
-        store.resolveSchemaInconsistency(datasetRecord.systemId, datasetRecord.copyNumber, newSchema)
+        store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
         f(SchemaOutOfSync)
       case DataCoordinatorClient.NoSuchRowResult(id, _) =>
         f(RowNotFound(id))

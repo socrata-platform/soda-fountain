@@ -332,7 +332,6 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
             throw new Exception("Bad response from data coordinator: expected dataset id")
           val StringEvent(datasetId) = events.next()
           (ReportMetaData(DatasetId(datasetId),
-                          getHeader(xhCopyNumber, r).toLong,
                           getHeader(xhDataVersion, r).toLong,
                           dateTimeParser.parseDateTime(getHeader(xhLastModified, r))),
            arrayOfResults(events, alreadyInArray = true).toSeq)

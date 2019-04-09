@@ -59,7 +59,6 @@ package object highlevel {
         SchemaHash.computeHash(__underlying.locale, __underlying.columns(__underlying.rowIdentifier).id, columns),
         __underlying.columns(__underlying.rowIdentifier).id,
         columns,
-        dsMetaData.copyNumber,
         dsMetaData.version,
         __underlying.stage,
         dsMetaData.lastModified)

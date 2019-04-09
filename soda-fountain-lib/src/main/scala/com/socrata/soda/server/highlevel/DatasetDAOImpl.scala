@@ -197,7 +197,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               store.removeResource(dataset)
               Deleted
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
-              store.resolveSchemaInconsistency(datasetRecord.systemId, datasetRecord.copyNumber, newSchema)
+              store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
               // should only have two error case for this path.
             case DataCoordinatorClient.DatasetNotFoundResult(_) =>
@@ -303,7 +303,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               store.makeCopy(datasetRecord.systemId, newCopyNumber, newVersion)
               WorkingCopyCreated
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
-              store.resolveSchemaInconsistency(datasetRecord.systemId, datasetRecord.copyNumber, newSchema)
+              store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
             case DataCoordinatorClient.DatasetNotFoundResult(_) =>
               DatasetNotFound(dataset)
@@ -337,7 +337,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                   store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber, None)
                   WorkingCopyDropped
                 case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
-                  store.resolveSchemaInconsistency(datasetRecord.systemId, datasetRecord.copyNumber, newSchema)
+                  store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
                   retry()
                 case DataCoordinatorClient.DatasetNotFoundResult(_) =>
                   DatasetNotFound(dataset)
@@ -369,7 +369,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, Some(0))
               WorkingCopyPublished
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
-              store.resolveSchemaInconsistency(datasetRecord.systemId, datasetRecord.copyNumber, newSchema)
+              store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
             case DataCoordinatorClient.DatasetNotFoundResult(_) =>
               DatasetNotFound(dataset)
