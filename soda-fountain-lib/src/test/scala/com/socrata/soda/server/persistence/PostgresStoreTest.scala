@@ -301,7 +301,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     store.makeCopy(datasetId, 3L, 3L)
     store.addColumn(datasetId, 3L, columnSpecs(2))
     store.addColumn(datasetId, 3L, columnSpecs(3))
-    store.dropColumn(datasetId, ColumnId("four"), 3L)
+    store.dropColumn(datasetId, ColumnId("four"), 3L, ColumnId(":id"))
 
     val publishedCopy = store.lookupDataset(resourceName, Some(Published))
     publishedCopy should not be (None)
