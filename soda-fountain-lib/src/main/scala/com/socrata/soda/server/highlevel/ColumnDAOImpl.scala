@@ -145,7 +145,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                     store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                     ColumnDAO.Updated(columnRecord, None)
                   case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
-                    store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
+                    store.resolveSchemaInconsistency(datasetRecord.systemId, datasetRecord.copyNumber, newSchema)
                     retry()
                   case DataCoordinatorClient.DuplicateValuesInColumnResult(_, _, _) =>
                     ColumnDAO.DuplicateValuesInColumn(columnRecord)
@@ -271,7 +271,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
 
             ColumnDAO.Updated(updatedColumnRec, etag)
           case DataCoordinatorClient.SchemaOutOfDateResult(realSchema) =>
-            store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)
+            store.resolveSchemaInconsistency(datasetRecord.systemId, datasetRecord.copyNumber, realSchema)
             retry()
           case DataCoordinatorClient.DuplicateValuesInColumnResult(_, _, _) =>
             ColumnDAO.DuplicateValuesInColumn(columnRecord)
@@ -335,7 +335,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                                             None)
                     ColumnDAO.Deleted(columnRef, etag)
                   case DataCoordinatorClient.SchemaOutOfDateResult(realSchema) =>
-                    store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)
+                    store.resolveSchemaInconsistency(datasetRecord.systemId, datasetRecord.copyNumber, realSchema)
                     retry()
                   case DataCoordinatorClient.DuplicateValuesInColumnResult(_, _, _) =>
                     ColumnDAO.DuplicateValuesInColumn(columnRef)

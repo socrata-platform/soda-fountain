@@ -80,7 +80,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
               )
               ExportDAO.Success(simpleSchema, etag, decodedSchema.rows)
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
-              store.resolveSchemaInconsistency(ds.systemId, newSchema)
+              store.resolveSchemaInconsistency(ds.systemId, ds.copyNumber, newSchema)
               retry()
             case DataCoordinatorClient.NotModifiedResult(etags) =>
               ExportDAO.NotModified(etags)

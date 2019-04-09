@@ -17,4 +17,5 @@
     <include file="com/socrata/soda/server/persistence/pg/20170712-add-datasets-deleted-at-index.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20171006-increase-column-name-size.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20181023-add-indexes.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20190408-give-defaults-to-obsolete-datasets-columns.xml"/>
 </databaseChangeLog>

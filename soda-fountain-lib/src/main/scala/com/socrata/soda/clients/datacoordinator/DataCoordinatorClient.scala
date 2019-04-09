@@ -31,7 +31,7 @@ object DataCoordinatorClient {
     implicit val codec = SimpleJsonCodecBuilder[VersionReport].build("version", _.version)
   }
 
-  case class ReportMetaData(val datasetId: DatasetId, val version: Long, val lastModified: DateTime)
+  case class ReportMetaData(val datasetId: DatasetId, val copyNumber: Long, val version: Long, val lastModified: DateTime)
 
   sealed abstract class ReportItem
   case class UpsertReportItem(data: Iterator[JValue] /* Note: this MUST be completely consumed before calling hasNext/next on parent iterator! */) extends ReportItem

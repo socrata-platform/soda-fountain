@@ -20,7 +20,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
     val foundRecord = store.translateResourceName(resourceName)
     foundRecord match {
-      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, cols, _, stage, _, _)) =>
+      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, cols, _, _, stage, _, _)) =>
         stage should equal (Some(Unpublished))
         rn should equal (resourceName)
         did should equal (datasetId)
@@ -56,7 +56,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
 
     val f = store.translateResourceName(resourceName)
     f match {
-      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, Seq(MinimalColumnRecord(col1, _, _, _, None), MinimalColumnRecord(col2, _, _, _, None)), _, _, _, _)) =>
+      case Some(MinimalDatasetRecord(rn, did, loc, sch, pky, Seq(MinimalColumnRecord(col1, _, _, _, None), MinimalColumnRecord(col2, _, _, _, None)), _, _, _, _, _)) =>
         col1 should equal (ColumnId("abc123"))
         col2 should equal (ColumnId("def456"))
       case None => fail("didn't find columns")
@@ -78,7 +78,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     val f = store.translateResourceName(resourceName)
     f match {
       case Some(MinimalDatasetRecord(rn, did, loc, sch, pky,
-        Seq(MinimalColumnRecord(columnId, columnName, _, _, _)), _, _, _, _)) =>
+        Seq(MinimalColumnRecord(columnId, columnName, _, _, _)), _, _, _, _, _)) =>
         columnId should be (ColumnId("one"))
         columnName should be (ColumnName("new_field_name"))
       case None => fail("didn't find columns")
@@ -301,7 +301,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers wit
     store.makeCopy(datasetId, 3L, 3L)
     store.addColumn(datasetId, 3L, columnSpecs(2))
     store.addColumn(datasetId, 3L, columnSpecs(3))
-    store.dropColumn(datasetId, ColumnId("four"), 3L)
+    store.dropColumn(datasetId, ColumnId("four"), 3L, ColumnId(":id"))
 
     val publishedCopy = store.lookupDataset(resourceName, Some(Published))
     publishedCopy should not be (None)
