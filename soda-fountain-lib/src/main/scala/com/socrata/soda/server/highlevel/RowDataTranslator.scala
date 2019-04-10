@@ -3,13 +3,13 @@ package com.socrata.soda.server.highlevel
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.conversions._
 import com.socrata.http.server.util.RequestId.RequestId
-import com.socrata.soda.clients.datacoordinator.{DeleteRow, UpsertRow, RowUpdate}
+import com.socrata.soda.clients.datacoordinator.{DeleteRow, RowUpdate, UpsertRow}
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.SodaInvalidRequestException
-import com.socrata.soda.server.persistence.{DatasetRecordLike, ColumnRecordLike}
-import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep, JsonColumnReadRep}
+import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike}
+import com.socrata.soda.server.wiremodels.{JsonColumnReadRep, JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.environment.ColumnName
-import com.socrata.soql.types.{SoQLValue, SoQLType}
+import com.socrata.soql.types.{SoQLNull, SoQLType, SoQLValue}
 
 /**
  * Translates row data from SODA2 client JSON to SoQLValues
@@ -91,7 +91,10 @@ class RowDataTranslator(requestId: RequestId,
         columnNameCache.get(uKey) match {
           case ColumnInfo(cr, rRep, wRep) =>
             rRep.fromJValue(uVal) match {
-              case Some(v) => (cr.id.underlying -> v) :: Nil
+              case Some(v) =>
+                // allow upsert create by either not specifying :id or specifying :id as null
+                if (v == SoQLNull && cr.id.underlying == SystemPrimaryKey) Nil
+                else (cr.id.underlying -> v) :: Nil
               case None => throw MaltypedDataEx(cr.fieldName, rRep.representedType, uVal)
             }
           case NoColumn(colName) =>
@@ -142,6 +145,9 @@ class RowDataTranslator(requestId: RequestId,
 }
 
 object RowDataTranslator {
+
+  val SystemPrimaryKey = ":id"
+
   sealed trait Computable
   case class UpsertAsSoQL(rowData: Map[String, SoQLValue]) extends Computable
   case class DeleteAsCJson(pk: JValue) extends Computable
