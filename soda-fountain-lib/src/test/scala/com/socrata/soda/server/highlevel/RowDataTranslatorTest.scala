@@ -40,6 +40,17 @@ class RowDataTranslatorTest extends FunSuite with Matchers with DatasetsForTesti
       translator.transformClientRowsForUpsert(rows).next()
   }
 
+  test("transformClientRowsForUpsert - convert json number to text") {
+    val rows = Iterator(JObject(Map("source" -> JNumber(3.33))),
+                        JObject(Map("source" -> JString("3.33"))))
+    val result = translator.transformClientRowsForUpsert(rows)
+
+    result.toSeq should equal (Seq(
+      UpsertRow(Map(ds.colId("source") -> JString("3.33"))),
+      UpsertRow(Map(ds.colId("source") -> JString("3.33")))
+    ))
+  }
+
   test("transformClientRowsForUpsert - delete as ID array") {
     val rows = Iterator(JArray(Seq(JString("row-7k7u_jfib~g6vw"))))
     val result = translator.transformClientRowsForUpsert(rows)
