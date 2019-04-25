@@ -34,10 +34,21 @@ class RowDataTranslatorTest extends FunSuite with Matchers with DatasetsForTesti
   }
 
   test("transformClientRowsForUpsert - upsert contains wrong data type") {
-    val rows = Iterator(JObject(Map("source" -> JNumber(4))))
+    val rows = Iterator(JObject(Map("source" -> JObject(Map.empty))))
 
     a [MaltypedDataEx] should be thrownBy
       translator.transformClientRowsForUpsert(rows).next()
+  }
+
+  test("transformClientRowsForUpsert - convert json number to text") {
+    val rows = Iterator(JObject(Map("source" -> JNumber(3.33))),
+                        JObject(Map("source" -> JString("3.33"))))
+    val result = translator.transformClientRowsForUpsert(rows)
+
+    result.toSeq should equal (Seq(
+      UpsertRow(Map(ds.colId("source") -> JString("3.33"))),
+      UpsertRow(Map(ds.colId("source") -> JString("3.33")))
+    ))
   }
 
   test("transformClientRowsForUpsert - delete as ID array") {
