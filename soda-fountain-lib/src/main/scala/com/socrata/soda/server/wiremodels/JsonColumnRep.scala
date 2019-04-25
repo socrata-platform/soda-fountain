@@ -209,6 +209,21 @@ object JsonColumnRep {
     val representedType: SoQLType = SoQLTime
   }
 
+  object ClientTextRep extends JsonColumnRep {
+    def fromJValue(input: JValue): Option[SoQLValue] = input match {
+      case JString(s) => Some(SoQLText(s))
+      case n: JNumber => Some(SoQLText(n.toString))
+      case JNull => Some(SoQLNull)
+      case _ => None
+    }
+
+    def toJValue(value: SoQLValue): JValue =
+      if(SoQLNull == value) JNull
+      else JString(value.asInstanceOf[SoQLText].value)
+
+    val representedType: SoQLType = SoQLText
+  }
+
   object ClientNumberRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JString(s) => try { Some(SoQLNumber(new java.math.BigDecimal(s))) } catch { case e: NumberFormatException => None }
@@ -384,7 +399,7 @@ object JsonColumnRep {
 
   val forClientType: Map[SoQLType, JsonColumnRep] =
     Map(
-      SoQLText -> TextRep,
+      SoQLText -> ClientTextRep,
       SoQLFixedTimestamp -> FixedTimestampRep,
       SoQLFloatingTimestamp -> FloatingTimestampRep,
       SoQLDate -> DateRep,
