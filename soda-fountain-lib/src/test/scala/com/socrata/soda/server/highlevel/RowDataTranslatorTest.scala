@@ -34,7 +34,7 @@ class RowDataTranslatorTest extends FunSuite with Matchers with DatasetsForTesti
   }
 
   test("transformClientRowsForUpsert - upsert contains wrong data type") {
-    val rows = Iterator(JObject(Map("source" -> JNumber(4))))
+    val rows = Iterator(JObject(Map("source" -> JObject(Map.empty))))
 
     a [MaltypedDataEx] should be thrownBy
       translator.transformClientRowsForUpsert(rows).next()
