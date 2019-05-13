@@ -8,7 +8,7 @@ import com.socrata.http.client.{HttpClientHttpClient, InetLivenessChecker}
 import com.socrata.http.common.AuxiliaryData
 import com.socrata.http.common.util.CharsetFor
 import com.socrata.http.server.util.RequestId
-import com.socrata.http.server.util.handlers.{NewLoggingHandler, ThreadRenamingHandler}
+import com.socrata.http.server.util.handlers.{LoggingOptions, NewLoggingHandler, ThreadRenamingHandler}
 import com.socrata.http.server.util.RequestId.ReqIdHeader
 import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient, FeedbackSecondaryManifestClient}
 import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
@@ -24,9 +24,10 @@ import com.socrata.thirdparty.typesafeconfig.Propertizer
 import java.io.Closeable
 import java.security.SecureRandom
 import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
-import javax.sql.DataSource
 
+import javax.sql.DataSource
 import org.apache.log4j.PropertyConfigurator
+import org.slf4j.LoggerFactory
 
 import scala.collection.mutable
 import scala.util.Random
@@ -44,9 +45,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   CharsetFor.registerContentTypeCharset("application/json+cjson", StandardCharsets.UTF_8)
 
-  val logOptions = NewLoggingHandler.defaultOptions.copy(
-                     logRequestHeaders = Set(ReqIdHeader),
-                     logResponseHeaders = Set(QueryCoordinatorClient.HeaderRollup))
+  val logOptions = LoggingOptions(LoggerFactory.getLogger(""),
+                                  logRequestHeaders = Set(ReqIdHeader))
 
   val handle =
     ThreadRenamingHandler {
