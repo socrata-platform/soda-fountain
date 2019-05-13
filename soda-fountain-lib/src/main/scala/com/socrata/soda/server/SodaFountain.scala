@@ -46,7 +46,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   CharsetFor.registerContentTypeCharset("application/json+cjson", StandardCharsets.UTF_8)
 
   val logOptions = LoggingOptions(LoggerFactory.getLogger(""),
-                                  logRequestHeaders = Set(ReqIdHeader))
+                                  logRequestHeaders = Set(ReqIdHeader),
+                                  logResponseHeaders = Set(QueryCoordinatorClient.HeaderRollup))
 
   val handle =
     ThreadRenamingHandler {
