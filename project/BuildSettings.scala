@@ -16,8 +16,7 @@ object BuildSettings {
         scalaVersion := "2.10.4",
 
         resolvers ++= Seq(
-          "socrata" at "https://repo.socrata.com/artifactory/libs-release",
-          "velvia maven" at "http://dl.bintray.com/velvia/maven"
+          "socrata" at "https://repo.socrata.com/artifactory/libs-release"
         ),
         organization := "com.socrata"
       )

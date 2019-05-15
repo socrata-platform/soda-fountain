@@ -10,7 +10,7 @@ import Dependencies.Test
 
 object SodaFountainLib {
   lazy val settings: Seq[Setting[_]] = BuildSettings.projectSettings() ++ Seq(
-    resolvers += "Open Source Geospatial Foundation Repository" at "http://download.osgeo.org/webdav/geotools",
+    resolvers += "Socrata Artifactory" at "https://repo.socrata.com/artifactory/libs-release/",
     resourceGenerators in Compile <+= (resourceManaged in Compile, name in Compile, version in Compile, scalaVersion in Compile) map genVersion,
     libraryDependencies ++= Seq(
       apacheCuratorDiscovery,
