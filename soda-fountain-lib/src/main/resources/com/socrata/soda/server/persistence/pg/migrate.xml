@@ -11,10 +11,11 @@
     <include file="com/socrata/soda/server/persistence/pg/20141112-georegion-computation-strategy-rename.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20150501-add-missing-timezone.xml"/>
 
-    <include file="com/socrata/soda/server/persistence/pg/21050724-add-deleted-at-column-multi-tables.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20150724-add-deleted-at-column-multi-tables.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20160308-add-recompute-default-value.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20160309-drop-recompute-from-computation-strategies.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20170712-add-datasets-deleted-at-index.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20171006-increase-column-name-size.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20181023-add-indexes.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20190515-align-truth-instance-name.xml"/>
 </databaseChangeLog>

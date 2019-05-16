@@ -30,7 +30,7 @@ import scala.language.postfixOps
 
 class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with Timeouts {
   val resourceName = new ResourceName("abcd-1234")
-  val expectedDatasetId = "primus.1234"
+  val expectedDatasetId = "alpha.1234"
   val lifecycleStage = Published
   val columnName = new ColumnName("some_column_name")
   val expectedColumnId = "abcd-1235"

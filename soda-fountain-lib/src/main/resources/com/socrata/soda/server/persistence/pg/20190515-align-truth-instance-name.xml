@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+    <changeSet author="chi" id="20190515-align-truth-instance-name">
+        <sql>
+            UPDATE datasets set dataset_system_id = replace(dataset_system_id, 'primus', 'alpha')
+             WHERE dataset_system_id like 'primus.%';
+            UPDATE dataset_copies set dataset_system_id = replace(dataset_system_id, 'primus', 'alpha')
+             WHERE dataset_system_id like 'primus.%';
+        </sql>
+    </changeSet>
+</databaseChangeLog>
