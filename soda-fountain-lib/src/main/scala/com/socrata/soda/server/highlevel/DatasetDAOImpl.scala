@@ -604,6 +604,20 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
+  def secondaryReindex(user: String, dataset: ResourceName): Result = {
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator(SecondaryReindexInstruction()), Map.empty)(result => result) match {
+          case _: DataCoordinatorClient.SuccessResult =>
+            EmptyResult
+          case e: DataCoordinatorClient.FailResult =>
+            InternalServerError("unknown", tag, e.toString)
+        }
+      case None =>
+        DatasetNotFound(dataset)
+    }
+  }
+
   private def tag: String = {
     val uuid = java.util.UUID.randomUUID().toString
     log.info("internal error; tag = " + uuid)

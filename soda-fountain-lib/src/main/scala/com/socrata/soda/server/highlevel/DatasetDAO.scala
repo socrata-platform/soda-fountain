@@ -45,6 +45,7 @@ trait DatasetDAO {
   def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result
   def collocateStatus(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
   def deleteCollocate(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
+  def secondaryReindex(user: String, dataset: ResourceName): Result
 }
 
 object DatasetDAO {
@@ -89,6 +90,7 @@ object DatasetDAO {
   case class DatasetVersion(version: VersionReport) extends SuccessResult
   case object Deleted extends SuccessResult
   case object Undeleted extends SuccessResult
+  case object EmptyResult extends SuccessResult
   case object WorkingCopyCreated extends SuccessResult
   case object WorkingCopyDropped extends SuccessResult
   case object WorkingCopyPublished extends SuccessResult

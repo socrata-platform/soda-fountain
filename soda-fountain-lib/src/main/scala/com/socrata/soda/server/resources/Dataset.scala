@@ -78,6 +78,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         NoContent
       case DatasetDAO.Undeleted =>
         NoContent
+      case DatasetDAO.EmptyResult =>
+        NoContent
       case DatasetDAO.Rollups(rollups) =>
         OK ~> Json(rollups)
       case collocateResult: DatasetDAO.CollocateDone =>
@@ -154,6 +156,14 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   case class undeleteService(resourceName: ResourceName) extends SodaResource {
     override def post = { req =>
       response(req, datasetDAO.unmarkDatasetForDeletion(user(req), resourceName))
+    }
+  }
+
+  case class secondaryReindexService(resourceName: ResourceName) extends SodaResource {
+    override def post = { req =>
+      withDatasetSpec(req, resourceName) { spec =>
+        response(req, datasetDAO.secondaryReindex(user(req), resourceName))
+      }
     }
   }
 

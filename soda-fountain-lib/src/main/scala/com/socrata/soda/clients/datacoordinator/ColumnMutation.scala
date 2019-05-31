@@ -82,3 +82,9 @@ case class SetFieldNameInstruction(name: ColumnId, fieldName: ColumnName) extend
     "field_name"  -> JString(fieldName.name)
   ))
 }
+
+case class SecondaryReindexInstruction() extends CM {
+  def asJson = JObject(Map(
+    "c"     -> JString("secondary reindex")
+  ))
+}
