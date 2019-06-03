@@ -219,7 +219,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       datasetRollupResource = { case (resourceName, rollupName) => dataset.rollupService(resourceName, Some(rollupName)) },
       sampleResource = suggest.sampleService,
       suggestResource = suggest.service,
-      snapshotResources = SnapshotResources(snapshots.findDatasetsService, snapshots.listSnapshotsService, snapshots.snapshotsService)
+      snapshotResources = SnapshotResources(snapshots.findDatasetsService, snapshots.listSnapshotsService, snapshots.snapshotsService),
+      secondaryReindexResource = dataset.secondaryReindexService
     )
   }
 
