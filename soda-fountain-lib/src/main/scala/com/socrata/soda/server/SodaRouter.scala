@@ -37,7 +37,8 @@ class SodaRouter(versionResource: HttpService,
                  sampleResource: (ResourceName, ColumnName) => HttpService,
                  suggestResource: (ResourceName, ColumnName, String) => HttpService,
                  snapshotResources: SnapshotResources,
-                 secondaryReindexResource: ResourceName => HttpService) {
+                 secondaryReindexResource: ResourceName => HttpService,
+                 secondaryAddIndexResource: (ResourceName, ColumnName) => HttpService) {
   private[this] implicit val ResourceNameExtractor = new Extractor[ResourceName] {
     def extract(s: String): Option[ResourceName] = Some(new ResourceName(s))
   }
@@ -67,6 +68,7 @@ class SodaRouter(versionResource: HttpService,
     Route("/dataset", datasetCreateResource),
     Route("/dataset/{ResourceName}", datasetResource),
     Route("/dataset/{ResourceName}/{ColumnName}", datasetColumnResource),
+    Route("/dataset/{ResourceName}/{ColumnName}/!secondary-add-index", secondaryAddIndexResource),
     Route("/dataset/{ResourceName}/{ColumnName}/!makepk", datasetColumnPKResource), // hack hack; once full DDL is implemented this can go away
     Route("/dataset/", datasetCreateResource),
     Route("/dataset/{ResourceName}/!secondary-reindex", secondaryReindexResource),

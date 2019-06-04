@@ -74,6 +74,8 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
         }
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
         SodaUtils.response(req, EtagPreconditionFailed)
+      case ColumnDAO.EmptyResult =>
+        NoContent
     }
   }
 
@@ -126,6 +128,14 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
                columnDAO.makePK(user(req), resourceName, columnName,
                                 RequestId.getFromRequest(req)),
                Array[Byte](0))(resp)
+    }
+  }
+
+  case class secondaryAddIndexService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
+    override def post = { req => resp =>
+      response(req,
+        columnDAO.secondaryAddIndex(user(req), resourceName, columnName, RequestId.getFromRequest(req)),
+        Array[Byte](0))(resp)
     }
   }
 }
