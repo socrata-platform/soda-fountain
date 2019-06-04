@@ -1,13 +1,15 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.http.server.util.RequestId.{RequestId, ReqIdHeader}
+import com.rojoma.json.v3.ast.JObject
+import com.socrata.http.server.util.RequestId.{ReqIdHeader, RequestId}
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.copy.Latest
-import com.socrata.soda.server.highlevel.ColumnDAO.Result
+import com.socrata.soda.server.highlevel.ColumnDAO.{EmptyResult, InternalServerError, Result}
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soda.server.SodaUtils
 import com.socrata.soql.environment.ColumnName
+
 import scala.util.control.ControlThrowable
 
 // TODO: This shouldn't be referenced here.
@@ -375,6 +377,50 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
         }
       case None =>
         ColumnDAO.DatasetNotFound(dataset)
+    }
+  }
+
+  def secondaryAddIndex(user: String, resource: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, directives: JObject, requestId: RequestId): Result = {
+    retryable(limit = 5) {
+      store.lookupDataset(resource, Some(Latest)) match {
+        case Some(datasetRecord) =>
+          datasetRecord.columnsByName.get(column) match {
+            case Some(columnRecord) =>
+              val instruction = SecondaryAddIndexInstruction(column, directives)
+              dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, Iterator(instruction))(result => result) match {
+                case _: DataCoordinatorClient.SuccessResult =>
+                  EmptyResult
+                case e: DataCoordinatorClient.FailResult =>
+                  InternalServerError("unknown", tag, e.toString)
+              }
+            case None =>
+              ColumnDAO.ColumnNotFound(column)
+          }
+        case None =>
+          ColumnDAO.DatasetNotFound(resource)
+      }
+    }
+  }
+
+  def secondaryDeleteIndex(user: String, resource: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result = {
+    retryable(limit = 5) {
+      store.lookupDataset(resource, Some(Latest)) match {
+        case Some(datasetRecord) =>
+          datasetRecord.columnsByName.get(column) match {
+            case Some(columnRecord) =>
+              val instruction = SecondaryDeleteIndexInstruction(column)
+              dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, Iterator(instruction))(result => result) match {
+                case _: DataCoordinatorClient.SuccessResult =>
+                  EmptyResult
+                case e: DataCoordinatorClient.FailResult =>
+                  InternalServerError("unknown", tag, e.toString)
+              }
+            case None =>
+              ColumnDAO.ColumnNotFound(column)
+          }
+        case None =>
+          ColumnDAO.DatasetNotFound(resource)
+      }
     }
   }
 
