@@ -15,9 +15,11 @@ import scala.language.existentials
 
 object UpsertUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
+  val HEADER_TRUTH_VERSION = "X-SODA2-Truth-Version"
+
 
   def handleUpsertErrors(req: HttpServletRequest, response: HttpServletResponse)
-                        (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit)
+                        (successHandler: (HttpServletResponse, RowDAO.StreamSuccess) => Unit)
                         (upsertResult: RowDAO.UpsertResult) = {
     import RowDataTranslator._
 
@@ -38,11 +40,11 @@ object UpsertUtils {
   }
 
   private def upsertResponse(request: HttpServletRequest, response: HttpServletResponse, result: RowDAO.UpsertResult)
-                    (successHandler: (HttpServletResponse, Iterator[ReportItem]) => Unit) {
+                    (successHandler: (HttpServletResponse, RowDAO.StreamSuccess) => Unit) {
     // TODO: Negotiate content-type
     result match {
-      case RowDAO.StreamSuccess(report) =>
-        successHandler(response, report)
+      case success: RowDAO.StreamSuccess =>
+        successHandler(response, success)
       case mismatch : MaltypedData =>
         SodaUtils.response(request, new SodaErrors.ColumnSpecMaltyped(mismatch.column.name, mismatch.expected.name.name, mismatch.got))(response)
       case RowDAO.RowNotFound(rowSpecifier) =>
@@ -77,16 +79,17 @@ object UpsertUtils {
     }
   }
 
-  def writeUpsertResponse(response: HttpServletResponse, report: Iterator[ReportItem]) = {
+  def writeUpsertResponse(response: HttpServletResponse, success: RowDAO.StreamSuccess) = {
     response.setStatus(HttpServletResponse.SC_OK)
     response.setContentType(SodaUtils.jsonContentTypeUtf8) // TODO: negotiate charset too
+    response.setHeader(HEADER_TRUTH_VERSION, success.newDataVersion.toString)
     using(response.getWriter) { w =>
       // TODO: send actual response
       val jw = new CompactJsonWriter(w)
       w.write('[')
       var wroteOne = false
-      while(report.hasNext) {
-        report.next() match {
+      while(success.report.hasNext) {
+        success.report.next() match {
           case UpsertReportItem(items) =>
             while(items.hasNext) {
               if(wroteOne) w.write(',')
@@ -101,7 +104,7 @@ object UpsertUtils {
   }
 
   def writeSingleRowUpsertResponse(resourceName: ResourceName, export: Export, req: HttpRequest)
-                                  (response: HttpServletResponse, report: Iterator[ReportItem]): Unit = {
+                                  (response: HttpServletResponse, success: RowDAO.StreamSuccess): Unit = {
     var wroteOne = false
     def exportSingleRowUpsertResponse(rowId: String): Unit = {
       val param = ExportParam(None, None, Seq.empty[ColumnRecordLike], None,
@@ -114,8 +117,8 @@ object UpsertUtils {
                         true,
                         Map.empty)(req)(response)
     }
-    while(report.hasNext) {
-      report.next() match {
+    while(success.report.hasNext) {
+      success.report.next() match {
         case UpsertReportItem(items) =>
           while(items.hasNext) {
             val item = items.next()
