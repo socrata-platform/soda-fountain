@@ -77,6 +77,8 @@ case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
         }
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
         SodaUtils.response(req, EtagPreconditionFailed)
+      case ColumnDAO.EmptyResult =>
+        NoContent
     }
   }
 
@@ -129,6 +131,14 @@ case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
       response(req,
                req.columnDAO.makePK(user(req), resourceName, expectedDataVersion(req), columnName),
                Array[Byte](0))(resp)
+    }
+  }
+
+  case class secondaryAddIndexService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
+    override def post = { req => resp =>
+      response(req,
+        columnDAO.secondaryAddIndex(user(req), resourceName, columnName, RequestId.getFromRequest(req)),
+        Array[Byte](0))(resp)
     }
   }
 }
