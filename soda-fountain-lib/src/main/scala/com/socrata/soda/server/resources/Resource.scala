@@ -133,7 +133,7 @@ case class Resource(rowDAO: RowDAO,
                     resourceName: ResourceName,
                     rows: Iterator[JValue],
                     f: rowDaoFunc,
-                    reportFunc: (HttpServletResponse, Iterator[ReportItem]) => Unit) = {
+                    reportFunc: (HttpServletResponse, RowDAO.StreamSuccess) => Unit) = {
     datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
         val transformer = new RowDataTranslator(requestId, datasetRecord, false)
@@ -305,6 +305,7 @@ case class Resource(rowDAO: RowDAO,
                            allowSingleItem: Boolean) {
       InputUtils.jsonArrayValuesStream(req, maxRowSize, allowSingleItem) match {
         case Right((boundedIt, multiRows)) =>
+
           val processUpsertReport =
             if (multiRows) { UpsertUtils.writeUpsertResponse _ }
             else { UpsertUtils.writeSingleRowUpsertResponse(resourceName.value, export, req) _ }
