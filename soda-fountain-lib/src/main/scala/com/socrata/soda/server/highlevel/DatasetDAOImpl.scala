@@ -301,7 +301,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                   extraHeaders = traceHeaders(requestId, dataset)) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, newCopyNumber, newVersion, lastModified) =>
               store.makeCopy(datasetRecord.systemId, newCopyNumber, newVersion)
-              WorkingCopyCreated
+              WorkingCopyCreated(newVersion)
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
@@ -335,7 +335,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                           extraHeaders = traceHeaders(requestId, dataset)) {
                 case DataCoordinatorClient.NonCreateScriptResult(_, _, _, newVersion, lastModified) =>
                   store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber, None)
-                  WorkingCopyDropped
+                  WorkingCopyDropped(newVersion)
                 case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
                   retry()
@@ -367,7 +367,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                      extraHeaders = traceHeaders(requestId, dataset)) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
               store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, Some(0))
-              WorkingCopyPublished
+              WorkingCopyPublished(newVersion)
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
