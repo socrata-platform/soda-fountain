@@ -11,7 +11,7 @@ import scala.util.Try
 import com.rojoma.json.v3.ast.{JArray, JNumber, JString, JValue}
 import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.ContentNegotiation
-import com.socrata.http.server.{HttpRequest, HttpResponse}
+import com.socrata.http.server.{HttpRequest, HttpResponse, ParsedParam}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
@@ -280,13 +280,23 @@ case class Resource(rowDAO: RowDAO,
       }
     }
 
+    override def expectedDataVersion(req: HttpRequest): Option[Long] = {
+      // ok so upsert is annoying.  Doing it this way so we can keep
+      // uniformity in the case where we're not abusing soda-java as a
+      // soda-fountain client while also not doing major surgery on
+      // soda-java to support setting the header the way everything
+      // else does.
+      super.expectedDataVersion(req).orElse {
+        req.parseQueryParameterAs[Long]("expectedDataVersion").toOption.flatten
+      }
+    }
 
     override def post = { req =>
       val requestId = RequestId.getFromRequest(req)
       RowUpdateOption.fromReq(req) match {
         case Right(options) =>
           { response =>
-            upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, _, requestId, options), allowSingleItem = true)
+            upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, expectedDataVersion(req), _, requestId, options), allowSingleItem = true)
           }
         case Left((badParam, badValue)) =>
           SodaUtils.response(req, SodaErrors.BadParameter(badParam, badValue))
@@ -295,7 +305,7 @@ case class Resource(rowDAO: RowDAO,
 
     override def put = { req => response =>
       val requestId = RequestId.getFromRequest(req)
-      upsertMany(req, response, requestId, rowDAO.replace(user(req), _, _, requestId), allowSingleItem = false)
+      upsertMany(req, response, requestId, rowDAO.replace(user(req), _, expectedDataVersion(req), _, requestId), allowSingleItem = false)
     }
 
     private def upsertMany(req: HttpRequest,
@@ -429,14 +439,14 @@ case class Resource(rowDAO: RowDAO,
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
         case Right(rowJVal) =>
           upsertishFlow(req, response, requestId, resourceName, Iterator.single(rowJVal),
-                        rowDAO.upsert(user(req), _, _, requestId), UpsertUtils.writeUpsertResponse)
+                        rowDAO.upsert(user(req), _, expectedDataVersion(req), _, requestId), UpsertUtils.writeUpsertResponse)
         case Left(err) =>
           SodaUtils.response(req, err, resourceName)(response)
       }
     }
 
     override def delete = { req => response =>
-      rowDAO.deleteRow(user(req), resourceName, rowId, RequestId.getFromRequest(req))(
+      rowDAO.deleteRow(user(req), resourceName, expectedDataVersion(req), rowId, RequestId.getFromRequest(req))(
                        UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
     }
   }

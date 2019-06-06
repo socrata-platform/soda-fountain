@@ -129,19 +129,21 @@ class MutationScript(
     out.flush()
   }
 
-  private def topLevelCommandBase(schema: String) =
-    Map( "c" -> JString(copyInstruction.command), "user" -> JString(user), "schema" -> JString(schema))
+  private def topLevelCommandBase(schema: String, expectedDataVersion: Option[Long]) = {
+    val base = Map[String, JValue]("c" -> JString(copyInstruction.command), "user" -> JString(user), "schema" -> JString(schema))
+    expectedDataVersion.fold(base) { edv => base + ("data_version" -> JNumber(edv)) }
+  }
 
   def topLevelCommand: Map[String, JValue] = {
     copyInstruction match {
       case i: CreateDataset => Map("resource" -> JString(i.resource.name), "locale" -> JString(i.locale), "c" -> JString(copyInstruction.command), "user" -> JString(user))
-      case i: UpdateDataset => topLevelCommandBase(i.schema)
-      case i: CopyDataset   => topLevelCommandBase(i.schema) + ("copy_data" -> JBoolean(i.copyData))
+      case i: UpdateDataset => topLevelCommandBase(i.schema, i.expectedDataVersion)
+      case i: CopyDataset   => topLevelCommandBase(i.schema, i.expectedDataVersion) + ("copy_data" -> JBoolean(i.copyData))
       case i: PublishDataset=> i.keepSnapshot match {
-        case Some(s)  => topLevelCommandBase(i.schema) + ("keep_snapshot" -> JBoolean(s))
-        case None     => topLevelCommandBase(i.schema)
+        case Some(s)  => topLevelCommandBase(i.schema, i.expectedDataVersion) + ("keep_snapshot" -> JBoolean(s))
+        case None     => topLevelCommandBase(i.schema, i.expectedDataVersion)
       }
-      case i: DropDataset => topLevelCommandBase(i.schema)
+      case i: DropDataset => topLevelCommandBase(i.schema, i.expectedDataVersion)
     }
   }
 

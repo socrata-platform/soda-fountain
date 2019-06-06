@@ -100,6 +100,7 @@ object DataCoordinatorClient {
   case class InitialCopyDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
   case class OperationAfterDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
   case class FeedbackInProgressResult(datasetId: DatasetId, commandIndex: Long, stores: Set[String]) extends FailResult
+  case class DatasetVersionMismatchResult(dataset: DatasetId, version: Long) extends FailResult
 
   // FAIL CASES: Updates
   case class NotPrimaryKeyResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult
@@ -142,6 +143,7 @@ trait DataCoordinatorClient {
 
   def update[T](datasetId: DatasetId,
                 schemaHash: String,
+                expectedDataVersion: Option[Long],
                 user: String,
                 instructions: Iterator[DataCoordinatorInstruction],
                 extraHeaders: Map[String, String] = Map.empty)
@@ -149,6 +151,7 @@ trait DataCoordinatorClient {
 
   def copy[T](datasetId: DatasetId,
               schemaHash: String,
+              expectedDataVersion: Option[Long],
               copyData: Boolean,
               user: String,
               instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty,
@@ -157,6 +160,7 @@ trait DataCoordinatorClient {
 
   def publish[T](datasetId: DatasetId,
                  schemaHash: String,
+                 expectedDataVersion: Option[Long],
                  keepSnapshot:Option[Boolean],
                  user: String,
                  instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty,
@@ -165,6 +169,7 @@ trait DataCoordinatorClient {
 
   def dropCopy[T](datasetId: DatasetId,
                   schemaHash: String,
+                  expectedDataVersion: Option[Long],
                   user: String,
                   instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty,
                   extraHeaders: Map[String, String] = Map.empty)
@@ -172,6 +177,7 @@ trait DataCoordinatorClient {
 
   def deleteAllCopies[T](datasetId: DatasetId,
                          schemaHash: String,
+                         expectedDataVersion: Option[Long],
                          user: String,
                          extraHeaders: Map[String, String] = Map.empty)
                         (f: Result => T): T

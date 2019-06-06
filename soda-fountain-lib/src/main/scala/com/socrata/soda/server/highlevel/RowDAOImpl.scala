@@ -174,13 +174,14 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
 
   def doUpsertish[T](user: String,
                      datasetRecord: DatasetRecordLike,
+                     expectedDataVersion: Option[Long],
                      data: Iterator[RowUpdate],
                      instructions: Iterator[DataCoordinatorInstruction],
                      requestId: RequestId,
                      f: UpsertResult => T): T = {
     val extraHeaders = Map(ReqIdHeader -> requestId,
                            SodaUtils.ResourceHeader -> datasetRecord.resourceName.name)
-    dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions ++ data, extraHeaders) {
+    dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user, instructions ++ data, extraHeaders) {
       case DataCoordinatorClient.NonCreateScriptResult(result, _, copyNumber, newVersion, lastModified) =>
         store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
         f(StreamSuccess(result, newVersion))
@@ -207,6 +208,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         f(CannotDeletePrimaryKey)
       case DataCoordinatorClient.UnparsableRowValueResult(_, _, value, _, _ ) =>
         f(RowNotAnObject(value))
+      case DataCoordinatorClient.DatasetVersionMismatchResult(_, version) =>
+        f(RowDAO.DatasetVersionMismatch(datasetRecord.resourceName, version))
       case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
         f(InternalServerError(500, DataCoordinatorClient.client, code, tag, data))
       case x =>
@@ -215,16 +218,16 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
     }
   }
 
-  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId, rowUpdateOption: RowUpdateOption)
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], requestId: RequestId, rowUpdateOption: RowUpdateOption)
                (f: UpsertResult => T): T =
-    doUpsertish(user, datasetRecord, data, Iterator.single(rowUpdateOption), requestId, f)
+    doUpsertish(user, datasetRecord, expectedDataVersion, data, Iterator.single(rowUpdateOption), requestId, f)
 
-  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], requestId: RequestId)
+  def replace[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], requestId: RequestId)
                 (f: UpsertResult => T): T =
-    doUpsertish(user, datasetRecord, data, Iterator.single(RowUpdateOption.default.copy(truncate = true)),
+    doUpsertish(user, datasetRecord, expectedDataVersion, data, Iterator.single(RowUpdateOption.default.copy(truncate = true)),
                 requestId, f)
 
-  def deleteRow[T](user: String, resourceName: ResourceName, rowId: RowSpecifier, requestId: RequestId)
+  def deleteRow[T](user: String, resourceName: ResourceName, expectedDataVersion: Option[Long], rowId: RowSpecifier, requestId: RequestId)
                   (f: UpsertResult => T): T = {
     store.translateResourceName(resourceName) match {
       case Some(datasetRecord) =>
@@ -232,7 +235,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
         StringColumnRep.forType(pkCol.typ).fromString(rowId.underlying) match {
           case Some(soqlValue) =>
             val jvalToDelete = JsonColumnRep.forDataCoordinatorType(pkCol.typ).toJValue(soqlValue)
-            doUpsertish(user, datasetRecord, Iterator.single(DeleteRow(jvalToDelete)), Iterator.empty,
+            doUpsertish(user, datasetRecord, expectedDataVersion, Iterator.single(DeleteRow(jvalToDelete)), Iterator.empty,
                         requestId, f)
           case None => f(MaltypedData(pkCol.fieldName, pkCol.typ, JString(rowId.underlying)))
         }

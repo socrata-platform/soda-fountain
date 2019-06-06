@@ -186,11 +186,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def removeDataset (user: String, dataset: ResourceName, requestId: RequestId): Result = {
+  def removeDataset (user: String, dataset: ResourceName, expectedDataVersion: Option[Long], requestId: RequestId): Result = {
     retryable(limit = 5) {
       store.translateResourceName(dataset, deleted = true) match {
         case Some(datasetRecord) =>
-          dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, "",
+          dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, "",
             traceHeaders(RequestId.generate(), dataset))
           {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, _, _, _) =>
@@ -204,6 +204,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               DatasetNotFound(dataset)
             case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
               CannotAcquireDatasetWriteLock(dataset)
+            case DataCoordinatorClient.DatasetVersionMismatchResult(_, v) =>
+              DatasetDAO.DatasetVersionMismatch(datasetRecord.resourceName, v)
             case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
               InternalServerError(code, tag, data)
             case x =>
@@ -293,11 +295,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   }
   def retry() = throw new Retry
 
-  def makeCopy(user: String, dataset: ResourceName, copyData: Boolean, requestId: RequestId): Result =
+  def makeCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], copyData: Boolean, requestId: RequestId): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
-          dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, copyData, user,
+          dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, copyData, user,
                   extraHeaders = traceHeaders(requestId, dataset)) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, newCopyNumber, newVersion, lastModified) =>
               store.makeCopy(datasetRecord.systemId, newCopyNumber, newVersion)
@@ -324,14 +326,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, requestId: RequestId): Result =
+  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], requestId: RequestId): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           // Cannot use copy number from DC because it indicates the latest surviving copy.
           store.lookupCopyNumber(dataset, Some(Unpublished)) match {
             case Some(unpublishCopyNumber) =>
-              dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, user,
+              dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user,
                           extraHeaders = traceHeaders(requestId, dataset)) {
                 case DataCoordinatorClient.NonCreateScriptResult(_, _, _, newVersion, lastModified) =>
                   store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber, None)
@@ -359,11 +361,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def publish(user: String, dataset: ResourceName, keepSnapshot: Option[Boolean], requestId: RequestId): Result =
+  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean], requestId: RequestId): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
-          dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, keepSnapshot, user,
+          dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, keepSnapshot, user,
                      extraHeaders = traceHeaders(requestId, dataset)) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
               store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, Some(0))
@@ -414,6 +416,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
 
   def replaceOrCreateRollup(user: String,
                             dataset: ResourceName,
+                            expectedDataVersion: Option[Long],
                             rollup: RollupName,
                             spec: UserProvidedRollupSpec,
                             requestId: RequestId): Result =
@@ -437,7 +440,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                       log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
 
                       val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQuery.toString())
-                      dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
+                      dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user,
                         Iterator.single(instruction), traceHeaders(requestId, dataset)) {
                         case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
                           store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
@@ -525,12 +528,12 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result = {
+  def deleteRollup(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rollup: RollupName, requestId: RequestId): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         val instruction = DropRollupInstruction(rollup)
 
-        dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
+        dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user,
                   Iterator.single(instruction), traceHeaders(requestId, dataset)) {
           case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
             store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
@@ -604,10 +607,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def secondaryReindex(user: String, dataset: ResourceName): Result = {
+  def secondaryReindex(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator(SecondaryReindexInstruction()), Map.empty)(result => result) match {
+        dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user, Iterator(SecondaryReindexInstruction()), Map.empty)(result => result) match {
           case _: DataCoordinatorClient.SuccessResult =>
             EmptyResult
           case e: DataCoordinatorClient.FailResult =>

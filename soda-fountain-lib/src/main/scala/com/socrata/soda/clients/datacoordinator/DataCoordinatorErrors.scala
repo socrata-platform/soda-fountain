@@ -65,10 +65,14 @@ case class InvalidRowId() extends DCRequestError
 // Request Errors: Script Header
 
 @Tag("req.script.header.mismatched-schema")
-case class SchemaMismatch(dataset: DatasetId, schema: SchemaSpec, commandIndex: Long) extends DCRequestError
+case class SchemaMismatch(dataset: DatasetId, schema: SchemaSpec) extends DCRequestError
 
 @Tag("req.script.header.missing")
-case class EmptyCommandStream(commandIndex: Long) extends DCRequestError
+case class EmptyCommandStream() extends DCRequestError
+
+@Tag("req.script.header.mismatched-data-version")
+case class DatasetVersionMismatch(dataset: DatasetId,
+                                  version: Long) extends DCUpdateError
 
 // Request Errors: Script Command
 
@@ -90,7 +94,6 @@ case class SystemInReadOnlyMode(commandIndex: Long) extends DCUpdateError
 
 @Tag("update.type.unknown")
 case class NoSuchType(`type`: String, commandIndex: Long) extends DCUpdateError
-
 
 @Tag("update.row-version-mismatch")
 case class RowVersionMismatch(dataset: DatasetId,

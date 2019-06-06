@@ -24,28 +24,29 @@ trait DatasetDAO {
                     requestId: RequestId): Result
   def markDatasetForDeletion(user: String, dataset: ResourceName): Result
   def unmarkDatasetForDeletion(user: String, dataset: ResourceName) : Result
-  def removeDataset(user: String, dataset: ResourceName, requestId: RequestId): Result
+  def removeDataset(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], requestId: RequestId): Result
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result
   def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result
   def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
   def getCurrentCopyNum(dataset: ResourceName): Option[Long]
 
-  def makeCopy(user: String, dataset: ResourceName, copyData: Boolean, requestId: RequestId): Result
-  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, requestId: RequestId): Result
-  def publish(user: String, dataset: ResourceName, keepSnapshot: Option[Boolean], requestId: RequestId): Result
+  def makeCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], copyData: Boolean, requestId: RequestId): Result
+  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], requestId: RequestId): Result
+  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean], requestId: RequestId): Result
   def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
 
   def replaceOrCreateRollup(user: String,
                             dataset: ResourceName,
+                            expectedDataVersion: Option[Long],
                             rollup: RollupName,
                             spec: UserProvidedRollupSpec,
                             requestId: RequestId): Result
   def getRollups(dataset: ResourceName, requestId: RequestId): Result
-  def deleteRollup(user: String, dataset: ResourceName, rollup: RollupName, requestId: RequestId): Result
+  def deleteRollup(user: String, dataset: ResourceName, expectedDataVersion: Option[Long],rollup: RollupName, requestId: RequestId): Result
   def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result
   def collocateStatus(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
   def deleteCollocate(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
-  def secondaryReindex(user: String, dataset: ResourceName): Result
+  def secondaryReindex(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result
 }
 
 object DatasetDAO {
@@ -114,6 +115,7 @@ object DatasetDAO {
   // FAILURES: DataCoordinator
   case class RollupNotFound(name: RollupName) extends FailResult
   case class DatasetNotFound(name: ResourceName) extends FailResult
+  case class DatasetVersionMismatch(name: ResourceName, version: Long) extends FailResult
   case class CannotAcquireDatasetWriteLock(name: ResourceName) extends FailResult
   case class FeedbackInProgress(name: ResourceName, stores: Set[String]) extends FailResult
   case class IncorrectLifecycleStageResult(actualStage: String, expectedStage: Set[String]) extends FailResult
