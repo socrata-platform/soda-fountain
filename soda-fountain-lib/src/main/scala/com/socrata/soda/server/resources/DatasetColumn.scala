@@ -1,6 +1,7 @@
 package com.socrata.soda.server.resources
 
 import com.rojoma.json.v3.ast.JString
+import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
@@ -33,7 +34,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
   def response(req: HttpServletRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte] = defaultSuffix, isGet: Boolean = false): HttpResponse = {
     // TODO: Negotiate content type
     def prepareETag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(etagSuffix))
-    result match {
+    result match { // ugh why doesn't this use SodaUtils.Response?
       case ColumnDAO.Created(column, etagOpt) =>
         etagOpt.foldLeft(Created: HttpResponse) { (root, etag) => root ~> ETag(prepareETag(etag)) } ~> Json(column.asSpec)
       case ColumnDAO.Updated(column, etag) =>
@@ -44,6 +45,8 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
         OK ~> Json(column.asSpec)
       case ColumnDAO.ColumnAlreadyExists(columnName) =>
         Conflict ~> Json(ColumnSpecSubSet(None, Some(columnName)))
+      case ColumnDAO.DatasetVersionMismatch(dataset, version) =>
+        Conflict ~> Json(json"""{version: $version}""")
       case ColumnDAO.IllegalColumnId(columnName) =>
         BadRequest ~> Json(ColumnSpecSubSet(None, Some(columnName)))
       case ColumnDAO.ColumnNotFound(columnName) =>
@@ -96,17 +99,18 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
 
     override def delete = { req => resp =>
       checkPrecondition(req) { precondition =>
-        response(req, columnDAO.deleteColumn(user(req), resourceName, columnName,
+        response(req, columnDAO.deleteColumn(user(req), resourceName, expectedDataVersion(req), columnName,
                                              RequestId.getFromRequest(req)))(resp)
       }
     }
 
     override def put = { req => resp =>
       val userFromReq = user(req)
+      val edvFromReq = expectedDataVersion(req)
       val requestId = RequestId.getFromRequest(req)
       withColumnSpec(req, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          response(req, columnDAO.replaceOrCreateColumn(userFromReq, resourceName, precondition, columnName, spec, requestId))(resp)
+          response(req, columnDAO.replaceOrCreateColumn(userFromReq, resourceName, precondition, edvFromReq, columnName, spec, requestId))(resp)
         }
       }
     }
@@ -114,7 +118,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     override def patch = { req => resp =>
       withColumnSpec(req, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          response(req, columnDAO.updateColumn(user(req), resourceName, columnName, spec, RequestId.getFromRequest(req)))(resp)
+          response(req, columnDAO.updateColumn(user(req), resourceName, expectedDataVersion(req), columnName, spec, RequestId.getFromRequest(req)))(resp)
         }
       }
     }
@@ -123,7 +127,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
   case class pkservice(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def post = { req => resp =>
       response(req,
-               columnDAO.makePK(user(req), resourceName, columnName,
+               columnDAO.makePK(user(req), resourceName, expectedDataVersion(req), columnName,
                                 RequestId.getFromRequest(req)),
                Array[Byte](0))(resp)
     }

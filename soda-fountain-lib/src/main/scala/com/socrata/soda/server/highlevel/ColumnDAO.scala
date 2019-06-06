@@ -14,15 +14,16 @@ trait ColumnDAO {
   def replaceOrCreateColumn(user: String,
                             dataset: ResourceName,
                             precondition: Precondition,
+                            expectedDataVersion: Option[Long],
                             column: ColumnName,
                             spec: UserProvidedColumnSpec,
                             requestId: RequestId): Result
 
-  def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec, requestId: RequestId): Result
+  def updateColumn(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, spec: UserProvidedColumnSpec, requestId: RequestId): Result
 
-  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName, requestId: RequestId): Result
+  def deleteColumn(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result
 
-  def makePK(user: String, dataset: ResourceName, column: ColumnName, requestId: RequestId): Result
+  def makePK(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result
 
   def getColumn(dataset: ResourceName, column: ColumnName): Result
 }
@@ -48,6 +49,7 @@ object ColumnDAO {
   case class InternalServerError(code: String, tag: String, data: String) extends FailResult
   case class CannotDeleteRowId(columnRec: ColumnRecord, method: String) extends FailResult
   case class DatasetNotFound(dataset: ResourceName) extends FailResult
+  case class DatasetVersionMismatch(dataset: ResourceName, version: Long) extends FailResult
   case object CannotChangeColumnId extends FailResult
   case object CannotChangeColumnType extends FailResult
 

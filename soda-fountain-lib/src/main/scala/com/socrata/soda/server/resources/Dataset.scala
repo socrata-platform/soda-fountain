@@ -97,6 +97,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
         SodaUtils.response(req, LocaleChangedError(locale))
       case DatasetDAO.DatasetNotFound(dataset) =>
         SodaUtils.response(req, DatasetNotFound(dataset))
+      case DatasetDAO.DatasetVersionMismatch(dataset, version) =>
+        SodaUtils.response(req, DatasetVersionMismatch(dataset, version))
       case DatasetDAO.InvalidDatasetName(name) =>
         SodaUtils.response(req, DatasetNameInvalidNameSodaErr(name))
       case DatasetDAO.RollupNotFound(name) =>
@@ -165,7 +167,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   case class secondaryReindexService(resourceName: ResourceName) extends SodaResource {
     override def post = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(req, datasetDAO.secondaryReindex(user(req), resourceName))
+        response(req, datasetDAO.secondaryReindex(user(req), resourceName, expectedDataVersion(req)))
       }
     }
   }
@@ -178,16 +180,16 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     // TODO: not GET
     override def get = { req =>
       val doCopyData = req.getParameter("copy_data") == "true"
-      response(req, datasetDAO.makeCopy(user(req), resourceName, copyData = doCopyData,
+      response(req, datasetDAO.makeCopy(user(req), resourceName, expectedDataVersion(req), copyData = doCopyData,
                                         requestId = RequestId.getFromRequest(req)))
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.dropCurrentWorkingCopy(user(req), resourceName,
+      response(req, datasetDAO.dropCurrentWorkingCopy(user(req), resourceName, expectedDataVersion(req),
                                                       RequestId.getFromRequest(req)))
     }
     override def put = { req =>
-      response(req, datasetDAO.publish(user(req), resourceName, keepSnapshot = keepSnapshot(req),
+      response(req, datasetDAO.publish(user(req), resourceName, expectedDataVersion(req), keepSnapshot = keepSnapshot(req),
                                        requestId = RequestId.getFromRequest(req)))
     }
   }
@@ -248,7 +250,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     override def delete = { req =>
       rollupName match {
         case Some(rollup) =>
-          response(req, datasetDAO.deleteRollup(user(req), resourceName, rollup,
+          response(req, datasetDAO.deleteRollup(user(req), resourceName, expectedDataVersion(req), rollup,
             RequestId.getFromRequest(req)))
         case None => MethodNotAllowed
       }
@@ -258,7 +260,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
       withRollupSpec(req) { spec =>
         rollupName match {
           case Some(rollup) =>
-            response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, rollup, spec,
+            response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, expectedDataVersion(req), rollup, spec,
               RequestId.getFromRequest(req)))
           case None => MethodNotAllowed
         }

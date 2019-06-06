@@ -197,10 +197,10 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                   f(Left(InternalServerErrorResult(reqError.code, tag, s"row $row; column $column")))
                 case BodyNotJsonArray() =>
                   f(Left(InternalServerErrorResult(reqError.code, tag, "")))
-                case SchemaMismatch(dataset, schema, commandIndex) =>
+                case SchemaMismatch(dataset, schema) =>
                   f(Left(SchemaOutOfDateResult(schema)))
-                case EmptyCommandStream(commandIndex) =>
-                  f(Left(InternalServerErrorResult(reqError.code, tag, s"commandIndex: $commandIndex" )))
+                case EmptyCommandStream() =>
+                  f(Left(InternalServerErrorResult(reqError.code, tag, "")))
                 case CommandIsNotAnObject(value, commandIndex) =>
                   f(Left(InternalServerErrorResult( reqError.code, tag, s"value: $value, commandIndex: $commandIndex")))
                 case MissingCommandField(obj, field, commandIndex) =>
@@ -251,6 +251,8 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 f(Left(InternalServerErrorResult(updateError.code, tag, s"commandIndex: $commandIndex")))
               case NoSuchType(tp, commandIndex) =>
                 f(Left(NoSuchTypeResult(tp, commandIndex)))
+              case DatasetVersionMismatch(dataset, version) =>
+                f(Left(DatasetVersionMismatchResult(dataset, version)))
               case RowVersionMismatch(dataset, value, commandIndex, expected, actual) =>
                 f(Left(RowVersionMismatchResult(dataset, value, commandIndex, expected, actual)))
               case VersionOnNewRow(dataset, commandIndex) =>
@@ -343,19 +345,21 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
 
   def update[T](datasetId: DatasetId,
                 schemaHash: String,
+                expectedDataVersion: Option[Long],
                 user: String,
                 instructions: Iterator[DataCoordinatorInstruction],
                 extraHeaders: Map[String, String] = Map.empty)
                (f: Result => T): T = {
     // TODO: update should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
-      val updateScript = new MutationScript(user, UpdateDataset(schemaHash), instructions)
+      val updateScript = new MutationScript(user, UpdateDataset(schemaHash, expectedDataVersion), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), updateScript)(f)
     }
   }
 
   def copy[T](datasetId: DatasetId,
               schemaHash: String,
+              expectedDataVersion: Option[Long],
               copyData: Boolean,
               user: String,
               instructions: Iterator[DataCoordinatorInstruction],
@@ -363,13 +367,14 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
              (f: Result => T): T = {
     // TODO: copy should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
-      val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash), instructions)
+      val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash, expectedDataVersion), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), createScript)(f)
     }
   }
 
   def publish[T](datasetId: DatasetId,
                  schemaHash: String,
+                 expectedDataVersion: Option[Long],
                  keepSnapshot:Option[Boolean],
                  user: String,
                  instructions: Iterator[DataCoordinatorInstruction],
@@ -377,20 +382,21 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
                 (f: Result => T): T = {
     // TODO: publish should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
-      val pubScript = new MutationScript(user, PublishDataset(keepSnapshot, schemaHash), instructions)
+      val pubScript = new MutationScript(user, PublishDataset(keepSnapshot, schemaHash, expectedDataVersion), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), pubScript)(f)
     }
   }
 
   def dropCopy[T](datasetId: DatasetId,
                   schemaHash: String,
+                  expectedDataVersion: Option[Long],
                   user: String,
                   instructions: Iterator[DataCoordinatorInstruction],
                   extraHeaders: Map[String, String] = Map.empty)
                  (f: Result => T): T = {
     // TODO: dropCopy should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
-      val dropScript = new MutationScript(user, DropDataset(schemaHash), instructions)
+      val dropScript = new MutationScript(user, DropDataset(schemaHash, expectedDataVersion), instructions)
       sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), dropScript)(f)
     }
   }
@@ -398,12 +404,13 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   // Pretty sure this is completely wrong
   def deleteAllCopies[T](datasetId: DatasetId,
                          schemaHash: String,
+                         expectedDataVersion: Option[Long],
                          user: String,
                          extraHeaders: Map[String, String] = Map.empty)
                         (f: Result => T): T = {
     // TODO: deleteAllCopies should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
-      val deleteScript = new MutationScript(user, DropDataset(schemaHash), Iterator.empty)
+      val deleteScript = new MutationScript(user, DropDataset(schemaHash, expectedDataVersion), Iterator.empty)
       val req = mutateUrl(host, datasetId).method(HttpMethods.DELETE).addHeaders(extraHeaders)
       sendNonCreateScript(req, deleteScript)(f)
     }

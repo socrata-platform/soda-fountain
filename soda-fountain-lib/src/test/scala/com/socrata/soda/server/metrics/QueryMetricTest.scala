@@ -255,8 +255,8 @@ private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
     query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup, obfuscateId,
           reqId, fuseColumns, None, debug, rs)
   }
-  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
-  def upsert[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], reqId: String, rowUpdateOption: RowUpdateOption)(f: UpsertResult => T): T = ???
-  def replace[T](user: String, datasetRecord: DatasetRecordLike, data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
-  def deleteRow[T](user: String, dataset: ResourceName, rowId: RowSpecifier, reqId: String)(f: UpsertResult => T): T = ???
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], reqId: String, rowUpdateOption: RowUpdateOption)(f: UpsertResult => T): T = ???
+  def replace[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
+  def deleteRow[T](user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rowId: RowSpecifier, reqId: String)(f: UpsertResult => T): T = ???
 }

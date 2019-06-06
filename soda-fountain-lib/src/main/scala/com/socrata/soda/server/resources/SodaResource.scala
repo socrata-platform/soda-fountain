@@ -27,8 +27,18 @@ class SodaResource extends SimpleResource {
       case Some(v) => Header(header, v)
       case None => Function.const(())
     }
+
+  def expectedDataVersion(req: HttpRequest): Option[Long] =
+    try {
+      req.header("X-SODA2-Truth-Version").map(_.toLong)
+    } catch {
+      case e: NumberFormatException =>
+        SodaResource.log.warn("Unparsable expected data version")
+        None
+    }
 }
 
 object SodaResource {
   private val log = org.slf4j.LoggerFactory.getLogger(classOf[SodaResource])
+
 }

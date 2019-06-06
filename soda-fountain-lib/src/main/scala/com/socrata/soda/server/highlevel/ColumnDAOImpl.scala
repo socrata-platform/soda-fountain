@@ -23,6 +23,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
   def replaceOrCreateColumn(user: String,
                             dataset: ResourceName,
                             precondition: Precondition,
+                            expectedDataVersion: Option[Long],
                             column: ColumnName,
                             rawSpec: UserProvidedColumnSpec,
                             requestId: RequestId): ColumnDAO.Result = {
@@ -33,9 +34,9 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
       case Some(datasetRecord) =>
         datasetRecord.columnsByName.get(column) match {
           case Some(columnRecord) =>
-            doUpdateColumn(datasetRecord, store.latestCopyNumber(dataset), columnRecord, user, precondition, column, spec, requestId)
+            doUpdateColumn(datasetRecord, store.latestCopyNumber(dataset), columnRecord, user, precondition, expectedDataVersion, column, spec, requestId)
           case None =>
-            createColumn(user, datasetRecord, precondition, column, spec, requestId)
+            createColumn(user, datasetRecord, precondition, expectedDataVersion, column, spec, requestId)
         }
       case None =>
         ColumnDAO.DatasetNotFound(dataset)
@@ -45,6 +46,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
   def createColumn(user: String,
                    datasetRecord: DatasetRecord,
                    precondition: Precondition,
+                   expectedDataVersion: Option[Long],
                    column: ColumnName,
                    userProvidedSpec: UserProvidedColumnSpec,
                    requestId: RequestId): ColumnDAO.Result = {
@@ -57,7 +59,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
             val extraHeaders = Map(ReqIdHeader -> requestId,
                                    SodaUtils.ResourceHeader -> datasetRecord.resourceName.name)
             val addColumn = AddColumnInstruction(spec.datatype, spec.fieldName, Some(spec.id), spec.computationStrategy)
-            dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user,
+            dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user,
                       Iterator.single(addColumn), extraHeaders) {
               case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
                 // TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here
@@ -80,6 +82,8 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                  ColumnDAO.DuplicateValuesInColumn(spec.asRecord)
               case DataCoordinatorClient.DatasetNotFoundResult(_) =>
                 ColumnDAO.DatasetNotFound(datasetRecord.resourceName)
+              case DataCoordinatorClient.DatasetVersionMismatchResult(_, version) =>
+                ColumnDAO.DatasetVersionMismatch(datasetRecord.resourceName, version)
               case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
                 ColumnDAO.InternalServerError(code, tag, data)
               case x =>
@@ -117,7 +121,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
   }
   def retry() = throw new Retry
 
-  def makePK(user: String, resource: ResourceName, column: ColumnName, requestId: RequestId): Result = {
+  def makePK(user: String, resource: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result = {
     retryable(limit = 5) {
       store.lookupDataset(resource, Some(Latest)) match {
         case Some(datasetRecord) =>
@@ -138,7 +142,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                   }
                 val extraHeaders = Map(ReqIdHeader -> requestId,
                                        SodaUtils.ResourceHeader -> resource.name)
-                dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, instructions.iterator,
+                dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user, instructions.iterator,
                           extraHeaders) {
                   case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
                     store.setPrimaryKey(datasetRecord.systemId, columnRecord.id, copyNumber)
@@ -175,7 +179,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def updateColumn(user: String, dataset: ResourceName, column: ColumnName, spec: UserProvidedColumnSpec, requestId: RequestId): Result = {
+  def updateColumn(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, spec: UserProvidedColumnSpec, requestId: RequestId): Result = {
     retryable(limit = 3) {
       spec match {
         case UserProvidedColumnSpec(None, fieldName, datatype, None, _) =>
@@ -184,7 +188,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
             case Some(datasetRecord) =>
               datasetRecord.columnsByName.get(column) match {
                 case Some(columnRef) =>
-                  doUpdateColumn(datasetRecord, copyNumber, columnRef, user, NoPrecondition, column, spec, requestId)
+                  doUpdateColumn(datasetRecord, copyNumber, columnRef, user, NoPrecondition, expectedDataVersion, column, spec, requestId)
 //                  if (datatype.exists (_ != columnRef.typ)) {
 //                    // TODO: Allow some datatype conversions?
 //                    throw new Exception("Does not support changing datatype.")
@@ -209,7 +213,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def doUpdateColumn(datasetRecord: DatasetRecord, copyNumber: Long, columnRecord: ColumnRecord, user: String, precondition: Precondition, column: ColumnName, spec: UserProvidedColumnSpec, requestId: RequestId): Result = {
+  def doUpdateColumn(datasetRecord: DatasetRecord, copyNumber: Long, columnRecord: ColumnRecord, user: String, precondition: Precondition, expectedDataVersion: Option[Long], column: ColumnName, spec: UserProvidedColumnSpec, requestId: RequestId): Result = {
     // ok.  Bleh.  We have a thing and a thing, and we need to decide what's changed.
     // we need to prevent "fieldName" from colliding with existing names.
 
@@ -257,6 +261,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
       retryable(limit = 3) {
         dc.update(datasetRecord.systemId,
           datasetRecord.schemaHash,
+          expectedDataVersion,
           user,
           instructions.iterator,
           extraHeaders) {
@@ -307,7 +312,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
       col.computationStrategy.get.sourceColumns.get.exists(_.id == id)
     }.map(_.fieldName)
 
-  def deleteColumn(user: String, dataset: ResourceName, column: ColumnName, requestId: RequestId): Result = {
+  def deleteColumn(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result = {
     retryable(limit = 3) {
       store.lookupDataset(dataset, Some(Latest)) match {
         case Some(datasetRecord) =>
@@ -322,6 +327,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                                        SodaUtils.ResourceHeader -> dataset.name)
                 dc.update(datasetRecord.systemId,
                           datasetRecord.schemaHash,
+                          expectedDataVersion,
                           user,
                           Iterator.single(DropColumnInstruction(columnRef.id)),
                           extraHeaders) {

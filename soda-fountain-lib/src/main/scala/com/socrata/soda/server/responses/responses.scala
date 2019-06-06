@@ -209,6 +209,13 @@ case class DatasetNameInvalidNameSodaErr(dataset:  ResourceName)
   extends SodaResponse(SC_BAD_REQUEST, "soda.dataset.invalid-Name",
     s"Dataset name '${dataset.name}' is invalid",
     "dataset" -> JString(dataset.name))
+
+case class DatasetVersionMismatch(dataset: ResourceName, version: Long)
+  extends SodaResponse(SC_CONFLICT, "soda.row.dataset-version-mismatch",
+    s"The dataset does not have the required version",
+    "dataset" -> JString(dataset.name),
+    "version" -> JNumber(version))
+
 /**
  * Column not found in a row operation
  */

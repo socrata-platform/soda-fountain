@@ -27,7 +27,7 @@ class ColumnDAOSpec extends FunSuiteLike
 
     val dao: ColumnDAO = new ColumnDAOImpl(dc, fbm, ns, col)
 
-    val result = dao.deleteColumn("user", dataset.resourceName, toDelete, "1234")
+    val result = dao.deleteColumn("user", dataset.resourceName, None, toDelete, "1234")
 
     result should be(ColumnNotFound(toDelete))
   }
@@ -47,7 +47,7 @@ class ColumnDAOSpec extends FunSuiteLike
 
     val dao: ColumnDAO = new ColumnDAOImpl(dc, fbm, ns, col)
 
-    val result = dao.deleteColumn("user", dataset.resourceName, toDelete.fieldName, requestId)
+    val result = dao.deleteColumn("user", dataset.resourceName, None, toDelete.fieldName, requestId)
 
     result should be(ColumnHasDependencies(toDelete.fieldName, Seq(dependency.fieldName)))
   }
@@ -62,12 +62,12 @@ class ColumnDAOSpec extends FunSuiteLike
     val ns = mock[NameAndSchemaStore]
     ns.expects('lookupDataset)(dataset.resourceName, Some(Latest))
       .returning(Some(dataset)).anyNumberOfTimes()
-    dc.expects('update)(*, *, *, *, *, *)
+    dc.expects('update)(*, *, *, *, *, *, *)
     val col = new ColumnSpecUtils(Random)
 
     val dao: ColumnDAO = new ColumnDAOImpl(dc, fbm, ns, col)
 
-    dao.deleteColumn("user", dataset.resourceName, toDelete.fieldName, requestId)
+    dao.deleteColumn("user", dataset.resourceName, None, toDelete.fieldName, requestId)
 
     // TODO : How can we pass in/validate the handler function passed to dc.update?
   }
