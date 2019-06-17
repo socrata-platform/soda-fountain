@@ -890,21 +890,14 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
       val result = f(columnUpdater)
 
-      val fragments = Seq(
-        fieldName.map { _ => "column_name = ?, column_name_casefolded = ?" }
-      ).flatten
-      if(fragments.nonEmpty) {
-        val sql = fragments.mkString("UPDATE columns SET ", ",", " WHERE copy_id = (SELECT id FROM dataset_copies WHERE dataset_system_id = ? AND copy_number = ?) AND column_id = ?")
+      fieldName.foreach { fieldName =>
+        val sql = "UPDATE columns SET column_name = ?, column_name_casefolded = ? WHERE copy_id = (SELECT id FROM dataset_copies WHERE dataset_system_id = ? AND copy_number = ?) AND column_id = ?"
         using(conn.prepareStatement(sql)) { stmt =>
-          var ptr = 0
-          def nextPtr() = { ptr += 1; ptr }
-          fieldName.foreach { fn =>
-            stmt.setString(nextPtr(), fn.name)
-            stmt.setString(nextPtr(), fn.caseFolded)
-          }
-          stmt.setString(nextPtr(), datasetId.underlying)
-          stmt.setLong(nextPtr(), copyNumber)
-          stmt.setString(nextPtr(), columnId.underlying)
+          stmt.setString(1, fieldName.name)
+          stmt.setString(2, fieldName.caseFolded)
+          stmt.setString(3, datasetId.underlying)
+          stmt.setLong(4, copyNumber)
+          stmt.setString(5, columnId.underlying)
           stmt.execute()
         }
       }
