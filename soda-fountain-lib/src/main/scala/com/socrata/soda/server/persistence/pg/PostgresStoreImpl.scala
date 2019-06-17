@@ -880,7 +880,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       }
     }
 
-  override def withColumnUpdater[T](datasetId: DatasetId, columnId: ColumnId)(f: ColumnUpdater => T): T = {
+  override def withColumnUpdater[T](datasetId: DatasetId, copyNumber: Long, columnId: ColumnId)(f: ColumnUpdater => T): T = {
     using(dataSource.getConnection) { conn =>
       var fieldName: Option[ColumnName] = None
 
@@ -894,7 +894,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         fieldName.map { _ => "column_name = ?, column_name_casefolded = ?" }
       ).flatten
       if(fragments.nonEmpty) {
-        val sql = fragments.mkString("UPDATE columns SET ", ",", " WHERE dataset_system_id = ? AND column_id = ?")
+        val sql = fragments.mkString("UPDATE columns SET ", ",", " WHERE copy_id = (SELECT id FROM dataset_copies WHERE dataset_system_id = ? AND copy_number = ?) AND column_id = ?")
         using(conn.prepareStatement(sql)) { stmt =>
           var ptr = 0
           def nextPtr() = { ptr += 1; ptr }
@@ -903,6 +903,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             stmt.setString(nextPtr(), fn.caseFolded)
           }
           stmt.setString(nextPtr(), datasetId.underlying)
+          stmt.setLong(nextPtr(), copyNumber)
           stmt.setString(nextPtr(), columnId.underlying)
           stmt.execute()
         }

@@ -50,7 +50,7 @@ trait NameAndSchemaStore {
 
   def bulkDatasetLookup(id: Set[DatasetId]): Set[ResourceName]
 
-  def withColumnUpdater[T](datasetId: DatasetId, columnId: ColumnId)(f: NameAndSchemaStore.ColumnUpdater => T): T
+  def withColumnUpdater[T](datasetId: DatasetId, copyNumber: Long, columnId: ColumnId)(f: NameAndSchemaStore.ColumnUpdater => T): T
 }
 
 object NameAndSchemaStore {
