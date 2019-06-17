@@ -229,7 +229,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
       if(newId != columnRecord.id) return ColumnDAO.CannotChangeColumnId
     }
 
-    store.withColumnUpdater(datasetRecord.systemId, columnRecord.id) { updater =>
+    store.withColumnUpdater(datasetRecord.systemId, copyNumber, columnRecord.id) { updater =>
       val instructionsBuilder = List.newBuilder[DataCoordinatorInstruction]
       spec.fieldName.foreach { fn =>
         if (columnRecord.fieldName != fn) {
