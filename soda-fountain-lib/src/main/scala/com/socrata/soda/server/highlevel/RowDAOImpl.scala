@@ -126,8 +126,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                       queryTimeoutSeconds: Option[String],
                       debug: Boolean,
                       resourceScope: ResourceScope): Result = {
-    val extraHeaders = Map(ReqIdHeader              -> requestId,
-                           SodaUtils.ResourceHeader -> ds.resourceName.name,
+    val extraHeaders = SodaUtils.traceHeaders(requestId, ds.resourceName) + (
                            "X-SODA2-DataVersion"    -> ds.truthVersion.toString,
                            "X-SODA2-LastModified"   -> ds.lastModified.toHttpDate) ++
       fuseColumns.map(c => Map("X-Socrata-Fuse-Columns" -> c)).getOrElse(Map.empty) ++
@@ -179,8 +178,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                      instructions: Iterator[DataCoordinatorInstruction],
                      requestId: RequestId,
                      f: UpsertResult => T): T = {
-    val extraHeaders = Map(ReqIdHeader -> requestId,
-                           SodaUtils.ResourceHeader -> datasetRecord.resourceName.name)
+    val extraHeaders = SodaUtils.traceHeaders(requestId, datasetRecord.resourceName)
     dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user, instructions ++ data, extraHeaders) {
       case DataCoordinatorClient.NonCreateScriptResult(result, _, copyNumber, newVersion, lastModified) =>
         store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)

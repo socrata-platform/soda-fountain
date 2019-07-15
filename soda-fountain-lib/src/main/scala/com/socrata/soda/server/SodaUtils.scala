@@ -1,5 +1,6 @@
 package com.socrata.soda.server
 
+import java.net.URLEncoder
 import java.nio.charset.{Charset, StandardCharsets}
 import javax.servlet.http.HttpServletRequest
 
@@ -84,7 +85,7 @@ object SodaUtils {
    */
   def traceHeaders(requestId: RequestId, dataset: ResourceName): Map[String, String] =
     Map(ReqIdHeader -> requestId,
-        ResourceHeader -> dataset.name)
+        ResourceHeader -> URLEncoder.encode(dataset.name, "UTF-8"))
 
 }
 

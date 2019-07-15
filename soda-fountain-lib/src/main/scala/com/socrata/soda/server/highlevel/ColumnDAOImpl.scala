@@ -56,8 +56,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
 
         precondition.check(None, sideEffectFree = true) match {
           case Precondition.Passed =>
-            val extraHeaders = Map(ReqIdHeader -> requestId,
-                                   SodaUtils.ResourceHeader -> datasetRecord.resourceName.name)
+            val extraHeaders = SodaUtils.traceHeaders(requestId, datasetRecord.resourceName)
             val addColumn = AddColumnInstruction(spec.datatype, spec.fieldName, Some(spec.id), spec.computationStrategy)
             dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user,
                       Iterator.single(addColumn), extraHeaders) {
@@ -140,8 +139,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                       DropRowIdColumnInstruction(datasetRecord.primaryKey),
                       SetRowIdColumnInstruction(columnRecord.id))
                   }
-                val extraHeaders = Map(ReqIdHeader -> requestId,
-                                       SodaUtils.ResourceHeader -> resource.name)
+                val extraHeaders = SodaUtils.traceHeaders(requestId, resource)
                 dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user, instructions.iterator,
                           extraHeaders) {
                   case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
@@ -256,8 +254,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
 
       val instructions = instructionsBuilder.result()
 
-      val extraHeaders = Map(ReqIdHeader -> requestId,
-                             SodaUtils.ResourceHeader -> datasetRecord.name)
+      val extraHeaders = SodaUtils.traceHeaders(requestId, datasetRecord.resourceName)
       retryable(limit = 3) {
         dc.update(datasetRecord.systemId,
           datasetRecord.schemaHash,
@@ -323,8 +320,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
               if (deps.nonEmpty) {
                 ColumnDAO.ColumnHasDependencies(columnRef.fieldName, deps)
               } else {
-                val extraHeaders = Map(ReqIdHeader -> requestId,
-                                       SodaUtils.ResourceHeader -> dataset.name)
+                val extraHeaders = SodaUtils.traceHeaders(requestId, dataset)
                 dc.update(datasetRecord.systemId,
                           datasetRecord.schemaHash,
                           expectedDataVersion,
