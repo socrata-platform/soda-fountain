@@ -326,7 +326,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                           expectedDataVersion,
                           user,
                           Iterator.single(DropColumnInstruction(columnRef.id)),
-                          SodaUtils.traceHeaders(requestId, dataset)) {
+                          extraHeaders) {
                   case DataCoordinatorClient.NonCreateScriptResult(_, etag, copyNumber, newVersion, lastModified) =>
                     store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber, datasetRecord.primaryKey)
                     store.updateVersionInfo(datasetRecord.systemId,
