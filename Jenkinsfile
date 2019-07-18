@@ -1,7 +1,6 @@
 // Set up the libraries
 @Library('socrata-pipeline-library')
 
-
 // set up service and project variables
 def service = "soda-fountain"
 def project_wd = "soda-fountain-jetty"
@@ -48,7 +47,6 @@ pipeline {
           service_sha = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
 
           // determine what triggered the build and what stages need to be run
-
           if (params.RELEASE_CUT == true) { // RELEASE_CUT parameter was set by a cut job
             stage_cut = true  // other stages will be turned on in the cut step as needed
             deploy_environment = "rc"
@@ -70,9 +68,6 @@ pipeline {
         }
       }
     }
-    // The Cut stage is triggered when making a release candidate and will require a 2nd pipeline job that uses this Jenkinsfile
-    // with an added RELEASE_CUT parameter
-    // If the service doesn't have a formal cut or release candidate process, you may remove this stage
     stage('Cut') {
       when { expression { stage_cut } }
       steps {
@@ -131,7 +126,6 @@ pipeline {
       steps {
         script {
           // perform any needed modifiers on the build parameters here
-
           sbtbuild.setNoSubproject(true)
 
           // build
