@@ -16,7 +16,7 @@ import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.metrics.Metrics._
 import com.socrata.soda.server.metrics.TestDatasets._
 import com.socrata.soda.server.persistence.{ColumnRecord, ColumnRecordLike, DatasetRecord, DatasetRecordLike}
-import com.socrata.soda.server.resources.{Export, Resource}
+import com.socrata.soda.server.resources.{DebugInfo, Export, Resource}
 import com.socrata.soda.server.util.{ETagObfuscator, NoopEtagObfuscator}
 import com.socrata.soql.types.SoQLValue
 import org.joda.time.DateTime
@@ -246,14 +246,14 @@ private object TestDatasets {
 private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
   def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String],
             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
-            reqId: String, fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debug: Boolean, rs: ResourceScope): Result = {
+            reqId: String, fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope): Result = {
     testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
   }
   def getRow(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
              stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
-             reqId: String, fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debug: Boolean, rs: ResourceScope): Result = {
+             reqId: String, fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope): Result = {
     query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup, obfuscateId,
-          reqId, fuseColumns, None, debug, rs)
+          reqId, fuseColumns, None, debugInfo, rs)
   }
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], reqId: String, rowUpdateOption: RowUpdateOption)(f: UpsertResult => T): T = ???

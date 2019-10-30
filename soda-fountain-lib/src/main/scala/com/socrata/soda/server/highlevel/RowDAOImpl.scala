@@ -1,15 +1,12 @@
 package com.socrata.soda.server.highlevel
 
 import java.nio.charset.StandardCharsets
-import javax.servlet.http.HttpServletResponse
 
 import com.rojoma.json.v3.ast._
-import com.rojoma.json.v3.codec.JsonEncode
-import com.rojoma.json.v3.conversions._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.util.{NoPrecondition, Precondition, StrongEntityTag}
-import com.socrata.http.server.util.RequestId.{ReqIdHeader, RequestId}
+import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 import com.socrata.soda.server.SodaUtils
@@ -22,6 +19,7 @@ import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
+import com.socrata.soda.server.resources.DebugInfo
 
 class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: QueryCoordinatorClient) extends RowDAO {
 
@@ -41,12 +39,12 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             requestId: RequestId,
             fuseColumns: Option[String],
             queryTimeoutSeconds: Option[String],
-            debug: Boolean,
+            debugInfo: DebugInfo,
             resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(ds) =>
         getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup, obfuscateId,
-          requestId, fuseColumns, queryTimeoutSeconds, debug, resourceScope)
+          requestId, fuseColumns, queryTimeoutSeconds, debugInfo, resourceScope)
       case None =>
         log.info("dataset not found {}", resourceName.name)
         DatasetNotFound(resourceName)
@@ -64,7 +62,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
              requestId: RequestId,
              fuseColumns: Option[String],
              queryTimeoutSeconds: Option[String],
-             debug: Boolean,
+             debugInfo: DebugInfo,
              resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(datasetRecord) =>
@@ -76,7 +74,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
             val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
             getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance,
-                    noRollup, obfuscateId, requestId, fuseColumns, queryTimeoutSeconds, debug, resourceScope) match {
+                    noRollup, obfuscateId, requestId, fuseColumns, queryTimeoutSeconds, debugInfo, resourceScope) match {
               case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
                 val version = ColumnName(":version")
                 val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
@@ -124,16 +122,18 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                       requestId: RequestId,
                       fuseColumns: Option[String],
                       queryTimeoutSeconds: Option[String],
-                      debug: Boolean,
+                      debugInfo: DebugInfo,
                       resourceScope: ResourceScope): Result = {
     val extraHeaders = SodaUtils.traceHeaders(requestId, ds.resourceName) + (
                            "X-SODA2-DataVersion"    -> ds.truthVersion.toString,
                            "X-SODA2-LastModified"   -> ds.lastModified.toHttpDate) ++
       fuseColumns.map(c => Map("X-Socrata-Fuse-Columns" -> c)).getOrElse(Map.empty) ++
-      (if (debug) Map("X-Socrata-Debug" -> "true") else Map.empty)
+      (if (debugInfo.debugLogging) Map("X-Socrata-Debug" -> "true") else Map.empty) ++
+      (if (debugInfo.explain) Map("X-Socrata-Explain" -> "true") else Map.empty) ++
+      (if (debugInfo.analyze) Map("X-Socrata-Analyze" -> "true") else Map.empty)
     qc.query(ds.systemId, precondition, ifModifiedSince, query, rowCount,
              copy, secondaryInstance, noRollup, obfuscateId, extraHeaders, queryTimeoutSeconds, resourceScope) {
-      case QueryCoordinatorClient.Success(etags, rollup, response) =>
+      case QueryCoordinatorClient.Success(etags, rollup, response) if !debugInfo.explain =>
         val jsonColumnReps = if (obfuscateId) JsonColumnRep.forDataCoordinatorType
                              else JsonColumnRep.forDataCoordinatorTypeClearId
         val decodedResult = CJson.decode(response, jsonColumnReps)
@@ -150,6 +150,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
           }
         )
         QuerySuccess(etags, ds.truthVersion, ds.lastModified, rollup, simpleSchema, decodedResult.rows)
+      case QueryCoordinatorClient.Success(_, _, response) if debugInfo.explain =>
+        // Just forward this along up
+        InfoSuccess(200, response)
+
         // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
       case QueryCoordinatorClient.NotModified(etags) =>
         RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags))

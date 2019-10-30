@@ -16,6 +16,7 @@ import org.joda.time.DateTime
 import RowDAO._
 import com.socrata.soda.server.copy.Stage
 import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.soda.server.resources.DebugInfo
 
 trait RowDAO {
   def query(dataset: ResourceName,
@@ -30,7 +31,7 @@ trait RowDAO {
             requestId: RequestId,
             fuseColumns: Option[String],
             queryTimeoutSeconds: Option[String],
-            debug: Boolean,
+            debugInfo: DebugInfo,
             resourceScope: ResourceScope): Result
 
   def getRow(dataset: ResourceName,
@@ -44,7 +45,7 @@ trait RowDAO {
              requestId: RequestId,
              fuseColumns: Option[String],
              queryTimeoutSeconds: Option[String],
-             debug: Boolean,
+             debugInfo: DebugInfo,
              resourceScope: ResourceScope): Result
 
   def upsert[T](user: String,
@@ -74,6 +75,7 @@ object RowDAO {
                           body: Iterator[Array[SoQLValue]]) extends SuccessResult
   case class SingleRowQuerySuccess(etags: Seq[EntityTag], truthVersion: Long, truthLastModified: DateTime,
                                    schema: ExportDAO.CSchema, body: Array[SoQLValue]) extends SuccessResult
+  case class InfoSuccess(status: Int, body: Iterator[JValue]) extends SuccessResult
 
   // FAILURE: QueryCoordinator
   case class PreconditionFailed(failure: Precondition.Failure) extends FailResult
