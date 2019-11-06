@@ -3,15 +3,13 @@ package com.socrata.soda.server.resources
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.ReportItem
 
 import scala.collection.JavaConverters._
 import scala.language.existentials
-import scala.util.Try
 import com.rojoma.json.v3.ast.{JArray, JNumber, JString, JValue}
 import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.ContentNegotiation
-import com.socrata.http.server.{HttpRequest, HttpResponse, ParsedParam}
+import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
@@ -205,7 +203,11 @@ case class Resource(rowDAO: RowDAO,
                   RequestId.getFromRequest(req),
                   Option(req.getHeader("X-Socrata-Fuse-Columns")),
                   Option(req.getParameter(qpQueryTimeoutSeconds)),
-                  Option(req.getHeader("X-Socrata-Debug")).isDefined,
+                  DebugInfo(
+                    Option(req.getHeader("X-Socrata-Debug")).isDefined,
+                    Option(req.getHeader("X-Socrata-Explain")).isDefined,
+                    Option(req.getHeader("X-Socrata-Analyze")).isDefined
+                  ),
                   req.resourceScope) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                     metric(QuerySuccessMetric)
@@ -227,6 +229,9 @@ case class Resource(rowDAO: RowDAO,
                     createHeader ~>
                       exporter.export(charset, schema, rows, singleRow = false, obfuscateId = obfuscateId,
                                       bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))
+                  case RowDAO.InfoSuccess(_, body) =>
+                    // Just drain the iterator into an array, this should never be large
+                    OK ~> Json(JArray(body.toSeq))
                   case RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags)) =>
                     metric(QueryCacheHit)
                     SodaUtils.response(req, SodaErrors.ResourceNotModified(etags.map(prepareTag), Some(ContentNegotiation.headers.mkString(","))))
@@ -377,7 +382,11 @@ case class Resource(rowDAO: RowDAO,
                     RequestId.getFromRequest(req),
                     Option(req.getHeader("X-Socrata-Fuse-Columns")),
                     Option(req.getParameter(qpQueryTimeoutSeconds)),
-                    Option(req.getHeader("X-Socrata-Debug")).isDefined,
+                    DebugInfo(
+                      Option(req.getHeader("X-Socrata-Debug")).isDefined,
+                      Option(req.getHeader("X-Socrata-Explain")).isDefined,
+                      Option(req.getHeader("X-Socrata-Analyze")).isDefined
+                    ),
                     resourceScope) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
