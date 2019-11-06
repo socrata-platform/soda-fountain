@@ -1,5 +1,5 @@
 // Set up the libraries
-@Library('socrata-pipeline-library')
+@Library('socrata-pipeline-library@ayn/EN-35942/assemble-multiple-subprojects')
 
 // set up service and project variables
 def service = "soda-fountain"
@@ -60,10 +60,9 @@ pipeline {
             stage_deploy = true
           }
           else {
-            // we're not sure what we're doing...
-            echo "Unknown build trigger - Exiting as Failure"
-            currentBuild.result = 'FAILURE'
-            return
+            echo "Building not-master branch to test new pipeline functionality"
+            stage_build = true
+            stage_dockerize = true
           }
         }
       }
