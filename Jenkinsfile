@@ -53,6 +53,8 @@ pipeline {
           }
           else if (env.CHANGE_ID != null) { // we're running a PR builder
             stage_build = true
+            // fine I'll test here, since I can't get the branch below to run
+            stage_dockerize = true
           }
           else if (BRANCH_NAME == "master") { // we're running a build on master branch to deploy to staging
             stage_build = true
