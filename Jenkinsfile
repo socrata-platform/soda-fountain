@@ -1,5 +1,5 @@
 // Set up the libraries
-@Library('socrata-pipeline-library@ayn/EN-35942/assemble-multiple-subprojects')
+@Library('socrata-pipeline-library@ayn/line-lengths')
 
 // set up service and project variables
 def service = "soda-fountain"
