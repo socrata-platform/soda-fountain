@@ -1,6 +1,6 @@
 package com.socrata.soda.server.export
 
-import com.rojoma.json.v3.ast.{JValue, JNull, JObject, JString}
+import com.rojoma.json.v3.ast.{JNull, JObject, JString, JValue}
 import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.AliasedCharset
@@ -13,9 +13,12 @@ import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.types._
 import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
 import java.io.BufferedWriter
+
 import javax.activation.MimeType
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
+import com.socrata.soda.message.{MessageProducer, RowsLoadedApiMetricMessage}
+import com.socrata.soda.server.id.ResourceName
 
 /**
  * Exports rows as GeoJSON
@@ -31,12 +34,13 @@ object GeoJsonExporter extends Exporter {
              singleRow: Boolean = false,
              obfuscateId: Boolean = true,
              bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty): HttpResponse = {
+             fuseMap: Map[String, String] = Map.empty)
+            (messageProducer: MessageProducer, resourceName: ResourceName): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     exporterHeaders(schema) ~> Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
-        val processor = new GeoJsonProcessor(w, schema, singleRow, obfuscateId)
+        val processor = new GeoJsonProcessor(w, schema, singleRow, obfuscateId, messageProducer, resourceName)
         processor.go(rows)
       }
     }
@@ -46,7 +50,7 @@ object GeoJsonExporter extends Exporter {
 /**
  * Generates GeoJSON from a schema
  */
-class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, singleRow: Boolean, obfuscateId: Boolean) {
+class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, singleRow: Boolean, obfuscateId: Boolean, messageProducer: MessageProducer, resourceName: ResourceName) {
   import GeoJsonProcessor._
 
   val wgs84ProjectionInfo = """{ "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } }"""
@@ -111,18 +115,21 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
 
   def go(rows: Iterator[Array[SoQLValue]]) {
     if (!singleRow) writer.write(featureCollectionPrefix)
-
+    var ttl = 0
     if(rows.hasNext) {
+      ttl += 1
       writeGeoJsonRow(rows.next())
       if(singleRow && rows.hasNext) throw new IllegalArgumentException("Expect to get exactly one row but got more.")
     }
 
     while (rows.hasNext) {
+      ttl += 1
       writer.write(",")
       writeGeoJsonRow(rows.next())
     }
 
     if(!singleRow) writer.write(featureCollectionSuffix)
+    messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl))
   }
 }
 

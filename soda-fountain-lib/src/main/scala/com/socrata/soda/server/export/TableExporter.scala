@@ -10,11 +10,13 @@ import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.wiremodels.{CsvColumnRep, CsvColumnWriteRep}
 import com.socrata.soql.types.{SoQLType, SoQLValue}
 import java.io.BufferedWriter
+
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
-
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
+import com.socrata.soda.message.{MessageProducer, RowsLoadedApiMetricMessage}
+import com.socrata.soda.server.id.ResourceName
 
 class TableExporter(val mimeTypeBaseValue: String,
                     val extensionValue: Option[String],
@@ -29,7 +31,8 @@ class TableExporter(val mimeTypeBaseValue: String,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true,
              bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty): HttpResponse = {
+             fuseMap: Map[String, String] = Map.empty)
+            (messageProducer: MessageProducer, resourceName: ResourceName): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     exporterHeaders(schema) ~> Write(mt) { rawWriter =>
@@ -88,10 +91,13 @@ class TableExporter(val mimeTypeBaseValue: String,
               writeBom()
             }
             writeCSVRow(array)
+            var ttl = 0
             while (rows.hasNext) {
+              ttl += 1
               convertInto(array, rows.next())
               writeCSVRow(array)
             }
+            messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl))
           }
         }
         val processor = new Processor

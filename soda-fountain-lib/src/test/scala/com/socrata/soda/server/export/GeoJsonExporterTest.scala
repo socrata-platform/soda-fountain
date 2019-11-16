@@ -1,17 +1,18 @@
 package com.socrata.soda.server.export
 
 import javax.servlet.ServletOutputStream
-
 import com.rojoma.simplearm.v2._
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
 import com.rojoma.json.v3.conversions._
 import com.socrata.soda.server.export.GeoJsonProcessor.InvalidGeoJsonSchema
-import com.socrata.soda.server.id.ColumnId
+import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
-import java.io.{OutputStream, ByteArrayOutputStream, StringWriter, PrintWriter}
+import java.io.{ByteArrayOutputStream, OutputStream, PrintWriter, StringWriter}
+
+import com.socrata.soda.message.NoOpMessageProducer
 import javax.servlet.http.HttpServletResponse
 import org.joda.time.format.ISODateTimeFormat
 
@@ -232,7 +233,7 @@ class GeoJsonExporterTest  extends ExporterTest {
       mockResponse.expects('setContentType)("application/vnd.geo+json; charset=UTF-8")
       mockResponse.expects('getOutputStream)().returning(wrapped)
 
-      GeoJsonExporter.export(charset, getDCSchema("GeoJsonExporterTest", columns, pk, rows), rows.iterator, singleRow)(mockResponse)
+      GeoJsonExporter.export(charset, getDCSchema("GeoJsonExporterTest", columns, pk, rows), rows.iterator, singleRow)(NoOpMessageProducer, new ResourceName(""))(mockResponse)
 
       JsonReader.fromString(new String(out.toByteArray, "UTF-8"))
     }
