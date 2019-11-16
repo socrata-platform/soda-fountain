@@ -4,8 +4,9 @@ import java.nio.charset.StandardCharsets
 
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.common.util.AliasedCharset
-import com.socrata.soda.clients.datacoordinator.{NoSuchDataset, NoSuchSnapshot, DataCoordinatorClient}
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{DatasetNotFoundResult, SnapshotNotFoundResult, ExportResult}
+import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, NoSuchDataset, NoSuchSnapshot}
+import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{DatasetNotFoundResult, ExportResult, SnapshotNotFoundResult}
+import com.socrata.soda.message.NoOpMessageProducer
 import com.socrata.soda.server.export.CsvExporter
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
@@ -73,7 +74,7 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
                     val fieldName = f.fieldName.getOrElse(ColumnName(f.columnId.underlying))
                     ColumnInfo(f.columnId, fieldName, f.typ, None)
                   }.zip(toKeep).collect { case (v, true) => v }),
-                mappedRows))
+                mappedRows)(NoOpMessageProducer))
           case SnapshotNotFoundResult(_, _) =>
             SnapshotDAO.SnapshotNotFound
           case DatasetNotFoundResult(_) =>

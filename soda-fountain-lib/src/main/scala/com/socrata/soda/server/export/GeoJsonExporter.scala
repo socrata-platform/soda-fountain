@@ -1,6 +1,6 @@
 package com.socrata.soda.server.export
 
-import com.rojoma.json.v3.ast.{JValue, JNull, JObject, JString}
+import com.rojoma.json.v3.ast.{JNull, JObject, JString, JValue}
 import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.AliasedCharset
@@ -13,9 +13,11 @@ import com.socrata.soda.server.wiremodels.JsonColumnRep
 import com.socrata.soql.types._
 import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
 import java.io.BufferedWriter
+
 import javax.activation.MimeType
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
+import com.socrata.soda.message.MessageProducer
 
 /**
  * Exports rows as GeoJSON
@@ -31,7 +33,7 @@ object GeoJsonExporter extends Exporter {
              singleRow: Boolean = false,
              obfuscateId: Boolean = true,
              bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty): HttpResponse = {
+             fuseMap: Map[String, String] = Map.empty)(messageProducer: MessageProducer): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     exporterHeaders(schema) ~> Write(mt) { rawWriter =>

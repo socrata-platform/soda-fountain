@@ -10,11 +10,12 @@ import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.types.{SoQLType, SoQLValue}
 import java.io.BufferedWriter
+
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
-
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
+import com.socrata.soda.message.{GroupReplicationComplete, MessageProducer, ViewUid}
 
 object JsonExporter extends Exporter {
   val mimeTypeBase = SodaUtils.jsonContentTypeBase
@@ -26,7 +27,7 @@ object JsonExporter extends Exporter {
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true,
              bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty): HttpResponse = {
+             fuseMap: Map[String, String] = Map.empty)(messageProducer: MessageProducer): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
 
@@ -73,6 +74,8 @@ object JsonExporter extends Exporter {
             }
             if(!singleRow) writer.write("]\n")
             else writer.write("\n")
+            val msg = GroupReplicationComplete(ViewUid("xxxx-bbbb"), "groupName", Set("pg"), 1, 1)
+            messageProducer.send(msg)
           }
         }
         val processor = new Processor

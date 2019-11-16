@@ -10,9 +10,11 @@ import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.SoQLPackWriter
 import com.socrata.soql.types._
 import java.io.DataOutputStream
+
 import javax.activation.MimeType
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
+import com.socrata.soda.message.MessageProducer
 
 /**
  * Exports in SoQLPack format - an efficient, MessagePack-based SoQL transport medium.
@@ -34,7 +36,7 @@ object SoQLPackExporter extends Exporter {
              singleRow: Boolean = false,
              obfuscateId: Boolean = true,
              bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
+             fuseMap: Map[String, String] = Map.empty)(messageProducer: MessageProducer): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
     // Compute the schema
     val soqlSchema = schema.schema.map { ci =>
       (ci.fieldName.name, ci.typ)

@@ -36,6 +36,8 @@ object SodaFountainLib {
       soqlStandaloneParser,
       soqlStdLib exclude ("javax.media", "jai_core"),
       soqlTypes exclude ("javax.media", "jai_core"),
+      socrataEurybates,
+      activemq,
       typesafeConfig,
       Test.apacheCurator,
       Test.mockito,

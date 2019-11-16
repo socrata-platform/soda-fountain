@@ -1,6 +1,6 @@
 package com.socrata.soda.server.export
 
-import com.rojoma.json.v3.ast.{JString, JNumber}
+import com.rojoma.json.v3.ast.{JNumber, JString}
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.io.CompactJsonWriter
@@ -13,9 +13,11 @@ import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.types.SoQLValue
 import java.io.BufferedWriter
+
 import javax.activation.MimeType
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
+import com.socrata.soda.message.MessageProducer
 
 object CJsonExporter extends Exporter {
   val mimeTypeBase = "application/json+x-socrata-cjson"
@@ -25,7 +27,7 @@ object CJsonExporter extends Exporter {
   def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true, bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty): HttpResponse = {
+             fuseMap: Map[String, String] = Map.empty)(messageProducer: MessageProducer): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     val jsonColumnReps = if (obfuscateId) JsonColumnRep.forClientType
