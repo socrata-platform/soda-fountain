@@ -10,9 +10,12 @@ import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.SoQLPackWriter
 import com.socrata.soql.types._
 import java.io.DataOutputStream
+
 import javax.activation.MimeType
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
+import com.socrata.soda.message.MessageProducer
+import com.socrata.soda.server.id.ResourceName
 
 /**
  * Exports in SoQLPack format - an efficient, MessagePack-based SoQL transport medium.
@@ -34,7 +37,8 @@ object SoQLPackExporter extends Exporter {
              singleRow: Boolean = false,
              obfuscateId: Boolean = true,
              bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
+             fuseMap: Map[String, String] = Map.empty)
+            (messageProducer: MessageProducer, resourceName: ResourceName): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
     // Compute the schema
     val soqlSchema = schema.schema.map { ci =>
       (ci.fieldName.name, ci.typ)
@@ -42,6 +46,8 @@ object SoQLPackExporter extends Exporter {
 
     val rowCountElem: Option[(String, Long)] = schema.rowCount.map { count => "row_count" -> count }
     exporterHeaders(schema) ~> ContentType(mimeType) ~> Stream { os =>
+      // TODO: update SoQLPackWriter so that we can write rows_loaded_api metric
+      //       messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl), raw = true)
       val writer = new SoQLPackWriter(soqlSchema, Seq(rowCountElem).flatten.toMap)
       writer.write(os, rows)
     }

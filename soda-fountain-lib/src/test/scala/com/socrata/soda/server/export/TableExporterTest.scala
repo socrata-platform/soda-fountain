@@ -1,7 +1,6 @@
 package com.socrata.soda.server.export
 
 import javax.servlet.ServletOutputStream
-
 import com.rojoma.simplearm.v2._
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
@@ -12,7 +11,9 @@ import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.thirdparty
-import java.io.{OutputStream, ByteArrayOutputStream, StringWriter, PrintWriter}
+import java.io.{ByteArrayOutputStream, OutputStream, PrintWriter, StringWriter}
+
+import com.socrata.soda.message.NoOpMessageProducer
 import javax.servlet.http.HttpServletResponse
 import com.socrata.thirdparty.opencsv.CSVIterator
 import com.sun.xml.internal.fastinfoset.util.StringArray
@@ -150,7 +151,7 @@ class TableExporterTest extends ExporterTest {
       mockResponse.expects('setContentType)(s"$contentType; charset=UTF-8")
       mockResponse.expects('getOutputStream)().returning(wrapped)
 
-      tableExporter.export(charset, getDCSchema("TableExporterTest", columns, pk, rows), rows.iterator, singleRow)(mockResponse)
+      tableExporter.export(charset, getDCSchema("TableExporterTest", columns, pk, rows), rows.iterator, singleRow)(NoOpMessageProducer)(mockResponse)
       new String(out.toByteArray, "UTF-8")
     }
   }

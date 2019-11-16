@@ -92,6 +92,9 @@ object Dependencies {
   val soqlStdLib               = "com.socrata"     %% "soql-stdlib"                 % versions.soqlReference
   val soqlTypes                = "com.socrata"     %% "soql-types"                  % versions.soqlReference
 
+  val socrataEurybates = "com.socrata" %% "eurybates" % "2.0.4-SNAPSHOT"
+  val activemq = "org.apache.activemq" % "activemq-core" % "5.7.0" exclude("org.apache", "commons.logging") exclude("commons-logging", "commons-logging") exclude("org.springframework", "spring-context")
+
   val typesafeConfig           = "com.typesafe"     % "config"                      % versions.typesafeConfig
 
   object Test {
