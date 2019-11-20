@@ -91,13 +91,13 @@ class TableExporter(val mimeTypeBaseValue: String,
               writeBom()
             }
             writeCSVRow(array)
-            var ttl = 0
+            var rowsCount = 0
             while (rows.hasNext) {
-              ttl += 1
+              rowsCount += 1
               convertInto(array, rows.next())
               writeCSVRow(array)
             }
-            messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl))
+            messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, rowsCount))
           }
         }
         val processor = new Processor

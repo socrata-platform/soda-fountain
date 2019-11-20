@@ -65,22 +65,22 @@ object JsonExporter extends Exporter {
           }
 
           def go(rows: Iterator[Array[SoQLValue]]) {
-            var ttl = 0
+            var rowsCount = 0
             if(!singleRow) writer.write('[')
             if(rows.hasNext) {
               writeJsonRow(rows.next())
               if(singleRow && rows.hasNext) throw new Exception("Expect to get exactly one row but got more.")
-              ttl += 1
+              rowsCount += 1
             }
             while(rows.hasNext) {
               writer.write("\n,")
               writeJsonRow(rows.next())
-              ttl += 1
+              rowsCount += 1
             }
             if(!singleRow) writer.write("]\n")
             else writer.write("\n")
 
-            messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl))
+            messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, rowsCount))
           }
         }
         val processor = new Processor

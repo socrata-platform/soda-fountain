@@ -85,9 +85,9 @@ object CJsonExporter extends Exporter {
         }
         w.write("]\n }\n")
         // end of header
-        var ttl = 0
+        var rowsCount = 0
         for(row <- rows) {
-          ttl += 1
+          rowsCount += 1
           w.write(",[")
           if(row.length > 0) {
             val fusedRow = fusers.foldLeft(row) { (acc, fuser) =>
@@ -104,7 +104,7 @@ object CJsonExporter extends Exporter {
           w.write("]\n")
         }
         w.write("]\n")
-        messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl))
+        messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, rowsCount))
       }
     }
   }

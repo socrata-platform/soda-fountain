@@ -49,8 +49,8 @@ object SoQLPackExporter extends Exporter {
       // TODO: update SoQLPackWriter so that we can write rows_loaded_api metric
       //       messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl), raw = true)
       val writer = new SoQLPackWriter(soqlSchema, Seq(rowCountElem).flatten.toMap)
-      val ttl = writer.write(os, rows)
-      messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl))
+      val rowsCount = writer.write(os, rows)
+      messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, rowsCount))
     }
   }
 }

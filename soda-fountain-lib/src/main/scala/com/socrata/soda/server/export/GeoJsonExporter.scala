@@ -115,21 +115,21 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
 
   def go(rows: Iterator[Array[SoQLValue]]) {
     if (!singleRow) writer.write(featureCollectionPrefix)
-    var ttl = 0
+    var rowsCount = 0
     if(rows.hasNext) {
-      ttl += 1
+      rowsCount += 1
       writeGeoJsonRow(rows.next())
       if(singleRow && rows.hasNext) throw new IllegalArgumentException("Expect to get exactly one row but got more.")
     }
 
     while (rows.hasNext) {
-      ttl += 1
+      rowsCount += 1
       writer.write(",")
       writeGeoJsonRow(rows.next())
     }
 
     if(!singleRow) writer.write(featureCollectionSuffix)
-    messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl))
+    messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, rowsCount))
   }
 }
 
