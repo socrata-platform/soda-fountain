@@ -38,7 +38,7 @@ object SoQLPackExporter extends Exporter {
              obfuscateId: Boolean = true,
              bom: Boolean = false,
              fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, entityId: Option[String]): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
+            (messageProducer: MessageProducer, entityIds: Seq[String]): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
     // Compute the schema
     val soqlSchema = schema.schema.map { ci =>
       (ci.fieldName.name, ci.typ)
@@ -50,7 +50,7 @@ object SoQLPackExporter extends Exporter {
       //       messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl), raw = true)
       val writer = new SoQLPackWriter(soqlSchema, Seq(rowCountElem).flatten.toMap)
       val rowsCount = writer.write(os, rows)
-      entityId.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount)))
+      entityIds.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount)))
     }
   }
 }

@@ -51,6 +51,7 @@ case class Resource(rowDAO: RowDAO,
   val headerHashAlg = "SHA1"
   val headerHashLength = MessageDigest.getInstance(headerHashAlg).getDigestLength
   val domainIdHeader = "X-SODA2-Domain-Id"
+  val lensUidHeader = "X-Socrata-Lens-Uid"
 
   def headerHash(req: HttpServletRequest) = {
     val hash = MessageDigest.getInstance(headerHashAlg)
@@ -165,6 +166,7 @@ case class Resource(rowDAO: RowDAO,
   case class service(resourceName: OptionallyTypedPathComponent[ResourceName]) extends SodaResource {
     override def get = { req: HttpRequest =>
       val domainId = req.header(domainIdHeader)
+      val lensUid = req.header(lensUidHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       def metricByStatus(status: Int) = {
         if (status >= 400 && status < 500) metric(QueryErrorUser)
@@ -229,7 +231,7 @@ case class Resource(rowDAO: RowDAO,
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader ~>
                       exporter.export(charset, schema, rows, singleRow = false, obfuscateId = obfuscateId,
-                                      bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, domainId)
+                                      bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, domainId.toSeq ++ lensUid)
                   case RowDAO.InfoSuccess(_, body) =>
                     // Just drain the iterator into an array, this should never be large
                     OK ~> Json(JArray(body.toSeq))
@@ -358,6 +360,7 @@ case class Resource(rowDAO: RowDAO,
 
     override def get = { req: HttpRequest =>
       val domainId = req.header(domainIdHeader)
+      val lensUid = req.headers(lensUidHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       try {
         val suffix = headerHash(req)
@@ -404,7 +407,7 @@ case class Resource(rowDAO: RowDAO,
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader ~>
                         exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId = obfuscateId,
-                                        bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, domainId)
+                                        bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, domainId.toSeq ++ lensUid)
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
                       SodaUtils.response(req, SodaErrors.RowNotFound(row))

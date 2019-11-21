@@ -32,7 +32,7 @@ class TableExporter(val mimeTypeBaseValue: String,
              obfuscateId: Boolean = true,
              bom: Boolean = false,
              fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, entityId: Option[String]): HttpResponse = {
+            (messageProducer: MessageProducer, entityIds: Seq[String]): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     exporterHeaders(schema) ~> Write(mt) { rawWriter =>
@@ -97,7 +97,7 @@ class TableExporter(val mimeTypeBaseValue: String,
               convertInto(array, rows.next())
               writeCSVRow(array)
             }
-            entityId.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount)))
+            entityIds.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount)))
           }
         }
         val processor = new Processor

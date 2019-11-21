@@ -23,8 +23,6 @@ object NoOpMessageProducer extends MessageProducer {
   def close(): Unit = {}
 }
 
-
-
 class MessageProducerConfig(config: Config, root: String) extends ConfigClass(config, root) {
   def p(path: String) = root + "." + path
   val rawMessaging = new RawMessagingConfig(config, p("raw-messaging"))
