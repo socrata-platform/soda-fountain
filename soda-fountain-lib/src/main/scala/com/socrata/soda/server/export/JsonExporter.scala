@@ -10,11 +10,13 @@ import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.types.{SoQLType, SoQLValue}
 import java.io.BufferedWriter
+
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
-
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
+import com.socrata.soda.message.{MessageProducer, RowsLoadedApiMetricMessage}
+import com.socrata.soda.server.id.ResourceName
 
 object JsonExporter extends Exporter {
   val mimeTypeBase = SodaUtils.jsonContentTypeBase
@@ -26,7 +28,8 @@ object JsonExporter extends Exporter {
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true,
              bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty): HttpResponse = {
+             fuseMap: Map[String, String] = Map.empty)
+            (messageProducer: MessageProducer, entityIds: Seq[String], accessType: Option[String]): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
 
@@ -62,17 +65,21 @@ object JsonExporter extends Exporter {
           }
 
           def go(rows: Iterator[Array[SoQLValue]]) {
+            var rowsCount = 0
             if(!singleRow) writer.write('[')
             if(rows.hasNext) {
               writeJsonRow(rows.next())
               if(singleRow && rows.hasNext) throw new Exception("Expect to get exactly one row but got more.")
+              rowsCount += 1
             }
             while(rows.hasNext) {
               writer.write("\n,")
               writeJsonRow(rows.next())
+              rowsCount += 1
             }
             if(!singleRow) writer.write("]\n")
             else writer.write("\n")
+            entityIds.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount, accessType)))
           }
         }
         val processor = new Processor

@@ -3,7 +3,6 @@ package com.socrata.soda.server.resources
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
-
 import scala.collection.JavaConverters._
 import scala.language.existentials
 import com.rojoma.json.v3.ast.{JArray, JNumber, JString, JValue}
@@ -16,6 +15,7 @@ import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util._
 import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RowUpdate, RowUpdateOption}
 import com.socrata.soda.clients.querycoordinator.{QueryCoordinatorClient, QueryCoordinatorError}
+import com.socrata.soda.message.MessageProducer
 import com.socrata.soda.server.{responses => SodaErrors, _}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.export.Exporter
@@ -38,6 +38,7 @@ case class Resource(rowDAO: RowDAO,
                     maxRowSize: Long,
                     metricProvider: MetricProvider,
                     export: Export,
+                    messageProducer: MessageProducer,
                     dc: DataCoordinatorClient) extends Metrics {
   import Resource._
 
@@ -50,6 +51,8 @@ case class Resource(rowDAO: RowDAO,
   val headerHashAlg = "SHA1"
   val headerHashLength = MessageDigest.getInstance(headerHashAlg).getDigestLength
   val domainIdHeader = "X-SODA2-Domain-Id"
+  val lensUidHeader = "X-Socrata-Lens-Uid"
+  val accessTypeHeader = "X-Socrata-Access-Type"
 
   def headerHash(req: HttpServletRequest) = {
     val hash = MessageDigest.getInstance(headerHashAlg)
@@ -164,6 +167,8 @@ case class Resource(rowDAO: RowDAO,
   case class service(resourceName: OptionallyTypedPathComponent[ResourceName]) extends SodaResource {
     override def get = { req: HttpRequest =>
       val domainId = req.header(domainIdHeader)
+      val lensUid = req.header(lensUidHeader)
+      val accessType = req.header(accessTypeHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       def metricByStatus(status: Int) = {
         if (status >= 400 && status < 500) metric(QueryErrorUser)
@@ -228,7 +233,7 @@ case class Resource(rowDAO: RowDAO,
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader ~>
                       exporter.export(charset, schema, rows, singleRow = false, obfuscateId = obfuscateId,
-                                      bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))
+                                      bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, domainId.toSeq ++ lensUid, accessType)
                   case RowDAO.InfoSuccess(_, body) =>
                     // Just drain the iterator into an array, this should never be large
                     OK ~> Json(JArray(body.toSeq))
@@ -357,6 +362,8 @@ case class Resource(rowDAO: RowDAO,
 
     override def get = { req: HttpRequest =>
       val domainId = req.header(domainIdHeader)
+      val lensUid = req.header(lensUidHeader)
+      val accessType = req.header(accessTypeHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       try {
         val suffix = headerHash(req)
@@ -403,7 +410,7 @@ case class Resource(rowDAO: RowDAO,
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader ~>
                         exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId = obfuscateId,
-                                        bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))
+                                        bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, domainId.toSeq ++ lensUid, accessType)
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
                       SodaUtils.response(req, SodaErrors.RowNotFound(row))

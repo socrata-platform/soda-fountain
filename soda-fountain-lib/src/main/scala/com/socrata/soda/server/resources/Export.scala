@@ -2,25 +2,26 @@ package com.socrata.soda.server.resources
 
 import com.rojoma.json.v3.ast.JString
 import com.socrata.http.common.util.ContentNegotiation
-
 import com.socrata.soda.server._
-import com.socrata.http.server.{HttpResponse, HttpRequest}
+import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
-import com.socrata.http.server.util.{Precondition, EntityTag, RequestId}
+import com.socrata.http.server.util.{EntityTag, Precondition, RequestId}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.responses._
 import com.socrata.soda.server.export.Exporter
-import com.socrata.soda.server.highlevel.ExportDAO.{ColumnInfo, CSchema}
-import com.socrata.soda.server.highlevel.{ExportParam, ColumnSpecUtils, ExportDAO}
+import com.socrata.soda.server.highlevel.ExportDAO.{CSchema, ColumnInfo}
+import com.socrata.soda.server.highlevel.{ColumnSpecUtils, ExportDAO, ExportParam}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+
+import com.socrata.soda.message.MessageProducer
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
-case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
+case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageProducer: MessageProducer) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Export])
 
   implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
@@ -195,7 +196,8 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator) {
                   if (!excludeSystemFields || sysColumns.size == 0) (fullSchema, fullRows)
                   else (fullSchema.copy(schema = userColumns),
                     fullRows.map(row => row.take(sysColsStart) ++ row.drop(sysColsStart + sysColumns.size)))
-                headers ~> exporter.export(charset, schema, rows, singleRow, fuseMap = fuseMap)
+                // TODO: determine whether tenant metrics is needed in export
+                headers ~> exporter.export(charset, schema, rows, singleRow, fuseMap = fuseMap)(messageProducer, Seq.empty, None)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.response(req, EtagPreconditionFailed)
               case ExportDAO.NotModified(etags) =>

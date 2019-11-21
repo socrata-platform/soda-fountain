@@ -1,12 +1,14 @@
 package com.socrata.soda.server.export
 
 import com.rojoma.simplearm.v2._
-import com.socrata.soda.server.id.ColumnId
+import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.ColumnRecord
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import com.socrata.soql.SoQLPackIterator
-import java.io.{ByteArrayOutputStream, ByteArrayInputStream, DataInputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream}
+
+import com.socrata.soda.message.NoOpMessageProducer
 import javax.servlet.ServletOutputStream
 import javax.servlet.http.HttpServletResponse
 
@@ -88,7 +90,7 @@ class SoQLPackExporterTest  extends ExporterTest {
       mockResponse.expects('setContentType)("application/octet-stream")
       mockResponse.expects('getOutputStream)().returning(stream)
 
-      SoQLPackExporter.export(charset, getDCSchema("SoQLPackExporterTest", columns, pk, rows), rows.iterator, singleRow)(mockResponse)
+      SoQLPackExporter.export(charset, getDCSchema("SoQLPackExporterTest", columns, pk, rows), rows.iterator, singleRow)(NoOpMessageProducer, Seq.empty, None)(mockResponse)
 
       val dis = new DataInputStream(new ByteArrayInputStream(baos.toByteArray))
       val iter = new SoQLPackIterator(dis)

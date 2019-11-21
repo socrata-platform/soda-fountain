@@ -25,6 +25,7 @@ import java.io.Closeable
 import java.security.SecureRandom
 import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
 
+import com.socrata.soda.message.{MessageProducerFromConfig, RowsLoadedApiMetricMessage}
 import javax.sql.DataSource
 import org.apache.log4j.PropertyConfigurator
 import org.slf4j.LoggerFactory
@@ -182,6 +183,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
 
+
+  val messageProducer = si(MessageProducerFromConfig(getClass.getSimpleName, executor, config.messageProducerConfig) )
+
   val tableDropDelay = config.tableDropDelay
   val dataCleanupIntervalSecs = config.dataCleanupInterval.toSeconds
   val router = i {
@@ -190,8 +194,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     // TODO: this should probably be a different max size value
     val dataset = Dataset(datasetDAO, config.maxDatumSize)
     val column = DatasetColumn(columnDAO, exportDAO, rowDAO, etagObfuscator, config.maxDatumSize)
-    val export = Export(exportDAO, etagObfuscator)
-    val resource = Resource(rowDAO, datasetDAO, etagObfuscator, config.maxDatumSize, metricProvider, export, dc)
+    val export = Export(exportDAO, etagObfuscator, messageProducer)
+    val resource = Resource(rowDAO, datasetDAO, etagObfuscator, config.maxDatumSize, metricProvider, export, messageProducer, dc)
     val suggest = Suggest(datasetDAO, columnDAO, httpClient, config.suggest)
     val snapshots = Snapshots(snapshotDAO)
 

@@ -2,6 +2,7 @@ import sbt._
 
 object Dependencies {
   object versions {
+    val activemq          = "5.13.3"
     val apacheCurator     = "2.4.2"
     val balboa            = "0.19.3"
     val c3p0              = "0.9.5.2"
@@ -22,9 +23,10 @@ object Dependencies {
     val rojomaSimpleArm   = "1.2.0"
     val rojomaSimpleArmV2 = "2.1.0"
     val scalaj            = "0.3.15"
+    val socrataEurybates  = "2.0.2"
     val socrataHttp       = "3.11.4"
     val soqlBrita         = "1.4.1"
-    val soqlReference     = "2.11.13"
+    val soqlReference     = "2.11.19"
     val thirdPartyUtils   = "4.0.16"
     val curatorUtils      = "1.1.2"
     val typesafeConfig    = "1.0.2"
@@ -91,6 +93,10 @@ object Dependencies {
   val soqlStandaloneParser     = "com.socrata"     %% "soql-standalone-parser"      % versions.soqlReference
   val soqlStdLib               = "com.socrata"     %% "soql-stdlib"                 % versions.soqlReference
   val soqlTypes                = "com.socrata"     %% "soql-types"                  % versions.soqlReference
+
+  // tenant metrics messaging support
+  val socrataEurybates = "com.socrata" %% "eurybates" % versions.socrataEurybates  exclude("org.apache.activemq", "activemq-core")
+  val activemqClient = "org.apache.activemq" % "activemq-client" % versions.activemq
 
   val typesafeConfig           = "com.typesafe"     % "config"                      % versions.typesafeConfig
 
