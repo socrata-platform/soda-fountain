@@ -21,7 +21,7 @@ trait Exporter {
   def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true, bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty)(messageProducer: MessageProducer, resourceName: ResourceName): HttpResponse
+             fuseMap: Map[String, String] = Map.empty)(messageProducer: MessageProducer, entityId: Option[String]): HttpResponse
   protected def exporterHeaders(schema: ExportDAO.CSchema): HttpResponse =
     schema.lastModified.fold(NoOp) { lm =>
       Header("Last-Modified", HttpUtils.HttpDateFormat.print(lm)) ~> maybeSoda2FieldsHeader(schema)

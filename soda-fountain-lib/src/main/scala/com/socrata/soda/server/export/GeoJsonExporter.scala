@@ -35,13 +35,12 @@ object GeoJsonExporter extends Exporter {
              obfuscateId: Boolean = true,
              bom: Boolean = false,
              fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, resourceName: ResourceName): HttpResponse = {
+            (messageProducer: MessageProducer, entityId: Option[String]): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     exporterHeaders(schema) ~> Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
-        val processor = new GeoJsonProcessor(w, schema, singleRow, obfuscateId, messageProducer, resourceName)
-        processor.go(rows)
+        val processor = new GeoJsonProcessor(w, schema, singleRow, obfuscateId, messageProducer, entityId)
       }
     }
   }
@@ -50,7 +49,7 @@ object GeoJsonExporter extends Exporter {
 /**
  * Generates GeoJSON from a schema
  */
-class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, singleRow: Boolean, obfuscateId: Boolean, messageProducer: MessageProducer, resourceName: ResourceName) {
+class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, singleRow: Boolean, obfuscateId: Boolean, messageProducer: MessageProducer, entityId: Option[String]) {
   import GeoJsonProcessor._
 
   val wgs84ProjectionInfo = """{ "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } }"""
@@ -129,7 +128,7 @@ class GeoJsonProcessor(writer: BufferedWriter, schema: ExportDAO.CSchema, single
     }
 
     if(!singleRow) writer.write(featureCollectionSuffix)
-    messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, rowsCount))
+    entityId.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount)))
   }
 }
 

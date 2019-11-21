@@ -29,7 +29,7 @@ object CJsonExporter extends Exporter {
              rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
              obfuscateId: Boolean = true, bom: Boolean = false,
              fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, resourceName: ResourceName): HttpResponse = {
+            (messageProducer: MessageProducer, entityId: Option[String]): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     val jsonColumnReps = if (obfuscateId) JsonColumnRep.forClientType
@@ -104,7 +104,7 @@ object CJsonExporter extends Exporter {
           w.write("]\n")
         }
         w.write("]\n")
-        messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, rowsCount))
+        entityId.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount)))
       }
     }
   }

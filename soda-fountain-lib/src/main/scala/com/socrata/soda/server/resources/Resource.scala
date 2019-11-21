@@ -229,7 +229,7 @@ case class Resource(rowDAO: RowDAO,
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader ~>
                       exporter.export(charset, schema, rows, singleRow = false, obfuscateId = obfuscateId,
-                                      bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, resourceName.value)
+                                      bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, domainId)
                   case RowDAO.InfoSuccess(_, body) =>
                     // Just drain the iterator into an array, this should never be large
                     OK ~> Json(JArray(body.toSeq))
@@ -404,7 +404,7 @@ case class Resource(rowDAO: RowDAO,
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader ~>
                         exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId = obfuscateId,
-                                        bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, resourceName)
+                                        bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, domainId)
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
                       SodaUtils.response(req, SodaErrors.RowNotFound(row))
