@@ -29,7 +29,7 @@ object JsonExporter extends Exporter {
              obfuscateId: Boolean = true,
              bom: Boolean = false,
              fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, entityIds: Seq[String]): HttpResponse = {
+            (messageProducer: MessageProducer, entityIds: Seq[String], accessType: Option[String]): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
 
@@ -79,7 +79,7 @@ object JsonExporter extends Exporter {
             }
             if(!singleRow) writer.write("]\n")
             else writer.write("\n")
-            entityIds.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount)))
+            entityIds.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount, accessType)))
           }
         }
         val processor = new Processor

@@ -74,7 +74,7 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
                     val fieldName = f.fieldName.getOrElse(ColumnName(f.columnId.underlying))
                     ColumnInfo(f.columnId, fieldName, f.typ, None)
                   }.zip(toKeep).collect { case (v, true) => v }),
-                mappedRows)(NoOpMessageProducer, Seq.empty))
+                mappedRows)(NoOpMessageProducer, Seq.empty, None))
           case SnapshotNotFoundResult(_, _) =>
             SnapshotDAO.SnapshotNotFound
           case DatasetNotFoundResult(_) =>

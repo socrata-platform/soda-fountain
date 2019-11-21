@@ -90,7 +90,7 @@ class SoQLPackExporterTest  extends ExporterTest {
       mockResponse.expects('setContentType)("application/octet-stream")
       mockResponse.expects('getOutputStream)().returning(stream)
 
-      SoQLPackExporter.export(charset, getDCSchema("SoQLPackExporterTest", columns, pk, rows), rows.iterator, singleRow)(NoOpMessageProducer, Seq.empty)(mockResponse)
+      SoQLPackExporter.export(charset, getDCSchema("SoQLPackExporterTest", columns, pk, rows), rows.iterator, singleRow)(NoOpMessageProducer, Seq.empty, None)(mockResponse)
 
       val dis = new DataInputStream(new ByteArrayInputStream(baos.toByteArray))
       val iter = new SoQLPackIterator(dis)

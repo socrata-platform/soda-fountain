@@ -197,7 +197,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
                   else (fullSchema.copy(schema = userColumns),
                     fullRows.map(row => row.take(sysColsStart) ++ row.drop(sysColsStart + sysColumns.size)))
                 // TODO: determine whether tenant metrics is needed in export
-                headers ~> exporter.export(charset, schema, rows, singleRow, fuseMap = fuseMap)(messageProducer, Seq.empty)
+                headers ~> exporter.export(charset, schema, rows, singleRow, fuseMap = fuseMap)(messageProducer, Seq.empty, None)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.response(req, EtagPreconditionFailed)
               case ExportDAO.NotModified(etags) =>

@@ -37,7 +37,7 @@ import com.rojoma.json.v3.interpolation._
 
  ***/
 
-case class RowsLoadedApiMetricMessage(resourceName: String, v: Long) extends MetricMessage(resourceName, "rows-loaded-api", v, System.currentTimeMillis())
+case class RowsLoadedApiMetricMessage(resourceName: String, v: Long, accessType: Option[String] = None) extends MetricMessage(resourceName, "rows-loaded-" + accessType.getOrElse("api"), v, System.currentTimeMillis())
 
 class MetricMessage(val entityId: String, val name: String, val value: Long, val timeMs: Long) extends Message
 
