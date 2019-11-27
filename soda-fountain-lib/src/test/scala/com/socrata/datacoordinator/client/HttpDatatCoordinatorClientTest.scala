@@ -100,6 +100,8 @@ class HttpDatatCoordinatorClientTest extends FunSuite with Matchers {
 object HttpDatatCoordinatorClientTest {
 
   class MyClient extends HttpDataCoordinatorClient(null){
+    override val maxThreads = Some(50)
+    override val consumerName = "TestClient"
     def hostO(instance: String): Option[RequestBuilder] = None
     override def instances(): Set[String] = Set.empty
   }

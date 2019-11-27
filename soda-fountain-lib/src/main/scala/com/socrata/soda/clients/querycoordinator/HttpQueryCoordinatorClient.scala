@@ -10,18 +10,19 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.util._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError._
-
+import com.socrata.soda.server.ThreadLimiter
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, DatasetId}
 import com.socrata.soql.environment.ColumnName
 import org.apache.http.HttpStatus._
 import org.joda.time.DateTime
 
-trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
+trait HttpQueryCoordinatorClient extends QueryCoordinatorClient with ThreadLimiter {
   def qchost : Option[RequestBuilder]
   val httpClient: HttpClient
 
-  private[this] val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpQueryCoordinatorClient])
+  // The threadlimiter wants to be able to log messages on behalf of this
+  val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpQueryCoordinatorClient])
 
   private val qpDataset = "ds"
   private val qpQuery = "q"
@@ -71,7 +72,9 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
           val request = host.addHeaders(PreconditionRenderer(precondition) ++
                                         ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate) ++
                                         extraHeaders).form(params)
-          httpClient.execute(request, rs)
+          withThreadpool{
+            httpClient.execute(request, rs)
+          }
         case None =>
           throw new Exception("could not connect to query coordinator")
       }

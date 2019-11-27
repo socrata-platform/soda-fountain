@@ -10,17 +10,17 @@ import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
+import com.socrata.soda.server.ThreadLimiter
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
-
 import com.socrata.soda.server.highlevel.ColumnDAO.DatasetNotFound
 import com.socrata.soda.server.resources.DCCollocateOperation
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 
 
-abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient {
+abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient with ThreadLimiter {
   import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DataCoordinatorClient])
@@ -46,11 +46,16 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
   def collocateStatusUrl(host: RequestBuilder, secondaryId: SecondaryId, jobId: String) = host.p("secondary-manifest", "move", secondaryId.underlying, "job", jobId)
   def collocateJobUrl(host: RequestBuilder, jobId: String) = host.p("secondary-move-jobs", "job", jobId)
 
-  def withHost[T](instance: String)(f: RequestBuilder => T): T =
+  def withHost[T](instance: String)(f: RequestBuilder => T): T = {
     hostO(instance) match {
-      case Some(host) => f(host)
+      case Some(host) =>
+        // The vast majority of data-coordinator requests come through here
+        withThreadpool {
+          f(host)
+        }
       case None => throw new Exception(s"could not find data coordinator for instance ${instance}")
     }
+  }
 
   def withHost[T](datasetId: DatasetId)(f: RequestBuilder => T): T =
     withHost(datasetId.nativeDataCoordinator)(f)
@@ -463,6 +468,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       val request = secondaryUrl(host, secondaryId, datasetId)
         .addHeader(("Content-type", "application/json"))
         .addHeaders(extraHeaders)
+        .timeoutMS(10000)
         .get
       httpClient.execute(request).run { response =>
         response.resultCode match {
