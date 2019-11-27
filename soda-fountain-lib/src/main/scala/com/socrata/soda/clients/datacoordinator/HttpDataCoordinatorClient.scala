@@ -4,6 +4,7 @@ import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, AutomaticJsonEncodeBuilder, JsonArrayIterator}
 import com.rojoma.simplearm.v2._
+import com.socrata.http.client.exceptions.FullTimeout
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.server.implicits._
@@ -425,24 +426,32 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       val request = secondariesUrl(host, datasetId)
         .addHeader(("Content-type", "application/json"))
         .addHeaders(extraHeaders)
+        .timeoutMS(10000)
         .get
-      httpClient.execute(request).run { response =>
-        response.resultCode match {
-          case HttpServletResponse.SC_OK =>
-            val oVers = response.value[SecondaryVersionsReport]()
-            oVers match {
-              case Right(vers) => Right(Some(vers))
-              case Left(other) =>
-                val reason = UninterpretableDataCoordinatorResponseBody
-                log.error(s"{}: {}", reason: Any, other.english)
-                Left(UnexpectedInternalServerResponseResult(reason, tag))
-            }
-          case HttpServletResponse.SC_NOT_FOUND => Right(None)
-          case other =>
-            val reason = UnexpectedDataCoordinatorResponseCode(other)
-            log.error(reason)
-            Left(UnexpectedInternalServerResponseResult(reason, tag))
+      try {
+        httpClient.execute(request).run { response =>
+          response.resultCode match {
+            case HttpServletResponse.SC_OK =>
+              val oVers = response.value[SecondaryVersionsReport]()
+              oVers match {
+                case Right(vers) => Right(Some(vers))
+                case Left(other) =>
+                  val reason = UninterpretableDataCoordinatorResponseBody
+                  log.error(s"{}: {}", reason: Any, other.english)
+                  Left(UnexpectedInternalServerResponseResult(reason, tag))
+              }
+            case HttpServletResponse.SC_NOT_FOUND => Right(None)
+
+            case other =>
+              val reason = UnexpectedDataCoordinatorResponseCode(other)
+              log.error(reason)
+              Left(UnexpectedInternalServerResponseResult(reason, tag))
+          }
         }
+      } catch {
+        case e: FullTimeout =>
+          log.error("DC Version request timed out")
+          throw e
       }
     }
   }
