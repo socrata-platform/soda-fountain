@@ -131,6 +131,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val httpClient = i(new HttpClientHttpClient(executor,
     HttpClientHttpClient.defaultOptions.
+      withContentCompression(true).
       withLivenessChecker(livenessChecker).
       withUserAgent("soda fountain")))
 
