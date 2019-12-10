@@ -1,10 +1,6 @@
 resolvers ++= Seq(
-    Resolver.url("socrata", url("https://repo.socrata.com/artifactory/ivy-libs-release"))(Resolver.ivyStylePatterns)
+    Resolver.url("socrata ivy", url("https://repo.socrata.com/artifactory/ivy-libs-release"))(Resolver.ivyStylePatterns)
 )
-
-addSbtPlugin("com.socrata" % "socrata-sbt-plugins" %"1.6.8")
-
-addSbtPlugin("io.spray" % "sbt-revolver" % "0.7.2")
 
 libraryDependencies ++= Seq(
   "com.rojoma" %% "simple-arm-v2" % "2.1.0",

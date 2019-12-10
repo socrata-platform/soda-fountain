@@ -4,49 +4,41 @@ object Dependencies {
   object versions {
     val activemq          = "5.13.3"
     val apacheCurator     = "2.4.2"
-    val balboa            = "0.19.3"
     val c3p0              = "0.9.5.2"
-    val codahaleMetrics   = "3.0.2"
-    val computationStrategies = "0.1.2"
-    val dropWizardMetrics = "3.1.0"
+    val computationStrategies = "0.1.3"
+    val dropWizardMetrics = "4.1.2"
     val javaxServletApi   = "2.5"
     val liquibaseCore     = "2.0.0"
     val liquibasePlugin   = "1.9.5.0"
     val log4j             = "1.2.16"
-    val metricsScala      = "3.3.0"
+    val metricsScala      = "4.1.1"
     val mortbayJetty      = "6.1.22"
     val msgpack4s         = "0.4.2"
     val postgresql        = "42.2.5"
-    val quasiQuotes       = "2.0.0"
     val rojomaJson        = "3.9.1"
     val rojomaJsonGrisu   = "1.0.0"
     val rojomaSimpleArm   = "1.2.0"
     val rojomaSimpleArmV2 = "2.1.0"
-    val scalaj            = "0.3.15"
-    val socrataEurybates  = "2.0.2"
-    val socrataHttp       = "3.11.4"
+    val socrataEurybates  = "2.1.0"
+    val socrataHttp       = "3.12.0"
     val soqlBrita         = "1.4.1"
-    val soqlReference     = "2.11.19"
-    val thirdPartyUtils   = "4.0.16"
-    val curatorUtils      = "1.1.2"
+    val soqlReference     = "2.11.21"
+    val thirdPartyUtils   = "5.0.0"
+    val curatorUtils      = "1.2.0"
     val typesafeConfig    = "1.0.2"
 
     // Test
     val mockito           = "1.10.7"
     val mockServer        = "3.0"
-    val scalaCheck        = "1.10.0"
-    val scalaMock         = "3.1.RC1"
+    val scalaCheck        = "1.14.0"
+    val scalaMock         = "4.4.0"
     val springTest        = "3.2.10.RELEASE"
     val wiremock          = "1.46"
   }
 
   val apacheCuratorDiscovery   = "org.apache.curator" % "curator-x-discovery"   % versions.apacheCurator
 
-  val balboaClient             = "com.socrata"     %% "balboa-client-jms"               % versions.balboa exclude("org.slf4j", "slf4j-simple")
-
   val c3p0                     = "com.mchange"      % "c3p0"                        % versions.c3p0
-
-  val codahaleMetricsGraphite   = "com.codahale.metrics"  % "metrics-graphite"      % versions.codahaleMetrics
 
   val computationStrategies     = "com.socrata" %% "computation-strategies"         % versions.computationStrategies
 
@@ -61,7 +53,7 @@ object Dependencies {
 
   val log4j                    = "log4j"            % "log4j"                       % versions.log4j
 
-  val metricsScala             = "nl.grons"        %% "metrics-scala"               % versions.metricsScala
+  val metricsScala             = "nl.grons"        %% "metrics4-scala"               % versions.metricsScala
 
   val msgpack4s                = "org.velvia"      %% "msgpack4s"                   % versions.msgpack4s
 
@@ -69,14 +61,10 @@ object Dependencies {
 
   val postgresql               = "org.postgresql"   % "postgresql"                  % versions.postgresql
 
-  val quasiQuotes              = "org.scalamacros" %% "quasiquotes"                 % versions.quasiQuotes
-
   val rojomaJson               = "com.rojoma"      %% "rojoma-json-v3-grisu"        % versions.rojomaJsonGrisu
 
   val rojomaSimpleArm          = "com.rojoma"      %% "simple-arm"                  % versions.rojomaSimpleArm
   val rojomaSimpleArmV2        = "com.rojoma"      %% "simple-arm-v2"               % versions.rojomaSimpleArmV2
-
-  val scalajHttp               = "org.scalaj"      %% "scalaj-http"                 % versions.scalaj
 
   val socrataHttpClient        = "com.socrata"     %% "socrata-http-client"         % versions.socrataHttp
   val socrataHttpCuratorBroker = "com.socrata"     %% "socrata-http-curator-broker" % versions.socrataHttp exclude("org.slf4j", "slf4j-simple")
@@ -100,14 +88,15 @@ object Dependencies {
 
   val typesafeConfig           = "com.typesafe"     % "config"                      % versions.typesafeConfig
 
-  object Test {
+  object TestDeps {
     val apacheCurator          = "org.apache.curator"     % "curator-test"          % versions.apacheCurator   % "test"
     val mockito                = "org.mockito"            % "mockito-all"           % versions.mockito         % "test"
     val mockServer             = "org.mock-server"        % "mockserver-netty"      % versions.mockServer      % "test"
-    val scalaCheck             = "org.scalacheck"        %% "scalacheck"            % versions.scalaCheck      % "test,it"
-    val scalaMock              = "org.scalamock"         %% "scalamock-scalatest-support" % versions.scalaMock % "test"
+    val scalaCheck             = "org.scalacheck"        %% "scalacheck"            % versions.scalaCheck      % "test"
+    val scalaMock              = "org.scalamock"         %% "scalamock" % versions.scalaMock % "test"
     val socrataCuratorUtils    = "com.socrata"           %% "socrata-curator-test-utils" % versions.curatorUtils % "test"
     val springTest             = "org.springframework"    % "spring-test"           % versions.springTest      % "test"
     val wiremock               = "com.github.tomakehurst" % "wiremock"              % versions.wiremock        % "test"
+    val scalaTest = "org.scalatest" %% "scalatest" % "3.0.8" % "test"
   }
 }
