@@ -1,5 +1,7 @@
 import Dependencies._
 
+name := "soda-fountain-jetty"
+
 libraryDependencies ++= Seq(
   dropWizardMetricsGraphite,
   dropWizardMetricsJetty,
