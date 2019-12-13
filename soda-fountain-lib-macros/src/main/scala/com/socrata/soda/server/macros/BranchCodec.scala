@@ -1,7 +1,7 @@
 package com.socrata.soda.server.macros
 
 import scala.language.experimental.macros
-import scala.reflect.macros.Context
+import scala.reflect.macros.whitebox.Context
 
 import com.rojoma.json.v3.util.SimpleHierarchyCodecBuilder
 
@@ -21,15 +21,12 @@ object BranchCodec {
       t =:= w && !(t =:= typeOf[String] && t =:= typeOf[Map[_,_]])
 
     def tag(thing: Symbol): String = {
-      thing.annotations.reverse.find { ann => isType(ann.tpe, typeOf[Tag]) } match {
+      thing.annotations.reverse.find { ann => isType(ann.tree.tpe, typeOf[Tag]) } match {
         case Some(ann) =>
-          ann.javaArgs.get(newTermName("value")) match {
-            case Some(LiteralArgument(Constant(arg : String))) =>
-              arg
-            case Some(_) =>
-              c.abort(thing.pos, "Annotation's value is not a literal string")
-            case None =>
-              c.abort(thing.pos, "Annotation does not have a value")
+          ann.tree.children.tail.collect {
+            case AssignOrNamedArg(Ident(n), Literal(Constant(arg: String))) if n.toString == "value" => arg
+          }.headOption.getOrElse {
+            c.abort(thing.pos, "No value for " + thing.name)
           }
         case None =>
           c.abort(thing.pos, "No tag annotation for " + thing.name)

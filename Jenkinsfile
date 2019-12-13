@@ -127,6 +127,8 @@ pipeline {
         script {
           // perform any needed modifiers on the build parameters here
           sbtbuild.setNoSubproject(true)
+          sbtbuild.setScalaVersion("2.12")
+          sbtbuild.setSubprojectName("sodaFountainJetty")
 
           // build
           echo "Building sbt project..."

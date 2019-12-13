@@ -11,9 +11,9 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText}
 import org.joda.time.DateTime
 import org.joda.time.chrono.ISOChronology
-import org.scalatest.ShouldMatchers
+import org.scalatest.Matchers
 
-class PostgresStoreTest extends SodaFountainDatabaseTest with ShouldMatchers with DatasetsForTesting {
+class PostgresStoreTest extends SodaFountainDatabaseTest with Matchers with DatasetsForTesting {
 
   test("Postgres add/get/remove resourceName and datasetId - no columns") {
     val (resourceName, datasetId) = createMockDataset(Seq.empty[ColumnRecord])
