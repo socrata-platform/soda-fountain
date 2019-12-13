@@ -44,6 +44,7 @@ object Dependencies {
 
   val dropWizardMetricsGraphite = "io.dropwizard.metrics" % "metrics-graphite"      % versions.dropWizardMetrics
   val dropWizardMetricsJetty    = "io.dropwizard.metrics" % "metrics-jetty9"        % versions.dropWizardMetrics
+  val dropWizardMetricsJmx    = "io.dropwizard.metrics" % "metrics-jmx"        % versions.dropWizardMetrics
 
   val javaxServletApi          = "javax.servlet"    % "servlet-api"                 % versions.javaxServletApi % "provided"
 

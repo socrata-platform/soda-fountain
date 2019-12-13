@@ -5,6 +5,7 @@ name := "soda-fountain-jetty"
 libraryDependencies ++= Seq(
   dropWizardMetricsGraphite,
   dropWizardMetricsJetty,
+  dropWizardMetricsJmx,
   socrataHttpCuratorBroker,
   socrataHttpJetty
 )
