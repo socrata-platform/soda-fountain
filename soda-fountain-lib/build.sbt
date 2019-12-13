@@ -72,3 +72,5 @@ def genVersion(resourceManaged: File, name: String, version: String, scalaVersio
 
   Seq(file)
 }
+
+disablePlugins(AssemblyPlugin)

@@ -10,3 +10,5 @@ libraryDependencies ++= Seq(
   socrataThirdPartyUtils,
   typesafeConfig
 )
+
+disablePlugins(AssemblyPlugin)

@@ -13,3 +13,5 @@ libraryDependencies ++= Seq(
   TestDeps.wiremock,
   TestDeps.scalaTest
 )
+
+disablePlugins(AssemblyPlugin)

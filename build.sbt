@@ -20,3 +20,6 @@ val sodaFountainJetty = (project in file("soda-fountain-jetty")).
 
 val sodaFountainExternal = project in file("soda-fountain-external")
 
+releaseProcess -= ReleaseTransformations.publishArtifacts
+
+disablePlugins(AssemblyPlugin)
