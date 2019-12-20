@@ -8,6 +8,7 @@ import com.socrata.soda.server.util.CopySpecifier
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.resources.DCCollocateOperation
+import com.socrata.thirdparty.json.AdditionalJsonCodecs._
 import org.joda.time.DateTime
 
 object DataCoordinatorClient {
@@ -16,12 +17,14 @@ object DataCoordinatorClient {
 
   @JsonKeyStrategy(Strategy.Underscore)
   case class SecondaryVersionsReport(truthVersion: Option[Long], // TODO: remove this once `latestVersion` is not optional and CRJ is no-longer looking for it
-                                     latestVersion: Option[Long], // TODO: make this not an Option once data-coordinator is always sending it
+                                     latestVersion: Long,
                                      publishedVersion: Option[Long],
                                      unpublishedVersion: Option[Long],
                                      secondaries: Map[String, Long],
                                      feedbackSecondaries: Set[String],
-                                     groups: Option[Map[String, Set[String]]]) // TODO: make this not an Option once data-coordinator is always sending it
+                                     groups: Map[String, Set[String]],
+                                     brokenSecondaries: Option[Map[String, DateTime]] // TODO: make this not an Option once data-coordinator is always sending it
+                                    )
   object SecondaryVersionsReport {
     implicit val codec = AutomaticJsonCodecBuilder[SecondaryVersionsReport]
   }
