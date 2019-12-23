@@ -46,14 +46,14 @@ com.socrata.soda-fountain  {
 
     # When soda fountain is configured with a message producer
     # it will send tenant metrics rows-loaded-api when query or export are called
-    {% if BALBOA_ACTIVEMQ_URI is defined and MESSAGE_QUEUE is defined -%}
+    #{% if BALBOA_ACTIVEMQ_URI is defined and MESSAGE_QUEUE is defined -%}
     message-producer {
       raw-messaging {
         # has a default in Dockerfile
-        producers = "activemq"
+        producers = "kinesis"
         activemq.connection-string = "{{ BALBOA_ACTIVEMQ_URI }}"
-        queue = "{{ MESSAGE_QUEUE }}"
+        queue = "platform-usage-instrumentation"
       }
     }
-    {%- endif %}
+    #{%- endif %}
 }

@@ -17,6 +17,7 @@ resourceGenerators in Compile += Def.task {
 
 libraryDependencies ++= Seq(
   apacheCuratorDiscovery,
+  awsKinesis,
   c3p0,
   computationStrategies,
   javaxServletApi,

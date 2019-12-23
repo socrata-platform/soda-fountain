@@ -42,12 +42,18 @@ class ZookeeperConfig(config: Config, root: String) extends ConfigClass(config, 
 object MessageProducerFromConfig {
   def apply(id: String, executor: Executor, config: Option[MessageProducerConfig]): MessageProducer = config match {
     case Some(conf)  =>
-      val optQueue =
-        Some(new Queue() {
-          def getQueueName: String = conf.rawMessaging.queue
-          override def toString = conf.rawMessaging.queue
-        })
-      new ActiveMQServiceRawProducer(openActiveMQConnection(conf.rawMessaging.activemqConnStr), id, true, true, optQueue)
-    case None => NoOpMessageProducer
+      conf.rawMessaging.producers match {
+        case "kinesis" =>
+          new KinesisMessageProducer(conf.rawMessaging.queue)
+        case "activemq" =>
+          val optQueue =
+            Some(new Queue() {
+              def getQueueName: String = conf.rawMessaging.queue
+              override def toString = conf.rawMessaging.queue
+            })
+          new ActiveMQServiceRawProducer(openActiveMQConnection(conf.rawMessaging.activemqConnStr), id, true, true, optQueue)
+      }
+    case None =>
+      NoOpMessageProducer
   }
 }

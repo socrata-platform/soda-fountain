@@ -4,6 +4,7 @@ object Dependencies {
   object versions {
     val activemq          = "5.13.3"
     val apacheCurator     = "2.4.2"
+    val aws               = "1.11.625"
     val c3p0              = "0.9.5.2"
     val computationStrategies = "0.1.3"
     val dropWizardMetrics = "4.1.2"
@@ -38,6 +39,7 @@ object Dependencies {
 
   val apacheCuratorDiscovery   = "org.apache.curator" % "curator-x-discovery"   % versions.apacheCurator
 
+  val awsKinesis               = "com.amazonaws" % "aws-java-sdk-kinesis"           % versions.aws exclude("commons-logging","commons-logging")
   val c3p0                     = "com.mchange"      % "c3p0"                        % versions.c3p0
 
   val computationStrategies     = "com.socrata" %% "computation-strategies"         % versions.computationStrategies
