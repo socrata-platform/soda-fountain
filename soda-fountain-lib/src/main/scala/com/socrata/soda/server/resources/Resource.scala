@@ -137,7 +137,8 @@ case class Resource(rowDAO: RowDAO,
                     reportFunc: (HttpServletResponse, RowDAO.StreamSuccess) => Unit) = {
     datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
-        val transformer = new RowDataTranslator(requestId, datasetRecord, false)
+        val obfuscateId = Option(req.getParameter(qpObfuscateId)).map(java.lang.Boolean.parseBoolean(_)).getOrElse(true)
+        val transformer = new RowDataTranslator(requestId, datasetRecord, false, obfuscateId)
         val transformedRows = transformer.transformClientRowsForUpsert(rows)
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(reportFunc))
       case DatasetDAO.DatasetNotFound(dataset) =>
@@ -479,6 +480,10 @@ object Resource {
   val qpCopy = "$$copy" // Query parameter for copy.  Optional, "latest", "published", "unpublished"
   val qpSecondary = "$$store"
   val qpNoRollup = "$$no_rollup"
+
+  // To use plain row id, update both truth and pg secondary for the dataset in metadb as follow:
+  //   1. update dataset_map set obfuscation_key = E'\\000' where resource_name = '_four-by-four'
+  //   2. pass in $$obfuscate_id=false in both read and write (upsert) in resource/_four-by-four?$$obfuscate_id=false
   val qpObfuscateId = "$$obfuscate_id" // for OBE compatibility - use false
   val qpBom = "$$bom"
   val qpQueryTimeoutSeconds = "queryTimeoutSeconds"

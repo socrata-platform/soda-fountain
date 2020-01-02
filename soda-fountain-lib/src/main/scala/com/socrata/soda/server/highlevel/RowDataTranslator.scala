@@ -21,7 +21,8 @@ import com.socrata.soql.types.{SoQLNull, SoQLType, SoQLValue}
  */
 class RowDataTranslator(requestId: RequestId,
                         dataset: DatasetRecordLike,
-                        ignoreUnknownColumns: Boolean) {
+                        ignoreUnknownColumns: Boolean,
+                        obfuscateId: Boolean) {
   import RowDataTranslator._
 
   private[this] sealed abstract class ColumnResult
@@ -41,7 +42,8 @@ class RowDataTranslator(requestId: RequestId,
         case Some(cr) =>
           if (cache.size > map.size * 10)
             cache.clear() // bad user, but I'd rather spend CPU than memory
-          ColumnInfo(cr, JsonColumnRep.forClientType(cr.typ), JsonColumnRep.forDataCoordinatorType(cr.typ))
+          val rowIdRep = if (obfuscateId) JsonColumnRep.forClientType(cr.typ) else JsonColumnRep.forClientTypeClearId(cr.typ)
+          ColumnInfo(cr, rowIdRep, JsonColumnRep.forDataCoordinatorType(cr.typ))
         case None     => NoColumn(ColumnName(rawKey))
       }
     }
