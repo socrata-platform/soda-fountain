@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 import com.socrata.soda.message.MessageProducer
+import com.socrata.soda.server.resources.Resource.qpObfuscateId
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageProducer: MessageProducer) {
@@ -170,6 +171,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
     val suffix = headerHash(req)
     val precondition = req.precondition.map(etagObfuscator.deobfuscate)
     def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
+    val obfuscateId = Option(req.getParameter(qpObfuscateId)).map(java.lang.Boolean.parseBoolean(_)).getOrElse(true)
     precondition.filter(_.endsWith(suffix)) match {
       case Right(newPrecondition) =>
         val passOnPrecondition = newPrecondition.map(_.dropRight(suffix.length))
@@ -197,7 +199,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
                   else (fullSchema.copy(schema = userColumns),
                     fullRows.map(row => row.take(sysColsStart) ++ row.drop(sysColsStart + sysColumns.size)))
                 // TODO: determine whether tenant metrics is needed in export
-                headers ~> exporter.export(charset, schema, rows, singleRow, fuseMap = fuseMap)(messageProducer, Seq.empty, None)
+                headers ~> exporter.export(charset, schema, rows, singleRow, obfuscateId, fuseMap = fuseMap)(messageProducer, Seq.empty, None)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.response(req, EtagPreconditionFailed)
               case ExportDAO.NotModified(etags) =>
