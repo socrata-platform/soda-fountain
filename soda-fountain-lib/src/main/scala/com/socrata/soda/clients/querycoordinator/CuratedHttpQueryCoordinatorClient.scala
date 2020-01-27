@@ -11,9 +11,16 @@ class CuratedHttpQueryCoordinatorClient(val httpClient: HttpClient,
                                         discovery: ServiceDiscovery[AuxiliaryData],
                                         serviceName: String,
                                         connectTimeout: FiniteDuration,
-                                        receiveTimeout: FiniteDuration)
+                                        receiveTimeout: FiniteDuration,
+                                        maxJettyThreadPoolSize: Int,
+                                        maxThreadRatio: Double
+                                       )
   extends CuratorServiceBase(discovery, serviceName) with HttpQueryCoordinatorClient
 {
+  // Make sure the QC connection doesn't use all available threads
+  override val maxThreads = Some((maxThreadRatio * maxJettyThreadPoolSize).toInt)
+  override val consumerName = "QueryCoordinatorClient"
+
   private[this] val connectTimeoutMS = connectTimeout.toMillis.toInt
   if (connectTimeoutMS != connectTimeout.toMillis) {
     throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")

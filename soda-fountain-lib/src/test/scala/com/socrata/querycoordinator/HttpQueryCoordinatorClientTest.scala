@@ -103,9 +103,10 @@ class HttpQueryCoordinatorClientTest extends FunSuite with Matchers {
   }
 
   class MyClient extends HttpQueryCoordinatorClient{
+    override val maxThreads = Some(50)
+    override val consumerName = "TestClient"
     val httpClient: HttpClient = null
     def qchost: Option[RequestBuilder] = None
-
   }
 
 }

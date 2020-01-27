@@ -13,9 +13,15 @@ class CuratedHttpDataCoordinatorClient(httpClient: HttpClient,
                                        discoveredInstances: () => Set[String],
                                        serviceName: String,
                                        connectTimeout: FiniteDuration,
-                                       receiveTimeout: FiniteDuration)
+                                       receiveTimeout: FiniteDuration,
+                                       maxJettyThreadPoolSize: Int,
+                                       maxThreadRatio: Double)
   extends HttpDataCoordinatorClient(httpClient) with Closeable
 {
+  // Make sure the DC connection doesn't use all available threads
+  override val maxThreads = Some((maxThreadRatio * maxJettyThreadPoolSize).toInt)
+  override val consumerName = "DataCoordinatorClient"
+
   private[this] val connectTimeoutMS = connectTimeout.toMillis.toInt
   if (connectTimeoutMS != connectTimeout.toMillis) {
     throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")

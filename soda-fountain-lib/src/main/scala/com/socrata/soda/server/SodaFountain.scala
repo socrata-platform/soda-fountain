@@ -145,14 +145,18 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     discoverySnoop,
     config.dataCoordinatorClient.serviceName,
     config.dataCoordinatorClient.connectTimeout,
-    config.dataCoordinatorClient.receiveTimeout))
+    config.dataCoordinatorClient.receiveTimeout,
+    config.threadpool.getInt("max-threads"),
+    config.threadpool.getDouble("max-thread-ratio")))
 
   val qc: QueryCoordinatorClient = si(new CuratedHttpQueryCoordinatorClient(
     httpClient,
     discovery,
     config.queryCoordinatorClient.serviceName,
     config.queryCoordinatorClient.connectTimeout,
-    config.queryCoordinatorClient.receiveTimeout))
+    config.queryCoordinatorClient.receiveTimeout,
+    config.threadpool.getInt("max-threads"),
+    config.threadpool.getDouble("max-thread-ratio")))
 
   val dataSource = i(DataSourceFromConfig(config.database))
 
