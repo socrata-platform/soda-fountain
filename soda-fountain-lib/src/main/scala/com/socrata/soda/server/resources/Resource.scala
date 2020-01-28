@@ -230,6 +230,7 @@ case class Resource(rowDAO: RowDAO,
                         optionalHeader("Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         optionalHeader("X-SODA2-Secondary-Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         optionalHeader("X-SODA2-Data-Out-Of-Date", schema.dataVersion.map{ sv => (truthVersion > sv).toString }) ~>
+                        optionalHeader("X-SODA2-Row-Count", schema.approximateRowCount.map(_.toString)) ~>
                         optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader ~>
