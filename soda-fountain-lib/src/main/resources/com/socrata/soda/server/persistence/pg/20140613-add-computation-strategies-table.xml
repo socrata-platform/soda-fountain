@@ -5,6 +5,8 @@
                    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
 
     <changeSet author="Urmila Nadkarni" id="20140613-add-computation-strategies-table">
+        <validCheckSum>3:c8d5855e554b8bfc553cf7ec838ef806</validCheckSum>
+        <validCheckSum>3:2ae46fb695f4af0306d106199522fa15</validCheckSum>
         <sqlFile path="com/socrata/soda/server/persistence/pg/sql/computation_strategies_create.sql" splitStatements="false"/>
         <rollback>
             <dropTable tableName="computation_strategies"/>
