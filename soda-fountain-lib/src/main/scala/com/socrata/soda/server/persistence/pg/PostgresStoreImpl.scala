@@ -861,11 +861,12 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  override def bulkDatasetLookup(ids: Set[DatasetId]): Set[ResourceName] =
+  override def bulkDatasetLookup(ids: Set[DatasetId], includeDeleted: Boolean): Set[ResourceName] =
     if(ids.isEmpty) Set.empty
     else {
       using(dataSource.getConnection) { conn =>
-        using(conn.prepareStatement(Iterator.fill(ids.size)("?").mkString("SELECT resource_name FROM datasets WHERE dataset_system_id in (", ",", ")"))) { stmt =>
+        using(conn.prepareStatement(Iterator.fill(ids.size)("?").mkString(
+            s"SELECT resource_name FROM datasets WHERE ${if (!includeDeleted) "deleted_at is NOT NULL AND " else ""} dataset_system_id in (", ",", ")"))) { stmt =>
           ids.iterator.zipWithIndex.foreach { case (id, idx) =>
             stmt.setString(idx + 1, id.underlying)
           }

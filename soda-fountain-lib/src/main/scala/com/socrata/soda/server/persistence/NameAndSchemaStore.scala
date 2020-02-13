@@ -48,7 +48,7 @@ trait NameAndSchemaStore {
   def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]): Unit
   def makeCopy(datasetId: DatasetId, copyNumber: Long, dataVersion: Long): Unit
 
-  def bulkDatasetLookup(id: Set[DatasetId]): Set[ResourceName]
+  def bulkDatasetLookup(id: Set[DatasetId], includeDeleted: Boolean = false): Set[ResourceName]
 
   def withColumnUpdater[T](datasetId: DatasetId, copyNumber: Long, columnId: ColumnId)(f: NameAndSchemaStore.ColumnUpdater => T): T
 }
