@@ -866,7 +866,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     else {
       using(dataSource.getConnection) { conn =>
         using(conn.prepareStatement(Iterator.fill(ids.size)("?").mkString(
-            s"SELECT resource_name FROM datasets WHERE ${if (!includeDeleted) "deleted_at is NOT NULL AND " else ""} dataset_system_id in (", ",", ")"))) { stmt =>
+            s"SELECT resource_name FROM datasets WHERE ${if (!includeDeleted) "deleted_at is NULL AND " else ""} dataset_system_id in (", ",", ")"))) { stmt =>
           ids.iterator.zipWithIndex.foreach { case (id, idx) =>
             stmt.setString(idx + 1, id.underlying)
           }
