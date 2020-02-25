@@ -398,6 +398,19 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with Matchers with Data
     }
   }
 
+  test ("bulkDatasetLookup should properly handle deleted datasets") {
+    val (resourceName, datasetId) = createMockDataset(Seq())
+    // validate we can find it after create
+    store.bulkDatasetLookup(Set(datasetId)) should equal(Set(resourceName))
+
+    store.markResourceForDeletion(resourceName)
+
+    // validate by default it isn't returned
+    store.bulkDatasetLookup(Set(datasetId)) should equal(Set())
+    // validate it is returned if we ask for deleted datasets
+    store.bulkDatasetLookup(Set(datasetId), true) should equal(Set(resourceName))
+  }
+
   private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetId) = {
     val dataset = generateDataset("PostgresStoreTest", columns)
     store.addResource(dataset)

@@ -306,16 +306,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
       }
     }
   }
-  test("spandex connect timeout") {
-    setSpandexResponse(url = "/", body = "connect timeout", syntheticDelayMs = 10000)
-    failAfter(2 seconds) {
-      a[ConnectTimeout] should be thrownBy {
-        // Needs VPN to be on to pass on localhost, apparently
-        // non-routable address
-        mockSuggest().getSpandexResponse(new URI("http://10.255.255.1/"))
-      }
-    }
-  }
+
   test("spandex receive timeout") {
     val path = "/"
     setSpandexResponse(url = path, body = "receive timeout", syntheticDelayMs = 10000)
