@@ -56,4 +56,9 @@ com.socrata.soda-fountain  {
       }
     }
     {%- endif %}
+
+  threadpool {
+    max-threads = {{ MAX_THREADS }}
+    max-thread-ratio = {{ THREAD_LIMIT_RATIO }}
+  }
 }
