@@ -1,4 +1,4 @@
-FROM socrata/java8
+FROM socrata/java8-bionic
 
 EXPOSE 6010
 EXPOSE 6012
