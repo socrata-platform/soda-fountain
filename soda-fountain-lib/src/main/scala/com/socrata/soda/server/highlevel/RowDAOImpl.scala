@@ -133,15 +133,16 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
       (if (debugInfo.analyze) Map("X-Socrata-Analyze" -> "true") else Map.empty)
     qc.query(ds.systemId, precondition, ifModifiedSince, query, rowCount,
              copy, secondaryInstance, noRollup, obfuscateId, extraHeaders, queryTimeoutSeconds, resourceScope) {
-      case QueryCoordinatorClient.Success(etags, rollup, lastModified, response) if !debugInfo.explain =>
+      case QueryCoordinatorClient.Success(etags, rollup, lastModifiedStr, response) if !debugInfo.explain =>
         val jsonColumnReps = if (obfuscateId) JsonColumnRep.forDataCoordinatorType
                              else JsonColumnRep.forDataCoordinatorTypeClearId
         val decodedResult = CJson.decode(response, jsonColumnReps)
+        val lastModified = dateTimeParser.parseDateTime(lastModifiedStr)
         val schema = decodedResult.schema
         val simpleSchema = ExportDAO.CSchema(
           schema.approximateRowCount,
           schema.dataVersion,
-          Option(dateTimeParser.parseDateTime(lastModified)),
+          Option(lastModified),
           schema.locale,
           schema.pk.map(ds.columnsById(_).fieldName),
           schema.rowCount,
@@ -149,11 +150,10 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             ColumnInfo(f.columnId, ColumnName(f.columnId.underlying), f.typ, None /* Do we even get computed-column specs from QC? */)
           }
         )
-        QuerySuccess(etags, ds.truthVersion, ds.lastModified, rollup, simpleSchema, decodedResult.rows)
+        QuerySuccess(etags, ds.truthVersion, lastModified, rollup, simpleSchema, decodedResult.rows)
       case QueryCoordinatorClient.Success(_, _, _, response) if debugInfo.explain =>
         // Just forward this along up
         InfoSuccess(200, response)
-
         // TODO: Gah I don't even know where to BEGIN listing the things that need doing here!
       case QueryCoordinatorClient.NotModified(etags) =>
         RowDAO.PreconditionFailed(Precondition.FailedBecauseMatch(etags))
