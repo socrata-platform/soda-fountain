@@ -4,7 +4,7 @@ import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, AutomaticJsonEncodeBuilder, JsonArrayIterator}
 import com.rojoma.simplearm.v2._
-import com.socrata.http.client.exceptions.FullTimeout
+import com.socrata.http.client.exceptions.{FullTimeout, UnexpectedContentType}
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.server.implicits._
@@ -107,8 +107,13 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
       case HttpServletResponse.SC_NOT_MODIFIED =>
         Some(NotModified())
       case code =>
-        Some(r.value[PossiblyUnknownDataCoordinatorError]().right.toOption.getOrElse(
-          throw new Exception(s"Response was JSON but not decodable as an error - code $code")))
+        try {
+          Some(r.value[PossiblyUnknownDataCoordinatorError]().right.toOption.getOrElse(
+            throw new Exception(s"Response was JSON but not decodable as an error - code $code")))
+        } catch {
+          case e: UnexpectedContentType =>
+            throw new Exception(s"Data coordinator gave unexpected response of status $code and content-type ${r.contentType}.")
+        }
     }
 
   def expectStartOfArray(in: Iterator[JsonEvent]) {

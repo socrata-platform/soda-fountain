@@ -4,7 +4,7 @@ package com.socrata.soda.clients.querycoordinator
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
-import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout}
+import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, UnexpectedContentType}
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.util._
@@ -101,16 +101,20 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient with ThreadLimit
       case 429 =>
         TooManyRequests
       case status =>
-        val r = response.value[QueryCoordinatorError]().right.toOption.getOrElse(
-          throw new Exception(s"Response was JSON but not decodable as an error -  query: $query; code $status"))
-
-        r match {
-          case err: QueryCoordinatorError =>
-            QueryCoordinatorResult(status, err)
-          case x =>
-            val error = x.toString
-            log.error(s"Unknown data coordinator status: $status;  error $error")
-            InternalServerErrorResult(status, "unknown", tag, error)
+        try {
+          val r = response.value[QueryCoordinatorError]().right.toOption.getOrElse(
+            throw new Exception(s"Response was JSON but not decodable as an error -  query: $query; code $status"))
+            r match {
+              case err: QueryCoordinatorError =>
+                QueryCoordinatorResult(status, err)
+              case x =>
+                val error = x.toString
+                log.error(s"Unknown data coordinator status: $status;  error $error")
+                InternalServerErrorResult(status, "unknown", tag, error)
+            }
+        } catch {
+          case e: UnexpectedContentType =>
+            throw new Exception(s"Query coordinator gave unexpected response of status $status and content-type ${response.contentType}.")
         }
     }
   }
