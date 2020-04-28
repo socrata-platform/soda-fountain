@@ -105,8 +105,7 @@ object RequestError {
   implicit val jCodec = BranchCodec(SimpleHierarchyCodecBuilder[RequestError](TagAndValue("errorCode", "data"))).build
 }
 
-// TODO after this hits all the production envs, make description non-optional (only making it optional to avoid mis-classification during release of sf+qc)
-case class UnknownQueryCoordinatorError(errorCode: String, description: Option[String], data: Map[String, JValue]) extends PossiblyUnknownQueryCoordinatorError
+case class UnknownQueryCoordinatorError(errorCode: String, description: String, data: Map[String, JValue]) extends PossiblyUnknownQueryCoordinatorError
 object UnknownQueryCoordinatorError {
   implicit val jCodec = AutomaticJsonCodecBuilder[UnknownQueryCoordinatorError]
 }
@@ -121,8 +120,7 @@ object PossiblyUnknownDataCoordinatorError {
     build
 }
 
-// TODO after this hits all the production envs, make description non-optional (only making it optional to avoid mis-classification during release of sf+qc)
-case class QueryCoordinatorError(errorCode: String, description: Option[String], data: Map[String, JValue])
+case class QueryCoordinatorError(errorCode: String, description: String, data: Map[String, JValue])
 object QueryCoordinatorError{
   implicit val jCodec = AutomaticJsonCodecBuilder[QueryCoordinatorError]
 }
