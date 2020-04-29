@@ -4,7 +4,7 @@ package com.socrata.soda.clients.querycoordinator
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
-import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout}
+import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, UnexpectedContentType}
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.util._
@@ -101,69 +101,20 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient with ThreadLimit
       case 429 =>
         TooManyRequests
       case status =>
-        val r = response.value[QueryCoordinatorError]().right.toOption.getOrElse(
-          throw new Exception(s"Response was JSON but not decodable as an error -  query: $query; code $status"))
-
-        // TODO soda currently just pushes the body as a Json, so may not need this granularity here
-        r match {
-          case err: QueryCoordinatorError =>
-            QueryCoordinatorResult(status, err)
-
-          //            case qe : QueryError => qe match {
-          //              case DataSourceUnavailable (datasetId) =>
-          //                DataSourceUnavailableResult(qe.code, datasetId)
-          //              case DoesNotExist(datasetId) =>
-          //                DoesNotExistResult(qe.code, datasetId)
-          //            }
-          //            case  req: RequestError => req match {
-          //              case NoDatasetSpecified() =>
-          //                NoDatasetSpecifiedResult(req.code)
-          //              case NoQuerySpecified() =>
-          //                NoQuerySpecifiedResult(req.code)
-          //              case UnknownColumnIds(columns) =>
-          //                UnknownColumnIdsResult(req.code, columns)
-          //              case RowLimitExceeded(limit) =>
-          //                RowLimitExceededResult(req.code, limit)
-          //            }
-          //            case soql: SoqlError => soql match {
-          //              case AggregateInUngroupedContext(data) =>
-          //                AggregateInUngroupedContextResult(soql.code, data)
-          //              case ColumnNotInGroupBys(data) =>
-          //                ColumnNotInGroupBysResult(soql.code, data)
-          //              case RepeatedException (data) =>
-          //                RepeatedExceptionResult(soql.code, data)
-          //              case DuplicateAlias(data) =>
-          //                DuplicateAliasResult(soql.code, data)
-          //              case NoSuchColumn(data) =>
-          //                NoSuchColumnResult(soql.code, data)
-          //              case CircularAliasDefinition(data) =>
-          //                CircularAliasDefinitionResult(soql.code, data)
-          //              case UnexpectedEscape(data) =>
-          //                UnexpectedEscapeResult(soql.code, data)
-          //              case BadUnicodeEscapeCharacter(data) =>
-          //                BadUnicodeEscapeCharacterResult(soql.code, data)
-          //              case UnicodeCharacterOutOfRange(data) =>
-          //                UnicodeCharacterOutOfRangeResult(soql.code, data)
-          //              case UnexpectedCharacter(data) =>
-          //                UnexpectedCharacterResult(soql.code, data)
-          //              case UnexpectedEOF(data) =>
-          //                UnexpectedEOFResult(soql.code, data)
-          //              case UnterminatedString(data) =>
-          //                UnterminatedStringResult(soql.code, data)
-          //              case BadParse(data) =>
-          //                BadParseResult(soql.code, data)
-          //              case NoSuchFunction(data) =>
-          //                NoSuchFunctionResult(soql.code, data)
-          //              case TypeMismatch(data) =>
-          //                TypeMismatchResult(soql.code, data)
-          //              case AmbiguousCall(data) =>
-          //                AmbiguousCallResult(soql.code, data)
-          //            }
-          // Unknown
-          case x =>
-            val error = x.toString
-            log.error(s"Unknown data coordinator status: $status;  error $error")
-            InternalServerErrorResult(status, "unknown", tag, error)
+        try {
+          val r = response.value[QueryCoordinatorError]().right.toOption.getOrElse(
+            throw new Exception(s"Response was JSON but not decodable as an error -  query: $query; code $status"))
+            r match {
+              case err: QueryCoordinatorError =>
+                QueryCoordinatorResult(status, err)
+              case x =>
+                val error = x.toString
+                log.error(s"Unknown data coordinator status: $status;  error $error")
+                InternalServerErrorResult(status, "unknown", tag, error)
+            }
+        } catch {
+          case e: UnexpectedContentType =>
+            throw new Exception(s"Query coordinator gave unexpected response of status $status and content-type ${response.contentType}.")
         }
     }
   }

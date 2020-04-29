@@ -18,7 +18,7 @@ class SodaResource extends SimpleResource {
       HttpMethodNotAllowed(req.getMethod, allowed))
   }
 
-  // SF doesn't handle auth, unlike what was originally envisionsed, but is still wired up to pass user info down
+  // SF doesn't handle auth, unlike what was originally envisioned, but is still wired up to pass user info down
   // to DC, this could be used for debugging or ripped out.
   def user(req: HttpRequest): String = "anonymous"
 

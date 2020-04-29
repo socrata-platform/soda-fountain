@@ -339,7 +339,7 @@ case class Resource(rowDAO: RowDAO,
 
     private def collocateDataset(qcErr: QueryCoordinatorError): Unit = {
       qcErr match {
-        case QueryCoordinatorError("query.dataset.is-not-collocated", Some(description), data) =>
+        case QueryCoordinatorError("query.dataset.is-not-collocated", description, data) =>
           (data("resource"), data("secondaries")) match {
             case (JString(resource), JArray(Seq(JString(sec), _*))) =>
               val resourceName = new ResourceName(resource)
