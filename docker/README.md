@@ -22,7 +22,9 @@ See the Dockerfile for defaults.
 * `GRAPHITE_PORT` - The port number for the graphite server, if enabled
 * `JAVA_XMX` - Sets the -Xmx and -Xms parameters to control the JVM heap size
 * `LOG_METRICS` - Should various metrics information be logged to the log
+* `MAX_THREADS` - Sets the total number of threads available to Soda Fountain
 * `SODA_FOUNTAIN_DB_NAME` - Soda Fountain DB database name
 * `SODA_FOUNTAIN_DB_PORT` - Soda Fountain DB port number
 * `SODA_FOUNTAIN_DB_USER` - Soda Fountain DB user name
 * `SPANDEX_PORT` - Spandex (Suggest) port
+* `THREAD_LIMIT_RATIO` - Sets the max ratio of threads available to be used by QC or DC. Default: 0.5
