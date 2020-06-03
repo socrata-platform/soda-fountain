@@ -201,7 +201,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               retry()
               // should only have two error case for this path.
             case DataCoordinatorClient.DatasetNotFoundResult(_) =>
-              DatasetNotFound(dataset)
+              // if it isn't known to dc, consider it gone
+              log.warn(s"Dataset $dataset / ${datasetRecord.systemId} not found in data-coordinator, removing from soda-fountain")
+              store.removeResource(dataset)
+              Deleted
             case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
               CannotAcquireDatasetWriteLock(dataset)
             case DataCoordinatorClient.DatasetVersionMismatchResult(_, v) =>
