@@ -32,6 +32,10 @@ object SodaUtils {
     }
   }
 
+  def response(req: SodaRequest, resp: SodaResponse, logTags: LogTag*): HttpResponse = {
+    response(req.httpRequest, resp, logTags : _*)
+  }
+
   def response(req: HttpRequest, resp: SodaResponse, logTags: LogTag*): HttpResponse = {
     response(req.servletRequest, resp, logTags : _*)
   }
@@ -62,6 +66,10 @@ object SodaUtils {
       }
 
     header ~> potentialContent
+  }
+
+  def internalError(req: SodaRequest, th: Throwable, logTags: LogTag*): HttpResponse = {
+    internalError(req.httpRequest, th, logTags : _*)
   }
 
   def internalError(req: HttpRequest, th: Throwable, logTags: LogTag*): HttpResponse = {

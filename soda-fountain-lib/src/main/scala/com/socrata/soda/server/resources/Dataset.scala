@@ -25,8 +25,8 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   val schemaHashHeaderName = "x-socrata-version-hash"
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Dataset])
 
-  def withDatasetSpec(request: HttpRequest, logTags: LogTag*)(f: UserProvidedDatasetSpec => HttpResponse): HttpResponse = {
-    UserProvidedDatasetSpec.fromRequest(request, maxDatumSize) match {
+  def withDatasetSpec(request: SodaRequest, logTags: LogTag*)(f: UserProvidedDatasetSpec => HttpResponse): HttpResponse = {
+    UserProvidedDatasetSpec.fromRequest(request.httpRequest, maxDatumSize) match {
       case Extracted(datasetSpec) =>
         f(datasetSpec)
       case RequestProblem(err) =>
@@ -50,7 +50,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   private def dataVersionHeader(v: Long) =
     Header("X-SODA2-Truth-Version", v.toString)
 
-  def response(req: HttpRequest, result: DatasetDAO.Result): HttpResponse = {
+  def response(req: SodaRequest, result: DatasetDAO.Result): HttpResponse = {
     // TODO: Negotiate content type
     log.debug(s"sending response, result: ${result}")
     result match {
@@ -173,7 +173,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   }
 
   case class copyService(resourceName: ResourceName) extends SodaResource {
-    def keepSnapshot(req: HttpRequest) =
+    def keepSnapshot(req: SodaRequest) =
       try { req.queryParameter("keep_snapshot").map(_.toBoolean) }
       catch { case e: IllegalArgumentException => ??? /* TODO: Proper error */ }
 
@@ -214,7 +214,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
   case class secondaryCollocateService(secondaryId: SecondaryId) extends SodaResource{
     override def post = { req =>
-       SFCollocateOperation.getFromRequest(req) match {
+       SFCollocateOperation.getFromRequest(req.httpRequest) match {
         case Right(operation) =>
           val explain = req.queryParameter("explain") == Some("true")
 
@@ -257,7 +257,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
     }
 
     override def put = { req =>
-      withRollupSpec(req) { spec =>
+      withRollupSpec(req.httpRequest) { spec =>
         rollupName match {
           case Some(rollup) =>
             response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, expectedDataVersion(req), rollup, spec,

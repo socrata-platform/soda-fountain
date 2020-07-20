@@ -62,7 +62,7 @@ class ColumnDAOSpec extends FunSuiteLike
     val ns = mock[NameAndSchemaStore]
     ns.expects('lookupDataset)(dataset.resourceName, Some(Latest))
       .returning(Some(dataset)).anyNumberOfTimes()
-    dc.expects('update)(*, *, *, *, *, *, *)
+    dc.expects('update)(*, *, *, *, *, *)
     val col = new ColumnSpecUtils(Random)
 
     val dao: ColumnDAO = new ColumnDAOImpl(dc, fbm, ns, col)

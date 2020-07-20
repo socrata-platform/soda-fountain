@@ -15,7 +15,7 @@ import com.socrata.soda.server.config.SuggestConfig
 import com.socrata.soda.server.copy.{Published, Stage}
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.ResourceName
-import com.socrata.soda.server.{responses => SodaError}
+import com.socrata.soda.server.{responses => SodaError, SodaRequest}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.thirdparty.metrics.Metrics
 
@@ -58,7 +58,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
   }
 
   // f(dataset name, copy num or lifecycle stage, column name, text) => spandex uri to get
-  def suggest(req: HttpRequest, resp: HttpServletResponse,
+  def suggest(req: SodaRequest, resp: HttpServletResponse,
          resourceName: ResourceName, columnName: ColumnName, text: String,
          f: (String, Stage, String, String) => URI): Unit = {
     def err(e: Throwable): HttpResponse = {

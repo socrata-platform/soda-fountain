@@ -31,7 +31,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     }
   }
 
-  def response(req: HttpRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte] = defaultSuffix, isGet: Boolean = false): HttpResponse = {
+  def response(req: SodaRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte] = defaultSuffix, isGet: Boolean = false): HttpResponse = {
     // TODO: Negotiate content type
     def prepareETag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(etagSuffix))
     result match { // ugh why doesn't this use SodaUtils.Response?
@@ -80,7 +80,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     }
   }
 
-  def checkPrecondition(req: HttpRequest, suffix: Array[Byte] = defaultSuffix, isGet: Boolean = false)
+  def checkPrecondition(req: SodaRequest, suffix: Array[Byte] = defaultSuffix, isGet: Boolean = false)
                        (op: Precondition => Unit): Unit = {
     req.precondition.map(etagObfuscator.deobfuscate).filter(_.endsWith(suffix)) match {
       case Right(preconditionRaw) =>
@@ -108,7 +108,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       val userFromReq = user(req)
       val edvFromReq = expectedDataVersion(req)
       val requestId = req.requestId
-      withColumnSpec(req, resp, resourceName, columnName) { spec =>
+      withColumnSpec(req.httpRequest, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
           response(req, columnDAO.replaceOrCreateColumn(userFromReq, resourceName, precondition, edvFromReq, columnName, spec, requestId))(resp)
         }
@@ -116,7 +116,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     }
 
     override def patch = { req => resp =>
-      withColumnSpec(req, resp, resourceName, columnName) { spec =>
+      withColumnSpec(req.httpRequest, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
           response(req, columnDAO.updateColumn(user(req), resourceName, expectedDataVersion(req), columnName, spec, req.requestId))(resp)
         }

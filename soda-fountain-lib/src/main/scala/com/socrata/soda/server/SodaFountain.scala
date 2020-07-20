@@ -50,34 +50,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
                                   logRequestHeaders = Set(ReqIdHeader),
                                   logResponseHeaders = Set(QueryCoordinatorClient.HeaderRollup))
 
-  val handle =
-    ThreadRenamingHandler {
-      NewLoggingHandler(logOptions) { req =>
-        val httpResponse = try {
-          router.route(req)
-        } catch {
-          case e: Throwable if !e.isInstanceOf[Error] =>
-            SodaUtils.internalError(req, e)
-        }
-
-      { resp =>
-        try {
-          httpResponse(resp)
-        } catch {
-          case e: Throwable if !e.isInstanceOf[Error] =>
-            if (!resp.isCommitted) {
-              resp.reset()
-              SodaUtils.handleError(req, e)(resp)
-            } else {
-              log.warn("Caught exception but the response is already committed; just cutting the client off" +
-                "\n" + e.getMessage, e)
-            }
-        }
-      }
-      }
-    }
-
-
   // Below this line is all setup.
   // Note: all initialization that can possibly throw should
   // either go ABOVE the declaration of "cleanup" or be guarded
@@ -190,6 +162,36 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
 
   val messageProducer = si(MessageProducerFromConfig(getClass.getSimpleName, executor, config.messageProducerConfig) )
+
+  val handle = i {
+    ThreadRenamingHandler {
+      NewLoggingHandler(logOptions) { req =>
+        val httpResponse = try {
+          router.route(new SodaRequest {
+                         val httpRequest = req
+                       })
+        } catch {
+          case e: Throwable if !e.isInstanceOf[Error] =>
+            SodaUtils.internalError(req, e)
+        }
+
+        { resp =>
+          try {
+            httpResponse(resp)
+          } catch {
+            case e: Throwable if !e.isInstanceOf[Error] =>
+              if (!resp.isCommitted) {
+                resp.reset()
+                SodaUtils.handleError(req, e)(resp)
+              } else {
+                log.warn("Caught exception but the response is already committed; just cutting the client off" +
+                           "\n" + e.getMessage, e)
+              }
+          }
+        }
+      }
+    }
+  }
 
   val tableDropDelay = config.tableDropDelay
   val dataCleanupIntervalSecs = config.dataCleanupInterval.toSeconds

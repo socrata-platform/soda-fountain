@@ -5,7 +5,7 @@ import com.rojoma.simplearm.v2._
 import com.socrata.http.server.HttpRequest
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
-import com.socrata.soda.server.SodaUtils
+import com.socrata.soda.server.{SodaUtils, SodaRequest}
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
 import javax.servlet.http.HttpServletRequest
@@ -26,6 +26,6 @@ object Version {
       OK ~> Json(responseJ)
     }
 
-    override val get = (_: HttpRequest) => response
+    override val get = (_: SodaRequest) => response
   }
 }

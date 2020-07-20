@@ -132,7 +132,10 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
     mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}/some-row-id.json")
     headers.foreach(header => mockServReq.addHeader(header._1, header._2))
     withHttpRequest(mockServReq) { httpReq =>
-      mockResource.rowService(dataset.resource, new RowSpecifier("some-row-id")).get(httpReq)(new MockHttpServletResponse())
+      mockResource.rowService(dataset.resource, new RowSpecifier("some-row-id")).
+        get(new SodaRequest {
+              val httpRequest = httpReq
+            })(new MockHttpServletResponse())
     }
   }
 }
@@ -197,7 +200,10 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
       val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO],
                                       NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer, new HttpDatatCoordinatorClientTest.MyClient())
 
-      mockResource.service(OptionallyTypedPathComponent(dataset.resource, None)).get(httpReq)(new MockHttpServletResponse())
+      mockResource.service(OptionallyTypedPathComponent(dataset.resource, None)).
+        get(new SodaRequest {
+              val httpRequest = httpReq
+            })(new MockHttpServletResponse())
     }
   }
 }

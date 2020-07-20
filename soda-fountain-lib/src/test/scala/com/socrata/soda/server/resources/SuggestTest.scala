@@ -6,16 +6,17 @@ import javax.servlet.http.{HttpServletRequest, HttpServletResponse => HttpStatus
 
 import com.rojoma.json.v3.ast.{JNull, JObject, JString}
 import com.rojoma.json.v3.util.JsonUtil
+import com.rojoma.simplearm.v2._
 import com.socrata.http.client._
 import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, ReceiveTimeout}
-import com.socrata.http.server.HttpRequest
-import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
+import com.socrata.http.server.{HttpRequest, ConcreteHttpRequest}
 import com.socrata.soda.server.config.{SodaFountainConfig, SuggestConfig}
 import com.socrata.soda.server.copy.Published
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord}
 import com.socrata.soda.server.util.CloseableExecutorService
+import com.socrata.soda.server.SodaRequest
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLNull
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
@@ -52,6 +53,12 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     new ColumnId(expectedColumnId), columnName,
     SoQLNull, false, None
   )
+
+  def withHttpRequest[T](req: HttpServletRequest)(f: HttpRequest => T): T = {
+    using(new ResourceScope) { scope =>
+      f(new ConcreteHttpRequest(new HttpRequest.AugmentedHttpServletRequest(req), scope))
+    }
+  }
 
   def httpClient: HttpClient =
     new HttpClientHttpClient(
@@ -239,15 +246,16 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val suggest = mockSuggest(datasetDao = d, columnDao = c)
 
     val servReq = mockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(servReq)
-    val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().returning(augReq)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.service(resourceName, columnName, suggestText).
+        get(new SodaRequest {
+              val httpRequest = httpReq
+            })(response)
 
-    val response = new MockHttpServletResponse()
-    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
-
-    response.getStatus should be(expectedStatusCode)
-    response.getContentAsString should be(expectedBody)
+      response.getStatus should be(expectedStatusCode)
+      response.getContentAsString should be(expectedBody)
+    }
   }
   test("service suggestions - dataset not found") {
     val d = mock[DatasetDAO]
@@ -255,7 +263,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
 
     val suggest = mockSuggest(datasetDao = d)
 
-    val httpReq = mock[HttpRequest]
+    val httpReq = mock[SodaRequest]
     val response = new MockHttpServletResponse()
     suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
 
@@ -275,15 +283,16 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val suggest = mockSuggest(datasetDao = d, columnDao = c)
 
     val servReq = mockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(servReq)
-    val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().returning(augReq)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.sampleService(resourceName, columnName).
+        get(new SodaRequest {
+              val httpRequest = httpReq
+            })(response)
 
-    val response = new MockHttpServletResponse()
-    suggest.sampleService(resourceName, columnName).get(httpReq)(response)
-
-    response.getStatus should be(expectedStatusCode)
-    response.getContentAsString should be(expectedBody)
+      response.getStatus should be(expectedStatusCode)
+      response.getContentAsString should be(expectedBody)
+    }
   }
   test("service samples - dataset not found") {
     val d = mock[DatasetDAO]
@@ -291,7 +300,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
 
     val suggest = mockSuggest(datasetDao = d)
 
-    val httpReq = mock[HttpRequest]
+    val httpReq = mock[SodaRequest]
     val response = new MockHttpServletResponse()
     suggest.sampleService(resourceName, columnName).get(httpReq)(response)
 
@@ -338,14 +347,16 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
       """.stripMargin), "suggest"))
 
     val servReq = mockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(servReq)
-    val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.service(resourceName, columnName, suggestText).
+        get(new SodaRequest {
+              val httpRequest = httpReq
+            })(response)
 
-    val response = new MockHttpServletResponse()
-    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
-    response.getContentType should include("application/json")
-    response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+      response.getContentType should include("application/json")
+      response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+    }
   }
   test("spandex connect timeout - check response status") {
     val d = mock[DatasetDAO]
@@ -368,14 +379,16 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
         """.stripMargin), "suggest"))
 
     val servReq = mockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(servReq)
-    val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.service(resourceName, columnName, suggestText).
+        get(new SodaRequest {
+              val httpRequest = httpReq
+            })(response)
 
-    val response = new MockHttpServletResponse()
-    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
-    response.getContentType should include("application/json")
-    response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+      response.getContentType should include("application/json")
+      response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+    }
   }
   test("spandex receive timeout - check response status") {
     val d = mock[DatasetDAO]
@@ -390,14 +403,16 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val suggest = mockSuggest(datasetDao = d, columnDao = c)
 
     val servReq = mockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(servReq)
-    val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.service(resourceName, columnName, suggestText).
+        get(new SodaRequest {
+              val httpRequest = httpReq
+            })(response)
 
-    val response = new MockHttpServletResponse()
-    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
-    response.getContentType should include("application/json")
-    response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+      response.getContentType should include("application/json")
+      response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+    }
   }
 
   private def mockHttpServletRequest() = {

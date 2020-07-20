@@ -105,7 +105,7 @@ object UpsertUtils {
     }
   }
 
-  def writeSingleRowUpsertResponse(resourceName: ResourceName, export: Export, req: HttpRequest)
+  def writeSingleRowUpsertResponse(resourceName: ResourceName, export: Export, req: SodaRequest)
                                   (response: HttpServletResponse, success: RowDAO.StreamSuccess): Unit = {
     var wroteOne = false
     def exportSingleRowUpsertResponse(rowId: String): Unit = {

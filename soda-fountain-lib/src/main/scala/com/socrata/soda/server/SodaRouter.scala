@@ -1,7 +1,7 @@
 package com.socrata.soda.server
 
 import com.socrata.http.server.implicits._
-import com.socrata.http.server.routing.SimpleRouteContext._
+import com.socrata.http.server.routing.RouteContext
 import com.socrata.http.server.routing.{OptionallyTypedPathComponent, Extractor}
 import com.socrata.http.server.{HttpRequest, HttpService, HttpResponse}
 import com.socrata.soda.server._
@@ -9,35 +9,38 @@ import com.socrata.soda.server.responses.GeneralNotFoundError
 import com.socrata.soda.server.id.{RollupName, RowSpecifier, SecondaryId, ResourceName}
 import com.socrata.soql.environment.ColumnName
 
-case class SnapshotResources(listDatasetsResource: HttpService,  // list all datasets with snapshots
-                             listSnapshotsResource: ResourceName => HttpService, // list snapshots for a dataset
-                             snapshotResource: (ResourceName, Long) => HttpService) // export or delete the given snapshot
+case class SnapshotResources(listDatasetsResource: SodaHttpService,  // list all datasets with snapshots
+                             listSnapshotsResource: ResourceName => SodaHttpService, // list snapshots for a dataset
+                             snapshotResource: (ResourceName, Long) => SodaHttpService) // export or delete the given snapshot
 
-class SodaRouter(versionResource: HttpService,
-                 healthZResource: HttpService,
-                 datasetCreateResource: HttpService,
-                 datasetResource: ResourceName => HttpService,
-                 datasetUndeleteResource: ResourceName => HttpService,
-                 datasetColumnResource: (ResourceName, ColumnName) => HttpService,
-                 datasetColumnPKResource: (ResourceName, ColumnName) => HttpService,
-                 resourceResource: OptionallyTypedPathComponent[ResourceName] => HttpService,
+class SodaRouter(versionResource: SodaHttpService,
+                 healthZResource: SodaHttpService,
+                 datasetCreateResource: SodaHttpService,
+                 datasetResource: ResourceName => SodaHttpService,
+                 datasetUndeleteResource: ResourceName => SodaHttpService,
+                 datasetColumnResource: (ResourceName, ColumnName) => SodaHttpService,
+                 datasetColumnPKResource: (ResourceName, ColumnName) => SodaHttpService,
+                 resourceResource: OptionallyTypedPathComponent[ResourceName] => SodaHttpService,
                  resourceExtensions: String => Boolean,
-                 resourceRowResource: (ResourceName, RowSpecifier) => HttpService,
-                 datasetCopyResource: ResourceName => HttpService,
-                 datasetSecondaryCopyResource: (ResourceName, SecondaryId) => HttpService,
-                 datasetSecondaryCollocateResource: (SecondaryId) => HttpService,
-                 datasetSecondaryCollocateJobResource: (ResourceName, SecondaryId, String) => HttpService,
-                 datasetSecondaryVersionsResource: (ResourceName) => HttpService,
-                 datasetVersionResource: (ResourceName, SecondaryId) => HttpService,
-                 datasetExportResource: OptionallyTypedPathComponent[ResourceName] => HttpService,
-                 datasetExportCopyResource: (ResourceName, OptionallyTypedPathComponent[String]) => HttpService,
+                 resourceRowResource: (ResourceName, RowSpecifier) => SodaHttpService,
+                 datasetCopyResource: ResourceName => SodaHttpService,
+                 datasetSecondaryCopyResource: (ResourceName, SecondaryId) => SodaHttpService,
+                 datasetSecondaryCollocateResource: (SecondaryId) => SodaHttpService,
+                 datasetSecondaryCollocateJobResource: (ResourceName, SecondaryId, String) => SodaHttpService,
+                 datasetSecondaryVersionsResource: (ResourceName) => SodaHttpService,
+                 datasetVersionResource: (ResourceName, SecondaryId) => SodaHttpService,
+                 datasetExportResource: OptionallyTypedPathComponent[ResourceName] => SodaHttpService,
+                 datasetExportCopyResource: (ResourceName, OptionallyTypedPathComponent[String]) => SodaHttpService,
                  exportExtensions: String => Boolean,
-                 datasetRollupsResource: ResourceName => HttpService,
-                 datasetRollupResource: (ResourceName, RollupName) => HttpService,
-                 sampleResource: (ResourceName, ColumnName) => HttpService,
-                 suggestResource: (ResourceName, ColumnName, String) => HttpService,
+                 datasetRollupsResource: ResourceName => SodaHttpService,
+                 datasetRollupResource: (ResourceName, RollupName) => SodaHttpService,
+                 sampleResource: (ResourceName, ColumnName) => SodaHttpService,
+                 suggestResource: (ResourceName, ColumnName, String) => SodaHttpService,
                  snapshotResources: SnapshotResources,
-                 secondaryReindexResource: ResourceName => HttpService) {
+                 secondaryReindexResource: ResourceName => SodaHttpService) {
+  private[this] val routeContext = new RouteContext[SodaRequest, HttpResponse]
+  import routeContext._
+
   private[this] implicit val ResourceNameExtractor = new Extractor[ResourceName] {
     def extract(s: String): Option[ResourceName] = Some(new ResourceName(s))
   }
@@ -92,15 +95,12 @@ class SodaRouter(versionResource: HttpService,
     Route("/suggest/{ResourceName}/{ColumnName}/{String}", suggestResource)
   )
 
-  def route(req: HttpRequest): HttpResponse = {
-    import com.socrata.http.server.HttpRequest.HttpRequestApi
-    val reqApi = new HttpRequestApi(req)
-
-    router(reqApi.requestPath.map(InputNormalizer.normalize)) match {
+  def route(req: SodaRequest): HttpResponse = {
+    router(req.requestPath.map(InputNormalizer.normalize)) match {
       case Some(s) =>
         s(req)
       case None =>
-        SodaUtils.response(req, GeneralNotFoundError(req.servletRequest.getRequestURI))
+        SodaUtils.response(req, GeneralNotFoundError(req.httpRequest.servletRequest.getRequestURI))
     }
   }
 }

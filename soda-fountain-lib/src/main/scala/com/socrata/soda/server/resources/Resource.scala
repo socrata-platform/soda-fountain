@@ -48,15 +48,15 @@ case class Resource(rowDAO: RowDAO,
   val queryLatencyNonRollup = metrics.histogram("query-latency-ms-nonrollup")
   val queryLatencyRollup = metrics.histogram("query-latency-ms-rollup")
 
-  val headerHashAlg = "SHA1"
-  val headerHashLength = MessageDigest.getInstance(headerHashAlg).getDigestLength
   val domainIdHeader = "X-SODA2-Domain-Id"
   val lensUidHeader = "X-Socrata-Lens-Uid"
   val accessTypeHeader = "X-Socrata-Access-Type"
 
-  def headerHash(req: HttpRequest) = {
+  val headerHashAlg = "SHA1"
+  val headerHashLength = MessageDigest.getInstance(headerHashAlg).getDigestLength
+  def headerHash(req: SodaRequest) = {
     val hash = MessageDigest.getInstance(headerHashAlg)
-    hash.update(Option(req.servletRequest.getQueryString).toString.getBytes(StandardCharsets.UTF_8))
+    hash.update(req.queryStr.toString.getBytes(StandardCharsets.UTF_8))
     hash.update(255.toByte)
     for(field <- ContentNegotiation.headers) {
       hash.update(field.getBytes(StandardCharsets.UTF_8))
@@ -128,7 +128,7 @@ case class Resource(rowDAO: RowDAO,
 
   type rowDaoFunc = (DatasetRecordLike, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
 
-  def upsertishFlow(req: HttpRequest,
+  def upsertishFlow(req: SodaRequest,
                     response: HttpServletResponse,
                     resourceName: ResourceName,
                     rows: Iterator[JValue],
@@ -139,7 +139,7 @@ case class Resource(rowDAO: RowDAO,
         val obfuscateId = req.queryParameter(qpObfuscateId).map(java.lang.Boolean.parseBoolean(_)).getOrElse(true)
         val transformer = new RowDataTranslator(datasetRecord, false, obfuscateId)
         val transformedRows = transformer.transformClientRowsForUpsert(rows)
-        f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(reportFunc))
+        f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req.httpRequest, response)(reportFunc))
       case DatasetDAO.DatasetNotFound(dataset) =>
         SodaUtils.response(req, SodaErrors.DatasetNotFound(resourceName))(response)
         // No other cases have to be implimented
@@ -154,7 +154,7 @@ case class Resource(rowDAO: RowDAO,
 
   def extensions(s: String) = Exporter.exporterExtensions.contains(Exporter.canonicalizeExtension(s))
 
-  def isConditionalGet(req: HttpRequest): Boolean = {
+  def isConditionalGet(req: SodaRequest): Boolean = {
     req.header("If-None-Match").isDefined || req.dateTimeHeader("If-Modified-Since").isDefined
   }
 
@@ -165,7 +165,7 @@ case class Resource(rowDAO: RowDAO,
   }
 
   case class service(resourceName: OptionallyTypedPathComponent[ResourceName]) extends SodaResource {
-    override def get = { req: HttpRequest =>
+    override def get = { req: SodaRequest =>
       val domainId = req.header(domainIdHeader)
       val lensUid = req.header(lensUidHeader)
       val accessType = req.header(accessTypeHeader)
@@ -290,7 +290,7 @@ case class Resource(rowDAO: RowDAO,
       }
     }
 
-    override def expectedDataVersion(req: HttpRequest): Option[Long] = {
+    override def expectedDataVersion(req: SodaRequest): Option[Long] = {
       // ok so upsert is annoying.  Doing it this way so we can keep
       // uniformity in the case where we're not abusing soda-java as a
       // soda-fountain client while also not doing major surgery on
@@ -303,7 +303,7 @@ case class Resource(rowDAO: RowDAO,
 
     override def post = { req =>
       val requestId = req.requestId
-      RowUpdateOption.fromReq(req) match {
+      RowUpdateOption.fromReq(req.httpRequest) match {
         case Right(options) =>
           { response =>
             upsertMany(req, response, rowDAO.upsert(user(req), _, expectedDataVersion(req), _, options), allowSingleItem = true)
@@ -318,11 +318,11 @@ case class Resource(rowDAO: RowDAO,
       upsertMany(req, response, rowDAO.replace(user(req), _, expectedDataVersion(req), _), allowSingleItem = false)
     }
 
-    private def upsertMany(req: HttpRequest,
+    private def upsertMany(req: SodaRequest,
                            response: HttpServletResponse,
                            f: rowDaoFunc,
                            allowSingleItem: Boolean) {
-      InputUtils.jsonArrayValuesStream(req, maxRowSize, allowSingleItem) match {
+      InputUtils.jsonArrayValuesStream(req.httpRequest, maxRowSize, allowSingleItem) match {
         case Right((boundedIt, multiRows)) =>
 
           val processUpsertReport =
@@ -359,7 +359,7 @@ case class Resource(rowDAO: RowDAO,
 
     implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
 
-    override def get = { req: HttpRequest =>
+    override def get = { req: SodaRequest =>
       val domainId = req.header(domainIdHeader)
       val lensUid = req.header(lensUidHeader)
       val accessType = req.header(accessTypeHeader)
@@ -450,7 +450,7 @@ case class Resource(rowDAO: RowDAO,
 
     override def post = { req => response =>
       val requestId = req.requestId
-      InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
+      InputUtils.jsonSingleObjectStream(req.httpRequest, maxRowSize) match {
         case Right(rowJVal) =>
           upsertishFlow(req, response, resourceName, Iterator.single(rowJVal),
                         rowDAO.upsert(user(req), _, expectedDataVersion(req), _), UpsertUtils.writeUpsertResponse)
@@ -461,11 +461,11 @@ case class Resource(rowDAO: RowDAO,
 
     override def delete = { req => response =>
       rowDAO.deleteRow(user(req), resourceName, expectedDataVersion(req), rowId)(
-                       UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
+                       UpsertUtils.handleUpsertErrors(req.httpRequest, response)(UpsertUtils.writeUpsertResponse))
     }
   }
 
-  private def reqObfuscateId(req: HttpRequest): Boolean =
+  private def reqObfuscateId(req: SodaRequest): Boolean =
     !req.queryParameter(qpObfuscateId).exists(_ == "false")
 }
 
