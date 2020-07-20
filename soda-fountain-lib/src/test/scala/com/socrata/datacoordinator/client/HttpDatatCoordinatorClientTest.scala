@@ -10,6 +10,7 @@ import com.socrata.http.client._
 import com.socrata.http.client.Response
 import com.socrata.http.client.StandardResponse
 import com.socrata.soda.clients.datacoordinator.{ColumnNotFound, UnknownDataCoordinatorError, HttpDataCoordinatorClient}
+import com.socrata.soda.server.ThreadLimiter
 
 import org.scalatest.{FunSuite, Matchers, Tag}
 
@@ -99,9 +100,9 @@ class HttpDatatCoordinatorClientTest extends FunSuite with Matchers {
 
 object HttpDatatCoordinatorClientTest {
 
-  class MyClient extends HttpDataCoordinatorClient(null){
-    override val maxThreads = Some(50)
-    override val consumerName = "TestClient"
+  class MyClient extends HttpDataCoordinatorClient {
+    override val httpClient = null
+    override val threadLimiter = new ThreadLimiter("TestClient", 50)
     def hostO(instance: String): Option[RequestBuilder] = None
     override def instances(): Set[String] = Set.empty
   }

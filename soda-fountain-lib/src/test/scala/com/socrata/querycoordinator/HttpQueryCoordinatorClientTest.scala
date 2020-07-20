@@ -10,6 +10,7 @@ import com.socrata.http.client.{Response, StandardResponse, _}
 import com.socrata.soda.clients.datacoordinator.{ColumnNotFound, HttpDataCoordinatorClient, UnknownDataCoordinatorError}
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient.QueryCoordinatorResult
 import com.socrata.soda.clients.querycoordinator.{QueryCoordinatorError, HttpQueryCoordinatorClient}
+import com.socrata.soda.server.ThreadLimiter
 import org.scalatest.{FunSuite, Matchers, Tag}
 
 class HttpQueryCoordinatorClientTest extends FunSuite with Matchers {
@@ -103,8 +104,7 @@ class HttpQueryCoordinatorClientTest extends FunSuite with Matchers {
   }
 
   class MyClient extends HttpQueryCoordinatorClient{
-    override val maxThreads = Some(50)
-    override val consumerName = "TestClient"
+    val threadLimiter = new ThreadLimiter("TestClient", 50)
     val httpClient: HttpClient = null
     def qchost: Option[RequestBuilder] = None
   }

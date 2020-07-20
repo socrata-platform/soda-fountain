@@ -20,8 +20,11 @@ import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 
 
-abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoordinatorClient with ThreadLimiter {
+abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient._
+
+  val httpClient: HttpClient
+  val threadLimiter: ThreadLimiter
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DataCoordinatorClient])
 
@@ -50,7 +53,7 @@ abstract class HttpDataCoordinatorClient(httpClient: HttpClient) extends DataCoo
     hostO(instance) match {
       case Some(host) =>
         // The vast majority of data-coordinator requests come through here
-        withThreadpool {
+        threadLimiter.withThreadpool {
           f(host)
         }
       case None => throw new Exception(s"could not find data coordinator for instance ${instance}")
