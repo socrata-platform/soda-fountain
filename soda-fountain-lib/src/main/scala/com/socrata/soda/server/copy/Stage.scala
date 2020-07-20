@@ -20,15 +20,19 @@ case object Latest extends Stage
 object Stage {
   val InitialCopyNumber = 1L
 
-  def apply(stage: String): Option[Stage] = {
-    if (Option(stage).isEmpty) return Some(Latest)
-    stage.toLowerCase match {
-      case "unpublished" => Some(Unpublished)
-      case "published"   => Some(Published)
-      case "snapshotted" => Some(Snapshotted)
-      case "discarded"   => Some(Discarded)
-      case "latest"      => Some(Latest)
-      case _             => None
+  def apply(stage: Option[String]): Option[Stage] = {
+    stage match {
+      case None =>
+        Some(Latest)
+      case Some(stage) =>
+        stage.toLowerCase match {
+          case "unpublished" => Some(Unpublished)
+          case "published"   => Some(Published)
+          case "snapshotted" => Some(Snapshotted)
+          case "discarded"   => Some(Discarded)
+          case "latest"      => Some(Latest)
+          case _             => None
+        }
     }
   }
 
@@ -37,7 +41,7 @@ object Stage {
 
     def decode(x: JValue): DecodeResult[Stage] = {
       x match {
-        case JString(s) => Stage(s) match {
+        case JString(s) => Stage(Some(s)) match {
           case Some(stage) => Right(stage)
           case None => Left(InvalidValue(x))
         }

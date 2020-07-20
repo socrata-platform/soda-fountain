@@ -76,7 +76,7 @@ object Decoder {
   implicit val StageDecoder = new Decoder[Stage] {
     def apply(v: JValue) = v match {
       case JString(s) =>
-        Stage(s).map(Right(_)).getOrElse(Left(("stage", v)))
+        Stage(Some(s)).map(Right(_)).getOrElse(Left(("stage", v)))
       case _ => Left(("stage", v))
     }
   }

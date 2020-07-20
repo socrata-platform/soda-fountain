@@ -63,7 +63,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
     //
     // For if-match it's the same, only we KEEP the ones that match the hash (and if that eliminates
     // all of them, then we "expectation failed" before ever passing upward to the data-coordinator)
-    val limit = Option(req.getParameter("limit")).map { limStr =>
+    val limit = req.queryParameter("limit").map { limStr =>
       try {
         limStr.toLong
       } catch {
@@ -72,7 +72,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
       }
     }
 
-    val offset = Option(req.getParameter("offset")).map { offStr =>
+    val offset = req.queryParameter("offset").map { offStr =>
       try {
         offStr.toLong
       } catch {
@@ -81,7 +81,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
       }
     }
 
-    val excludeSystemFields = Option(req.getParameter("exclude_system_fields")).map { paramStr =>
+    val excludeSystemFields = req.queryParameter("exclude_system_fields").map { paramStr =>
       try {
         paramStr.toBoolean
       } catch {
@@ -91,13 +91,13 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
     }.getOrElse(true)
 
     // Excluding system columns is done by explicitly select all non-system columns.
-    val reqColumns = Option(req.getParameter("columns")).orElse(if (excludeSystemFields) Some("*") else None)
+    val reqColumns = req.queryParameter("columns").orElse(if (excludeSystemFields) Some("*") else None)
 
     // get only these columns, we expect these to be fieldnames comma separated items.
     val columnsOnly = reqColumns.map {
       paramStr =>
         try {
-          exportDAO.lookupDataset(resourceName, Stage(copy)) match {
+          exportDAO.lookupDataset(resourceName, Stage(Some(copy))) match {
             case Some(ds) => {
               val pkColumnId = ds.primaryKey
               val columns = ds.columns
@@ -129,13 +129,13 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
 
     val ifModifiedSince = req.dateTimeHeader("If-Modified-Since")
 
-    val sorted = Option(req.getParameter("sorted")).map {
+    val sorted = req.queryParameter("sorted").map {
       case "true" => true
       case "false" => false
       case other => return SodaUtils.response(req, BadParameter("sorted", other))
     }.getOrElse(true)
 
-    val rowId = Option(req.getParameter("row_id"))
+    val rowId = req.queryParameter("row_id")
 
     val param = ExportParam(limit, offset, columnsOnly, ifModifiedSince, sorted, rowId)
     val fuseMap: Map[String, String] = req.header("X-Socrata-Fuse-Columns")
@@ -171,7 +171,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
     val suffix = headerHash(req)
     val precondition = req.precondition.map(etagObfuscator.deobfuscate)
     def prepareTag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(suffix))
-    val obfuscateId = Option(req.getParameter(qpObfuscateId)).map(java.lang.Boolean.parseBoolean(_)).getOrElse(true)
+    val obfuscateId = req.queryParameter(qpObfuscateId).map(java.lang.Boolean.parseBoolean(_)).getOrElse(true)
     precondition.filter(_.endsWith(suffix)) match {
       case Right(newPrecondition) =>
         val passOnPrecondition = newPrecondition.map(_.dropRight(suffix.length))
@@ -182,7 +182,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
                              passOnPrecondition,
                              copy,
                              param,
-                             requestId = RequestId.getFromRequest(req),
+                             requestId = req.requestId,
                              resourceScope = req.resourceScope) match {
               case ExportDAO.Success(fullSchema, newTag, fullRows) =>
                 val headers = OK ~> Header("Vary", ContentNegotiation.headers.mkString(",")) ~> newTag.foldLeft(NoOp) { (acc, tag) =>

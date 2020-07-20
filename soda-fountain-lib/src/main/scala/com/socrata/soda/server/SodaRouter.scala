@@ -100,7 +100,7 @@ class SodaRouter(versionResource: HttpService,
       case Some(s) =>
         s(req)
       case None =>
-        SodaUtils.response(req, GeneralNotFoundError(req.getRequestURI))
+        SodaUtils.response(req, GeneralNotFoundError(req.servletRequest.getRequestURI))
     }
   }
 }

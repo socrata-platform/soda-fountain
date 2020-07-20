@@ -54,14 +54,14 @@ case class Resource(rowDAO: RowDAO,
   val lensUidHeader = "X-Socrata-Lens-Uid"
   val accessTypeHeader = "X-Socrata-Access-Type"
 
-  def headerHash(req: HttpServletRequest) = {
+  def headerHash(req: HttpRequest) = {
     val hash = MessageDigest.getInstance(headerHashAlg)
-    hash.update(Option(req.getQueryString).toString.getBytes(StandardCharsets.UTF_8))
+    hash.update(Option(req.servletRequest.getQueryString).toString.getBytes(StandardCharsets.UTF_8))
     hash.update(255.toByte)
     for(field <- ContentNegotiation.headers) {
       hash.update(field.getBytes(StandardCharsets.UTF_8))
       hash.update(254.toByte)
-      for(elem <- req.getHeaders(field).asScala.asInstanceOf[Iterator[String]]) {
+      for(elem <- req.headers(field)) {
         hash.update(elem.getBytes(StandardCharsets.UTF_8))
         hash.update(254.toByte)
       }
@@ -128,7 +128,7 @@ case class Resource(rowDAO: RowDAO,
 
   type rowDaoFunc = (DatasetRecordLike, Iterator[RowUpdate]) => (RowDAO.UpsertResult => Unit) => Unit
 
-  def upsertishFlow(req: HttpServletRequest,
+  def upsertishFlow(req: HttpRequest,
                     response: HttpServletResponse,
                     resourceName: ResourceName,
                     rows: Iterator[JValue],
@@ -136,7 +136,7 @@ case class Resource(rowDAO: RowDAO,
                     reportFunc: (HttpServletResponse, RowDAO.StreamSuccess) => Unit) = {
     datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
-        val obfuscateId = Option(req.getParameter(qpObfuscateId)).map(java.lang.Boolean.parseBoolean(_)).getOrElse(true)
+        val obfuscateId = req.queryParameter(qpObfuscateId).map(java.lang.Boolean.parseBoolean(_)).getOrElse(true)
         val transformer = new RowDataTranslator(datasetRecord, false, obfuscateId)
         val transformedRows = transformer.transformClientRowsForUpsert(rows)
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(reportFunc))
@@ -199,18 +199,18 @@ case class Resource(rowDAO: RowDAO,
                   resourceName.value,
                   updatePrecondition(newPrecondition).map(_.dropRight(suffix.length)),
                   req.dateTimeHeader("If-Modified-Since"),
-                  Option(req.getParameter(qpQuery)).getOrElse(qpQueryDefault),
-                  Option(req.getParameter(qpRowCount)),
-                  Stage(req.getParameter(qpCopy)),
-                  Option(req.getParameter(qpSecondary)),
-                  Option(req.getParameter(qpNoRollup)).isDefined,
+                  req.queryParameter(qpQuery).getOrElse(qpQueryDefault),
+                  req.queryParameter(qpRowCount),
+                  Stage(req.queryParameter(qpCopy)),
+                  req.queryParameter(qpSecondary),
+                  req.queryParameter(qpNoRollup).isDefined,
                   obfuscateId,
-                  Option(req.getHeader("X-Socrata-Fuse-Columns")),
-                  Option(req.getParameter(qpQueryTimeoutSeconds)),
+                  req.header("X-Socrata-Fuse-Columns"),
+                  req.queryParameter(qpQueryTimeoutSeconds),
                   DebugInfo(
-                    Option(req.getHeader("X-Socrata-Debug")).isDefined,
-                    Option(req.getHeader("X-Socrata-Explain")).isDefined,
-                    Option(req.getHeader("X-Socrata-Analyze")).isDefined
+                    req.header("X-Socrata-Debug").isDefined,
+                    req.header("X-Socrata-Explain").isDefined,
+                    req.header("X-Socrata-Analyze").isDefined
                   ),
                   req.resourceScope) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
@@ -233,7 +233,7 @@ case class Resource(rowDAO: RowDAO,
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader ~>
                       exporter.export(charset, schema, rows, singleRow = false, obfuscateId = obfuscateId,
-                                      bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, domainId.toSeq ++ lensUid, accessType)
+                                      bom = req.queryParameter(qpBom).map(_.toBoolean).getOrElse(false))(messageProducer, domainId.toSeq ++ lensUid, accessType)
                   case RowDAO.InfoSuccess(_, body) =>
                     // Just drain the iterator into an array, this should never be large
                     OK ~> Json(JArray(body.toSeq))
@@ -251,7 +251,7 @@ case class Resource(rowDAO: RowDAO,
                     SodaUtils.response(req, SodaErrors.RequestTimedOut(timeout))
                   case RowDAO.QCError(status, qcErr) =>
                     metricByStatus(status)
-                    if (Option(req.getHeader("X-Socrata-Collocate")) == Some("true")) {
+                    if (req.header("X-Socrata-Collocate") == Some("true")) {
                       collocateDataset(qcErr)
                     }
                     SodaUtils.response(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
@@ -302,7 +302,7 @@ case class Resource(rowDAO: RowDAO,
     }
 
     override def post = { req =>
-      val requestId = RequestId.getFromRequest(req)
+      val requestId = req.requestId
       RowUpdateOption.fromReq(req) match {
         case Right(options) =>
           { response =>
@@ -314,7 +314,7 @@ case class Resource(rowDAO: RowDAO,
     }
 
     override def put = { req => response =>
-      val requestId = RequestId.getFromRequest(req)
+      val requestId = req.requestId
       upsertMany(req, response, rowDAO.replace(user(req), _, expectedDataVersion(req), _), allowSingleItem = false)
     }
 
@@ -381,16 +381,16 @@ case class Resource(rowDAO: RowDAO,
                     newPrecondition.map(_.dropRight(suffix.length)),
                     req.dateTimeHeader("If-Modified-Since"),
                     rowId,
-                    Stage(req.getParameter(qpCopy)),
-                    Option(req.getParameter(qpSecondary)),
-                    Option(req.getParameter(qpNoRollup)).isDefined,
+                    Stage(req.queryParameter(qpCopy)),
+                    req.queryParameter(qpSecondary),
+                    req.queryParameter(qpNoRollup).isDefined,
                     obfuscateId,
-                    Option(req.getHeader("X-Socrata-Fuse-Columns")),
-                    Option(req.getParameter(qpQueryTimeoutSeconds)),
+                    req.header("X-Socrata-Fuse-Columns"),
+                    req.queryParameter(qpQueryTimeoutSeconds),
                     DebugInfo(
-                      Option(req.getHeader("X-Socrata-Debug")).isDefined,
-                      Option(req.getHeader("X-Socrata-Explain")).isDefined,
-                      Option(req.getHeader("X-Socrata-Analyze")).isDefined
+                      req.header("X-Socrata-Debug").isDefined,
+                      req.header("X-Socrata-Explain").isDefined,
+                      req.header("X-Socrata-Analyze").isDefined
                     ),
                     resourceScope) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
@@ -408,7 +408,7 @@ case class Resource(rowDAO: RowDAO,
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader ~>
                         exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId = obfuscateId,
-                                        bom = Option(req.getParameter(qpBom)).map(_.toBoolean).getOrElse(false))(messageProducer, domainId.toSeq ++ lensUid, accessType)
+                                        bom = req.queryParameter(qpBom).map(_.toBoolean).getOrElse(false))(messageProducer, domainId.toSeq ++ lensUid, accessType)
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
                       SodaUtils.response(req, SodaErrors.RowNotFound(row))
@@ -449,7 +449,7 @@ case class Resource(rowDAO: RowDAO,
     }
 
     override def post = { req => response =>
-      val requestId = RequestId.getFromRequest(req)
+      val requestId = req.requestId
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
         case Right(rowJVal) =>
           upsertishFlow(req, response, resourceName, Iterator.single(rowJVal),
@@ -466,7 +466,7 @@ case class Resource(rowDAO: RowDAO,
   }
 
   private def reqObfuscateId(req: HttpRequest): Boolean =
-    !Option(req.getParameter(qpObfuscateId)).exists(_ == "false")
+    !req.queryParameter(qpObfuscateId).exists(_ == "false")
 }
 
 object Resource {

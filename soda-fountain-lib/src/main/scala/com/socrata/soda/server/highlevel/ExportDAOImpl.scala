@@ -44,7 +44,7 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
                 requestId: RequestId.RequestId,
                 resourceScope: ResourceScope): ExportDAO.Result =
     retryable(limit = 5) {
-      lookupDataset(dataset, Stage(copy)) match {
+      lookupDataset(dataset, Stage(Some(copy))) match {
         case Some(ds) =>
           val schemaHash = param.onlyColumns match {
             case Seq() => ds.schemaHash

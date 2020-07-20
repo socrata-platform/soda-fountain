@@ -9,8 +9,6 @@ import javax.servlet.http.HttpServletRequest
 
 package object server {
 
-  implicit def toServletHttpRequest(req: HttpRequest): AugmentedHttpServletRequest = req.servletRequest
-
   def httpRequest(req: HttpServletRequest): HttpRequest = {
 
     new HttpRequest {

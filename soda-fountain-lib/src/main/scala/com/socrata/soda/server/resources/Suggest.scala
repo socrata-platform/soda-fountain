@@ -64,7 +64,7 @@ case class Suggest(datasetDao: DatasetDAO, columnDao: ColumnDAO,
     def err(e: Throwable): HttpResponse = {
       val tag = UUID.randomUUID().toString
       log.error("Unexpected error talking to spandex, tag {}", tag: Any, e)
-      response(com.socrata.soda.server.toServletHttpRequest(req), SodaError.InternalException(e, tag))
+      response(req, SodaError.InternalException(e, tag))
     }
     internalContext(resourceName, columnName) match {
       case None => NotFound(resp)

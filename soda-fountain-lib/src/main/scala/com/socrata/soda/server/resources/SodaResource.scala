@@ -15,7 +15,7 @@ class SodaResource extends SimpleResource {
     val allowed = allowedMethods
     Header("Allow", allowed.mkString(",")) ~> SodaUtils.response(
       req,
-      HttpMethodNotAllowed(req.getMethod, allowed))
+      HttpMethodNotAllowed(req.method, allowed))
   }
 
   // SF doesn't handle auth, unlike what was originally envisioned, but is still wired up to pass user info down

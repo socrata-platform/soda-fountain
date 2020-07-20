@@ -6,7 +6,7 @@ import javax.servlet.http.HttpServletRequest
 
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.io.CompactJsonWriter
-import com.socrata.http.server.HttpResponse
+import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util._
@@ -30,6 +30,10 @@ object SodaUtils {
       jw.write(j)
       out.write('\n')
     }
+  }
+
+  def response(req: HttpRequest, resp: SodaResponse, logTags: LogTag*): HttpResponse = {
+    response(req.servletRequest, resp, logTags : _*)
   }
 
   def response(req: HttpServletRequest, response: SodaResponse, logTags: LogTag*): HttpResponse = {
@@ -60,16 +64,28 @@ object SodaUtils {
     header ~> potentialContent
   }
 
+  def internalError(req: HttpRequest, th: Throwable, logTags: LogTag*): HttpResponse = {
+    internalError(req.servletRequest, th, logTags : _*)
+  }
+
   def internalError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {
     val tag = java.util.UUID.randomUUID.toString
     responseLog.error("Internal exception: " + tag, th)
     response(request, InternalException(th, tag), logTags: _*)
   }
 
+  def invalidRequest(req: HttpRequest, th: SodaInvalidRequestException, logTags: LogTag*): HttpResponse = {
+    invalidRequest(req.servletRequest, th, logTags : _*)
+  }
+
   def invalidRequest(request: HttpServletRequest, th: SodaInvalidRequestException, logTags: LogTag*): HttpResponse = {
     val tag = java.util.UUID.randomUUID.toString
     responseLog.error("Invalid request: " + tag)
     response(request, SodaInvalidRequest(th, tag), logTags: _*)
+  }
+
+  def handleError(req: HttpRequest, th: Throwable, logTags: LogTag*): HttpResponse = {
+    handleError(req.servletRequest, th, logTags : _*)
   }
 
   def handleError(request: HttpServletRequest, th: Throwable, logTags: LogTag*): HttpResponse = {

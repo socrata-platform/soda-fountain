@@ -18,13 +18,15 @@ object InputUtils {
   def eventIterator(reader: Reader) = new FusedBlockJsonEventIterator(reader).map(InputNormalizer.normalizeEvent)
 
   private def streamJson(req: HttpRequest, approximateMaxDatumBound: Long): Either[SodaResponse, AcknowledgeableReader] = {
-    val nullableContentType = req.getContentType
-    if(nullableContentType == null)
-      return Left(NoContentType)
     val contentType =
-      try { new MimeType(nullableContentType) }
-      catch { case _: MimeTypeParseException =>
-        return Left(UnparsableContentType(nullableContentType))
+      req.contentType match {
+        case None =>
+          return Left(NoContentType)
+        case Some(ct) =>
+          try { new MimeType(ct) }
+          catch { case _: MimeTypeParseException =>
+            return Left(UnparsableContentType(ct))
+          }
       }
     if(!contentType.`match`("application/json")) {
       return Left(ContentTypeNotJson(contentType))

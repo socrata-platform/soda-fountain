@@ -31,7 +31,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     }
   }
 
-  def response(req: HttpServletRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte] = defaultSuffix, isGet: Boolean = false): HttpResponse = {
+  def response(req: HttpRequest, result: ColumnDAO.Result, etagSuffix: Array[Byte] = defaultSuffix, isGet: Boolean = false): HttpResponse = {
     // TODO: Negotiate content type
     def prepareETag(etag: EntityTag) = etagObfuscator.obfuscate(etag.append(etagSuffix))
     result match { // ugh why doesn't this use SodaUtils.Response?
@@ -100,14 +100,14 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     override def delete = { req => resp =>
       checkPrecondition(req) { precondition =>
         response(req, columnDAO.deleteColumn(user(req), resourceName, expectedDataVersion(req), columnName,
-                                             RequestId.getFromRequest(req)))(resp)
+                                             req.requestId))(resp)
       }
     }
 
     override def put = { req => resp =>
       val userFromReq = user(req)
       val edvFromReq = expectedDataVersion(req)
-      val requestId = RequestId.getFromRequest(req)
+      val requestId = req.requestId
       withColumnSpec(req, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
           response(req, columnDAO.replaceOrCreateColumn(userFromReq, resourceName, precondition, edvFromReq, columnName, spec, requestId))(resp)
@@ -118,7 +118,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     override def patch = { req => resp =>
       withColumnSpec(req, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          response(req, columnDAO.updateColumn(user(req), resourceName, expectedDataVersion(req), columnName, spec, RequestId.getFromRequest(req)))(resp)
+          response(req, columnDAO.updateColumn(user(req), resourceName, expectedDataVersion(req), columnName, spec, req.requestId))(resp)
         }
       }
     }
@@ -128,7 +128,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     override def post = { req => resp =>
       response(req,
                columnDAO.makePK(user(req), resourceName, expectedDataVersion(req), columnName,
-                                RequestId.getFromRequest(req)),
+                                req.requestId),
                Array[Byte](0))(resp)
     }
   }
