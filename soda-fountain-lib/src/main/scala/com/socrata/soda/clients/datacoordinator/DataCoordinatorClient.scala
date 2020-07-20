@@ -132,73 +132,63 @@ object DataCoordinatorClient {
 trait DataCoordinatorClient {
   import DataCoordinatorClient._
 
-  def propagateToSecondary(datasetId: DatasetId,
-                           secondaryId: SecondaryId,
-                           extraHeaders: Map[String, String] = Map.empty)
-  def getSchema(datasetId: DatasetId): Option[SchemaSpec]
+  def propagateToSecondary(datasetId: DatasetHandle,
+                           secondaryId: SecondaryId)
+  def getSchema(datasetId: DatasetHandle): Option[SchemaSpec]
 
   def create(resource: ResourceName,
              instance: String,
              user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
-             locale: String = "en_US",
-             extraHeaders: Map[String, String] = Map.empty) : (ReportMetaData, Iterable[ReportItem])
+             locale: String = "en_US") : (ReportMetaData, Iterable[ReportItem])
 
-  def update[T](datasetId: DatasetId,
+  def update[T](datasetId: DatasetHandle,
                 schemaHash: String,
                 expectedDataVersion: Option[Long],
                 user: String,
-                instructions: Iterator[DataCoordinatorInstruction],
-                extraHeaders: Map[String, String] = Map.empty)
+                instructions: Iterator[DataCoordinatorInstruction])
                (f: Result => T): T
 
-  def copy[T](datasetId: DatasetId,
+  def copy[T](datasetId: DatasetHandle,
               schemaHash: String,
               expectedDataVersion: Option[Long],
               copyData: Boolean,
               user: String,
-              instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty,
-              extraHeaders: Map[String, String] = Map.empty)
+              instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
              (f: Result => T): T
 
-  def publish[T](datasetId: DatasetId,
+  def publish[T](datasetId: DatasetHandle,
                  schemaHash: String,
                  expectedDataVersion: Option[Long],
                  keepSnapshot:Option[Boolean],
                  user: String,
-                 instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty,
-                 extraHeaders: Map[String, String] = Map.empty)
+                 instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
                 (f: Result => T): T
 
-  def dropCopy[T](datasetId: DatasetId,
+  def dropCopy[T](datasetId: DatasetHandle,
                   schemaHash: String,
                   expectedDataVersion: Option[Long],
                   user: String,
-                  instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty,
-                  extraHeaders: Map[String, String] = Map.empty)
+                  instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
                  (f: Result => T): T
 
-  def deleteAllCopies[T](datasetId: DatasetId,
+  def deleteAllCopies[T](datasetId: DatasetHandle,
                          schemaHash: String,
                          expectedDataVersion: Option[Long],
-                         user: String,
-                         extraHeaders: Map[String, String] = Map.empty)
+                         user: String)
                         (f: Result => T): T
 
-  def checkVersionInSecondaries(datasetId: DatasetId,
-                                extraHeaders: Map[String, String] = Map.empty): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]]
+  def checkVersionInSecondaries(datasetId: DatasetHandle): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]]
 
-  def checkVersionInSecondary(datasetId: DatasetId,
-                              secondaryId: SecondaryId,
-                              extraHeaders: Map[String, String] = Map.empty): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]]
+  def checkVersionInSecondary(datasetId: DatasetHandle, secondary: SecondaryId): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]]
 
   def datasetsWithSnapshots(): Set[DatasetId]
-  def listSnapshots(datasetId: DatasetId): Option[Seq[Long]]
-  def deleteSnapshot(datasetId: DatasetId, copy: Long): Either[FailResult, Unit]
+  def listSnapshots(datasetId: DatasetHandle): Option[Seq[Long]]
+  def deleteSnapshot(datasetId: DatasetHandle, copy: Long): Either[FailResult, Unit]
 
-  def exportSimple(datasetId: DatasetId, copy: String, resourceScope: ResourceScope): Result
+  def exportSimple(datasetId: DatasetHandle, copy: String, resourceScope: ResourceScope): Result
 
-  def export(datasetId: DatasetId,
+  def export(datasetId: DatasetHandle,
              schemaHash: String,
              columns: Seq[String],
              precondition: Precondition,
@@ -208,12 +198,11 @@ trait DataCoordinatorClient {
              copy: String,
              sorted: Boolean,
              rowId: Option[String],
-             extraHeaders: Map[String, String],
              resourceScope: ResourceScope): Result
 
-  def getRollups(datasetId: DatasetId, extraHeaders: Map[String, String] = Map.empty): Result
+  def getRollups(datasetId: DatasetHandle): Result
 
   def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result
-  def collocateStatus(datasetId: DatasetId, secondaryId: SecondaryId, jobId: String): Result
-  def deleteCollocate(datasetId: DatasetId, secondaryId: SecondaryId, jobId: String): Result
+  def collocateStatus(datasetId: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
+  def deleteCollocate(datasetId: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
 }

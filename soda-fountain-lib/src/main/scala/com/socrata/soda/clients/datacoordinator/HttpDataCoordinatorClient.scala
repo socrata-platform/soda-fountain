@@ -1,5 +1,6 @@
 package com.socrata.soda.clients.datacoordinator
 
+import java.net.URLEncoder
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, AutomaticJsonEncodeBuilder, JsonArrayIterator}
@@ -10,7 +11,7 @@ import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
-import com.socrata.soda.server.ThreadLimiter
+import com.socrata.soda.server.{ThreadLimiter, SodaUtils}
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import javax.servlet.http.HttpServletResponse
@@ -33,21 +34,45 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   val xhLastModified = "X-SODA2-Truth-Last-Modified"
   val xhCopyNumber = "X-SODA2-Truth-Copy-Number"
 
+  private implicit class AugmentedRequestBuilder(underlying: RequestBuilder) {
+    def addResourceHeader(handle: DatasetHandle) =
+      underlying.addHeader(resourceHeader(handle))
+  }
+
   def hostO(instance: String): Option[RequestBuilder]
   def instances(): Set[String]
-  def createUrl(host: RequestBuilder) = host.p("dataset")
-  def mutateUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
-  def schemaUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "schema")
-  def secondariesUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("secondaries-of-dataset", datasetId.underlying)
-  def secondaryUrl(host: RequestBuilder, secondaryId: SecondaryId, datasetId: DatasetId) = host.p("secondary-manifest", secondaryId.underlying, datasetId.underlying)
-  def exportUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying)
-  def snapshottedUrl(host: RequestBuilder) = host.p("snapshotted")
-  def snapshotsUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset", datasetId.underlying, "snapshots")
-  def snapshotUrl(host: RequestBuilder, datasetId: DatasetId, num: Long) = host.p("dataset", datasetId.underlying, "snapshots", num.toString)
-  def rollupUrl(host: RequestBuilder, datasetId: DatasetId) = host.p("dataset-rollup", datasetId.underlying)
-  def collocateUrl(host: RequestBuilder, secondaryId: SecondaryId) = host.p("secondary-manifest", secondaryId.underlying, "collocate")
-  def collocateStatusUrl(host: RequestBuilder, secondaryId: SecondaryId, jobId: String) = host.p("secondary-manifest", "move", secondaryId.underlying, "job", jobId)
-  def collocateJobUrl(host: RequestBuilder, jobId: String) = host.p("secondary-move-jobs", "job", jobId)
+  def createReq(host: RequestBuilder) = host.p("dataset")
+  def mutateReq(host: RequestBuilder, datasetId: DatasetHandle) =
+    host.p("dataset", datasetId.datasetId.underlying).
+      addResourceHeader(datasetId)
+  def schemaReq(host: RequestBuilder, datasetId: DatasetHandle) =
+    host.p("dataset", datasetId.datasetId.underlying, "schema").
+      addResourceHeader(datasetId)
+  def secondariesReq(host: RequestBuilder, datasetId: DatasetHandle) =
+    host.p("secondaries-of-dataset", datasetId.datasetId.underlying).
+      addResourceHeader(datasetId)
+  def secondaryReq(host: RequestBuilder, secondaryId: SecondaryId, datasetId: DatasetHandle) =
+    host.p("secondary-manifest", secondaryId.underlying, datasetId.datasetId.underlying).
+      addResourceHeader(datasetId)
+  def exportReq(host: RequestBuilder, datasetId: DatasetHandle) =
+    host.p("dataset", datasetId.datasetId.underlying).
+      addResourceHeader(datasetId)
+  def snapshottedReq(host: RequestBuilder) = host.p("snapshotted")
+  def snapshotsReq(host: RequestBuilder, datasetId: DatasetHandle) =
+    host.p("dataset", datasetId.datasetId.underlying, "snapshots").
+      addResourceHeader(datasetId)
+  def snapshotReq(host: RequestBuilder, datasetId: DatasetHandle, num: Long) =
+    host.p("dataset", datasetId.datasetId.underlying, "snapshots", num.toString).
+      addResourceHeader(datasetId)
+  def rollupReq(host: RequestBuilder, datasetId: DatasetHandle) =
+    host.p("dataset-rollup", datasetId.datasetId.underlying).
+      addResourceHeader(datasetId)
+  def collocateUrl(host: RequestBuilder, secondaryId: SecondaryId) =
+    host.p("secondary-manifest", secondaryId.underlying, "collocate")
+  def collocateStatusReq(host: RequestBuilder, secondaryId: SecondaryId, jobId: String) =
+    host.p("secondary-manifest", "move", secondaryId.underlying, "job", jobId)
+  def collocateJobReq(host: RequestBuilder, jobId: String) =
+    host.p("secondary-move-jobs", "job", jobId)
 
   def withHost[T](instance: String)(f: RequestBuilder => T): T = {
     hostO(instance) match {
@@ -63,11 +88,13 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   def withHost[T](datasetId: DatasetId)(f: RequestBuilder => T): T =
     withHost(datasetId.nativeDataCoordinator)(f)
 
-  def propagateToSecondary(datasetId: DatasetId,
-                           secondaryId: SecondaryId,
-                           extraHeaders: Map[String, String] = Map.empty): Unit =
-    withHost(datasetId) { host =>
-      val r = secondaryUrl(host, secondaryId, datasetId).addHeaders(extraHeaders).jsonBody(JNull)
+  def withHost[T](datasetHandle: DatasetHandle)(f: RequestBuilder => T): T =
+    withHost(datasetHandle.datasetId)(f)
+
+  def propagateToSecondary(datasetId: DatasetHandle,
+                           secondaryId: SecondaryId): Unit =
+    withHost(datasetId.datasetId) { host =>
+      val r = secondaryReq(host, secondaryId, datasetId).jsonBody(JNull)
       httpClient.execute(r).run { response =>
         response.resultCode match {
           case HttpServletResponse.SC_OK => // ok
@@ -84,9 +111,9 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   def getHeader(header: String, resp: Response) = resp.headers(header)(0)
 
-  def getSchema(datasetId: DatasetId): Option[SchemaSpec] = {
+  def getSchema(datasetId: DatasetHandle): Option[SchemaSpec] = {
     withHost(datasetId) { host =>
-      val request = schemaUrl(host, datasetId).get
+      val request = schemaReq(host, datasetId).get
       httpClient.execute(request).run { response =>
         response.resultCode match {
           case HttpServletResponse.SC_OK => {
@@ -336,11 +363,10 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
              instance: String,
              user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
-             locale: String = "en_US",
-             extraHeaders: Map[String, String] = Map.empty): (ReportMetaData, Iterable[ReportItem]) = {
+             locale: String = "en_US"): (ReportMetaData, Iterable[ReportItem]) = {
     withHost(instance) { host =>
       val createScript = new MutationScript(user, CreateDataset(resource, locale), instructions.getOrElse(Array().iterator))
-      sendScript(createUrl(host).addHeaders(extraHeaders), createScript) {
+      sendScript(createReq(host), createScript) {
         case Right(r) =>
           val events = r.jsonEvents().buffered
           expectStartOfArray(events)
@@ -357,75 +383,70 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
   }
 
-  def update[T](datasetId: DatasetId,
+  def update[T](datasetId: DatasetHandle,
                 schemaHash: String,
                 expectedDataVersion: Option[Long],
                 user: String,
-                instructions: Iterator[DataCoordinatorInstruction],
-                extraHeaders: Map[String, String] = Map.empty)
+                instructions: Iterator[DataCoordinatorInstruction])
                (f: Result => T): T = {
     // TODO: update should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val updateScript = new MutationScript(user, UpdateDataset(schemaHash, expectedDataVersion), instructions)
-      sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), updateScript)(f)
+      sendNonCreateScript(mutateReq(host, datasetId), updateScript)(f)
     }
   }
 
-  def copy[T](datasetId: DatasetId,
+  def copy[T](datasetId: DatasetHandle,
               schemaHash: String,
               expectedDataVersion: Option[Long],
               copyData: Boolean,
               user: String,
-              instructions: Iterator[DataCoordinatorInstruction],
-              extraHeaders: Map[String, String] = Map.empty)
+              instructions: Iterator[DataCoordinatorInstruction])
              (f: Result => T): T = {
     // TODO: copy should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash, expectedDataVersion), instructions)
-      sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), createScript)(f)
+      sendNonCreateScript(mutateReq(host, datasetId), createScript)(f)
     }
   }
 
-  def publish[T](datasetId: DatasetId,
+  def publish[T](datasetId: DatasetHandle,
                  schemaHash: String,
                  expectedDataVersion: Option[Long],
                  keepSnapshot:Option[Boolean],
                  user: String,
-                 instructions: Iterator[DataCoordinatorInstruction],
-                 extraHeaders: Map[String, String] = Map.empty)
+                 instructions: Iterator[DataCoordinatorInstruction])
                 (f: Result => T): T = {
     // TODO: publish should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val pubScript = new MutationScript(user, PublishDataset(keepSnapshot, schemaHash, expectedDataVersion), instructions)
-      sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), pubScript)(f)
+      sendNonCreateScript(mutateReq(host, datasetId), pubScript)(f)
     }
   }
 
-  def dropCopy[T](datasetId: DatasetId,
+  def dropCopy[T](datasetId: DatasetHandle,
                   schemaHash: String,
                   expectedDataVersion: Option[Long],
                   user: String,
-                  instructions: Iterator[DataCoordinatorInstruction],
-                  extraHeaders: Map[String, String] = Map.empty)
+                  instructions: Iterator[DataCoordinatorInstruction])
                  (f: Result => T): T = {
     // TODO: dropCopy should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val dropScript = new MutationScript(user, DropDataset(schemaHash, expectedDataVersion), instructions)
-      sendNonCreateScript(mutateUrl(host, datasetId).addHeaders(extraHeaders), dropScript)(f)
+      sendNonCreateScript(mutateReq(host, datasetId), dropScript)(f)
     }
   }
 
   // Pretty sure this is completely wrong
-  def deleteAllCopies[T](datasetId: DatasetId,
+  def deleteAllCopies[T](datasetId: DatasetHandle,
                          schemaHash: String,
                          expectedDataVersion: Option[Long],
-                         user: String,
-                         extraHeaders: Map[String, String] = Map.empty)
+                         user: String)
                         (f: Result => T): T = {
     // TODO: deleteAllCopies should decode the row op report into something higher-level than JValues
     withHost(datasetId) { host =>
       val deleteScript = new MutationScript(user, DropDataset(schemaHash, expectedDataVersion), Iterator.empty)
-      val req = mutateUrl(host, datasetId).method(HttpMethods.DELETE).addHeaders(extraHeaders)
+      val req = mutateReq(host, datasetId).method(HttpMethods.DELETE)
       sendNonCreateScript(req, deleteScript)(f)
     }
   }
@@ -433,12 +454,10 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   val UninterpretableDataCoordinatorResponseBody = "uninterpretable response body from data-coordinator"
   def UnexpectedDataCoordinatorResponseCode(code: Int) = s"unexpected response code from data-coordinator: $code"
 
-  def checkVersionInSecondaries(datasetId: DatasetId,
-                                extraHeaders: Map[String, String] = Map.empty): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]] = {
+  def checkVersionInSecondaries(datasetId: DatasetHandle): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]] = {
     withHost(datasetId) { host =>
-      val request = secondariesUrl(host, datasetId)
+      val request = secondariesReq(host, datasetId)
         .addHeader(("Content-type", "application/json"))
-        .addHeaders(extraHeaders)
         .timeoutMS(10000)
         .get
       try {
@@ -469,13 +488,15 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
   }
 
-  def checkVersionInSecondary(datasetId: DatasetId,
-                              secondaryId: SecondaryId,
-                              extraHeaders: Map[String, String] = Map.empty): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]] = {
+  def resourceHeader(datasetId: DatasetHandle) =
+    SodaUtils.ResourceHeader -> URLEncoder.encode(datasetId.resourceName.name, "UTF-8")
+
+  def checkVersionInSecondary(datasetId: DatasetHandle,
+                              secondaryId: SecondaryId): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]] = {
     withHost(datasetId) { host =>
-      val request = secondaryUrl(host, secondaryId, datasetId)
+      val request = secondaryReq(host, secondaryId, datasetId)
         .addHeader(("Content-type", "application/json"))
-        .addHeaders(extraHeaders)
+        .addHeader(resourceHeader(datasetId))
         .timeoutMS(10000)
         .get
       httpClient.execute(request).run { response =>
@@ -525,9 +546,9 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
         InternalServerErrorResult("unknown", tag, x.toString)
     }
 
-  def exportSimple(datasetId: DatasetId, copy: String, resourceScope: ResourceScope) = {
+  def exportSimple(datasetId: DatasetHandle, copy: String, resourceScope: ResourceScope) = {
     withHost(datasetId) { host =>
-      val request = exportUrl(host, datasetId)
+      val request = exportReq(host, datasetId)
         .addParameter("copy" -> copy)
         .get
       using(new ResourceScope()) { tmpScope =>
@@ -546,7 +567,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
   }
 
-  def export(datasetId: DatasetId,
+  def export(datasetId: DatasetHandle,
              schemaHash: String,
              columns: Seq[String],
              precondition: Precondition,
@@ -556,7 +577,6 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
              copy: String,
              sorted: Boolean,
              rowId: Option[String],
-             extraHeaders: Map[String, String],
              resourceScope: ResourceScope): Result = {
     withHost(datasetId) { host =>
       val limParam = limit.map { limLong => "limit" -> limLong.toString }
@@ -564,13 +584,12 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
       val columnsParam = if (columns.isEmpty) None else Some("c" -> columns.mkString(","))
       val rowIdParam = if (rowId.isEmpty) None else rowId.map("row_id" -> _)
       val sortedParam = "sorted" -> sorted.toString
-      val request = exportUrl(host, datasetId)
+      val request = exportReq(host, datasetId)
                     .q("schemaHash" -> schemaHash)
                     .addParameter("copy"->copy)
                     .addParameters(limParam ++ offParam ++ columnsParam ++ rowIdParam)
                     .addParameter(sortedParam)
                     .addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate))
-                    .addHeaders(extraHeaders)
                     .get
       using(new ResourceScope()) { tmpScope =>
         val r = httpClient.execute(request, tmpScope)
@@ -590,7 +609,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   private def datasetsWithSnapshotsOn(instance: String): Set[DatasetId] = {
     hostO(instance).fold(Set.empty[DatasetId]) { host => // there's nothing that can go wrong here that isn't an internal error
-      val request = snapshottedUrl(host).get
+      val request = snapshottedReq(host).get
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None =>
@@ -611,9 +630,9 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   override def datasetsWithSnapshots(): Set[DatasetId] =
     instances().par.flatMap(datasetsWithSnapshotsOn).seq
 
-  override def deleteSnapshot(datasetId: DatasetId, copy: Long): Either[FailResult, Unit] =
+  override def deleteSnapshot(datasetId: DatasetHandle, copy: Long): Either[FailResult, Unit] =
     withHost(datasetId) { host =>
-      val request = snapshotUrl(host, datasetId, copy).delete
+      val request = snapshotReq(host, datasetId, copy).delete
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None =>
@@ -629,9 +648,9 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
       }
     }
 
-  override def listSnapshots(datasetId: DatasetId): Option[Seq[Long]] =
+  override def listSnapshots(datasetId: DatasetHandle): Option[Seq[Long]] =
     withHost(datasetId) { host =>
-      val request = snapshotsUrl(host, datasetId).get
+      val request = snapshotsReq(host, datasetId).get
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None =>
@@ -652,9 +671,9 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
       }
     }
 
-  override def getRollups(datasetId: DatasetId, extraHeaders: Map[String, String] = Map.empty): Result = {
+  override def getRollups(datasetId: DatasetHandle): Result = {
     withHost(datasetId) { host =>
-      val request = rollupUrl(host, datasetId).headers(extraHeaders).get
+      val request = rollupReq(host, datasetId).get
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None => r.value[Seq[RollupInfo]]() match {
@@ -715,9 +734,9 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
   }
 
-  override def collocateStatus(datasetId: DatasetId, secondaryId: SecondaryId, jobId: String): Result = {
+  override def collocateStatus(datasetId: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result = {
     withHost(datasetId) { host =>
-      val request = collocateStatusUrl(host, secondaryId, jobId).get
+      val request = collocateStatusReq(host, secondaryId, jobId).get
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None => collocateResult(r)
@@ -729,9 +748,9 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
   }
 
-  override def deleteCollocate(datasetId: DatasetId, secondaryId: SecondaryId, jobId: String): Result = {
+  override def deleteCollocate(datasetId: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result = {
     withHost(datasetId) { host =>
-      val request = collocateJobUrl(host, jobId).delete
+      val request = collocateJobReq(host, jobId).delete
       httpClient.execute(request).run { r =>
         errorFrom(r) match {
           case None => CollocateResult(Some(jobId), "deleted", "deleted", Cost(0, 0), Seq.empty)

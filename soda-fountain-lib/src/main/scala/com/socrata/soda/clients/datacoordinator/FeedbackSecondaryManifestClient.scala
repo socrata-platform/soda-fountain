@@ -1,18 +1,17 @@
 package com.socrata.soda.clients.datacoordinator
 
 import com.socrata.computation_strategies.StrategyType
-import com.socrata.soda.server.id.{DatasetId, SecondaryId}
+import com.socrata.soda.server.id.{DatasetHandle, SecondaryId}
 
 class FeedbackSecondaryManifestClient(dc: DataCoordinatorClient,
                                       feedbackSecondaryIdMap: Map[StrategyType, SecondaryId]) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[FeedbackSecondaryManifestClient])
 
-  def maybeReplicate(datasetId: DatasetId,
-                     strategyTypes: Set[StrategyType],
-                     extraHeaders: Map[String, String]): Unit = {
+  def maybeReplicate(datasetId: DatasetHandle,
+                     strategyTypes: Set[StrategyType]): Unit = {
     strategyTypes.flatMap { typ => feedbackSecondaryIdMap.get(typ) }.foreach { secondaryId =>
       try {
-        dc.propagateToSecondary(datasetId, secondaryId, extraHeaders)
+        dc.propagateToSecondary(datasetId, secondaryId)
         log.info(s"Added dataset ${datasetId.toString} to secondary manifest for feedback secondary {}",
           secondaryId.toString)
       } catch {

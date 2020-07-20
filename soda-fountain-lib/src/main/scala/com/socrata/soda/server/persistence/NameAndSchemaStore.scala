@@ -4,7 +4,7 @@ import com.rojoma.json.v3.ast.JObject
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
+import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName, DatasetHandle}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.soda.server.wiremodels.ColumnSpec
@@ -77,6 +77,8 @@ trait DatasetRecordLike {
   lazy val columnsById = columns.groupBy(_.id).mapValues(_.head)
   lazy val minimalSchemaById = columnsById.mapValues(_.typ)
   lazy val schemaSpec = SchemaSpec(schemaHash, locale, primaryKey, minimalSchemaById)
+
+  def handle = DatasetHandle(systemId, resourceName)
 }
 
 trait ColumnRecordLike {

@@ -52,14 +52,13 @@ class ExportDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extend
               SchemaHash.computeHash(ds.locale, ds.primaryKey, param.onlyColumns.map { col => (col.id, col.typ) })
           }
           val dcColumnIds = param.onlyColumns.map(_.id.underlying)
-          dc.export(ds.systemId, schemaHash, dcColumnIds, precondition,
+          dc.export(ds.handle, schemaHash, dcColumnIds, precondition,
                     param.ifModifiedSince,
                     param.limit,
                     param.offset,
                     copy,
                     sorted = param.sorted,
                     param.rowId,
-                    traceHeaders(requestId, dataset),
                     resourceScope) match {
             case DataCoordinatorClient.ExportResult(jvalues, _, etag) =>
               val decodedSchema = CJson.decode(jvalues, JsonColumnRep.forDataCoordinatorType)

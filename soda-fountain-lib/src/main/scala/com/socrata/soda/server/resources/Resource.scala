@@ -130,7 +130,6 @@ case class Resource(rowDAO: RowDAO,
 
   def upsertishFlow(req: HttpServletRequest,
                     response: HttpServletResponse,
-                    requestId: RequestId.RequestId,
                     resourceName: ResourceName,
                     rows: Iterator[JValue],
                     f: rowDaoFunc,
@@ -138,7 +137,7 @@ case class Resource(rowDAO: RowDAO,
     datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
         val obfuscateId = Option(req.getParameter(qpObfuscateId)).map(java.lang.Boolean.parseBoolean(_)).getOrElse(true)
-        val transformer = new RowDataTranslator(requestId, datasetRecord, false, obfuscateId)
+        val transformer = new RowDataTranslator(datasetRecord, false, obfuscateId)
         val transformedRows = transformer.transformClientRowsForUpsert(rows)
         f(datasetRecord, transformedRows)(UpsertUtils.handleUpsertErrors(req, response)(reportFunc))
       case DatasetDAO.DatasetNotFound(dataset) =>
@@ -206,7 +205,6 @@ case class Resource(rowDAO: RowDAO,
                   Option(req.getParameter(qpSecondary)),
                   Option(req.getParameter(qpNoRollup)).isDefined,
                   obfuscateId,
-                  RequestId.getFromRequest(req),
                   Option(req.getHeader("X-Socrata-Fuse-Columns")),
                   Option(req.getParameter(qpQueryTimeoutSeconds)),
                   DebugInfo(
@@ -308,7 +306,7 @@ case class Resource(rowDAO: RowDAO,
       RowUpdateOption.fromReq(req) match {
         case Right(options) =>
           { response =>
-            upsertMany(req, response, requestId, rowDAO.upsert(user(req), _, expectedDataVersion(req), _, requestId, options), allowSingleItem = true)
+            upsertMany(req, response, rowDAO.upsert(user(req), _, expectedDataVersion(req), _, options), allowSingleItem = true)
           }
         case Left((badParam, badValue)) =>
           SodaUtils.response(req, SodaErrors.BadParameter(badParam, badValue))
@@ -317,12 +315,11 @@ case class Resource(rowDAO: RowDAO,
 
     override def put = { req => response =>
       val requestId = RequestId.getFromRequest(req)
-      upsertMany(req, response, requestId, rowDAO.replace(user(req), _, expectedDataVersion(req), _, requestId), allowSingleItem = false)
+      upsertMany(req, response, rowDAO.replace(user(req), _, expectedDataVersion(req), _), allowSingleItem = false)
     }
 
     private def upsertMany(req: HttpRequest,
                            response: HttpServletResponse,
-                           requestId: RequestId.RequestId,
                            f: rowDaoFunc,
                            allowSingleItem: Boolean) {
       InputUtils.jsonArrayValuesStream(req, maxRowSize, allowSingleItem) match {
@@ -331,7 +328,7 @@ case class Resource(rowDAO: RowDAO,
           val processUpsertReport =
             if (multiRows) { UpsertUtils.writeUpsertResponse _ }
             else { UpsertUtils.writeSingleRowUpsertResponse(resourceName.value, export, req) _ }
-          upsertishFlow(req, response, requestId, resourceName.value, boundedIt, f, processUpsertReport)
+          upsertishFlow(req, response, resourceName.value, boundedIt, f, processUpsertReport)
         case Left(err) =>
           SodaUtils.response(req, err, resourceName.value)(response)
       }
@@ -345,10 +342,10 @@ case class Resource(rowDAO: RowDAO,
               val resourceName = new ResourceName(resource)
               datasetDAO.getDataset(resourceName, None) match {
                 case DatasetDAO.Found(datasetRecord) =>
-                  val dsId = datasetRecord.systemId
+                  val dsHandle = datasetRecord.handle
                   val secId = SecondaryId(sec.split("\\.")(1))
-                  log.info("collocate {} dataset {} in {}", resourceName, dsId.underlying, secId)
-                  dc.propagateToSecondary(dsId, secId, Map.empty)
+                  log.info("collocate {} dataset {} in {}", resourceName, dsHandle, secId)
+                  dc.propagateToSecondary(dsHandle, secId)
                 case _ =>
               }
             case _ =>
@@ -388,7 +385,6 @@ case class Resource(rowDAO: RowDAO,
                     Option(req.getParameter(qpSecondary)),
                     Option(req.getParameter(qpNoRollup)).isDefined,
                     obfuscateId,
-                    RequestId.getFromRequest(req),
                     Option(req.getHeader("X-Socrata-Fuse-Columns")),
                     Option(req.getParameter(qpQueryTimeoutSeconds)),
                     DebugInfo(
@@ -456,15 +452,15 @@ case class Resource(rowDAO: RowDAO,
       val requestId = RequestId.getFromRequest(req)
       InputUtils.jsonSingleObjectStream(req, maxRowSize) match {
         case Right(rowJVal) =>
-          upsertishFlow(req, response, requestId, resourceName, Iterator.single(rowJVal),
-                        rowDAO.upsert(user(req), _, expectedDataVersion(req), _, requestId), UpsertUtils.writeUpsertResponse)
+          upsertishFlow(req, response, resourceName, Iterator.single(rowJVal),
+                        rowDAO.upsert(user(req), _, expectedDataVersion(req), _), UpsertUtils.writeUpsertResponse)
         case Left(err) =>
           SodaUtils.response(req, err, resourceName)(response)
       }
     }
 
     override def delete = { req => response =>
-      rowDAO.deleteRow(user(req), resourceName, expectedDataVersion(req), rowId, RequestId.getFromRequest(req))(
+      rowDAO.deleteRow(user(req), resourceName, expectedDataVersion(req), rowId)(
                        UpsertUtils.handleUpsertErrors(req, response)(UpsertUtils.writeUpsertResponse))
     }
   }
