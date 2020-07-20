@@ -87,17 +87,17 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val rng = new scala.util.Random(new SecureRandom())
   val columnSpecUtils = new ColumnSpecUtils(rng)
 
-  private val cleanup = new mutable.Stack[Closeable]
+  private var cleanup = List.empty[Closeable]
 
   private def i[T](thing: => T): T = {
     var done = false
     try {
       val result = thing
       result match {
-        case closeable: Closeable => cleanup.push(closeable)
-        case dataSource: DataSource => cleanup.push(new Closeable {
+        case closeable: Closeable => cleanup ::= closeable
+        case dataSource: DataSource => cleanup ::= new Closeable {
           def close() { DataSources.destroy(dataSource) } // this is a no-op if the data source is not a c3p0 data source
-        })
+        }
         case _ => // ok
       }
       done = true
@@ -260,7 +260,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   def close() { // simulate a cascade of "finally" blocks
     var pendingException: Throwable = null
     while(cleanup.nonEmpty) {
-      try { cleanup.pop().close() }
+      val closeable = cleanup.head;
+      cleanup = cleanup.tail
+      try { closeable.close() }
       catch { case t: Throwable =>
         if(pendingException != null) pendingException.addSuppressed(t)
         else pendingException = t
