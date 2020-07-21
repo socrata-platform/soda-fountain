@@ -16,7 +16,7 @@ import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
 import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
 
-case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: RowDAO, etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
+case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetColumn])
   val defaultSuffix = Array[Byte]('+')
 
@@ -93,14 +93,14 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
   case class service(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def get = { req => resp =>
       checkPrecondition(req, isGet = true) { precondition =>
-        response(req, columnDAO.getColumn(resourceName, columnName))(resp)
+        response(req, req.columnDAO.getColumn(resourceName, columnName))(resp)
       }
     }
 
     override def delete = { req => resp =>
       checkPrecondition(req) { precondition =>
-        response(req, columnDAO.deleteColumn(user(req), resourceName, expectedDataVersion(req), columnName,
-                                             req.requestId))(resp)
+        response(req, req.columnDAO.deleteColumn(user(req), resourceName, expectedDataVersion(req), columnName,
+                                                 req.requestId))(resp)
       }
     }
 
@@ -110,7 +110,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
       val requestId = req.requestId
       withColumnSpec(req.httpRequest, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          response(req, columnDAO.replaceOrCreateColumn(userFromReq, resourceName, precondition, edvFromReq, columnName, spec, requestId))(resp)
+          response(req, req.columnDAO.replaceOrCreateColumn(userFromReq, resourceName, precondition, edvFromReq, columnName, spec, requestId))(resp)
         }
       }
     }
@@ -118,7 +118,7 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
     override def patch = { req => resp =>
       withColumnSpec(req.httpRequest, resp, resourceName, columnName) { spec =>
         checkPrecondition(req) { precondition =>
-          response(req, columnDAO.updateColumn(user(req), resourceName, expectedDataVersion(req), columnName, spec, req.requestId))(resp)
+          response(req, req.columnDAO.updateColumn(user(req), resourceName, expectedDataVersion(req), columnName, spec, req.requestId))(resp)
         }
       }
     }
@@ -127,8 +127,8 @@ case class DatasetColumn(columnDAO: ColumnDAO, exportDAO: ExportDAO, rowDAO: Row
   case class pkservice(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def post = { req => resp =>
       response(req,
-               columnDAO.makePK(user(req), resourceName, expectedDataVersion(req), columnName,
-                                req.requestId),
+               req.columnDAO.makePK(user(req), resourceName, expectedDataVersion(req), columnName,
+                                    req.requestId),
                Array[Byte](0))(resp)
     }
   }

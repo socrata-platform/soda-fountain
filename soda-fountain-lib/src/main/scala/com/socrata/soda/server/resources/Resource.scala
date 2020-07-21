@@ -32,14 +32,11 @@ import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 /**
  * Resource: services for upserting, deleting, and querying dataset rows.
  */
-case class Resource(rowDAO: RowDAO,
-                    datasetDAO: DatasetDAO,
-                    etagObfuscator: ETagObfuscator,
+case class Resource(etagObfuscator: ETagObfuscator,
                     maxRowSize: Long,
                     metricProvider: MetricProvider,
                     export: Export,
-                    messageProducer: MessageProducer,
-                    dc: DataCoordinatorClient) extends Metrics {
+                    messageProducer: MessageProducer) extends Metrics {
   import Resource._
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -134,7 +131,7 @@ case class Resource(rowDAO: RowDAO,
                     rows: Iterator[JValue],
                     f: rowDaoFunc,
                     reportFunc: (HttpServletResponse, RowDAO.StreamSuccess) => Unit) = {
-    datasetDAO.getDataset(resourceName, None) match {
+    req.datasetDAO.getDataset(resourceName, None) match {
       case DatasetDAO.Found(datasetRecord) =>
         val obfuscateId = req.queryParameter(qpObfuscateId).map(java.lang.Boolean.parseBoolean(_)).getOrElse(true)
         val transformer = new RowDataTranslator(datasetRecord, false, obfuscateId)
@@ -195,7 +192,7 @@ case class Resource(rowDAO: RowDAO,
               case Some((mimeType, charset, language)) =>
                 val exporter = Exporter.exportForMimeType(mimeType)
                 val obfuscateId = reqObfuscateId(req)
-                rowDAO.query(
+                req.rowDAO.query(
                   resourceName.value,
                   updatePrecondition(newPrecondition).map(_.dropRight(suffix.length)),
                   req.dateTimeHeader("If-Modified-Since"),
@@ -252,7 +249,7 @@ case class Resource(rowDAO: RowDAO,
                   case RowDAO.QCError(status, qcErr) =>
                     metricByStatus(status)
                     if (req.header("X-Socrata-Collocate") == Some("true")) {
-                      collocateDataset(qcErr)
+                      collocateDataset(req.datasetDAO, req.dataCoordinator, qcErr)
                     }
                     SodaUtils.response(req, SodaErrors.ErrorReportedByQueryCoordinator(status, qcErr))
                   case RowDAO.InvalidRequest(client, status, body) =>
@@ -306,7 +303,7 @@ case class Resource(rowDAO: RowDAO,
       RowUpdateOption.fromReq(req.httpRequest) match {
         case Right(options) =>
           { response =>
-            upsertMany(req, response, rowDAO.upsert(user(req), _, expectedDataVersion(req), _, options), allowSingleItem = true)
+            upsertMany(req, response, req.rowDAO.upsert(user(req), _, expectedDataVersion(req), _, options), allowSingleItem = true)
           }
         case Left((badParam, badValue)) =>
           SodaUtils.response(req, SodaErrors.BadParameter(badParam, badValue))
@@ -315,7 +312,7 @@ case class Resource(rowDAO: RowDAO,
 
     override def put = { req => response =>
       val requestId = req.requestId
-      upsertMany(req, response, rowDAO.replace(user(req), _, expectedDataVersion(req), _), allowSingleItem = false)
+      upsertMany(req, response, req.rowDAO.replace(user(req), _, expectedDataVersion(req), _), allowSingleItem = false)
     }
 
     private def upsertMany(req: SodaRequest,
@@ -334,7 +331,7 @@ case class Resource(rowDAO: RowDAO,
       }
     }
 
-    private def collocateDataset(qcErr: QueryCoordinatorError): Unit = {
+    private def collocateDataset(datasetDAO: DatasetDAO, dc: DataCoordinatorClient, qcErr: QueryCoordinatorError): Unit = {
       qcErr match {
         case QueryCoordinatorError("query.dataset.is-not-collocated", description, data) =>
           (data("resource"), data("secondaries")) match {
@@ -376,7 +373,7 @@ case class Resource(rowDAO: RowDAO,
                 val exporter = Exporter.exportForMimeType(mimeType)
                 val obfuscateId = reqObfuscateId(req)
                 using(new ResourceScope) { resourceScope =>
-                  rowDAO.getRow(
+                  req.rowDAO.getRow(
                     resourceName,
                     newPrecondition.map(_.dropRight(suffix.length)),
                     req.dateTimeHeader("If-Modified-Since"),
@@ -453,15 +450,15 @@ case class Resource(rowDAO: RowDAO,
       InputUtils.jsonSingleObjectStream(req.httpRequest, maxRowSize) match {
         case Right(rowJVal) =>
           upsertishFlow(req, response, resourceName, Iterator.single(rowJVal),
-                        rowDAO.upsert(user(req), _, expectedDataVersion(req), _), UpsertUtils.writeUpsertResponse)
+                        req.rowDAO.upsert(user(req), _, expectedDataVersion(req), _), UpsertUtils.writeUpsertResponse)
         case Left(err) =>
           SodaUtils.response(req, err, resourceName)(response)
       }
     }
 
     override def delete = { req => response =>
-      rowDAO.deleteRow(user(req), resourceName, expectedDataVersion(req), rowId)(
-                       UpsertUtils.handleUpsertErrors(req.httpRequest, response)(UpsertUtils.writeUpsertResponse))
+      req.rowDAO.deleteRow(user(req), resourceName, expectedDataVersion(req), rowId)(
+                           UpsertUtils.handleUpsertErrors(req.httpRequest, response)(UpsertUtils.writeUpsertResponse))
     }
   }
 

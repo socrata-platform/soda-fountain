@@ -125,16 +125,18 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
-    val export = new Export(mock[ExportDAO], ETagObfuscator.noop, NoOpMessageProducer)
-    val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO],
-                                    NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer, new HttpDatatCoordinatorClientTest.MyClient())
+    val export = new Export(ETagObfuscator.noop, NoOpMessageProducer)
+    val mockResource = new Resource(NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer)
     val mockServReq = new MockHttpServletRequest()
     mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}/some-row-id.json")
     headers.foreach(header => mockServReq.addHeader(header._1, header._2))
     withHttpRequest(mockServReq) { httpReq =>
       mockResource.rowService(dataset.resource, new RowSpecifier("some-row-id")).
-        get(new SodaRequest {
-              val httpRequest = httpReq
+        get(new SodaRequestForTest(httpReq) {
+              override val dataCoordinator = new HttpDatatCoordinatorClientTest.MyClient()
+              override val datasetDAO = mock[DatasetDAO]
+              override val rowDAO = new QueryOnlyRowDAO(TestDatasets.datasets)
+              override val exportDAO = mock[ExportDAO]
             })(new MockHttpServletResponse())
     }
   }
@@ -192,17 +194,19 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
-    val export = new Export(mock[ExportDAO], ETagObfuscator.noop, NoOpMessageProducer)
+    val export = new Export(ETagObfuscator.noop, NoOpMessageProducer)
     val mockServReq = new MockHttpServletRequest()
     mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}.json")
     headers.foreach(header => mockServReq.addHeader(header._1, header._2))
     withHttpRequest(mockServReq) { httpReq =>
-      val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO],
-                                      NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer, new HttpDatatCoordinatorClientTest.MyClient())
+      val mockResource = new Resource(NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer)
 
       mockResource.service(OptionallyTypedPathComponent(dataset.resource, None)).
-        get(new SodaRequest {
-              val httpRequest = httpReq
+        get(new SodaRequestForTest(httpReq) {
+              override val dataCoordinator = new HttpDatatCoordinatorClientTest.MyClient()
+              override val exportDAO = mock[ExportDAO]
+              override val rowDAO = new QueryOnlyRowDAO(TestDatasets.datasets)
+              override val datasetDAO = mock[DatasetDAO]
             })(new MockHttpServletResponse())
     }
   }

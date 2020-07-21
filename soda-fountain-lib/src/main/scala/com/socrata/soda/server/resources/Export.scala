@@ -22,7 +22,7 @@ import com.socrata.soda.message.MessageProducer
 import com.socrata.soda.server.resources.Resource.qpObfuscateId
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
-case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageProducer: MessageProducer) {
+case class Export(etagObfuscator: ETagObfuscator, messageProducer: MessageProducer) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Export])
 
   implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
@@ -94,7 +94,7 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
     val columnsOnly = reqColumns.map {
       paramStr =>
         try {
-          exportDAO.lookupDataset(resourceName, Stage(Some(copy))) match {
+          req.exportDAO.lookupDataset(resourceName, Stage(Some(copy))) match {
             case Some(ds) => {
               val pkColumnId = ds.primaryKey
               val columns = ds.columns
@@ -175,12 +175,12 @@ case class Export(exportDAO: ExportDAO, etagObfuscator: ETagObfuscator, messageP
         req.negotiateContent match {
           case Some((mimeType, charset, language)) =>
             val exporter = Exporter.exportForMimeType(mimeType)
-            exportDAO.export(resourceName,
-                             passOnPrecondition,
-                             copy,
-                             param,
-                             requestId = req.requestId,
-                             resourceScope = req.resourceScope) match {
+            req.exportDAO.export(resourceName,
+                                 passOnPrecondition,
+                                 copy,
+                                 param,
+                                 requestId = req.requestId,
+                                 resourceScope = req.resourceScope) match {
               case ExportDAO.Success(fullSchema, newTag, fullRows) =>
                 val headers = OK ~> Header("Vary", ContentNegotiation.headers.mkString(",")) ~> newTag.foldLeft(NoOp) { (acc, tag) =>
                   acc ~> ETag(prepareTag(tag))

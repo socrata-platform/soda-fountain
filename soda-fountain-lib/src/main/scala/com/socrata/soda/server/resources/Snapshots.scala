@@ -9,16 +9,16 @@ import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
 import org.apache.commons.io.IOUtils
 
-case class Snapshots(snapshotDAO: SnapshotDAO) {
+object Snapshots {
   val findDatasetsService = new SodaResource {
     override val get = { (req: SodaRequest) =>
-      OK ~> Json(snapshotDAO.datasetsWithSnapshots())
+      OK ~> Json(req.snapshotDAO.datasetsWithSnapshots())
     }
   }
 
   def listSnapshotsService(resourceName: ResourceName) = new SodaResource {
     override def get = { (req: SodaRequest) =>
-      snapshotDAO.snapshotsForDataset(resourceName) match {
+      req.snapshotDAO.snapshotsForDataset(resourceName) match {
         case Some(snapshots) =>
           OK ~> Json(snapshots)
         case None =>
@@ -29,7 +29,7 @@ case class Snapshots(snapshotDAO: SnapshotDAO) {
 
   def snapshotsService(resourceName: ResourceName, number: Long) = new SodaResource {
     override def get = { (req: SodaRequest) =>
-      snapshotDAO.exportSnapshot(resourceName, number, req.resourceScope) match {
+      req.snapshotDAO.exportSnapshot(resourceName, number, req.resourceScope) match {
         case SnapshotDAO.DatasetNotFound =>
           SodaUtils.response(req, DatasetNotFound(resourceName))
         case SnapshotDAO.SnapshotNotFound =>
@@ -40,7 +40,7 @@ case class Snapshots(snapshotDAO: SnapshotDAO) {
     }
 
     override def delete = { (req: SodaRequest) =>
-      snapshotDAO.deleteSnapshot(resourceName, number) match {
+      req.snapshotDAO.deleteSnapshot(resourceName, number) match {
         case SnapshotDAO.DatasetNotFound =>
           SodaUtils.response(req, DatasetNotFound(resourceName))
         case SnapshotDAO.SnapshotNotFound =>

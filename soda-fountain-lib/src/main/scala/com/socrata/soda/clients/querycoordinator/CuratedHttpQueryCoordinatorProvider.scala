@@ -9,15 +9,14 @@ import scala.concurrent.duration.FiniteDuration
 import com.socrata.http.common.AuxiliaryData
 import java.io.Closeable
 
-class CuratedHttpQueryCoordinatorClientProvider(httpClient: HttpClient,
-                                                discovery: ServiceDiscovery[AuxiliaryData],
+class CuratedHttpQueryCoordinatorClientProvider(discovery: ServiceDiscovery[AuxiliaryData],
                                                 serviceName: String,
                                                 connectTimeout: FiniteDuration,
                                                 receiveTimeout: FiniteDuration,
                                                 maxJettyThreadPoolSize: Int,
                                                 maxThreadRatio: Double
                                                )
-  extends CuratorServiceBase(discovery, serviceName) with (RequestId => HttpQueryCoordinatorClient)
+  extends CuratorServiceBase(discovery, serviceName) with (HttpClient => HttpQueryCoordinatorClient)
 {
   // Make sure the QC connection doesn't use all available threads
   val threadLimiter = new ThreadLimiter("QueryCoordinatorClient",
@@ -34,10 +33,9 @@ class CuratedHttpQueryCoordinatorClientProvider(httpClient: HttpClient,
   }
 
 
-  def apply(requestId: RequestId): HttpQueryCoordinatorClient = {
+  def apply(http: HttpClient): HttpQueryCoordinatorClient = {
     new HttpQueryCoordinatorClient {
-      val httpClient = new HeaderAddingHttpClient(CuratedHttpQueryCoordinatorClientProvider.this.httpClient,
-                                                  Map(ReqIdHeader -> requestId))
+      val httpClient = http
       val threadLimiter = CuratedHttpQueryCoordinatorClientProvider.this.threadLimiter
 
       def qchost: Option[RequestBuilder] = Option(provider.getInstance()).map { serv =>

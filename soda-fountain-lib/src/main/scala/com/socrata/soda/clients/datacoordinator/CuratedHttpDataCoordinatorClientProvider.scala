@@ -10,15 +10,14 @@ import com.socrata.soda.server.id.DatasetId
 import org.apache.curator.x.discovery.{strategies => providerStrategies, ServiceDiscovery}
 import scala.concurrent.duration.FiniteDuration
 
-class CuratedHttpDataCoordinatorClientProvider(httpClient: HttpClient,
-                                               discovery: ServiceDiscovery[AuxiliaryData],
+class CuratedHttpDataCoordinatorClientProvider(discovery: ServiceDiscovery[AuxiliaryData],
                                                discoveredInstances: () => Set[String],
                                                serviceName: String,
                                                connectTimeout: FiniteDuration,
                                                receiveTimeout: FiniteDuration,
                                                maxJettyThreadPoolSize: Int,
                                                maxThreadRatio: Double)
-  extends Closeable with (RequestId => HttpDataCoordinatorClient)
+  extends Closeable with (HttpClient => HttpDataCoordinatorClient)
 {
   // Make sure the DC connection doesn't use all available threads
   val threadLimiter = new ThreadLimiter("DataCoordinatorClient",
@@ -41,10 +40,9 @@ class CuratedHttpDataCoordinatorClientProvider(httpClient: HttpClient,
     provider.close()
   }
 
-  def apply(requestId: RequestId): HttpDataCoordinatorClient =
+  def apply(http: HttpClient): HttpDataCoordinatorClient =
     new HttpDataCoordinatorClient {
-      val httpClient = new HeaderAddingHttpClient(CuratedHttpDataCoordinatorClientProvider.this.httpClient,
-                                                  Map(ReqIdHeader -> requestId))
+      val httpClient = http
 
       val threadLimiter = CuratedHttpDataCoordinatorClientProvider.this.threadLimiter
 
