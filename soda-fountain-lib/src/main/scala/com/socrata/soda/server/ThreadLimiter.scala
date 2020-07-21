@@ -10,15 +10,13 @@ final class ThreadLimiter(consumerName: String, maxThreads: Int) {
   val usedThreads: AtomicInteger = new AtomicInteger(0)
 
   def withThreadpool[T](f: => T): T = {
-    var response: Option[T] = None
     try {
       if (usedThreads.incrementAndGet() > maxThreads)
         throw TooManyThreadsException(consumerName)
-      response = Some(f)
+      f
     } finally {
       usedThreads.decrementAndGet()
     }
-    response.get
   }
 }
 
