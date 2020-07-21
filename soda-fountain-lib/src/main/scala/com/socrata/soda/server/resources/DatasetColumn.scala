@@ -127,8 +127,7 @@ case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   case class pkservice(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def post = { req => resp =>
       response(req,
-               req.columnDAO.makePK(user(req), resourceName, expectedDataVersion(req), columnName,
-                                    req.requestId),
+               req.columnDAO.makePK(user(req), resourceName, expectedDataVersion(req), columnName),
                Array[Byte](0))(resp)
     }
   }

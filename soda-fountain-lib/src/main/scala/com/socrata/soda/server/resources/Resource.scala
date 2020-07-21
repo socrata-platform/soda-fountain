@@ -299,7 +299,6 @@ case class Resource(etagObfuscator: ETagObfuscator,
     }
 
     override def post = { req =>
-      val requestId = req.requestId
       RowUpdateOption.fromReq(req.httpRequest) match {
         case Right(options) =>
           { response =>
@@ -311,7 +310,6 @@ case class Resource(etagObfuscator: ETagObfuscator,
     }
 
     override def put = { req => response =>
-      val requestId = req.requestId
       upsertMany(req, response, req.rowDAO.replace(user(req), _, expectedDataVersion(req), _), allowSingleItem = false)
     }
 
@@ -446,7 +444,6 @@ case class Resource(etagObfuscator: ETagObfuscator,
     }
 
     override def post = { req => response =>
-      val requestId = req.requestId
       InputUtils.jsonSingleObjectStream(req.httpRequest, maxRowSize) match {
         case Right(rowJVal) =>
           upsertishFlow(req, response, resourceName, Iterator.single(rowJVal),

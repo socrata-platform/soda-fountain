@@ -23,7 +23,7 @@ trait ColumnDAO {
 
   def deleteColumn(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result
 
-  def makePK(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result
+  def makePK(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName): Result
 
   def getColumn(dataset: ResourceName, column: ColumnName): Result
 }

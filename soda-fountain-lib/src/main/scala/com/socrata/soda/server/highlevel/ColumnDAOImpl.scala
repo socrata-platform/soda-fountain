@@ -120,7 +120,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
   }
   def retry() = throw new Retry
 
-  def makePK(user: String, resource: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result = {
+  def makePK(user: String, resource: ResourceName, expectedDataVersion: Option[Long], column: ColumnName): Result = {
     retryable(limit = 5) {
       store.lookupDataset(resource, Some(Latest)) match {
         case Some(datasetRecord) =>
@@ -139,7 +139,6 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                       DropRowIdColumnInstruction(datasetRecord.primaryKey),
                       SetRowIdColumnInstruction(columnRecord.id))
                   }
-                val extraHeaders = SodaUtils.traceHeaders(requestId, resource)
                 dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instructions.iterator) {
                   case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
                     store.setPrimaryKey(datasetRecord.systemId, columnRecord.id, copyNumber)
