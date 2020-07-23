@@ -132,9 +132,9 @@ object DataCoordinatorClient {
 trait DataCoordinatorClient {
   import DataCoordinatorClient._
 
-  def propagateToSecondary(datasetId: DatasetHandle,
+  def propagateToSecondary(dataset: DatasetHandle,
                            secondaryId: SecondaryId)
-  def getSchema(datasetId: DatasetHandle): Option[SchemaSpec]
+  def getSchema(dataset: DatasetHandle): Option[SchemaSpec]
 
   def create(resource: ResourceName,
              instance: String,
@@ -142,14 +142,14 @@ trait DataCoordinatorClient {
              instructions: Option[Iterator[DataCoordinatorInstruction]],
              locale: String = "en_US") : (ReportMetaData, Iterable[ReportItem])
 
-  def update[T](datasetId: DatasetHandle,
+  def update[T](dataset: DatasetHandle,
                 schemaHash: String,
                 expectedDataVersion: Option[Long],
                 user: String,
                 instructions: Iterator[DataCoordinatorInstruction])
                (f: Result => T): T
 
-  def copy[T](datasetId: DatasetHandle,
+  def copy[T](dataset: DatasetHandle,
               schemaHash: String,
               expectedDataVersion: Option[Long],
               copyData: Boolean,
@@ -157,7 +157,7 @@ trait DataCoordinatorClient {
               instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
              (f: Result => T): T
 
-  def publish[T](datasetId: DatasetHandle,
+  def publish[T](dataset: DatasetHandle,
                  schemaHash: String,
                  expectedDataVersion: Option[Long],
                  keepSnapshot:Option[Boolean],
@@ -165,30 +165,30 @@ trait DataCoordinatorClient {
                  instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
                 (f: Result => T): T
 
-  def dropCopy[T](datasetId: DatasetHandle,
+  def dropCopy[T](dataset: DatasetHandle,
                   schemaHash: String,
                   expectedDataVersion: Option[Long],
                   user: String,
                   instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
                  (f: Result => T): T
 
-  def deleteAllCopies[T](datasetId: DatasetHandle,
+  def deleteAllCopies[T](dataset: DatasetHandle,
                          schemaHash: String,
                          expectedDataVersion: Option[Long],
                          user: String)
                         (f: Result => T): T
 
-  def checkVersionInSecondaries(datasetId: DatasetHandle): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]]
+  def checkVersionInSecondaries(dataset: DatasetHandle): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]]
 
-  def checkVersionInSecondary(datasetId: DatasetHandle, secondary: SecondaryId): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]]
+  def checkVersionInSecondary(dataset: DatasetHandle, secondary: SecondaryId): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]]
 
   def datasetsWithSnapshots(): Set[DatasetId]
-  def listSnapshots(datasetId: DatasetHandle): Option[Seq[Long]]
-  def deleteSnapshot(datasetId: DatasetHandle, copy: Long): Either[FailResult, Unit]
+  def listSnapshots(dataset: DatasetHandle): Option[Seq[Long]]
+  def deleteSnapshot(dataset: DatasetHandle, copy: Long): Either[FailResult, Unit]
 
-  def exportSimple(datasetId: DatasetHandle, copy: String, resourceScope: ResourceScope): Result
+  def exportSimple(dataset: DatasetHandle, copy: String, resourceScope: ResourceScope): Result
 
-  def export(datasetId: DatasetHandle,
+  def export(dataset: DatasetHandle,
              schemaHash: String,
              columns: Seq[String],
              precondition: Precondition,
@@ -200,9 +200,9 @@ trait DataCoordinatorClient {
              rowId: Option[String],
              resourceScope: ResourceScope): Result
 
-  def getRollups(datasetId: DatasetHandle): Result
+  def getRollups(dataset: DatasetHandle): Result
 
   def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result
-  def collocateStatus(datasetId: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
-  def deleteCollocate(datasetId: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
+  def collocateStatus(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
+  def deleteCollocate(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
 }
