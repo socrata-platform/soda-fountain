@@ -17,9 +17,10 @@ import com.socrata.soql.environment.ColumnName
 import org.apache.http.HttpStatus._
 import org.joda.time.DateTime
 
-trait HttpQueryCoordinatorClient extends QueryCoordinatorClient with ThreadLimiter {
+trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   def qchost : Option[RequestBuilder]
   val httpClient: HttpClient
+  val threadLimiter: ThreadLimiter
 
   // The threadlimiter wants to be able to log messages on behalf of this
   val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpQueryCoordinatorClient])
@@ -72,7 +73,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient with ThreadLimit
           val request = host.addHeaders(PreconditionRenderer(precondition) ++
                                         ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate) ++
                                         extraHeaders).form(params)
-          withThreadpool{
+          threadLimiter.withThreadpool{
             httpClient.execute(request, rs)
           }
         case None =>

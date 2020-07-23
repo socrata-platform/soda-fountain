@@ -3,12 +3,13 @@ package com.socrata.soda.clients.datacoordinator
 import com.socrata.http.client.{RequestBuilder, HttpClient}
 import com.socrata.http.common.AuxiliaryData
 import com.socrata.curator.ProviderCache
+import com.socrata.soda.server.ThreadLimiter
 import java.io.Closeable
 import com.socrata.soda.server.id.DatasetId
 import org.apache.curator.x.discovery.{strategies => providerStrategies, ServiceDiscovery}
 import scala.concurrent.duration.FiniteDuration
 
-class CuratedHttpDataCoordinatorClient(httpClient: HttpClient,
+class CuratedHttpDataCoordinatorClient(val httpClient: HttpClient,
                                        discovery: ServiceDiscovery[AuxiliaryData],
                                        discoveredInstances: () => Set[String],
                                        serviceName: String,
@@ -16,11 +17,11 @@ class CuratedHttpDataCoordinatorClient(httpClient: HttpClient,
                                        receiveTimeout: FiniteDuration,
                                        maxJettyThreadPoolSize: Int,
                                        maxThreadRatio: Double)
-  extends HttpDataCoordinatorClient(httpClient) with Closeable
+  extends HttpDataCoordinatorClient with Closeable
 {
   // Make sure the DC connection doesn't use all available threads
-  override val maxThreads = Some((maxThreadRatio * maxJettyThreadPoolSize).toInt)
-  override val consumerName = "DataCoordinatorClient"
+  override val threadLimiter = new ThreadLimiter("DataCoordinatorClient",
+                                                 (maxThreadRatio * maxJettyThreadPoolSize).toInt)
 
   private[this] val connectTimeoutMS = connectTimeout.toMillis.toInt
   if (connectTimeoutMS != connectTimeout.toMillis) {

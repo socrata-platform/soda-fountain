@@ -58,15 +58,15 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
           case Precondition.Passed =>
             val extraHeaders = SodaUtils.traceHeaders(requestId, datasetRecord.resourceName)
             val addColumn = AddColumnInstruction(spec.datatype, spec.fieldName, Some(spec.id), spec.computationStrategy)
-            dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user,
-                      Iterator.single(addColumn), extraHeaders) {
+            dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
+                      Iterator.single(addColumn)) {
               case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
                 // TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here
                 store.addColumn(datasetRecord.systemId, copyNumber, spec)
                 store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                 log.info("column created {} {} {}", datasetRecord.systemId.toString, copyNumber.toString, column.name)
                 spec.computationStrategy.foreach { strategy =>
-                  fbm.maybeReplicate(datasetRecord.systemId, Set(strategy.strategyType), extraHeaders)
+                  fbm.maybeReplicate(datasetRecord.handle, Set(strategy.strategyType))
                 }
                 ColumnDAO.Created(spec.asRecord, etag)
               case DataCoordinatorClient.ColumnExistsAlreadyResult(datasetId, columnId, _) =>
@@ -120,7 +120,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
   }
   def retry() = throw new Retry
 
-  def makePK(user: String, resource: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result = {
+  def makePK(user: String, resource: ResourceName, expectedDataVersion: Option[Long], column: ColumnName): Result = {
     retryable(limit = 5) {
       store.lookupDataset(resource, Some(Latest)) match {
         case Some(datasetRecord) =>
@@ -139,9 +139,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                       DropRowIdColumnInstruction(datasetRecord.primaryKey),
                       SetRowIdColumnInstruction(columnRecord.id))
                   }
-                val extraHeaders = SodaUtils.traceHeaders(requestId, resource)
-                dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user, instructions.iterator,
-                          extraHeaders) {
+                dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instructions.iterator) {
                   case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
                     store.setPrimaryKey(datasetRecord.systemId, columnRecord.id, copyNumber)
                     store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
@@ -254,21 +252,19 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
 
       val instructions = instructionsBuilder.result()
 
-      val extraHeaders = SodaUtils.traceHeaders(requestId, datasetRecord.resourceName)
       retryable(limit = 3) {
-        dc.update(datasetRecord.systemId,
+        dc.update(datasetRecord.handle,
           datasetRecord.schemaHash,
           expectedDataVersion,
           user,
-          instructions.iterator,
-          extraHeaders) {
+          instructions.iterator) {
           case DataCoordinatorClient.NonCreateScriptResult(_, etag, copyNumber, newVersion, lastModified) =>
             val updatedColumnRec = columnRecord.copy(fieldName = spec.fieldName.getOrElse(columnRecord.fieldName))
 
             // maybe add secondary manifest
             val newComputationStrategies = instructions.collect { case x: AddComputationStrategyInstruction => x }
             newComputationStrategies.foreach { strategy =>
-              fbm.maybeReplicate(datasetRecord.systemId, Set(strategy.strategy.strategyType), extraHeaders)
+              fbm.maybeReplicate(datasetRecord.handle, Set(strategy.strategy.strategyType))
             }
 
             ColumnDAO.Updated(updatedColumnRec, etag)
@@ -321,12 +317,11 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                 ColumnDAO.ColumnHasDependencies(columnRef.fieldName, deps)
               } else {
                 val extraHeaders = SodaUtils.traceHeaders(requestId, dataset)
-                dc.update(datasetRecord.systemId,
+                dc.update(datasetRecord.handle,
                           datasetRecord.schemaHash,
                           expectedDataVersion,
                           user,
-                          Iterator.single(DropColumnInstruction(columnRef.id)),
-                          extraHeaders) {
+                          Iterator.single(DropColumnInstruction(columnRef.id))) {
                   case DataCoordinatorClient.NonCreateScriptResult(_, etag, copyNumber, newVersion, lastModified) =>
                     store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber, datasetRecord.primaryKey)
                     store.updateVersionInfo(datasetRecord.systemId,

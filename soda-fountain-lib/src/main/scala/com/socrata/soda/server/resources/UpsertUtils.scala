@@ -18,7 +18,7 @@ object UpsertUtils {
   val HEADER_TRUTH_VERSION = "X-SODA2-Truth-Version"
 
 
-  def handleUpsertErrors(req: HttpServletRequest, response: HttpServletResponse)
+  def handleUpsertErrors(req: HttpRequest, response: HttpServletResponse)
                         (successHandler: (HttpServletResponse, RowDAO.StreamSuccess) => Unit)
                         (upsertResult: RowDAO.UpsertResult) = {
     import RowDataTranslator._
@@ -39,7 +39,7 @@ object UpsertUtils {
     }
   }
 
-  private def upsertResponse(request: HttpServletRequest, response: HttpServletResponse, result: RowDAO.UpsertResult)
+  private def upsertResponse(request: HttpRequest, response: HttpServletResponse, result: RowDAO.UpsertResult)
                     (successHandler: (HttpServletResponse, RowDAO.StreamSuccess) => Unit) {
     // TODO: Negotiate content-type
     result match {
@@ -105,7 +105,7 @@ object UpsertUtils {
     }
   }
 
-  def writeSingleRowUpsertResponse(resourceName: ResourceName, export: Export, req: HttpRequest)
+  def writeSingleRowUpsertResponse(resourceName: ResourceName, export: Export, req: SodaRequest)
                                   (response: HttpServletResponse, success: RowDAO.StreamSuccess): Unit = {
     var wroteOne = false
     def exportSingleRowUpsertResponse(rowId: String): Unit = {

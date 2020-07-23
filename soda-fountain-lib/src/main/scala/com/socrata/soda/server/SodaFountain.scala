@@ -10,8 +10,8 @@ import com.socrata.http.common.util.CharsetFor
 import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.handlers.{LoggingOptions, NewLoggingHandler, ThreadRenamingHandler}
 import com.socrata.http.server.util.RequestId.ReqIdHeader
-import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, DataCoordinatorClient, FeedbackSecondaryManifestClient}
-import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, QueryCoordinatorClient}
+import com.socrata.soda.clients.datacoordinator.{CuratedHttpDataCoordinatorClient, CuratedHttpDataCoordinatorClientProvider, DataCoordinatorClient, FeedbackSecondaryManifestClient}
+import com.socrata.soda.clients.querycoordinator.{CuratedHttpQueryCoordinatorClient, CuratedHttpQueryCoordinatorClientProvider, QueryCoordinatorClient}
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.{ResourceName, SecondaryId}
@@ -28,7 +28,7 @@ import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
 import com.socrata.soda.message.{MessageProducerFromConfig, RowsLoadedApiMetricMessage}
 import javax.sql.DataSource
 import org.apache.log4j.PropertyConfigurator
-import org.slf4j.LoggerFactory
+import org.slf4j.{LoggerFactory, MDC}
 
 import scala.collection.mutable
 import scala.util.Random
@@ -50,34 +50,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
                                   logRequestHeaders = Set(ReqIdHeader),
                                   logResponseHeaders = Set(QueryCoordinatorClient.HeaderRollup))
 
-  val handle =
-    ThreadRenamingHandler {
-      NewLoggingHandler(logOptions) { req =>
-        val httpResponse = try {
-          router.route(req)
-        } catch {
-          case e: Throwable if !e.isInstanceOf[Error] =>
-            SodaUtils.internalError(req, e)
-        }
-
-      { resp =>
-        try {
-          httpResponse(resp)
-        } catch {
-          case e: Throwable if !e.isInstanceOf[Error] =>
-            if (!resp.isCommitted) {
-              resp.reset()
-              SodaUtils.handleError(req, e)(resp)
-            } else {
-              log.warn("Caught exception but the response is already committed; just cutting the client off" +
-                "\n" + e.getMessage, e)
-            }
-        }
-      }
-      }
-    }
-
-
   // Below this line is all setup.
   // Note: all initialization that can possibly throw should
   // either go ABOVE the declaration of "cleanup" or be guarded
@@ -87,17 +59,17 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   val rng = new scala.util.Random(new SecureRandom())
   val columnSpecUtils = new ColumnSpecUtils(rng)
 
-  private val cleanup = new mutable.Stack[Closeable]
+  private var cleanup = List.empty[Closeable]
 
   private def i[T](thing: => T): T = {
     var done = false
     try {
       val result = thing
       result match {
-        case closeable: Closeable => cleanup.push(closeable)
-        case dataSource: DataSource => cleanup.push(new Closeable {
+        case closeable: Closeable => cleanup ::= closeable
+        case dataSource: DataSource => cleanup ::= new Closeable {
           def close() { DataSources.destroy(dataSource) } // this is a no-op if the data source is not a c3p0 data source
-        })
+        }
         case _ => // ok
       }
       done = true
@@ -139,8 +111,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     config.discovery.serviceBasePath,
     config.dataCoordinatorClient.serviceName))
 
-  val dc: DataCoordinatorClient = i(new CuratedHttpDataCoordinatorClient(
-    httpClient,
+  val dcProvider = i(new CuratedHttpDataCoordinatorClientProvider(
     discovery,
     discoverySnoop,
     config.dataCoordinatorClient.serviceName,
@@ -149,8 +120,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     config.threadpool.getInt("max-threads"),
     config.threadpool.getDouble("max-thread-ratio")))
 
-  val qc: QueryCoordinatorClient = si(new CuratedHttpQueryCoordinatorClient(
-    httpClient,
+  val qcProvider = si(new CuratedHttpQueryCoordinatorClientProvider(
     discovery,
     config.queryCoordinatorClient.serviceName,
     config.queryCoordinatorClient.connectTimeout,
@@ -162,27 +132,15 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
 
-  val fbm: FeedbackSecondaryManifestClient = {
-    val feedbackSecondaryIdMap: Map[StrategyType, SecondaryId] = config.computationStrategySecondaryId match  {
-      case Some(conf) =>
-        val map = scala.collection.mutable.Map[StrategyType, SecondaryId]()
-        ComputationStrategy.strategies.foreach { case (strategy, _) =>
-          if (conf.hasPath(strategy.name)) map.put(strategy, SecondaryId(conf.getString(strategy.name)))
-        }
-        map.toMap
-      case None => Map.empty
-    }
-
-    new FeedbackSecondaryManifestClient(dc, feedbackSecondaryIdMap)
+  val feedbackSecondaryIdMap: Map[StrategyType, SecondaryId] = config.computationStrategySecondaryId match  {
+    case Some(conf) =>
+      val map = scala.collection.mutable.Map[StrategyType, SecondaryId]()
+      ComputationStrategy.strategies.foreach { case (strategy, _) =>
+        if (conf.hasPath(strategy.name)) map.put(strategy, SecondaryId(conf.getString(strategy.name)))
+      }
+      map.toMap
+    case None => Map.empty
   }
-
-  val datasetDAO = i(new DatasetDAOImpl(
-    dc, fbm, store, columnSpecUtils,
-    () => config.dataCoordinatorClient.instancesForNewDatasets(rng.nextInt(config.dataCoordinatorClient.instancesForNewDatasets.size))))
-  val columnDAO = i(new ColumnDAOImpl(dc, fbm, store, columnSpecUtils))
-  val rowDAO = i(new RowDAOImpl(store, dc, qc))
-  val exportDAO = i(new ExportDAOImpl(store, dc))
-  val snapshotDAO = i(new SnapshotDAOImpl(store, dc))
 
   val metricProvider = i(new NoopMetricProvider) // TODO : Replace with Graphite or rip out metrics code completely
 
@@ -191,18 +149,72 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val messageProducer = si(MessageProducerFromConfig(getClass.getSimpleName, executor, config.messageProducerConfig) )
 
+  def makeFeedbackSecondaryManifestClient(dc: DataCoordinatorClient): FeedbackSecondaryManifestClient = {
+    new FeedbackSecondaryManifestClient(dc, feedbackSecondaryIdMap)
+  }
+
+  def makeDatasetDAO(dc: DataCoordinatorClient, fbm: FeedbackSecondaryManifestClient): DatasetDAO = {
+    new DatasetDAOImpl(
+      dc, fbm, store, columnSpecUtils,
+      () => config.dataCoordinatorClient.instancesForNewDatasets(rng.nextInt(config.dataCoordinatorClient.instancesForNewDatasets.size)))
+  }
+
+  val handle = i {
+    ThreadRenamingHandler {
+      NewLoggingHandler(logOptions) { req =>
+        val httpResponse = try {
+          router.route(new SodaRequest {
+                         override val httpClient =
+                           new HeaderAddingHttpClient(SodaFountain.this.httpClient,
+                                                      Map(ReqIdHeader -> req.requestId))
+                         override val httpRequest = req
+
+                         lazy val dc = dcProvider(httpClient)
+                         lazy val qc = qcProvider(httpClient)
+                         lazy val fbm = makeFeedbackSecondaryManifestClient(dc)
+
+                         override def dataCoordinator = dc
+                         override lazy val datasetDAO = makeDatasetDAO(dc, fbm)
+                         override lazy val columnDAO = new ColumnDAOImpl(dc, fbm, store, columnSpecUtils)
+                         override lazy val rowDAO = new RowDAOImpl(store, dc, qc)
+                         override lazy val exportDAO = new ExportDAOImpl(store, dc)
+                         override lazy val snapshotDAO = new SnapshotDAOImpl(store, dc)
+                       })
+        } catch {
+          case e: Throwable if !e.isInstanceOf[Error] =>
+            SodaUtils.internalError(req, e)
+        }
+
+        { resp =>
+          try {
+            httpResponse(resp)
+          } catch {
+            case e: Throwable if !e.isInstanceOf[Error] =>
+              if (!resp.isCommitted) {
+                resp.reset()
+                SodaUtils.handleError(req, e)(resp)
+              } else {
+                log.warn("Caught exception but the response is already committed; just cutting the client off" +
+                           "\n" + e.getMessage, e)
+              }
+          }
+        }
+      }
+    }
+  }
+
   val tableDropDelay = config.tableDropDelay
   val dataCleanupIntervalSecs = config.dataCleanupInterval.toSeconds
   val router = i {
     import com.socrata.soda.server.resources._
 
     // TODO: this should probably be a different max size value
-    val dataset = Dataset(datasetDAO, config.maxDatumSize)
-    val column = DatasetColumn(columnDAO, exportDAO, rowDAO, etagObfuscator, config.maxDatumSize)
-    val export = Export(exportDAO, etagObfuscator, messageProducer)
-    val resource = Resource(rowDAO, datasetDAO, etagObfuscator, config.maxDatumSize, metricProvider, export, messageProducer, dc)
-    val suggest = Suggest(datasetDAO, columnDAO, httpClient, config.suggest)
-    val snapshots = Snapshots(snapshotDAO)
+    val dataset = Dataset(config.maxDatumSize)
+    val column = DatasetColumn(etagObfuscator, config.maxDatumSize)
+    val export = Export(etagObfuscator, messageProducer)
+    val resource = Resource(etagObfuscator, config.maxDatumSize, metricProvider, export, messageProducer)
+    val suggest = Suggest(config.suggest)
+    val snapshots = Snapshots
 
     new SodaRouter(
       versionResource = Version.service,
@@ -241,12 +253,19 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
     override def run() {
       while (!finished.await(dataCleanupIntervalSecs + Random.nextInt(dataCleanupIntervalSecs.toInt / 10), TimeUnit.SECONDS)) {
+        val reqId = RequestId.generate()
+        val http = new HeaderAddingHttpClient(httpClient, Map(RequestId.ReqIdHeader -> reqId))
+        val dc = dcProvider(http)
+        MDC.put(RequestId.ReqIdHeader, reqId)
+        val fbm = makeFeedbackSecondaryManifestClient(dc)
+        val datasetDAO = makeDatasetDAO(dc, fbm)
+
         try {
           val records = store.lookupDroppedDatasets(tableDropDelay)
           records.foreach { rec =>
             log.info(s"Dropping dataset ${rec.resourceName} (${rec.systemId}")
             //drops the dataset and calls data coordinator to remove datasets in truth
-            datasetDAO.removeDataset("", rec.resourceName, None, RequestId.generate())
+            datasetDAO.removeDataset("", rec.resourceName, None)
           }
         }
         catch {
@@ -260,7 +279,9 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
   def close() { // simulate a cascade of "finally" blocks
     var pendingException: Throwable = null
     while(cleanup.nonEmpty) {
-      try { cleanup.pop().close() }
+      val closeable = cleanup.head;
+      cleanup = cleanup.tail
+      try { closeable.close() }
       catch { case t: Throwable =>
         if(pendingException != null) pendingException.addSuppressed(t)
         else pendingException = t

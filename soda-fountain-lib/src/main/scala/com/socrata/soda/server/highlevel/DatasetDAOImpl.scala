@@ -1,6 +1,5 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.http.server.util.RequestId
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.highlevel.DatasetDAO.CannotAcquireDatasetWriteLock
@@ -67,13 +66,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def createDataset(user: String, spec: UserProvidedDatasetSpec, requestId: RequestId): Result =
+  def createDataset(user: String, spec: UserProvidedDatasetSpec): Result =
     freezeForCreation(spec) match {
-      case Right(frozenSpec) => createDataset(user, frozenSpec, requestId)
+      case Right(frozenSpec) => createDataset(user, frozenSpec)
       case Left(result) => result
     }
 
-  def createDataset(user: String, spec: DatasetSpec, requestId: RequestId): Result = {
+  def createDataset(user: String, spec: DatasetSpec): Result = {
     if(!validResourceName(spec.resourceName)) return InvalidDatasetName(spec.resourceName)
     store.translateResourceName(spec.resourceName) match {
       case None =>
@@ -99,15 +98,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                                             instanceForCreate(),
                                             user,
                                             Some(instructions.iterator),
-                                            spec.locale,
-                                            traceHeaders(requestId, spec.resourceName))
+                                            spec.locale)
 
         val trueSpec = spec.copy(columns = spec.columns ++ columnSpecUtils.systemColumns)
         val record = trueSpec.asRecord(reportMetaData)
 
         // sanity-check
         locally {
-          val dcSchema = dc.getSchema(reportMetaData.datasetId)
+          val dcSchema = dc.getSchema(record.handle)
           val mySchema = record.schemaSpec
           assert(dcSchema == Some(mySchema), "Schema spec differs between DC and me!:\n" + dcSchema + "\n" + mySchema)
         }
@@ -116,7 +114,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         store.updateVersionInfo(reportMetaData.datasetId, reportMetaData.version, reportMetaData.lastModified, None, Stage.InitialCopyNumber, None)
 
         val strategyTypes = spec.columns.flatMap { case (_, colSpec) => colSpec.computationStrategy }.map { _.strategyType }.toSet
-        fbm.maybeReplicate(record.systemId, strategyTypes, traceHeaders(requestId, record.resourceName))
+        fbm.maybeReplicate(record.handle, strategyTypes)
 
         Created(trueSpec.asRecord(reportMetaData))
       case Some(_) =>
@@ -126,8 +124,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
 
   def replaceOrCreateDataset(user: String,
                              dataset: ResourceName,
-                             spec: UserProvidedDatasetSpec,
-                             requestId: RequestId): Result =
+                             spec: UserProvidedDatasetSpec): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         freezeForCreation(spec) match {
@@ -152,8 +149,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
 
   def updateDataset(user: String,
                     dataset: ResourceName,
-                    spec: UserProvidedDatasetSpec,
-                    requestId: RequestId): Result = {
+                    spec: UserProvidedDatasetSpec): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         freezeForUpdate(spec) match {
@@ -186,12 +182,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def removeDataset (user: String, dataset: ResourceName, expectedDataVersion: Option[Long], requestId: RequestId): Result = {
+  def removeDataset (user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result = {
     retryable(limit = 5) {
       store.translateResourceName(dataset, deleted = true) match {
         case Some(datasetRecord) =>
-          dc.deleteAllCopies(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, "",
-            traceHeaders(RequestId.generate(), dataset))
+          dc.deleteAllCopies(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, "")
           {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, _, _, _) =>
               store.removeResource(dataset)
@@ -242,10 +237,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result =
+  def getSecondaryVersions(dataset: ResourceName): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.checkVersionInSecondaries(datasetRecord.systemId, traceHeaders(requestId, dataset)) match {
+        dc.checkVersionInSecondaries(datasetRecord.handle) match {
           case Right(vrs) => vrs.map(DatasetSecondaryVersions).getOrElse(DatasetNotFound(dataset))
           case Left(fail) => UnexpectedInternalServerResponse(fail.reason, fail.tag)
         }
@@ -253,10 +248,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         DatasetNotFound(dataset)
     }
 
-  def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result =
+  def getVersion(dataset: ResourceName, secondary: SecondaryId): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.checkVersionInSecondary(datasetRecord.systemId, secondary, traceHeaders(requestId, dataset)) match {
+        dc.checkVersionInSecondary(datasetRecord.handle, secondary) match {
           case Right(vr) => vr.map(DatasetVersion).getOrElse(DatasetNotFound(dataset))
           case Left(fail) => UnexpectedInternalServerResponse(fail.reason, fail.tag)
         }
@@ -298,12 +293,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   }
   def retry() = throw new Retry
 
-  def makeCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], copyData: Boolean, requestId: RequestId): Result =
+  def makeCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], copyData: Boolean): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
-          dc.copy(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, copyData, user,
-                  extraHeaders = traceHeaders(requestId, dataset)) {
+          dc.copy(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, copyData, user) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, newCopyNumber, newVersion, lastModified) =>
               store.makeCopy(datasetRecord.systemId, newCopyNumber, newVersion)
               WorkingCopyCreated(newVersion)
@@ -329,15 +323,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], requestId: RequestId): Result =
+  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           // Cannot use copy number from DC because it indicates the latest surviving copy.
           store.lookupCopyNumber(dataset, Some(Unpublished)) match {
             case Some(unpublishCopyNumber) =>
-              dc.dropCopy(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user,
-                          extraHeaders = traceHeaders(requestId, dataset)) {
+              dc.dropCopy(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user) {
                 case DataCoordinatorClient.NonCreateScriptResult(_, _, _, newVersion, lastModified) =>
                   store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber, None)
                   WorkingCopyDropped(newVersion)
@@ -364,12 +357,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean], requestId: RequestId): Result =
+  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean]): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
-          dc.publish(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, keepSnapshot, user,
-                     extraHeaders = traceHeaders(requestId, dataset)) {
+          dc.publish(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, keepSnapshot, user) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
               store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, Some(0))
               WorkingCopyPublished(newVersion)
@@ -393,11 +385,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result =
+  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.propagateToSecondary(datasetRecord.systemId, secondary,
-                                traceHeaders(requestId, dataset))
+        dc.propagateToSecondary(datasetRecord.handle, secondary)
         PropagatedToSecondary
       case None =>
         DatasetNotFound(dataset)
@@ -421,8 +412,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                             dataset: ResourceName,
                             expectedDataVersion: Option[Long],
                             rollup: RollupName,
-                            spec: UserProvidedRollupSpec,
-                            requestId: RequestId): Result =
+                            spec: UserProvidedRollupSpec): Result =
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           spec.soql match {
@@ -443,8 +433,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                       log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
 
                       val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQuery.toString())
-                      dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user,
-                        Iterator.single(instruction), traceHeaders(requestId, dataset)) {
+                      dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
+                        Iterator.single(instruction)) {
                         case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
                           store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                           RollupCreatedOrUpdated
@@ -491,14 +481,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def getRollups(dataset: ResourceName, requestId: RequestId): Result = {
+  def getRollups(dataset: ResourceName): Result = {
     store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
       case Some(datasetRecord) =>
         val columnNameMap = datasetRecord.columns.map { columnRecord =>
           (rollupColumnNameToIdMapping(columnRecord.id), columnRecord.fieldName)
         }.toMap
 
-        dc.getRollups(datasetRecord.systemId, traceHeaders(requestId, dataset)) match {
+        dc.getRollups(datasetRecord.handle) match {
           case result: DataCoordinatorClient.RollupResult =>
             val rollups = result.rollups.map { rollup =>
               val parsedQuery = new StandaloneParser().selectStatement(rollup.soql)
@@ -531,13 +521,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def deleteRollup(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rollup: RollupName, requestId: RequestId): Result = {
+  def deleteRollup(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rollup: RollupName): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         val instruction = DropRollupInstruction(rollup)
 
-        dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user,
-                  Iterator.single(instruction), traceHeaders(requestId, dataset)) {
+        dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
+                  Iterator.single(instruction)) {
           case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
             store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
             RollupDropped
@@ -581,7 +571,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   def collocateStatus(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.collocateStatus(datasetRecord.systemId, secondaryId, jobId) match {
+        dc.collocateStatus(datasetRecord.handle, secondaryId, jobId) match {
           case res: DataCoordinatorClient.CollocateResult =>
             CollocateDone(res, { datasetId => store.bulkDatasetLookup(Set(datasetId)).headOption })
           case DataCoordinatorClient.StoreGroupNotExistResult(e) => GenericCollocateError(e)
@@ -597,7 +587,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   def deleteCollocate(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.deleteCollocate(datasetRecord.systemId, secondaryId, jobId) match {
+        dc.deleteCollocate(datasetRecord.handle, secondaryId, jobId) match {
           case res: DataCoordinatorClient.CollocateResult =>
             CollocateDone(res, { datasetId => store.bulkDatasetLookup(Set(datasetId)).headOption })
           case DataCoordinatorClient.StoreGroupNotExistResult(e) => GenericCollocateError(e)
@@ -613,7 +603,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   def secondaryReindex(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.update(datasetRecord.systemId, datasetRecord.schemaHash, expectedDataVersion, user, Iterator(SecondaryReindexInstruction()), Map.empty)(result => result) match {
+        dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, Iterator(SecondaryReindexInstruction()))(result => result) match {
           case _: DataCoordinatorClient.SuccessResult =>
             EmptyResult
           case e: DataCoordinatorClient.FailResult =>

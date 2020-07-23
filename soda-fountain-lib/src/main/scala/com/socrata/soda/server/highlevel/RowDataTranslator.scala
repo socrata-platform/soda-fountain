@@ -19,8 +19,7 @@ import com.socrata.soql.types.{SoQLNull, SoQLType, SoQLValue}
  *                             should cause an error to be thrown or
  *                             simply be ignored.
  */
-class RowDataTranslator(requestId: RequestId,
-                        dataset: DatasetRecordLike,
+class RowDataTranslator(dataset: DatasetRecordLike,
                         ignoreUnknownColumns: Boolean,
                         obfuscateId: Boolean) {
   import RowDataTranslator._

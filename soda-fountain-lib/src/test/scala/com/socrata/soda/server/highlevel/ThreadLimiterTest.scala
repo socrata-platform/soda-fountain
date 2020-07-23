@@ -12,7 +12,7 @@ class ThreadLimiterTest  extends FunSuite with Matchers {
 
   test("Thread limiter should allow a number of threads below the limit") {
     val totalThreads = 5
-    val fixture = new TestFixture
+    val fixture = testFixture()
     val latch = new CountDownLatch(totalThreads)
 
     for (_ <- 1 to totalThreads) {
@@ -28,7 +28,7 @@ class ThreadLimiterTest  extends FunSuite with Matchers {
 
   test("Thread limiter should reject threads over the limit") {
     val totalThreads = 6
-    val fixture = new TestFixture
+    val fixture = testFixture()
     val latch = new CountDownLatch(totalThreads)
 
     for (_ <- 1 to totalThreads) {
@@ -45,7 +45,7 @@ class ThreadLimiterTest  extends FunSuite with Matchers {
 
   test("Thread limiter should release claimed threads on completion") {
     val totalThreads = 5
-    val fixture = new TestFixture
+    val fixture = testFixture()
     val latch = new CountDownLatch(totalThreads)
 
     for (_ <- 1 to totalThreads) {
@@ -82,9 +82,5 @@ object ThreadLimiterTest {
     latch.countDown()
   }
 
-  class TestFixture extends ThreadLimiter {
-    override val consumerName = "TestClient"
-    override val log = org.slf4j.LoggerFactory.getLogger("Test Logger")
-    override val maxThreads = Some(5)
-  }
+  def testFixture() = new ThreadLimiter("TestClient", 5)
 }

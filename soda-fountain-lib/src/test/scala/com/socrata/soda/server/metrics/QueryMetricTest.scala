@@ -1,9 +1,10 @@
 package com.socrata.soda.server.metrics
 
+import javax.servlet.http.HttpServletRequest
 import com.rojoma.json.v3.ast.JString
-import com.rojoma.simplearm.v2.ResourceScope
+import com.rojoma.simplearm.v2._
 import com.socrata.datacoordinator.client.HttpDatatCoordinatorClientTest
-import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
+import com.socrata.http.server.{HttpRequest, ConcreteHttpRequest}
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.Precondition
 import com.socrata.soda.clients.datacoordinator.{RowUpdate, RowUpdateOption}
@@ -31,6 +32,12 @@ import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResp
 trait QueryMetricTestBase extends FunSuite with MockFactory {
   val domainIdHeader = "X-SODA2-Domain-ID"
   val testDomainId = "1"
+
+  def withHttpRequest[T](req: HttpServletRequest)(f: HttpRequest => T): T = {
+    using(new ResourceScope) { scope =>
+      f(new ConcreteHttpRequest(new HttpRequest.AugmentedHttpServletRequest(req), scope))
+    }
+  }
 
   test("Querying a cached dataset records a cache hit") {
     mockDatasetQuery(
@@ -79,7 +86,6 @@ trait QueryMetricTestBase extends FunSuite with MockFactory {
  * Metric scenarios specific to single row requests
  */
 class SingleRowQueryMetricTest extends QueryMetricTestBase {
-
   test("Sending an If-Modified-Since request for an uncached dataset records a cache miss") {
     mockDatasetQuery(
       SingleRowCacheMiss,
@@ -119,15 +125,20 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
-    val export = new Export(mock[ExportDAO], ETagObfuscator.noop, NoOpMessageProducer)
-    val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO],
-                                    NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer, new HttpDatatCoordinatorClientTest.MyClient())
+    val export = new Export(ETagObfuscator.noop, NoOpMessageProducer)
+    val mockResource = new Resource(NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer)
     val mockServReq = new MockHttpServletRequest()
     mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}/some-row-id.json")
     headers.foreach(header => mockServReq.addHeader(header._1, header._2))
-    val augReq = new AugmentedHttpServletRequest(mockServReq)
-    val httpReq = httpRequest(augReq)
-    mockResource.rowService(dataset.resource, new RowSpecifier("some-row-id")).get(httpReq)(new MockHttpServletResponse())
+    withHttpRequest(mockServReq) { httpReq =>
+      mockResource.rowService(dataset.resource, new RowSpecifier("some-row-id")).
+        get(new SodaRequestForTest(httpReq) {
+              override val dataCoordinator = new HttpDatatCoordinatorClientTest.MyClient()
+              override val datasetDAO = mock[DatasetDAO]
+              override val rowDAO = new QueryOnlyRowDAO(TestDatasets.datasets)
+              override val exportDAO = mock[ExportDAO]
+            })(new MockHttpServletResponse())
+    }
   }
 }
 
@@ -183,16 +194,21 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
-    val export = new Export(mock[ExportDAO], ETagObfuscator.noop, NoOpMessageProducer)
+    val export = new Export(ETagObfuscator.noop, NoOpMessageProducer)
     val mockServReq = new MockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(mockServReq)
     mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}.json")
     headers.foreach(header => mockServReq.addHeader(header._1, header._2))
-    val httpReq = httpRequest(augReq)
-    val mockResource = new Resource(new QueryOnlyRowDAO(TestDatasets.datasets), mock[DatasetDAO],
-                                    NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer, new HttpDatatCoordinatorClientTest.MyClient())
+    withHttpRequest(mockServReq) { httpReq =>
+      val mockResource = new Resource(NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer)
 
-    mockResource.service(OptionallyTypedPathComponent(dataset.resource, None)).get(httpReq)(new MockHttpServletResponse())
+      mockResource.service(OptionallyTypedPathComponent(dataset.resource, None)).
+        get(new SodaRequestForTest(httpReq) {
+              override val dataCoordinator = new HttpDatatCoordinatorClientTest.MyClient()
+              override val exportDAO = mock[ExportDAO]
+              override val rowDAO = new QueryOnlyRowDAO(TestDatasets.datasets)
+              override val datasetDAO = mock[DatasetDAO]
+            })(new MockHttpServletResponse())
+    }
   }
 }
 
@@ -247,17 +263,17 @@ private object TestDatasets {
 private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
   def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, rowCount: Option[String],
             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
-            reqId: String, fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope): Result = {
+            fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope): Result = {
     testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
   }
   def getRow(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
              stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
-             reqId: String, fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope): Result = {
+             fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope): Result = {
     query(dataset, precondition, ifModifiedSince, "give me one row!", None, None, secondaryInstance, noRollup, obfuscateId,
-          reqId, fuseColumns, None, debugInfo, rs)
+          fuseColumns, None, debugInfo, rs)
   }
-  def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
-  def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], reqId: String, rowUpdateOption: RowUpdateOption)(f: UpsertResult => T): T = ???
-  def replace[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], reqId: String)(f: UpsertResult => T): T = ???
-  def deleteRow[T](user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rowId: RowSpecifier, reqId: String)(f: UpsertResult => T): T = ???
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
+  def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], rowUpdateOption: RowUpdateOption)(f: UpsertResult => T): T = ???
+  def replace[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
+  def deleteRow[T](user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rowId: RowSpecifier)(f: UpsertResult => T): T = ???
 }

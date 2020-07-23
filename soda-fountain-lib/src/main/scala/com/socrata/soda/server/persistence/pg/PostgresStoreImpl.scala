@@ -115,7 +115,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             ColumnId(rs.getString("primary_key_column_id")),
             fetchMinimalColumns (connection, datasetId, copyNumber, isDeleted = isDeleted),
             rs.getLong("latest_version"),
-            Stage(rs.getString("lifecycle_stage")),
+            Stage(Some(rs.getString("lifecycle_stage"))),
             toDateTime(rs.getTimestamp("last_modified")),
             toDateTimeOptional((rs.getTimestamp("deleted_at")))
             ))
@@ -165,7 +165,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
               ColumnId(rs.getString("primary_key_column_id")),
               fetchFullColumns(conn, datasetId, copyNumber),
               rs.getLong("latest_version"),
-              Stage(rs.getString("lifecycle_stage")),
+              Stage(Some(rs.getString("lifecycle_stage"))),
               toDateTime(rs.getTimestamp("updated_at")))
             }
           )
@@ -672,7 +672,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
             ColumnId(rs.getString("primary_key_column_id")),
             fetchMinimalColumns(conn, datasetId, copyNumber),
             rs.getLong("latest_version"),
-            Stage(rs.getString("lifecycle_stage")),
+            Stage(Some(rs.getString("lifecycle_stage"))),
             toDateTime(rs.getTimestamp("last_modified")),
             toDateTimeOptional(rs.getTimestamp("deleted_at"))
           )

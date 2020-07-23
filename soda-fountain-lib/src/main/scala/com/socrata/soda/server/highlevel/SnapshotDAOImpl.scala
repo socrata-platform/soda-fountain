@@ -25,7 +25,7 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
     store.lookupDataset(resourceName) match {
       case dss if dss.nonEmpty =>
         val ds = dss.head
-        dc.listSnapshots(ds.systemId)
+        dc.listSnapshots(ds.handle)
       case _ =>
         None
     }
@@ -34,7 +34,7 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
     store.lookupDataset(resourceName) match {
       case dss if dss.nonEmpty =>
         val ds = dss.head
-        dc.deleteSnapshot(ds.systemId, snapshot) match {
+        dc.deleteSnapshot(ds.handle, snapshot) match {
           case Right(_) =>
             SnapshotDAO.Deleted
           case Left(DataCoordinatorClient.SnapshotNotFoundResult(_, _)) =>
@@ -52,7 +52,7 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
     store.lookupDataset(resourceName) match {
       case dss if dss.nonEmpty =>
         val ds = dss.head
-        dc.exportSimple(ds.systemId, snapshot.toString, resourceScope) match {
+        dc.exportSimple(ds.handle, snapshot.toString, resourceScope) match {
           case ExportResult(json, _, _) =>
             val decodedSchema = CJson.decode(json, JsonColumnRep.forDataCoordinatorType)
             val schema = decodedSchema.schema

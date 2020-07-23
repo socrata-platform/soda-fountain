@@ -6,16 +6,17 @@ import javax.servlet.http.{HttpServletRequest, HttpServletResponse => HttpStatus
 
 import com.rojoma.json.v3.ast.{JNull, JObject, JString}
 import com.rojoma.json.v3.util.JsonUtil
+import com.rojoma.simplearm.v2._
 import com.socrata.http.client._
 import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, ReceiveTimeout}
-import com.socrata.http.server.HttpRequest
-import com.socrata.http.server.HttpRequest.AugmentedHttpServletRequest
+import com.socrata.http.server.{HttpRequest, ConcreteHttpRequest}
 import com.socrata.soda.server.config.{SodaFountainConfig, SuggestConfig}
 import com.socrata.soda.server.copy.Published
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
 import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
 import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord}
 import com.socrata.soda.server.util.CloseableExecutorService
+import com.socrata.soda.server.{SodaRequest, SodaRequestForTest}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLNull
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
@@ -53,6 +54,12 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     SoQLNull, false, None
   )
 
+  def withHttpRequest[T](req: HttpServletRequest)(f: HttpRequest => T): T = {
+    using(new ResourceScope) { scope =>
+      f(new ConcreteHttpRequest(new HttpRequest.AugmentedHttpServletRequest(req), scope))
+    }
+  }
+
   def httpClient: HttpClient =
     new HttpClientHttpClient(
       new CloseableExecutorService(Executors.newCachedThreadPool()),
@@ -65,12 +72,8 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
       .withValue("com.socrata.soda-fountain.suggest.port", ConfigValueFactory.fromAnyRef(mockServerPort))
   ).suggest
 
-  def mockSuggest(datasetDao: DatasetDAO = mock[DatasetDAO],
-                  columnDao: ColumnDAO = mock[ColumnDAO],
-                  httpClient: HttpClient = httpClient,
-                  config: SuggestConfig = mockConfig
-                   ): Suggest =
-    Suggest(datasetDao, columnDao, httpClient, config)
+  def mockSuggest(config: SuggestConfig = mockConfig): Suggest =
+    Suggest(config)
 
   test("config values defined") {
     Some(mockConfig.host) should be('defined)
@@ -134,20 +137,20 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Found(datasetRecord))
 
-    mockSuggest(datasetDao = d).datasetId(resourceName) should be(Some(expectedDatasetId))
+    mockSuggest().datasetId(d, resourceName) should be(Some(expectedDatasetId))
   }
   test("translate dataset name to id - not found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.DatasetNotFound(resourceName))
 
-    mockSuggest(datasetDao = d).datasetId(resourceName) should be(None)
+    mockSuggest().datasetId(d, resourceName) should be(None)
   }
   test("translate dataset name to id - unknown result") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.Created(datasetRecord))
 
     a[Exception] should be thrownBy {
-      mockSuggest(datasetDao = d).datasetId(resourceName) should be(None)
+      mockSuggest().datasetId(d, resourceName) should be(None)
     }
   }
 
@@ -155,20 +158,20 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
 
-    mockSuggest(columnDao = c).datacoordinatorColumnId(resourceName, columnName) should be(Some(expectedColumnId))
+    mockSuggest().datacoordinatorColumnId(c, resourceName, columnName) should be(Some(expectedColumnId))
   }
   test("translate column name to id - not found") {
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.ColumnNotFound(columnName))
 
-    mockSuggest(columnDao = c).datacoordinatorColumnId(resourceName, columnName) should be(None)
+    mockSuggest().datacoordinatorColumnId(c, resourceName, columnName) should be(None)
   }
   test("translate column name to id - unknown result") {
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Created(columnRecord, None))
 
     a[Exception] should be thrownBy {
-      mockSuggest(columnDao = c).datacoordinatorColumnId(resourceName, columnName) should be(None)
+      mockSuggest().datacoordinatorColumnId(c, resourceName, columnName) should be(None)
     }
   }
 
@@ -179,9 +182,9 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.Found(datasetRecord, columnRecord, None))
 
-    val suggest = mockSuggest(datasetDao = d, columnDao = c)
+    val suggest = mockSuggest()
 
-    val (ds, cn, col) = suggest.internalContext(resourceName, columnName).get
+    val (ds, cn, col) = suggest.internalContext(d, c, resourceName, columnName).get
     ds should be(expectedDatasetId)
     cn should be(Published)
     col should be(expectedColumnId)
@@ -193,18 +196,18 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val c = mock[ColumnDAO]
     c.expects('getColumn)(resourceName, columnName).returning(ColumnDAO.ColumnNotFound(columnName))
 
-    val suggest = mockSuggest(datasetDao = d, columnDao = c)
+    val suggest = mockSuggest()
 
-    val ctx = suggest.internalContext(resourceName, columnName)
+    val ctx = suggest.internalContext(d, c, resourceName, columnName)
     ctx shouldNot be('defined)
   }
   test("make internal context - dataset not found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.DatasetNotFound(resourceName))
 
-    val suggest = mockSuggest(datasetDao = d)
+    val suggest = mockSuggest()
 
-    val ctx = suggest.internalContext(resourceName, columnName)
+    val ctx = suggest.internalContext(d, mock[ColumnDAO], resourceName, columnName)
     ctx shouldNot be('defined)
   }
 
@@ -213,7 +216,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val expectedBody = JObject(Map("donut" -> JString("coconut")))
     setSpandexResponse(url = path, body = JsonUtil.renderJson(expectedBody))
 
-    val (code, body) = mockSuggest().getSpandexResponse(mockServerUri(path))
+    val (code, body) = mockSuggest().getSpandexResponse(httpClient, mockServerUri(path))
     code should be(HttpStatus.SC_OK)
     body should be(expectedBody)
   }
@@ -221,7 +224,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
   test("spandex response non json") {
     val path = "/"
     setSpandexResponse(url = path, body = "this is not json", contentType = "text/plain")
-    val (code, body) = mockSuggest().getSpandexResponse(mockServerUri(path))
+    val (code, body) = mockSuggest().getSpandexResponse(httpClient, mockServerUri(path))
     code should be(HttpStatus.SC_OK)
     body should be(JNull)
   }
@@ -236,30 +239,40 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val path = s"/suggest/$expectedDatasetId/$lifecycleStage/$expectedColumnId/$suggestText"
     setSpandexResponse(url = path, body = expectedBody)
 
-    val suggest = mockSuggest(datasetDao = d, columnDao = c)
+    val suggest = mockSuggest()
 
     val servReq = mockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(servReq)
-    val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().returning(augReq)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.service(resourceName, columnName, suggestText).
+        get(new SodaRequestForTest(httpReq) {
+              override val httpClient = SuggestTest.this.httpClient
+              override val datasetDAO = d
+              override val columnDAO = c
+            })(response)
 
-    val response = new MockHttpServletResponse()
-    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
-
-    response.getStatus should be(expectedStatusCode)
-    response.getContentAsString should be(expectedBody)
+      response.getStatus should be(expectedStatusCode)
+      response.getContentAsString should be(expectedBody)
+    }
   }
   test("service suggestions - dataset not found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.DatasetNotFound(resourceName))
 
-    val suggest = mockSuggest(datasetDao = d)
+    val suggest = mockSuggest()
 
-    val httpReq = mock[HttpRequest]
-    val response = new MockHttpServletResponse()
-    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
-
-    response.getStatus should be(HttpStatus.SC_NOT_FOUND)
+    val servReq = mock[HttpServletRequest]
+    servReq.expects('getHeader)("X-Socrata-RequestId").returning("testreqid")
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.service(resourceName, columnName, suggestText).
+        get(new SodaRequestForTest(httpReq) {
+              override val httpClient = SuggestTest.this.httpClient
+              override val datasetDAO = d
+              override val columnDAO = mock[ColumnDAO]
+            })(response)
+      response.getStatus should be(HttpStatus.SC_NOT_FOUND)
+    }
   }
 
   test("service samples - found") {
@@ -272,37 +285,47 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val path = s"/suggest/$expectedDatasetId/$lifecycleStage/$expectedColumnId"
     setSpandexResponse(url = path, body = expectedBody)
 
-    val suggest = mockSuggest(datasetDao = d, columnDao = c)
+    val suggest = mockSuggest()
 
     val servReq = mockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(servReq)
-    val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().returning(augReq)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.sampleService(resourceName, columnName).
+        get(new SodaRequestForTest(httpReq) {
+              override val httpClient = SuggestTest.this.httpClient
+              override val datasetDAO = d
+              override val columnDAO = c
+            })(response)
 
-    val response = new MockHttpServletResponse()
-    suggest.sampleService(resourceName, columnName).get(httpReq)(response)
-
-    response.getStatus should be(expectedStatusCode)
-    response.getContentAsString should be(expectedBody)
+      response.getStatus should be(expectedStatusCode)
+      response.getContentAsString should be(expectedBody)
+    }
   }
   test("service samples - dataset not found") {
     val d = mock[DatasetDAO]
     d.expects('getDataset)(resourceName, None).returning(DatasetDAO.DatasetNotFound(resourceName))
 
-    val suggest = mockSuggest(datasetDao = d)
+    val suggest = mockSuggest()
 
-    val httpReq = mock[HttpRequest]
-    val response = new MockHttpServletResponse()
-    suggest.sampleService(resourceName, columnName).get(httpReq)(response)
+    val servReq = mockHttpServletRequest(expectGetQueryString = false)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.sampleService(resourceName, columnName).
+        get(new SodaRequestForTest(httpReq) {
+              override val httpClient = SuggestTest.this.httpClient
+              override val datasetDAO = d
+              override val columnDAO = mock[ColumnDAO]
+            })(response)
 
-    response.getStatus should be(HttpStatus.SC_NOT_FOUND)
+      response.getStatus should be(HttpStatus.SC_NOT_FOUND)
+    }
   }
 
   test("spandex connect failed") {
     failAfter(2 seconds) {
       a[ConnectFailed] should be thrownBy {
         // non existent host
-        mockSuggest().getSpandexResponse(new URI("http://255.255.255.255/"))
+        mockSuggest().getSpandexResponse(httpClient, new URI("http://255.255.255.255/"))
       }
     }
   }
@@ -312,7 +335,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     setSpandexResponse(url = path, body = "receive timeout", syntheticDelayMs = 10000)
     failAfter(6 seconds) {
       a[ReceiveTimeout] should be thrownBy {
-        mockSuggest().getSpandexResponse(mockServerUri(path))
+        mockSuggest().getSpandexResponse(httpClient, mockServerUri(path))
       }
     }
   }
@@ -327,7 +350,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val path = s"/suggest/$expectedDatasetId/$lifecycleStage/$expectedColumnId/$suggestText"
     setSpandexResponse(url = path, body = expectedBody)
 
-    val suggest = mockSuggest(datasetDao = d, columnDao = c,
+    val suggest = mockSuggest(
       config = new SuggestConfig(ConfigFactory.parseString(
       """  suggest {
         |    host = "255.255.255.255"
@@ -338,14 +361,18 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
       """.stripMargin), "suggest"))
 
     val servReq = mockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(servReq)
-    val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.service(resourceName, columnName, suggestText).
+        get(new SodaRequestForTest(httpReq) {
+              override val httpClient = SuggestTest.this.httpClient
+              override val datasetDAO = d
+              override val columnDAO = c
+            })(response)
 
-    val response = new MockHttpServletResponse()
-    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
-    response.getContentType should include("application/json")
-    response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+      response.getContentType should include("application/json")
+      response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+    }
   }
   test("spandex connect timeout - check response status") {
     val d = mock[DatasetDAO]
@@ -357,7 +384,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val path = s"/suggest/$expectedDatasetId/$lifecycleStage/$expectedColumnId/$suggestText"
     setSpandexResponse(url = path, body = expectedBody)
 
-    val suggest = mockSuggest(datasetDao = d, columnDao = c,
+    val suggest = mockSuggest(
       config = new SuggestConfig(ConfigFactory.parseString(
         """  suggest {
           |    host = "10.255.255.1"
@@ -368,14 +395,18 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
         """.stripMargin), "suggest"))
 
     val servReq = mockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(servReq)
-    val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.service(resourceName, columnName, suggestText).
+        get(new SodaRequestForTest(httpReq) {
+              override val httpClient = SuggestTest.this.httpClient
+              override val datasetDAO = d
+              override val columnDAO = c
+            })(response)
 
-    val response = new MockHttpServletResponse()
-    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
-    response.getContentType should include("application/json")
-    response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+      response.getContentType should include("application/json")
+      response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+    }
   }
   test("spandex receive timeout - check response status") {
     val d = mock[DatasetDAO]
@@ -387,22 +418,26 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
     val path = s"/suggest/$expectedDatasetId/$lifecycleStage/$expectedColumnId/$suggestText"
     setSpandexResponse(url = path, body = expectedBody, syntheticDelayMs = 86400000)
 
-    val suggest = mockSuggest(datasetDao = d, columnDao = c)
+    val suggest = mockSuggest()
 
     val servReq = mockHttpServletRequest()
-    val augReq = new AugmentedHttpServletRequest(servReq)
-    val httpReq = mock[HttpRequest]
-    httpReq.expects('servletRequest)().anyNumberOfTimes.returning(augReq)
+    withHttpRequest(servReq) { httpReq =>
+      val response = new MockHttpServletResponse()
+      suggest.service(resourceName, columnName, suggestText).
+        get(new SodaRequestForTest(httpReq) {
+              override val httpClient = SuggestTest.this.httpClient
+              override val datasetDAO = d
+              override val columnDAO = c
+            })(response)
 
-    val response = new MockHttpServletResponse()
-    suggest.service(resourceName, columnName, suggestText).get(httpReq)(response)
-    response.getContentType should include("application/json")
-    response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+      response.getContentType should include("application/json")
+      response.getStatus should be(HttpStatus.SC_INTERNAL_SERVER_ERROR)
+    }
   }
 
-  private def mockHttpServletRequest() = {
+  private def mockHttpServletRequest(expectGetQueryString: Boolean = true) = {
     val servReq = mock[HttpServletRequest]
-    servReq.expects('getQueryString)()
+    if(expectGetQueryString) servReq.expects('getQueryString)()
     servReq.expects('getHeader)("X-Socrata-RequestId").returning(null)
     servReq
   }

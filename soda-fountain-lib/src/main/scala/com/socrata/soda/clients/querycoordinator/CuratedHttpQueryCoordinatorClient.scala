@@ -2,6 +2,7 @@ package com.socrata.soda.clients.querycoordinator
 
 import com.socrata.http.client.{RequestBuilder, HttpClient}
 import com.socrata.curator.CuratorServiceBase
+import com.socrata.soda.server.ThreadLimiter
 import org.apache.curator.x.discovery.ServiceDiscovery
 import scala.concurrent.duration.FiniteDuration
 import com.socrata.http.common.AuxiliaryData
@@ -18,8 +19,8 @@ class CuratedHttpQueryCoordinatorClient(val httpClient: HttpClient,
   extends CuratorServiceBase(discovery, serviceName) with HttpQueryCoordinatorClient
 {
   // Make sure the QC connection doesn't use all available threads
-  override val maxThreads = Some((maxThreadRatio * maxJettyThreadPoolSize).toInt)
-  override val consumerName = "QueryCoordinatorClient"
+  override val threadLimiter = new ThreadLimiter("QueryCoordinatorClient",
+                                                 (maxThreadRatio * maxJettyThreadPoolSize).toInt)
 
   private[this] val connectTimeoutMS = connectTimeout.toMillis.toInt
   if (connectTimeoutMS != connectTimeout.toMillis) {

@@ -13,36 +13,33 @@ import com.socrata.soql.environment.ColumnName
 
 trait DatasetDAO {
   import DatasetDAO.Result
-  def createDataset(user: String, spec: UserProvidedDatasetSpec, requestId: RequestId): Result
+  def createDataset(user: String, spec: UserProvidedDatasetSpec): Result
   def replaceOrCreateDataset(user: String,
                              dataset: ResourceName,
-                             spec: UserProvidedDatasetSpec,
-                             requestId: RequestId): Result
+                             spec: UserProvidedDatasetSpec): Result
   def updateDataset(user: String,
                     dataset: ResourceName,
-                    spec: UserProvidedDatasetSpec,
-                    requestId: RequestId): Result
+                    spec: UserProvidedDatasetSpec): Result
   def markDatasetForDeletion(user: String, dataset: ResourceName): Result
   def unmarkDatasetForDeletion(user: String, dataset: ResourceName) : Result
-  def removeDataset(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], requestId: RequestId): Result
+  def removeDataset(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result
-  def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result
-  def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
+  def getSecondaryVersions(dataset: ResourceName): Result
+  def getVersion(dataset: ResourceName, secondary: SecondaryId): Result
   def getCurrentCopyNum(dataset: ResourceName): Option[Long]
 
-  def makeCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], copyData: Boolean, requestId: RequestId): Result
-  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], requestId: RequestId): Result
-  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean], requestId: RequestId): Result
-  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result
+  def makeCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], copyData: Boolean): Result
+  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result
+  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean]): Result
+  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result
 
   def replaceOrCreateRollup(user: String,
                             dataset: ResourceName,
                             expectedDataVersion: Option[Long],
                             rollup: RollupName,
-                            spec: UserProvidedRollupSpec,
-                            requestId: RequestId): Result
-  def getRollups(dataset: ResourceName, requestId: RequestId): Result
-  def deleteRollup(user: String, dataset: ResourceName, expectedDataVersion: Option[Long],rollup: RollupName, requestId: RequestId): Result
+                            spec: UserProvidedRollupSpec): Result
+  def getRollups(dataset: ResourceName): Result
+  def deleteRollup(user: String, dataset: ResourceName, expectedDataVersion: Option[Long],rollup: RollupName): Result
   def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result
   def collocateStatus(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
   def deleteCollocate(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result

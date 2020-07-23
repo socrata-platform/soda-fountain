@@ -28,7 +28,6 @@ trait RowDAO {
             secondaryInstance: Option[String],
             noRollup: Boolean,
             obfuscateId: Boolean,
-            requestId: RequestId,
             fuseColumns: Option[String],
             queryTimeoutSeconds: Option[String],
             debugInfo: DebugInfo,
@@ -42,7 +41,6 @@ trait RowDAO {
              secondaryInstance:Option[String],
              noRollup: Boolean,
              obfuscateId: Boolean,
-             requestId: RequestId,
              fuseColumns: Option[String],
              queryTimeoutSeconds: Option[String],
              debugInfo: DebugInfo,
@@ -52,14 +50,13 @@ trait RowDAO {
                 datasetRecord: DatasetRecordLike,
                 expectedDataVersion: Option[Long],
                 data: Iterator[RowUpdate],
-                requestId: RequestId,
                 rowUpdateOption: RowUpdateOption = RowUpdateOption.default)
                (f: UpsertResult => T): T
 
-  def replace[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], requestId: RequestId)
+  def replace[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate])
                 (f: UpsertResult => T): T
 
-  def deleteRow[T](user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rowId: RowSpecifier, requestId: RequestId)
+  def deleteRow[T](user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rowId: RowSpecifier)
                   (f: UpsertResult => T): T
 }
 

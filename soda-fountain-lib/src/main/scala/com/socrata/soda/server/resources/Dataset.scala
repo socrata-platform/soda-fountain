@@ -20,13 +20,13 @@ import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 /**
  * Dataset: CRUD operations for dataset schema and metadata
  */
-case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
+case class Dataset(maxDatumSize: Int) {
 
   val schemaHashHeaderName = "x-socrata-version-hash"
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Dataset])
 
-  def withDatasetSpec(request: HttpRequest, logTags: LogTag*)(f: UserProvidedDatasetSpec => HttpResponse): HttpResponse = {
-    UserProvidedDatasetSpec.fromRequest(request, maxDatumSize) match {
+  def withDatasetSpec(request: SodaRequest, logTags: LogTag*)(f: UserProvidedDatasetSpec => HttpResponse): HttpResponse = {
+    UserProvidedDatasetSpec.fromRequest(request.httpRequest, maxDatumSize) match {
       case Extracted(datasetSpec) =>
         f(datasetSpec)
       case RequestProblem(err) =>
@@ -50,7 +50,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   private def dataVersionHeader(v: Long) =
     Header("X-SODA2-Truth-Version", v.toString)
 
-  def response(req: HttpRequest, result: DatasetDAO.Result): HttpResponse = {
+  def response(req: SodaRequest, result: DatasetDAO.Result): HttpResponse = {
     // TODO: Negotiate content type
     log.debug(s"sending response, result: ${result}")
     result match {
@@ -128,7 +128,7 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   object createService extends SodaResource {
     override def post = { req =>
       withDatasetSpec(req) { spec =>
-        response(req, datasetDAO.createDataset(user(req), spec, RequestId.getFromRequest(req)))
+        response(req, req.datasetDAO.createDataset(user(req), spec))
       }
     }
   }
@@ -136,91 +136,86 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
   case class service(resourceName: ResourceName) extends SodaResource {
     override def put = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(req, datasetDAO.replaceOrCreateDataset(user(req), resourceName, spec,
-                                                        RequestId.getFromRequest(req)))
+        response(req, req.datasetDAO.replaceOrCreateDataset(user(req), resourceName, spec))
       }
     }
 
     override def get = { req =>
-      val copy = Stage(req.getParameter("$$copy")) // Query parameter for copy.  Optional, "latest", "published", "unpublished", or "latest"
-      response(req, datasetDAO.getDataset(resourceName, copy))
+      val copy = Stage(req.queryParameter("$$copy")) // Query parameter for copy.  Optional, "latest", "published", "unpublished", or "latest"
+      response(req, req.datasetDAO.getDataset(resourceName, copy))
     }
 
     override def patch = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(req, datasetDAO.updateDataset(user(req), resourceName, spec,
-                                               RequestId.getFromRequest(req)))
+        response(req, req.datasetDAO.updateDataset(user(req), resourceName, spec))
       }
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.markDatasetForDeletion(user(req), resourceName))
+      response(req, req.datasetDAO.markDatasetForDeletion(user(req), resourceName))
     }
   }
 
   case class undeleteService(resourceName: ResourceName) extends SodaResource {
     override def post = { req =>
-      response(req, datasetDAO.unmarkDatasetForDeletion(user(req), resourceName))
+      response(req, req.datasetDAO.unmarkDatasetForDeletion(user(req), resourceName))
     }
   }
 
   case class secondaryReindexService(resourceName: ResourceName) extends SodaResource {
     override def post = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(req, datasetDAO.secondaryReindex(user(req), resourceName, expectedDataVersion(req)))
+        response(req, req.datasetDAO.secondaryReindex(user(req), resourceName, expectedDataVersion(req)))
       }
     }
   }
 
   case class copyService(resourceName: ResourceName) extends SodaResource {
-    def keepSnapshot(req: HttpServletRequest) =
-      try { Option(req.getParameter("keep_snapshot")).map(_.toBoolean) }
+    def keepSnapshot(req: SodaRequest) =
+      try { req.queryParameter("keep_snapshot").map(_.toBoolean) }
       catch { case e: IllegalArgumentException => ??? /* TODO: Proper error */ }
 
     // TODO: not GET
     override def get = { req =>
-      val doCopyData = req.getParameter("copy_data") == "true"
-      response(req, datasetDAO.makeCopy(user(req), resourceName, expectedDataVersion(req), copyData = doCopyData,
-                                        requestId = RequestId.getFromRequest(req)))
+      val doCopyData = req.queryParameter("copy_data") == Some("true")
+      response(req, req.datasetDAO.makeCopy(user(req), resourceName, expectedDataVersion(req), copyData = doCopyData))
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.dropCurrentWorkingCopy(user(req), resourceName, expectedDataVersion(req),
-                                                      RequestId.getFromRequest(req)))
+      response(req, req.datasetDAO.dropCurrentWorkingCopy(user(req), resourceName, expectedDataVersion(req)))
     }
     override def put = { req =>
-      response(req, datasetDAO.publish(user(req), resourceName, expectedDataVersion(req), keepSnapshot = keepSnapshot(req),
-                                       requestId = RequestId.getFromRequest(req)))
+      response(req, req.datasetDAO.publish(user(req), resourceName, expectedDataVersion(req), keepSnapshot = keepSnapshot(req)))
     }
   }
 
   case class secondaryVersionsService(resource: ResourceName) extends SodaResource {
     override def get = { req =>
-      response(req, datasetDAO.getSecondaryVersions(resource, RequestId.getFromRequest(req)))
+      response(req, req.datasetDAO.getSecondaryVersions(resource))
     }
   }
 
   case class versionService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
     override def get = { req =>
-      response(req, datasetDAO.getVersion(resourceName, secondary, RequestId.getFromRequest(req)))
+      response(req, req.datasetDAO.getVersion(resourceName, secondary))
     }
   }
 
   case class secondaryCopyService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
     override def post = { req =>
-      response(req, datasetDAO.propagateToSecondary(resourceName, secondary, RequestId.getFromRequest(req)))
+      response(req, req.datasetDAO.propagateToSecondary(resourceName, secondary))
     }
   }
 
   case class secondaryCollocateService(secondaryId: SecondaryId) extends SodaResource{
     override def post = { req =>
-       SFCollocateOperation.getFromRequest(req) match {
+       SFCollocateOperation.getFromRequest(req.httpRequest) match {
         case Right(operation) =>
-          val explain = req.getParameter("explain") == "true"
+          val explain = req.queryParameter("explain") == Some("true")
 
           // TODO: Proper error handling
-          val jobId = Option(req.getParameter("job")).getOrElse(throw new Exception)
-          response(req, datasetDAO.collocate(secondaryId, operation, explain, jobId))
+          val jobId = req.queryParameter("job").getOrElse(throw new Exception)
+          response(req, req.datasetDAO.collocate(secondaryId, operation, explain, jobId))
         case Left(_) =>
           // NOTE: Is there a better error I could be throwing?
           BadRequest
@@ -230,11 +225,11 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
 
   case class secondaryCollocateJobService(resourceName: ResourceName, secondaryId: SecondaryId, jobId: String) extends SodaResource {
     override def get = { req =>
-      response(req, datasetDAO.collocateStatus(resourceName, secondaryId, jobId))
+      response(req, req.datasetDAO.collocateStatus(resourceName, secondaryId, jobId))
     }
 
     override def delete = { req =>
-      response(req, datasetDAO.deleteCollocate(resourceName, secondaryId, jobId))
+      response(req, req.datasetDAO.deleteCollocate(resourceName, secondaryId, jobId))
     }
   }
 
@@ -243,25 +238,23 @@ case class Dataset(datasetDAO: DatasetDAO, maxDatumSize: Int) {
       rollupName match {
         case Some(_) => MethodNotAllowed
         case None =>
-          response(req, datasetDAO.getRollups(resourceName, RequestId.getFromRequest(req)))
+          response(req, req.datasetDAO.getRollups(resourceName))
       }
     }
 
     override def delete = { req =>
       rollupName match {
         case Some(rollup) =>
-          response(req, datasetDAO.deleteRollup(user(req), resourceName, expectedDataVersion(req), rollup,
-            RequestId.getFromRequest(req)))
+          response(req, req.datasetDAO.deleteRollup(user(req), resourceName, expectedDataVersion(req), rollup))
         case None => MethodNotAllowed
       }
     }
 
     override def put = { req =>
-      withRollupSpec(req) { spec =>
+      withRollupSpec(req.httpRequest) { spec =>
         rollupName match {
           case Some(rollup) =>
-            response(req, datasetDAO.replaceOrCreateRollup(user(req), resourceName, expectedDataVersion(req), rollup, spec,
-              RequestId.getFromRequest(req)))
+            response(req, req.datasetDAO.replaceOrCreateRollup(user(req), resourceName, expectedDataVersion(req), rollup, spec))
           case None => MethodNotAllowed
         }
 
