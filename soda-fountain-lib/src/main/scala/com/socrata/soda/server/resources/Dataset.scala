@@ -128,7 +128,7 @@ case class Dataset(maxDatumSize: Int) {
   object createService extends SodaResource {
     override def post = { req =>
       withDatasetSpec(req) { spec =>
-        response(req, req.datasetDAO.createDataset(user(req), spec, req.requestId))
+        response(req, req.datasetDAO.createDataset(user(req), spec))
       }
     }
   }
@@ -136,8 +136,7 @@ case class Dataset(maxDatumSize: Int) {
   case class service(resourceName: ResourceName) extends SodaResource {
     override def put = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(req, req.datasetDAO.replaceOrCreateDataset(user(req), resourceName, spec,
-                                                            req.requestId))
+        response(req, req.datasetDAO.replaceOrCreateDataset(user(req), resourceName, spec))
       }
     }
 
@@ -148,8 +147,7 @@ case class Dataset(maxDatumSize: Int) {
 
     override def patch = { req =>
       withDatasetSpec(req, resourceName) { spec =>
-        response(req, req.datasetDAO.updateDataset(user(req), resourceName, spec,
-                                                   req.requestId))
+        response(req, req.datasetDAO.updateDataset(user(req), resourceName, spec))
       }
     }
 
@@ -180,35 +178,32 @@ case class Dataset(maxDatumSize: Int) {
     // TODO: not GET
     override def get = { req =>
       val doCopyData = req.queryParameter("copy_data") == Some("true")
-      response(req, req.datasetDAO.makeCopy(user(req), resourceName, expectedDataVersion(req), copyData = doCopyData,
-                                            requestId = req.requestId))
+      response(req, req.datasetDAO.makeCopy(user(req), resourceName, expectedDataVersion(req), copyData = doCopyData))
     }
 
     override def delete = { req =>
-      response(req, req.datasetDAO.dropCurrentWorkingCopy(user(req), resourceName, expectedDataVersion(req),
-                                                          requestId = req.requestId))
+      response(req, req.datasetDAO.dropCurrentWorkingCopy(user(req), resourceName, expectedDataVersion(req)))
     }
     override def put = { req =>
-      response(req, req.datasetDAO.publish(user(req), resourceName, expectedDataVersion(req), keepSnapshot = keepSnapshot(req),
-                                           requestId = req.requestId))
+      response(req, req.datasetDAO.publish(user(req), resourceName, expectedDataVersion(req), keepSnapshot = keepSnapshot(req)))
     }
   }
 
   case class secondaryVersionsService(resource: ResourceName) extends SodaResource {
     override def get = { req =>
-      response(req, req.datasetDAO.getSecondaryVersions(resource, req.requestId))
+      response(req, req.datasetDAO.getSecondaryVersions(resource))
     }
   }
 
   case class versionService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
     override def get = { req =>
-      response(req, req.datasetDAO.getVersion(resourceName, secondary, req.requestId))
+      response(req, req.datasetDAO.getVersion(resourceName, secondary))
     }
   }
 
   case class secondaryCopyService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
     override def post = { req =>
-      response(req, req.datasetDAO.propagateToSecondary(resourceName, secondary, req.requestId))
+      response(req, req.datasetDAO.propagateToSecondary(resourceName, secondary))
     }
   }
 
@@ -243,15 +238,14 @@ case class Dataset(maxDatumSize: Int) {
       rollupName match {
         case Some(_) => MethodNotAllowed
         case None =>
-          response(req, req.datasetDAO.getRollups(resourceName, req.requestId))
+          response(req, req.datasetDAO.getRollups(resourceName))
       }
     }
 
     override def delete = { req =>
       rollupName match {
         case Some(rollup) =>
-          response(req, req.datasetDAO.deleteRollup(user(req), resourceName, expectedDataVersion(req), rollup,
-                                                    req.requestId))
+          response(req, req.datasetDAO.deleteRollup(user(req), resourceName, expectedDataVersion(req), rollup))
         case None => MethodNotAllowed
       }
     }
@@ -260,8 +254,7 @@ case class Dataset(maxDatumSize: Int) {
       withRollupSpec(req.httpRequest) { spec =>
         rollupName match {
           case Some(rollup) =>
-            response(req, req.datasetDAO.replaceOrCreateRollup(user(req), resourceName, expectedDataVersion(req), rollup, spec,
-                                                               req.requestId))
+            response(req, req.datasetDAO.replaceOrCreateRollup(user(req), resourceName, expectedDataVersion(req), rollup, spec))
           case None => MethodNotAllowed
         }
 

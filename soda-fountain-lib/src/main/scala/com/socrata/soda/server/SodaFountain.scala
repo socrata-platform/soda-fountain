@@ -265,7 +265,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
           records.foreach { rec =>
             log.info(s"Dropping dataset ${rec.resourceName} (${rec.systemId}")
             //drops the dataset and calls data coordinator to remove datasets in truth
-            datasetDAO.removeDataset("", rec.resourceName, None, RequestId.generate())
+            datasetDAO.removeDataset("", rec.resourceName, None)
           }
         }
         catch {

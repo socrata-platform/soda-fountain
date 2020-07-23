@@ -66,13 +66,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def createDataset(user: String, spec: UserProvidedDatasetSpec, requestId: RequestId): Result =
+  def createDataset(user: String, spec: UserProvidedDatasetSpec): Result =
     freezeForCreation(spec) match {
-      case Right(frozenSpec) => createDataset(user, frozenSpec, requestId)
+      case Right(frozenSpec) => createDataset(user, frozenSpec)
       case Left(result) => result
     }
 
-  def createDataset(user: String, spec: DatasetSpec, requestId: RequestId): Result = {
+  def createDataset(user: String, spec: DatasetSpec): Result = {
     if(!validResourceName(spec.resourceName)) return InvalidDatasetName(spec.resourceName)
     store.translateResourceName(spec.resourceName) match {
       case None =>
@@ -124,8 +124,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
 
   def replaceOrCreateDataset(user: String,
                              dataset: ResourceName,
-                             spec: UserProvidedDatasetSpec,
-                             requestId: RequestId): Result =
+                             spec: UserProvidedDatasetSpec): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         freezeForCreation(spec) match {
@@ -150,8 +149,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
 
   def updateDataset(user: String,
                     dataset: ResourceName,
-                    spec: UserProvidedDatasetSpec,
-                    requestId: RequestId): Result = {
+                    spec: UserProvidedDatasetSpec): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         freezeForUpdate(spec) match {
@@ -184,7 +182,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def removeDataset (user: String, dataset: ResourceName, expectedDataVersion: Option[Long], requestId: RequestId): Result = {
+  def removeDataset (user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result = {
     retryable(limit = 5) {
       store.translateResourceName(dataset, deleted = true) match {
         case Some(datasetRecord) =>
@@ -239,7 +237,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def getSecondaryVersions(dataset: ResourceName, requestId: RequestId): Result =
+  def getSecondaryVersions(dataset: ResourceName): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         dc.checkVersionInSecondaries(datasetRecord.handle) match {
@@ -250,7 +248,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         DatasetNotFound(dataset)
     }
 
-  def getVersion(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result =
+  def getVersion(dataset: ResourceName, secondary: SecondaryId): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         dc.checkVersionInSecondary(datasetRecord.handle, secondary) match {
@@ -295,7 +293,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   }
   def retry() = throw new Retry
 
-  def makeCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], copyData: Boolean, requestId: RequestId): Result =
+  def makeCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], copyData: Boolean): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
@@ -325,7 +323,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], requestId: RequestId): Result =
+  def dropCurrentWorkingCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
@@ -359,7 +357,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean], requestId: RequestId): Result =
+  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean]): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
@@ -387,7 +385,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId, requestId: RequestId): Result =
+  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result =
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         dc.propagateToSecondary(datasetRecord.handle, secondary)
@@ -414,8 +412,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                             dataset: ResourceName,
                             expectedDataVersion: Option[Long],
                             rollup: RollupName,
-                            spec: UserProvidedRollupSpec,
-                            requestId: RequestId): Result =
+                            spec: UserProvidedRollupSpec): Result =
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           spec.soql match {
@@ -484,7 +481,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def getRollups(dataset: ResourceName, requestId: RequestId): Result = {
+  def getRollups(dataset: ResourceName): Result = {
     store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
       case Some(datasetRecord) =>
         val columnNameMap = datasetRecord.columns.map { columnRecord =>
@@ -524,7 +521,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def deleteRollup(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rollup: RollupName, requestId: RequestId): Result = {
+  def deleteRollup(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rollup: RollupName): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         val instruction = DropRollupInstruction(rollup)
