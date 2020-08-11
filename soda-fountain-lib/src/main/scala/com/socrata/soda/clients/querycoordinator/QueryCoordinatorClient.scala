@@ -6,7 +6,7 @@ import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{ColumnId, DatasetId}
+import com.socrata.soda.server.id.{ColumnId, DatasetHandle}
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
 
@@ -72,7 +72,7 @@ object QueryCoordinatorClient {
 
 trait QueryCoordinatorClient {
   import QueryCoordinatorClient._
-  def query[T](datasetId: DatasetId,
+  def query[T](dataset: DatasetHandle,
                precondition: Precondition,
                ifModifiedSince: Option[DateTime],
                query: String,

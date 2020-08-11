@@ -1,6 +1,6 @@
 package com.socrata.soda.clients.querycoordinator
 
-
+import java.net.URLEncoder
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
@@ -10,9 +10,9 @@ import com.socrata.http.server.implicits._
 import com.socrata.http.server.util._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError._
-import com.socrata.soda.server.ThreadLimiter
+import com.socrata.soda.server.{ThreadLimiter, SodaUtils}
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{ColumnId, DatasetId}
+import com.socrata.soda.server.id.{ColumnId, DatasetHandle}
 import com.socrata.soql.environment.ColumnName
 import org.apache.http.HttpStatus._
 import org.joda.time.DateTime
@@ -49,7 +49,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     loop(0)
   }
 
-  def query[T](datasetId: DatasetId, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
+  def query[T](dataset: DatasetHandle, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
     rowCount: Option[String],
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
     obfuscateId: Boolean,
@@ -57,7 +57,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     rs: ResourceScope)(f: Result => T): T = {
 
     val params = List(
-      qpDataset -> datasetId.underlying,
+      qpDataset -> dataset.datasetId.underlying,
       qpQuery -> query) ++
       queryTimeoutSeconds.map(qpQueryTimeoutSeconds -> _) ++
       copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
@@ -72,6 +72,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
         case Some(host) =>
           val request = host.addHeaders(PreconditionRenderer(precondition) ++
                                         ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate) ++
+                                        Map(SodaUtils.ResourceHeader -> URLEncoder.encode(dataset.resourceName.name, "UTF-8")) ++
                                         extraHeaders).form(params)
           threadLimiter.withThreadpool{
             httpClient.execute(request, rs)
