@@ -127,7 +127,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
       (if (debugInfo.debugLogging) Map("X-Socrata-Debug" -> "true") else Map.empty) ++
       (if (debugInfo.explain) Map("X-Socrata-Explain" -> "true") else Map.empty) ++
       (if (debugInfo.analyze) Map("X-Socrata-Analyze" -> "true") else Map.empty)
-    qc.query(ds.systemId, precondition, ifModifiedSince, query, rowCount,
+    qc.query(ds.handle, precondition, ifModifiedSince, query, rowCount,
              copy, secondaryInstance, noRollup, obfuscateId, extraHeaders, queryTimeoutSeconds, resourceScope) {
       case QueryCoordinatorClient.Success(etags, rollup, lastModifiedStr, response) if !debugInfo.explain =>
         val jsonColumnReps = if (obfuscateId) JsonColumnRep.forDataCoordinatorType
