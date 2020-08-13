@@ -14,6 +14,7 @@ import com.socrata.soql.mapping.ColumnNameMapper
 import com.socrata.soql.parsing.StandaloneParser
 import com.socrata.soql.types.SoQLType
 import com.socrata.soql.{SoQLAnalysis, SoQLAnalyzer}
+import com.socrata.soql.aliases.AliasAnalysis
 import com.socrata.soql.brita.IdentifierFilter
 import com.socrata.soql.environment.{ColumnName, DatasetContext, TableName}
 import com.socrata.soql.functions.SoQLFunctionInfo
@@ -424,10 +425,17 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                 case Right(_) =>
                   val columnNameMap = datasetRecord.columnsByName.mapValues(col => rollupColumnNameToIdMapping(col.id))
 
-                  val parsedQuery = new StandaloneParser().selectStatement(soql)
-                  val mappedQueries = new ColumnNameMapper(columnNameMap).mapSelect(parsedQuery)
-                  mappedQueries.size match {
+                  val parsedQueries = new StandaloneParser().selectStatement(soql)
+                  parsedQueries.size match {
                     case 1 =>
+                      val parsedQuery = parsedQueries.head
+                      val aliasAnalysis = AliasAnalysis(parsedQuery.selection)(Map(TableName.PrimaryTable.qualifier -> dsContext(datasetRecord)))
+
+                      // I don't think this is _quite_ correct, but
+                      // I'm having a hard time coming up with a
+                      // counterexample
+                      val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
+
                       val mappedQuery = mappedQueries.head
                       log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
                       log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
@@ -462,15 +470,19 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
           DatasetNotFound(dataset)
       }
 
-  private def analyzeQuery(ds: MinimalDatasetRecord, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLType]] = {
+  private def dsContext(ds: MinimalDatasetRecord): DatasetContext[SoQLType] = {
     val columnIdMap: Map[ColumnName, String] = ds.columnsByName.mapValues(_.id.underlying)
     val rawSchema: Map[String, SoQLType] = ds.schemaSpec.schema.map { case (k, v) => (k.underlying, v) }
 
-    val analyzer = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
-
-    val dsCtx = new DatasetContext[SoQLType] {
+    new DatasetContext[SoQLType] {
       val schema = OrderedMap(columnIdMap.mapValues(rawSchema).toSeq.sortBy(_._1) : _*)
     }
+  }
+
+  private def analyzeQuery(ds: MinimalDatasetRecord, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLType]] = {
+    val dsCtx = dsContext(ds)
+    val analyzer = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
+
     try {
       val analysis = analyzer.analyzeUnchainedQuery(query)(Map(TableName.PrimaryTable.qualifier -> dsCtx))
       log.debug(s"Rollup analysis successful: ${analysis}")
