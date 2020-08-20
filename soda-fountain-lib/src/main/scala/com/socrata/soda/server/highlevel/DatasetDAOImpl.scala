@@ -5,7 +5,7 @@ import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.highlevel.DatasetDAO.CannotAcquireDatasetWriteLock
 import com.socrata.soda.server.highlevel.DatasetDAO.FeedbackInProgress
 import com.socrata.soda.server.id._
-import com.socrata.soda.server.persistence.{MinimalDatasetRecord, NameAndSchemaStore}
+import com.socrata.soda.server.persistence.{DatasetRecordLike, NameAndSchemaStore}
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soda.server.SodaUtils.traceHeaders
 import com.socrata.soql.collection.OrderedMap
@@ -470,7 +470,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
           DatasetNotFound(dataset)
       }
 
-  private def dsContext(ds: MinimalDatasetRecord): DatasetContext[SoQLType] = {
+  private def dsContext(ds: DatasetRecordLike): DatasetContext[SoQLType] = {
     val columnIdMap: Map[ColumnName, String] = ds.columnsByName.mapValues(_.id.underlying)
     val rawSchema: Map[String, SoQLType] = ds.schemaSpec.schema.map { case (k, v) => (k.underlying, v) }
 
@@ -479,7 +479,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  private def analyzeQuery(ds: MinimalDatasetRecord, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLType]] = {
+  private def analyzeQuery(ds: DatasetRecordLike, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLType]] = {
     val dsCtx = dsContext(ds)
     val analyzer = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
 
@@ -503,11 +503,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         dc.getRollups(datasetRecord.handle) match {
           case result: DataCoordinatorClient.RollupResult =>
             val rollups = result.rollups.map { rollup =>
-              val parsedQuery = new StandaloneParser().selectStatement(rollup.soql)
-              val mappedQueries = new ColumnNameMapper(columnNameMap).mapSelect(parsedQuery)
-
-              mappedQueries.size match {
+              val parsedQueries = new StandaloneParser().selectStatement(rollup.soql)
+              parsedQueries.size match {
                 case 1 =>
+                  val parsedQuery = parsedQueries.head
+                  val aliasAnalysis = AliasAnalysis(parsedQuery.selection)(Map(TableName.PrimaryTable.qualifier -> dsContext(datasetRecord)))
+                  val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
+
                   val mappedQuery = mappedQueries.head
                   log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
                   log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
