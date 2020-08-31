@@ -38,7 +38,7 @@ class SodaRouter(versionResource: SodaHttpService,
                  suggestResource: (ResourceName, ColumnName, String) => SodaHttpService,
                  snapshotResources: SnapshotResources,
                  secondaryReindexResource: ResourceName => SodaHttpService,
-                 secondaryAddIndexResource: (ResourceName, ColumnName) => HttpService) {
+                 secondaryAddIndexResource: (ResourceName, ColumnName) => SodaHttpService) {
   private[this] val routeContext = new RouteContext[SodaRequest, HttpResponse]
   import routeContext._
 

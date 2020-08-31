@@ -379,14 +379,14 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def secondaryAddIndex(user: String, resource: ResourceName, column: ColumnName, requestId: RequestId): Result = {
+  def secondaryAddIndex(user: String, resource: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result = {
     retryable(limit = 5) {
       store.lookupDataset(resource, Some(Latest)) match {
         case Some(datasetRecord) =>
           datasetRecord.columnsByName.get(column) match {
             case Some(columnRecord) =>
               val instruction = SecondaryAddIndexInstruction(column)
-              dc.update(datasetRecord.systemId, datasetRecord.schemaHash, user, Iterator(instruction), Map.empty)(result => result) match {
+              dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, Iterator(instruction))(result => result) match {
                 case _: DataCoordinatorClient.SuccessResult =>
                   EmptyResult
                 case e: DataCoordinatorClient.FailResult =>

@@ -137,7 +137,7 @@ case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   case class secondaryAddIndexService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def post = { req => resp =>
       response(req,
-        columnDAO.secondaryAddIndex(user(req), resourceName, columnName, RequestId.getFromRequest(req)),
+        req.columnDAO.secondaryAddIndex(user(req), resourceName, expectedDataVersion(req), columnName, RequestId.getFromRequest(req.httpRequest.servletRequest)),
         Array[Byte](0))(resp)
     }
   }
