@@ -38,7 +38,7 @@ class SodaRouter(versionResource: SodaHttpService,
                  suggestResource: (ResourceName, ColumnName, String) => SodaHttpService,
                  snapshotResources: SnapshotResources,
                  secondaryReindexResource: ResourceName => SodaHttpService,
-                 secondaryIndexResource: (ResourceName, ColumnName) => SodaHttpService) {
+                 indexDirectiveResource: (ResourceName, ColumnName) => SodaHttpService) {
   private[this] val routeContext = new RouteContext[SodaRequest, HttpResponse]
   import routeContext._
 
@@ -71,7 +71,7 @@ class SodaRouter(versionResource: SodaHttpService,
     Route("/dataset", datasetCreateResource),
     Route("/dataset/{ResourceName}", datasetResource),
     Route("/dataset/{ResourceName}/{ColumnName}", datasetColumnResource),
-    Route("/dataset/{ResourceName}/{ColumnName}/secondary-index", secondaryIndexResource),
+    Route("/dataset/{ResourceName}/{ColumnName}/index-directive", indexDirectiveResource),
     Route("/dataset/{ResourceName}/{ColumnName}/!makepk", datasetColumnPKResource), // hack hack; once full DDL is implemented this can go away
     Route("/dataset/", datasetCreateResource),
     Route("/dataset/{ResourceName}/!secondary-reindex", secondaryReindexResource),

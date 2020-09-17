@@ -135,15 +135,14 @@ case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
     }
   }
 
-  case class secondaryIndexService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
+  case class indexDirectiveService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
     override def post = { req => resp =>
-
       checkPrecondition(req) { precondition =>
         jsonSingleObjectStream(req.httpRequest, 10000) match {
-          case Right(directives) =>
+          case Right(directive) =>
             response(req,
-              req.columnDAO.secondaryAddIndex(user(req), resourceName, expectedDataVersion(req), columnName,
-                directives, req.requestId), Array[Byte](0))(resp)
+              req.columnDAO.createOrUpdateIndexDirective(user(req), resourceName, expectedDataVersion(req), columnName,
+                directive, req.requestId), Array[Byte](0))(resp)
           case Left(err) =>
             RequestProblem(err)
         }
@@ -152,8 +151,8 @@ case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
 
     override def delete = { req => resp =>
       checkPrecondition(req) { precondition =>
-        response(req, req.columnDAO.secondaryDeleteIndex(user(req), resourceName, expectedDataVersion(req), columnName,
-                 req.requestId))(resp)
+        response(req, req.columnDAO.dropIndexDirectives(user(req), resourceName, expectedDataVersion(req), columnName,
+          req.requestId))(resp)
       }
     }
   }

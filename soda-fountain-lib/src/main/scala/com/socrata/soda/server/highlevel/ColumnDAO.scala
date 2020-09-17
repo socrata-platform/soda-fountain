@@ -26,9 +26,9 @@ trait ColumnDAO {
 
   def makePK(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName): Result
 
-  def secondaryAddIndex(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, directives: JObject, requestId: RequestId): Result
+  def createOrUpdateIndexDirective(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, directive: JObject, requestId: RequestId): Result
 
-  def secondaryDeleteIndex(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result
+  def dropIndexDirectives(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result
 
   def getColumn(dataset: ResourceName, column: ColumnName): Result
 }

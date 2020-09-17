@@ -89,17 +89,17 @@ case class SecondaryReindexInstruction() extends CM {
   ))
 }
 
-case class SecondaryAddIndexInstruction(name: ColumnName, directives: JObject) extends CM {
+case class CreateOrUpdateIndexDirectiveInstruction(name: ColumnId, directive: JObject) extends CM {
   def asJson = JObject(Map(
-    "c"     -> JString("secondary add index"),
-    "field_name"  -> JString(name.name),
-    "directives" -> directives
+    "c"     -> JString("create or update index directive"),
+    "column"  -> JString(name.underlying),
+    "directive" -> directive
   ))
 }
 
-case class SecondaryDeleteIndexInstruction(name: ColumnName) extends CM {
+case class DropIndexDirectiveInstruction(name: ColumnId) extends CM {
   def asJson = JObject(Map(
-    "c"     -> JString("secondary delete index"),
-    "field_name"  -> JString(name.name)
+    "c"     -> JString("drop index directive"),
+    "column"  -> JString(name.underlying)
   ))
 }

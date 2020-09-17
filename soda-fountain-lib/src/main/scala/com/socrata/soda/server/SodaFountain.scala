@@ -242,7 +242,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       suggestResource = suggest.service,
       snapshotResources = SnapshotResources(snapshots.findDatasetsService, snapshots.listSnapshotsService, snapshots.snapshotsService),
       secondaryReindexResource = dataset.secondaryReindexService,
-      secondaryIndexResource = column.secondaryIndexService
+      indexDirectiveResource = column.indexDirectiveService
     )
   }
 
