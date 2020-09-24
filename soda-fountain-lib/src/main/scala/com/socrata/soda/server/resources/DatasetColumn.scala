@@ -1,6 +1,6 @@
 package com.socrata.soda.server.resources
 
-import com.rojoma.json.v3.ast.JString
+import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.interpolation._
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.{HttpRequest, HttpResponse}
@@ -12,9 +12,10 @@ import com.socrata.soda.server.responses._
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.util.ETagObfuscator
+import com.socrata.soda.server.wiremodels.InputUtils.jsonSingleObjectStream
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
-import javax.servlet.http.{HttpServletResponse, HttpServletRequest}
+import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[DatasetColumn])
@@ -77,6 +78,8 @@ case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
         }
       case ColumnDAO.PreconditionFailed(Precondition.FailedBecauseNoMatch) =>
         SodaUtils.response(req, EtagPreconditionFailed)
+      case ColumnDAO.EmptyResult =>
+        NoContent
     }
   }
 
@@ -129,6 +132,28 @@ case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
       response(req,
                req.columnDAO.makePK(user(req), resourceName, expectedDataVersion(req), columnName),
                Array[Byte](0))(resp)
+    }
+  }
+
+  case class indexDirectiveService(resourceName: ResourceName, columnName: ColumnName) extends SodaResource {
+    override def post = { req => resp =>
+      checkPrecondition(req) { precondition =>
+        jsonSingleObjectStream(req.httpRequest, 10000) match {
+          case Right(directive) =>
+            response(req,
+              req.columnDAO.createOrUpdateIndexDirective(user(req), resourceName, expectedDataVersion(req), columnName,
+                directive, req.requestId), Array[Byte](0))(resp)
+          case Left(err) =>
+            RequestProblem(err)
+        }
+      }
+    }
+
+    override def delete = { req => resp =>
+      checkPrecondition(req) { precondition =>
+        response(req, req.columnDAO.dropIndexDirectives(user(req), resourceName, expectedDataVersion(req), columnName,
+          req.requestId))(resp)
+      }
     }
   }
 }

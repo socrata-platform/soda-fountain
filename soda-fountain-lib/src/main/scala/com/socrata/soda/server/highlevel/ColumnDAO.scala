@@ -1,10 +1,11 @@
 package com.socrata.soda.server.highlevel
 
-import com.rojoma.json.v3.ast.JValue
+import com.rojoma.json.v3.ast.{JObject, JValue}
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.http.server.util.RequestId.RequestId
+import com.socrata.soda.server.highlevel.DatasetDAO.SuccessResult
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
-import com.socrata.soda.server.persistence.{DatasetRecord, ColumnRecord}
+import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soql.environment.ColumnName
 
@@ -25,6 +26,10 @@ trait ColumnDAO {
 
   def makePK(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName): Result
 
+  def createOrUpdateIndexDirective(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, directive: JObject, requestId: RequestId): Result
+
+  def dropIndexDirectives(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], column: ColumnName, requestId: RequestId): Result
+
   def getColumn(dataset: ResourceName, column: ColumnName): Result
 }
 
@@ -39,6 +44,7 @@ object ColumnDAO {
   case class Updated(columnRec: ColumnRecord, etag: Option[EntityTag]) extends UpdateSuccessResult
   case class Found(datasetRec: DatasetRecord, columnRec: ColumnRecord, etag: Option[EntityTag]) extends SuccessResult
   case class Deleted(rec: ColumnRecord, etag: Option[EntityTag]) extends SuccessResult
+  case object EmptyResult extends SuccessResult
 
   // FAILURES: DataCoordinator
   case class ColumnAlreadyExists(columnName: ColumnName) extends FailResult
