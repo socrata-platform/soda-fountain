@@ -28,7 +28,7 @@ pipeline {
   parameters {
     booleanParam(name: 'RELEASE_CUT', defaultValue: false, description: 'Are we cutting a new release candidate?')
     booleanParam(name: 'FORCE_BUILD', defaultValue: false, description: 'Force build from latest tag if sbt release needed to be run between cuts')
-    string(name: 'AGENT', defaultValue: 'build-worker', description: 'Which build agent to use?')
+    string(name: 'AGENT', defaultValue: 'build-worker-pg13', description: 'Which build agent to use?')
     string(name: 'BRANCH_SPECIFIER', defaultValue: default_branch_specifier, description: 'Use this branch for building the artifact.')
   }
   agent {
