@@ -23,6 +23,7 @@ trait RowDAO {
             precondition: Precondition,
             ifModifiedSince: Option[DateTime],
             query: String,
+            context: Map[String, String],
             rowCount: Option[String],
             stage: Option[Stage],
             secondaryInstance: Option[String],
