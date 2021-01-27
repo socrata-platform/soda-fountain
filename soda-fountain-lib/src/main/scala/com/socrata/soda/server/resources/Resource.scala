@@ -6,6 +6,7 @@ import java.security.MessageDigest
 import scala.collection.JavaConverters._
 import scala.language.existentials
 import com.rojoma.json.v3.ast.{JArray, JNumber, JString, JValue}
+import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.ContentNegotiation
 import com.socrata.http.server.{HttpRequest, HttpResponse}
@@ -197,6 +198,9 @@ case class Resource(etagObfuscator: ETagObfuscator,
                   updatePrecondition(newPrecondition).map(_.dropRight(suffix.length)),
                   req.dateTimeHeader("If-Modified-Since"),
                   req.queryParameter(qpQuery).getOrElse(qpQueryDefault),
+                  req.queryParameter(qpContext).fold(Map.empty[String, String]) { ctxStr =>
+                    JsonUtil.parseJson[Map[String, String]](ctxStr).right.get
+                  },
                   req.queryParameter(qpRowCount),
                   Stage(req.queryParameter(qpCopy)),
                   req.queryParameter(qpSecondary),
@@ -467,6 +471,7 @@ object Resource {
 
   // Query Parameters
   val qpQuery = "$query"
+  val qpContext = "$$context"
   val qpRowCount = "$$row_count"
   val qpCopy = "$$copy" // Query parameter for copy.  Optional, "latest", "published", "unpublished"
   val qpSecondary = "$$store"

@@ -30,6 +30,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             precondition: Precondition,
             ifModifiedSince: Option[DateTime],
             query: String,
+            context: Map[String, String],
             rowCount: Option[String],
             copy: Option[Stage],
             secondaryInstance:Option[String],
@@ -41,7 +42,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             resourceScope: ResourceScope): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(ds) =>
-        getRows(ds, precondition, ifModifiedSince, query, rowCount, copy, secondaryInstance, noRollup, obfuscateId,
+        getRows(ds, precondition, ifModifiedSince, query, context, rowCount, copy, secondaryInstance, noRollup, obfuscateId,
           fuseColumns, queryTimeoutSeconds, debugInfo, resourceScope)
       case None =>
         log.info("dataset not found {}", resourceName.name)
@@ -70,7 +71,9 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val soqlLiteralRep = SoQLLiteralColumnRep.forType(pkCol.typ)
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
             val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
-            getRows(datasetRecord, NoPrecondition, ifModifiedSince, query, None, copy, secondaryInstance,
+            getRows(datasetRecord, NoPrecondition, ifModifiedSince, query,
+                    Map.empty, // no context needed
+                    None, copy, secondaryInstance,
                     noRollup, obfuscateId, fuseColumns, queryTimeoutSeconds, debugInfo, resourceScope) match {
               case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
                 val version = ColumnName(":version")
@@ -111,6 +114,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                       precondition: Precondition,
                       ifModifiedSince: Option[DateTime],
                       query: String,
+                      context: Map[String, String],
                       rowCount: Option[String],
                       copy: Option[Stage],
                       secondaryInstance:Option[String],
@@ -127,7 +131,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
       (if (debugInfo.debugLogging) Map("X-Socrata-Debug" -> "true") else Map.empty) ++
       (if (debugInfo.explain) Map("X-Socrata-Explain" -> "true") else Map.empty) ++
       (if (debugInfo.analyze) Map("X-Socrata-Analyze" -> "true") else Map.empty)
-    qc.query(ds.handle, precondition, ifModifiedSince, query, rowCount,
+    qc.query(ds.handle, precondition, ifModifiedSince, query, context, rowCount,
              copy, secondaryInstance, noRollup, obfuscateId, extraHeaders, queryTimeoutSeconds, resourceScope) {
       case QueryCoordinatorClient.Success(etags, rollup, lastModifiedStr, response) if !debugInfo.explain =>
         val jsonColumnReps = if (obfuscateId) JsonColumnRep.forDataCoordinatorType

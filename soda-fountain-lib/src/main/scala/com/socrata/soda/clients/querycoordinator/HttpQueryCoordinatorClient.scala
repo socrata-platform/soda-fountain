@@ -27,6 +27,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
 
   private val qpDataset = "ds"
   private val qpQuery = "q"
+  private val qpContext = "c"
   private val qpRowCount = "rowCount"
   private val qpCopy = "copy"
   private val secondaryStoreOverride = "store"
@@ -50,6 +51,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   }
 
   def query[T](dataset: DatasetHandle, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
+    context: Map[String, String],
     rowCount: Option[String],
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
     obfuscateId: Boolean,
@@ -58,7 +60,8 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
 
     val params = List(
       qpDataset -> dataset.datasetId.underlying,
-      qpQuery -> query) ++
+      qpQuery -> query,
+      qpContext -> JsonUtil.renderJson(context, pretty=false)) ++
       queryTimeoutSeconds.map(qpQueryTimeoutSeconds -> _) ++
       copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
       rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
