@@ -24,6 +24,7 @@ import DatasetDAO._
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
 import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation}
+import com.socrata.soql.ast.Select
 
 class DatasetDAOImpl(dc: DataCoordinatorClient,
                      fbm: FeedbackSecondaryManifestClient,
@@ -438,6 +439,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                       // counterexample
                       val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
 
+                      val mappedQuery = mappedQueries
                       log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
                       log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
 
@@ -509,9 +511,16 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                 case Leaf(parsedQuery) =>
                   val aliasAnalysis = AliasAnalysis(parsedQuery.selection)(Map(TableName.PrimaryTable.qualifier -> dsContext(datasetRecord)))
                   val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
+<<<<<<< HEAD
                   log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
                   log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
                   RollupSpec(name = rollup.name, soql = mappedQueries.toString())
+=======
+                  val mappedQuery = mappedQueries
+                  log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
+                  log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
+                  RollupSpec(name = rollup.name, soql = mappedQuery.toString())
+>>>>>>> EN-44452: SoQL Union/BinaryTree support in soda-fountain
               }
             }
 
