@@ -24,7 +24,6 @@ import DatasetDAO._
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
 import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation}
-import com.socrata.soql.ast.Select
 
 class DatasetDAOImpl(dc: DataCoordinatorClient,
                      fbm: FeedbackSecondaryManifestClient,
