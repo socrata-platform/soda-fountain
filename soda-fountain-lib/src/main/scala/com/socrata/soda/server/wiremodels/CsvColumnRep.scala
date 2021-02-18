@@ -212,6 +212,14 @@ object CsvColumnRep {
     }
   }
 
+  object JsonRep extends CsvColumnRep {
+    def toString(value: SoQLValue) =
+      value match {
+        case SoQLNull => null
+        case SoQLJson(jv) => JsonUtil.renderJson(jv)
+        case _ => null
+      }
+  }
 
   /**
     * Core is not supposed to use csv serialization format of photo type directly.
@@ -265,7 +273,8 @@ object CsvColumnRep {
     SoQLLocation -> LocationRep,
     SoQLDocument -> DocumentRep,
     SoQLPhoto -> PhotoRep,
-    SoQLUrl -> UrlRep
+    SoQLUrl -> UrlRep,
+    SoQLJson -> JsonRep
   )
 
   val forTypeClearId: Map[SoQLType, CsvColumnRep] =
