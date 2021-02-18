@@ -436,9 +436,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                       // I don't think this is _quite_ correct, but
                       // I'm having a hard time coming up with a
                       // counterexample
-                      val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
+                      val mappedQuery = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
 
-                      val mappedQuery = mappedQueries
                       log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
                       log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
 
@@ -509,8 +508,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                   return InternalServerError("unknown", tag, "found saved rollup to be chained soql")
                 case Leaf(parsedQuery) =>
                   val aliasAnalysis = AliasAnalysis(parsedQuery.selection)(Map(TableName.PrimaryTable.qualifier -> dsContext(datasetRecord)))
-                  val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
-                  val mappedQuery = mappedQueries
+                  val mappedQuery = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
                   log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
                   log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
                   RollupSpec(name = rollup.name, soql = mappedQuery.toString())
