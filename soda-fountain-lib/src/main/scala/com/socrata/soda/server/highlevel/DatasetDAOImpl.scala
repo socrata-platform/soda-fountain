@@ -13,7 +13,7 @@ import com.socrata.soql.exceptions.{NoSuchColumn, SoQLException}
 import com.socrata.soql.mapping.ColumnNameMapper
 import com.socrata.soql.parsing.StandaloneParser
 import com.socrata.soql.types.SoQLType
-import com.socrata.soql.{SoQLAnalysis, SoQLAnalyzer}
+import com.socrata.soql.{Compound, Leaf, SoQLAnalysis, SoQLAnalyzer}
 import com.socrata.soql.aliases.AliasAnalysis
 import com.socrata.soql.brita.IdentifierFilter
 import com.socrata.soql.environment.{ColumnName, DatasetContext, TableName}
@@ -425,10 +425,12 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                 case Right(_) =>
                   val columnNameMap = datasetRecord.columnsByName.mapValues(col => rollupColumnNameToIdMapping(col.id))
 
-                  val parsedQueries = new StandaloneParser().selectStatement(soql)
-                  parsedQueries.size match {
-                    case 1 =>
-                      val parsedQuery = parsedQueries.head
+                  val parsedQueries = new StandaloneParser().binaryTreeSelect(soql)
+                  parsedQueries match {
+                    case Compound(_, _, _) =>
+                      // It cannot get here because it is prevented by analyzeQuery which does not take chained soql.
+                      RollupError("rollup soql cannot be compound query")
+                    case Leaf(parsedQuery) =>
                       val aliasAnalysis = AliasAnalysis(parsedQuery.selection)(Map(TableName.PrimaryTable.qualifier -> dsContext(datasetRecord)))
 
                       // I don't think this is _quite_ correct, but
@@ -436,11 +438,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                       // counterexample
                       val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
 
-                      val mappedQuery = mappedQueries.head
                       log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
-                      log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
+                      log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
 
-                      val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQuery.toString())
+                      val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQueries.toString())
                       dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
                         Iterator.single(instruction)) {
                         case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
@@ -458,9 +459,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                           log.warn("case is NOT implemented %s".format(x.toString))
                           InternalServerError("unknown", tag, x.toString)
                       }
-                    case _ =>
-                      // It cannot get here because it is prevented by analyzeQuery which does not take chained soql.
-                      RollupError("rollup soql cannot be chained")
                   }
               }
             case None =>
@@ -503,21 +501,17 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         dc.getRollups(datasetRecord.handle) match {
           case result: DataCoordinatorClient.RollupResult =>
             val rollups = result.rollups.map { rollup =>
-              val parsedQueries = new StandaloneParser().selectStatement(rollup.soql)
-              parsedQueries.size match {
-                case 1 =>
-                  val parsedQuery = parsedQueries.head
+              val parsedQueries = new StandaloneParser().binaryTreeSelect(rollup.soql)
+              parsedQueries match {
+                case Compound(op, _, _) =>
+                  log.error("found saved rollup to be compound soql {}", op)
+                  return InternalServerError("unknown", tag, "found saved rollup to be chained soql")
+                case Leaf(parsedQuery) =>
                   val aliasAnalysis = AliasAnalysis(parsedQuery.selection)(Map(TableName.PrimaryTable.qualifier -> dsContext(datasetRecord)))
                   val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
-
-                  val mappedQuery = mappedQueries.head
                   log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
-                  log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQuery}")
-
-                  RollupSpec(name = rollup.name, soql = mappedQuery.toString())
-                case _ =>
-                  log.error("found saved rollup to be chained soql")
-                  return InternalServerError("unknown", tag, "found saved rollup to be chained soql")
+                  log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
+                  RollupSpec(name = rollup.name, soql = mappedQueries.toString())
               }
             }
 
