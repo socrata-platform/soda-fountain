@@ -154,7 +154,7 @@ object JsonColumnRep {
   }
 
   object JsonRep extends JsonColumnRep {
-    val representedType = SoQLDocument
+    val representedType = SoQLJson
 
     def fromJValue(input: JValue): Option[SoQLValue] = {
       Some(SoQLJson(input))
