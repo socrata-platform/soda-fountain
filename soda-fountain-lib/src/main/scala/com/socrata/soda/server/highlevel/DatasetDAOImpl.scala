@@ -438,7 +438,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                       // counterexample
                       val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
 
-                      val mappedQuery = mappedQueries
                       log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
                       log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
 
