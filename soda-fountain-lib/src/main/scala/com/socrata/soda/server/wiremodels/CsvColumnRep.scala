@@ -216,7 +216,7 @@ object CsvColumnRep {
     def toString(value: SoQLValue) =
       value match {
         case SoQLNull => null
-        case SoQLJson(jv) => JsonUtil.renderJson(jv)
+        case SoQLJson(jv) => JsonUtil.renderJson(jv, pretty=false)
         case _ => null
       }
   }

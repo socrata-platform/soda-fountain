@@ -157,12 +157,15 @@ object JsonColumnRep {
     val representedType = SoQLJson
 
     def fromJValue(input: JValue): Option[SoQLValue] = {
-      Some(SoQLJson(input))
+      input match {
+        case JObject(m) => m.get("json").map(js => SoQLJson(js))
+        case JNull => Some(SoQLNull)
+      }
     }
 
     def toJValue(input: SoQLValue): JValue = {
       input match {
-        case SoQLJson(jv) => jv
+        case x@SoQLJson(value) => JObject(Map("json" -> value))
         case SoQLNull => JNull
         case _ => stdBadValue
       }
