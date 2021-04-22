@@ -153,6 +153,26 @@ object JsonColumnRep {
     }
   }
 
+  object JsonRep extends JsonColumnRep {
+    val representedType = SoQLJson
+
+    def fromJValue(input: JValue): Option[SoQLValue] = {
+      input match {
+        case JObject(m) => m.get("json").map(js => SoQLJson(js))
+        case JNull => Some(SoQLNull)
+      }
+    }
+
+    def toJValue(input: SoQLValue): JValue = {
+      input match {
+        case x@SoQLJson(value) => JObject(Map("json" -> value))
+        case SoQLNull => JNull
+        case _ => stdBadValue
+      }
+    }
+  }
+
+
   object FixedTimestampRep extends JsonColumnRep {
     def fromJValue(input: JValue): Option[SoQLValue] = input match {
       case JString(SoQLFixedTimestamp.StringRep(t)) => Some(SoQLFixedTimestamp(t))
@@ -424,7 +444,8 @@ object JsonColumnRep {
       SoQLUrl -> UrlRep,
       SoQLDocument -> DocumentRep,
       SoQLPhoto -> PhotoRep,
-      SoQLLocation -> ClientLocationRep
+      SoQLLocation -> ClientLocationRep,
+      SoQLJson -> JsonRep
     )
 
   val forDataCoordinatorType: Map[SoQLType, JsonColumnRep] =
@@ -454,7 +475,8 @@ object JsonColumnRep {
       SoQLUrl -> UrlRep,
       SoQLDocument -> DocumentRep,
       SoQLPhoto -> PhotoRep,
-      SoQLLocation -> LocationRep
+      SoQLLocation -> LocationRep,
+      SoQLJson -> JsonRep
     )
 
   val forClientTypeClearId: Map[SoQLType, JsonColumnRep] =
