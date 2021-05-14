@@ -29,18 +29,19 @@ object CsvColumnRep {
   object NumberRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
-      else value.asInstanceOf[SoQLNumber].value.toString
+      else value.asInstanceOf[SoQLNumber].value.toPlainString
   }
 
   object MoneyRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
-      else value.asInstanceOf[SoQLMoney].value.toString
+      else value.asInstanceOf[SoQLMoney].value.toPlainString
   }
 
   object DoubleRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
+      // double.toString can produce scientific notation
       else value.asInstanceOf[SoQLDouble].value.toString
   }
 

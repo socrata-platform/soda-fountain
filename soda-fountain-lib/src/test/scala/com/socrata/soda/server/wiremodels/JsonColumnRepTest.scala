@@ -38,6 +38,11 @@ class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
     JsonColumnRep.forClientType(SoQLNumber).fromJValue(JString(input)) must equal (Some(SoQLNumber(java.math.BigDecimal.valueOf(input.toLong))))
   }
 
+  test("Number is written as plain text (without scientific notation)"){
+    val input = SoQLNumber(BigDecimal(0.0000005302).bigDecimal)
+    JsonColumnRep.forClientType(SoQLNumber).toJValue(input) must equal (JString("0.0000005302"))
+  }
+
   test("JSON type checker with number (as number)"){
     val input = BigDecimal(12345).bigDecimal
     JsonColumnRep.forClientType(SoQLNumber).fromJValue(JNumber(input)) must equal (Some(SoQLNumber(input)))

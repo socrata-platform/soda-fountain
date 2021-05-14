@@ -234,7 +234,7 @@ object JsonColumnRep {
 
     def toJValue(value: SoQLValue): JValue =
       if(SoQLNull == value) JNull
-      else JString(value.asInstanceOf[SoQLNumber].value.toString)
+      else JString(value.asInstanceOf[SoQLNumber].value.toPlainString)
 
     val representedType: SoQLType = SoQLNumber
   }
@@ -249,7 +249,7 @@ object JsonColumnRep {
 
     def toJValue(value: SoQLValue): JValue =
       if(SoQLNull == value) JNull
-      else JString(value.asInstanceOf[SoQLMoney].value.toString)
+      else JString(value.asInstanceOf[SoQLMoney].value.toPlainString)
 
     val representedType: SoQLType = SoQLMoney
   }
@@ -305,6 +305,7 @@ object JsonColumnRep {
       if(SoQLNull == value) JNull
       else {
         val v = value.asInstanceOf[SoQLDouble].value
+        // double.toString can produce scientific notation
         if(v.isInfinite || v.isNaN) JString(v.toString)
         else JNumber(v)
       }
