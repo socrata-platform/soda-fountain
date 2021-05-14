@@ -234,9 +234,14 @@ object JsonColumnRep {
 
     def toJValue(value: SoQLValue): JValue =
       if(SoQLNull == value) JNull
-      else JString(value.asInstanceOf[SoQLNumber].value.toPlainString)
+      else JString(decimalToString(value.asInstanceOf[SoQLNumber].value))
 
     val representedType: SoQLType = SoQLNumber
+
+    def decimalToString(d: java.math.BigDecimal): String = {
+      if (d.scale.abs > 20) d.toString() // might use scientific notation
+      else d.toPlainString()
+    }
   }
 
   object ClientMoneyRep extends JsonColumnRep {
@@ -249,7 +254,7 @@ object JsonColumnRep {
 
     def toJValue(value: SoQLValue): JValue =
       if(SoQLNull == value) JNull
-      else JString(value.asInstanceOf[SoQLMoney].value.toPlainString)
+      else JString(ClientNumberRep.decimalToString(value.asInstanceOf[SoQLMoney].value))
 
     val representedType: SoQLType = SoQLMoney
   }

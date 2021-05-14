@@ -13,4 +13,9 @@ class CsvColumnRepTest extends FunSuite with MustMatchers {
     val input = SoQLNumber(BigDecimal(0.0000005302).bigDecimal)
     CsvColumnRep.forType(SoQLNumber).toString(input) must equal ("0.0000005302")
   }
+
+  test("Really long number is written in scientific notation"){
+    val input = SoQLNumber(BigDecimal(0.000000000000000000005302).bigDecimal)
+    CsvColumnRep.forType(SoQLNumber).toString(input) must equal ("5.302E-21")
+  }
 }
