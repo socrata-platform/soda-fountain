@@ -238,8 +238,10 @@ object JsonColumnRep {
 
     val representedType: SoQLType = SoQLNumber
 
+    private val ScientificNotationScaleThreshold = 20
+
     def decimalToString(d: java.math.BigDecimal): String = {
-      if (d.scale.abs > 20) d.toString() // might use scientific notation
+      if (d.scale.abs > ScientificNotationScaleThreshold) d.toString() // might use scientific notation
       else d.toPlainString()
     }
   }
