@@ -6,6 +6,7 @@ import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.json.v3.util.JsonUtil
+import com.socrata.soda.server.wiremodels.JsonColumnRep.ClientNumberRep
 import com.socrata.soql.types._
 import com.vividsolutions.jts.geom._
 
@@ -29,18 +30,19 @@ object CsvColumnRep {
   object NumberRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
-      else value.asInstanceOf[SoQLNumber].value.toString
+      else ClientNumberRep.decimalToString(value.asInstanceOf[SoQLNumber].value)
   }
 
   object MoneyRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
-      else value.asInstanceOf[SoQLMoney].value.toString
+      else ClientNumberRep.decimalToString(value.asInstanceOf[SoQLMoney].value)
   }
 
   object DoubleRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
+      // double.toString can produce scientific notation
       else value.asInstanceOf[SoQLDouble].value.toString
   }
 

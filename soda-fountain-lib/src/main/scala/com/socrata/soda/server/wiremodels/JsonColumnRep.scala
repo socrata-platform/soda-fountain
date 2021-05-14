@@ -254,9 +254,16 @@ object JsonColumnRep {
 
     def toJValue(value: SoQLValue): JValue =
       if(SoQLNull == value) JNull
-      else JString(value.asInstanceOf[SoQLNumber].value.toString)
+      else JString(decimalToString(value.asInstanceOf[SoQLNumber].value))
 
     val representedType: SoQLType = SoQLNumber
+
+    private val ScientificNotationScaleThreshold = 20
+
+    def decimalToString(d: java.math.BigDecimal): String = {
+      if (d.scale.abs > ScientificNotationScaleThreshold) d.toString() // might use scientific notation
+      else d.toPlainString()
+    }
   }
 
   object ClientMoneyRep extends JsonColumnRep {
@@ -269,7 +276,7 @@ object JsonColumnRep {
 
     def toJValue(value: SoQLValue): JValue =
       if(SoQLNull == value) JNull
-      else JString(value.asInstanceOf[SoQLMoney].value.toString)
+      else JString(ClientNumberRep.decimalToString(value.asInstanceOf[SoQLMoney].value))
 
     val representedType: SoQLType = SoQLMoney
   }
@@ -325,6 +332,7 @@ object JsonColumnRep {
       if(SoQLNull == value) JNull
       else {
         val v = value.asInstanceOf[SoQLDouble].value
+        // double.toString can produce scientific notation
         if(v.isInfinite || v.isNaN) JString(v.toString)
         else JNumber(v)
       }
