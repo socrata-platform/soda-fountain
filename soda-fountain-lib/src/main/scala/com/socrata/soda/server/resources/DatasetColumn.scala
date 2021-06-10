@@ -64,6 +64,10 @@ case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
         SodaUtils.response(req, HttpMethodNotAllowed(method, Seq("GET", "PATCH")))
       case ColumnDAO.DuplicateValuesInColumn(column) =>
         SodaUtils.response(req, NonUniqueRowId(column.fieldName))
+      case ColumnDAO.ComputationStrategyValidationError(error) =>
+        BadRequest ~> Json(error.message)
+      case ColumnDAO.ComputationStrategyValidationErrorResult(result) =>
+        BadRequest ~> Json(result.getClass.getSimpleName)
       case ColumnDAO.InternalServerError(code, tag, data) =>
         SodaUtils.response(req, InternalError(tag,
           "code"  -> JString(code),

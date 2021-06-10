@@ -3,6 +3,7 @@ package com.socrata.soda.server.highlevel
 import com.rojoma.json.v3.ast.{JObject, JValue}
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.http.server.util.RequestId.RequestId
+import com.socrata.soda.server.highlevel.ColumnSpecUtils.CreateResult
 import com.socrata.soda.server.highlevel.DatasetDAO.SuccessResult
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord}
@@ -58,6 +59,9 @@ object ColumnDAO {
   case class DatasetVersionMismatch(dataset: ResourceName, version: Long) extends FailResult
   case object CannotChangeColumnId extends FailResult
   case object CannotChangeColumnType extends FailResult
+
+  case class ComputationStrategyValidationError(error: com.socrata.computation_strategies.ValidationError) extends FailResult
+  case class ComputationStrategyValidationErrorResult(result: CreateResult) extends FailResult
 
   // FAILURES: Internally consumed only
   case class InvalidColumnName(col: ColumnName) extends FailResult
