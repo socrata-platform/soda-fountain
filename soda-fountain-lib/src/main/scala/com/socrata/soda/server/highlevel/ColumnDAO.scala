@@ -62,6 +62,7 @@ object ColumnDAO {
 
   case class ComputationStrategyValidationError(error: com.socrata.computation_strategies.ValidationError) extends FailResult
   case class ComputationStrategyValidationErrorResult(result: CreateResult) extends FailResult
+  case class ColumnValidationError(result: CreateResult) extends FailResult
 
   // FAILURES: Internally consumed only
   case class InvalidColumnName(col: ColumnName) extends FailResult
