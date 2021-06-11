@@ -68,6 +68,8 @@ case class DatasetColumn(etagObfuscator: ETagObfuscator, maxDatumSize: Int) {
         BadRequest ~> Json(error.message)
       case ColumnDAO.ComputationStrategyValidationErrorResult(result) =>
         BadRequest ~> Json(result.getClass.getSimpleName)
+      case ColumnDAO.ColumnValidationError(result) =>
+        BadRequest ~> Json(result.getClass.getSimpleName)
       case ColumnDAO.InternalServerError(code, tag, data) =>
         SodaUtils.response(req, InternalError(tag,
           "code"  -> JString(code),

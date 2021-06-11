@@ -8,7 +8,7 @@ import com.socrata.soda.server.highlevel.ColumnDAO.{EmptyResult, InternalServerE
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.wiremodels.UserProvidedColumnSpec
 import com.socrata.soda.server.SodaUtils
-import com.socrata.soda.server.highlevel.ColumnSpecUtils.{InvalidComputationStrategy, WrongDatatypeForComputationStrategy}
+import com.socrata.soda.server.highlevel.ColumnSpecUtils.{InvalidComputationStrategy, InvalidFieldName, WrongDatatypeForComputationStrategy}
 import com.socrata.soql.environment.ColumnName
 
 import scala.util.control.ControlThrowable
@@ -100,6 +100,8 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
         ColumnDAO.ComputationStrategyValidationError(err)
       case err@WrongDatatypeForComputationStrategy(_, _) =>
         ColumnDAO.ComputationStrategyValidationErrorResult(err)
+      case err@InvalidFieldName(_) =>
+        ColumnDAO.ColumnValidationError(err)
       case err@x =>
         log.warn(s"case is NOT implemented ${err.getClass.getName}")
         ???
