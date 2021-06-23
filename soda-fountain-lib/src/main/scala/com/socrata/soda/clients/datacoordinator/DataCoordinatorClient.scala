@@ -16,7 +16,8 @@ object DataCoordinatorClient {
   val client = "DC"
 
   @JsonKeyStrategy(Strategy.Underscore)
-  case class SecondaryVersionsReport(truthVersion: Option[Long], // TODO: remove this once `latestVersion` is not optional and CRJ is no-longer looking for it
+  case class SecondaryVersionsReport(truthInstance: String,
+                                     truthVersion: Option[Long], // TODO: remove this once `latestVersion` is not optional and CRJ is no-longer looking for it
                                      latestVersion: Long,
                                      publishedVersion: Option[Long],
                                      unpublishedVersion: Option[Long],
