@@ -344,7 +344,7 @@ case class Resource(etagObfuscator: ETagObfuscator,
                   val dsHandle = datasetRecord.handle
                   val secId = SecondaryId(sec.split("\\.")(1))
                   log.info("collocate {} dataset {} in {}", resourceName, dsHandle, secId)
-                  dc.propagateToSecondary(dsHandle, secId)
+                  dc.propagateToSecondary(dsHandle, secId, None)
                 case _ =>
               }
             case _ =>

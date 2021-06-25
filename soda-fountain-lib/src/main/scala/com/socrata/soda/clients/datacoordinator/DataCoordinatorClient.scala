@@ -134,7 +134,8 @@ trait DataCoordinatorClient {
   import DataCoordinatorClient._
 
   def propagateToSecondary(dataset: DatasetHandle,
-                           secondaryId: SecondaryId)
+                           secondaryId: SecondaryId,
+                           secondariesLike: Option[DatasetId])
   def getSchema(dataset: DatasetHandle): Option[SchemaSpec]
 
   def create(resource: ResourceName,
