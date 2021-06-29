@@ -92,9 +92,15 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     withHost(datasetHandle.datasetId)(f)
 
   def propagateToSecondary(dataset: DatasetHandle,
-                           secondaryId: SecondaryId): Unit =
+                           secondaryId: SecondaryId,
+                           secondariesLike: Option[DatasetId]): Unit =
     withHost(dataset.datasetId) { host =>
-      val r = secondaryReq(host, secondaryId, dataset).jsonBody(JNull)
+      val sr = secondaryReq(host, secondaryId, dataset)
+      val sr2 = secondariesLike match {
+        case Some(datasetId) => sr.addParameter(("secondaries_like", datasetId.underlying))
+        case None => sr
+      }
+      val r = sr2.jsonBody(JNull)
       httpClient.execute(r).run { response =>
         response.resultCode match {
           case HttpServletResponse.SC_OK => // ok

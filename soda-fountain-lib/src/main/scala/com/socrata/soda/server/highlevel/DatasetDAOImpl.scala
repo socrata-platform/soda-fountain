@@ -386,14 +386,17 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result =
+  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId, secondariesLike: Option[ResourceName]): Result = {
+
+    val secondariesLikeDatasetId = secondariesLike.flatMap(rn => store.translateResourceName(rn).map(_.systemId))
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        dc.propagateToSecondary(datasetRecord.handle, secondary)
+        dc.propagateToSecondary(datasetRecord.handle, secondary, secondariesLikeDatasetId)
         PropagatedToSecondary
       case None =>
         DatasetNotFound(dataset)
     }
+  }
 
   /**
    * Maps a rollup definition column name to column id that can be used by lower layers

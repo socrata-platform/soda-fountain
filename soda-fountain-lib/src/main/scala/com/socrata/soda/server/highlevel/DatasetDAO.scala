@@ -31,7 +31,7 @@ trait DatasetDAO {
   def makeCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], copyData: Boolean): Result
   def dropCurrentWorkingCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result
   def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean]): Result
-  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId): Result
+  def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId, secondariesLike: Option[ResourceName]): Result
 
   def replaceOrCreateRollup(user: String,
                             dataset: ResourceName,

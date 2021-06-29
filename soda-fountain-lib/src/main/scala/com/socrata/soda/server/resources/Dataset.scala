@@ -203,7 +203,8 @@ case class Dataset(maxDatumSize: Int) {
 
   case class secondaryCopyService(resourceName: ResourceName, secondary: SecondaryId) extends SodaResource {
     override def post = { req =>
-      response(req, req.datasetDAO.propagateToSecondary(resourceName, secondary))
+      val secondariesLike = req.queryParameter("secondaries_like").map(x => new ResourceName(x))
+      response(req, req.datasetDAO.propagateToSecondary(resourceName, secondary, secondariesLike))
     }
   }
 

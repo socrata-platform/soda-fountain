@@ -11,7 +11,7 @@ class FeedbackSecondaryManifestClient(dc: DataCoordinatorClient,
                      strategyTypes: Set[StrategyType]): Unit = {
     strategyTypes.flatMap { typ => feedbackSecondaryIdMap.get(typ) }.foreach { secondaryId =>
       try {
-        dc.propagateToSecondary(datasetId, secondaryId)
+        dc.propagateToSecondary(datasetId, secondaryId, None)
         log.info(s"Added dataset ${datasetId.toString} to secondary manifest for feedback secondary {}",
           secondaryId.toString)
       } catch {
