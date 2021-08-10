@@ -15,6 +15,10 @@ com.socrata.soda-fountain  {
     instances-for-new-datasets = [{{ DATA_COORDINATORS_FOR_NEW_DATASETS }}]
   }
 
+  query-coordinator-client {
+    receive-timeout = {{ QUERY_TIMEOUT }}
+  }
+
   suggest {
     host = "{{ SPANDEX_HOST }}"
     port = "{{ SPANDEX_PORT }}"
