@@ -1,19 +1,18 @@
 package com.socrata.soda.clients.querycoordinator
 
 import java.net.URLEncoder
-import com.rojoma.json.v3.ast.{JNull, JValue}
+import com.rojoma.json.v3.ast.{JNull, JValue, JNumber}
 import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
-import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, UnexpectedContentType}
+import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, ReceiveTimeout, UnexpectedContentType}
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.util._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError._
-import com.socrata.soda.server.{ThreadLimiter, SodaUtils}
+import com.socrata.soda.server.{SodaUtils, ThreadLimiter}
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{ColumnId, DatasetHandle}
-import com.socrata.soql.environment.ColumnName
+import com.socrata.soda.server.id.DatasetHandle
 import org.apache.http.HttpStatus._
 import org.joda.time.DateTime
 
@@ -70,18 +69,26 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
       secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)
     log.debug("Query Coordinator request parameters: " + params)
 
-    val result = retrying(5) {
-      qchost match {
-        case Some(host) =>
-          val request = host.addHeaders(PreconditionRenderer(precondition) ++
-                                        ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate) ++
-                                        Map(SodaUtils.ResourceHeader -> URLEncoder.encode(dataset.resourceName.name, "UTF-8")) ++
-                                        extraHeaders).form(params)
-          threadLimiter.withThreadpool{
-            httpClient.execute(request, rs)
+    val result = {
+      try {
+        retrying(5) {
+          qchost match {
+            case Some(host) =>
+              val request = host.addHeaders(PreconditionRenderer(precondition) ++
+                ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate) ++
+                Map(SodaUtils.ResourceHeader -> URLEncoder.encode(dataset.resourceName.name, "UTF-8")) ++
+                extraHeaders).form(params)
+              threadLimiter.withThreadpool {
+                httpClient.execute(request, rs)
+              }
+            case None =>
+              throw new Exception("could not connect to query coordinator")
           }
-        case None =>
-          throw new Exception("could not connect to query coordinator")
+        }
+      } catch {
+        case _: ReceiveTimeout =>
+          val timeout: JValue  = qchost.flatMap(_.receiveTimeoutMS).map(JNumber(_)).getOrElse(JNull)
+          return f(RequestTimedOut(timeout))
       }
     }
     f(resultFrom(result, query, rs))
