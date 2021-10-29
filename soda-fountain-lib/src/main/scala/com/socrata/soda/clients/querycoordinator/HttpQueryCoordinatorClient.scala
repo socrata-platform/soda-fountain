@@ -75,10 +75,17 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
         retrying(5) {
           qchost match {
             case Some(host) =>
-              val request = host.addHeaders(PreconditionRenderer(precondition) ++
+              val rb = host.addHeaders(PreconditionRenderer(precondition) ++
                 ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate) ++
                 Map(SodaUtils.ResourceHeader -> URLEncoder.encode(dataset.resourceName.name, "UTF-8")) ++
-                extraHeaders).form(params)
+                extraHeaders)
+              val rbto = queryTimeoutSeconds match {
+                case Some(timeout) =>
+                  val timeoutMs = timeout.toFloat.toInt * 1000
+                  rb.connectTimeoutMS(timeoutMs).receiveTimeoutMS(timeoutMs)
+                case _ => rb
+              }
+              val request = rbto.form(params)
               threadLimiter.withThreadpool {
                 httpClient.execute(request, rs)
               }
