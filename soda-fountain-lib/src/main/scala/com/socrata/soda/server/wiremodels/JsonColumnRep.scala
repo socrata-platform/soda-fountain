@@ -4,10 +4,12 @@ import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
 import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.rojoma.json.v3.util.JsonUtil
+import com.socrata.soql.types
 import com.socrata.soql.types._
 import com.socrata.soql.types.obfuscation.CryptProvider
 import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
 import com.vividsolutions.jts.geom._
+
 import java.io.IOException
 import scala.util.Try
 
@@ -425,6 +427,12 @@ object JsonColumnRep {
     }
   }
 
+  case class UnsupportedRep(representedType: SoQLType) extends JsonColumnRep {
+    def fromJValue(input: JValue): Option[SoQLValue] = ???
+
+    def toJValue(value: SoQLValue): JValue = ???
+  }
+
   val forClientType: Map[SoQLType, JsonColumnRep] =
     Map(
       SoQLText -> ClientTextRep,
@@ -453,7 +461,8 @@ object JsonColumnRep {
       SoQLDocument -> DocumentRep,
       SoQLPhoto -> PhotoRep,
       SoQLLocation -> ClientLocationRep,
-      SoQLJson -> JsonRep
+      SoQLJson -> JsonRep,
+      SoQLInterval -> UnsupportedRep(SoQLInterval)
     )
 
   val forDataCoordinatorType: Map[SoQLType, JsonColumnRep] =
@@ -484,7 +493,8 @@ object JsonColumnRep {
       SoQLDocument -> DocumentRep,
       SoQLPhoto -> PhotoRep,
       SoQLLocation -> LocationRep,
-      SoQLJson -> JsonRep
+      SoQLJson -> JsonRep,
+      SoQLInterval -> UnsupportedRep(SoQLInterval)
     )
 
   val forClientTypeClearId: Map[SoQLType, JsonColumnRep] =
