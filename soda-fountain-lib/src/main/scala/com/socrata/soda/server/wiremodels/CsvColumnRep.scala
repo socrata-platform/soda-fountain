@@ -249,6 +249,10 @@ object CsvColumnRep {
     }
   }
 
+  object UnsupportedRep extends CsvColumnRep {
+    def toString(value: SoQLValue) = ???
+  }
+
   val forType: Map[SoQLType, CsvColumnRep] = Map(
     SoQLText -> TextRep,
     SoQLFixedTimestamp -> FixedTimestampRep,
@@ -276,7 +280,8 @@ object CsvColumnRep {
     SoQLDocument -> DocumentRep,
     SoQLPhoto -> PhotoRep,
     SoQLUrl -> UrlRep,
-    SoQLJson -> JsonRep
+    SoQLJson -> JsonRep,
+    SoQLInterval -> UnsupportedRep
   )
 
   val forTypeClearId: Map[SoQLType, CsvColumnRep] =
