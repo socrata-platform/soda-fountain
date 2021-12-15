@@ -8,6 +8,8 @@ ThisBuild / resolvers ++= Seq(
 
 ThisBuild / scalacOptions ++= Seq("-deprecation", "-feature")
 
+ThisBuild / evictionErrorLevel := Level.Warn
+
 val sodaFountainMessageLib = project in file("soda-fountain-message-lib")
 
 val sodaFountainLibMacros = project in file("soda-fountain-lib-macros")
