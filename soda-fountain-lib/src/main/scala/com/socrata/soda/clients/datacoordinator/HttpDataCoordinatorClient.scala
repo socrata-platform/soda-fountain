@@ -1,11 +1,13 @@
 package com.socrata.soda.clients.datacoordinator
 
+import scala.annotation.tailrec
+import java.io.IOException
 import java.net.URLEncoder
 import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, AutomaticJsonEncodeBuilder, JsonArrayIterator}
 import com.rojoma.simplearm.v2._
-import com.socrata.http.client.exceptions.{FullTimeout, UnexpectedContentType}
+import com.socrata.http.client.exceptions.{FullTimeout, UnexpectedContentType, ConnectFailed, ConnectTimeout}
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.server.implicits._
@@ -74,6 +76,34 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   def collocateJobReq(host: RequestBuilder, jobId: String) =
     host.p("secondary-move-jobs", "job", jobId)
 
+  @tailrec
+  final def withConnectRetries[T](retriesRemaining: Int = 5)(f: => T): T = {
+    try {
+      return f
+    } catch {
+      case _ : ConnectFailed if retriesRemaining > 0 =>
+        // fall out of the catch
+      case _ : ConnectTimeout if retriesRemaining > 0 =>
+        // fall out of the catch
+    }
+    withConnectRetries(retriesRemaining - 1)(f)
+  }
+
+  @tailrec
+  final def withFullRetries[T](retriesRemaining: Int = 5)(f: => T): T = {
+    try {
+      return f
+    } catch {
+      case _ : ConnectFailed if retriesRemaining > 0 =>
+        // fall out of the catch
+      case _ : ConnectTimeout if retriesRemaining > 0 =>
+        // fall out of the catch
+      case _: IOException if retriesRemaining > 0 =>
+        // fall out of the catch
+    }
+    withFullRetries(retriesRemaining - 1)(f)
+  }
+
   def withHost[T](instance: String)(f: RequestBuilder => T): T = {
     hostO(instance) match {
       case Some(host) =>
@@ -94,17 +124,19 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   def propagateToSecondary(dataset: DatasetHandle,
                            secondaryId: SecondaryId,
                            secondariesLike: Option[DatasetId]): Unit =
-    withHost(dataset.datasetId) { host =>
-      val sr = secondaryReq(host, secondaryId, dataset)
-      val sr2 = secondariesLike match {
-        case Some(datasetId) => sr.addParameter(("secondaries_like", datasetId.underlying))
-        case None => sr
-      }
-      val r = sr2.jsonBody(JNull)
-      httpClient.execute(r).run { response =>
-        response.resultCode match {
-          case HttpServletResponse.SC_OK => // ok
-          case _ => throw new Exception(s"could not propagate to secondary ${secondaryId}")
+    withConnectRetries() {
+      withHost(dataset.datasetId) { host =>
+        val sr = secondaryReq(host, secondaryId, dataset)
+        val sr2 = secondariesLike match {
+          case Some(datasetId) => sr.addParameter(("secondaries_like", datasetId.underlying))
+          case None => sr
+        }
+        val r = sr2.jsonBody(JNull)
+        httpClient.execute(r).run { response =>
+          response.resultCode match {
+            case HttpServletResponse.SC_OK => // ok
+            case _ => throw new Exception(s"could not propagate to secondary ${secondaryId}")
+          }
         }
       }
     }
@@ -118,18 +150,20 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   def getHeader(header: String, resp: Response) = resp.headers(header)(0)
 
   def getSchema(dataset: DatasetHandle): Option[SchemaSpec] = {
-    withHost(dataset) { host =>
-      val request = schemaReq(host, dataset).get
-      httpClient.execute(request).run { response =>
-        response.resultCode match {
-          case HttpServletResponse.SC_OK => {
-            response.value[SchemaSpec]() match {
-              case Right(jv) => Some(jv)
-              case Left(_) => throw new Exception("Unable to interpret data coordinator's response for " + dataset + " as a schemaspec?")
+    withFullRetries() {
+      withHost(dataset) { host =>
+        val request = schemaReq(host, dataset).get
+        httpClient.execute(request).run { response =>
+          response.resultCode match {
+            case HttpServletResponse.SC_OK => {
+              response.value[SchemaSpec]() match {
+                case Right(jv) => Some(jv)
+                case Left(_) => throw new Exception("Unable to interpret data coordinator's response for " + dataset + " as a schemaspec?")
+              }
             }
+            case HttpServletResponse.SC_NOT_FOUND => None
+            case _ => throw new Exception("Unexpected result from server: " + response.resultCode)
           }
-          case HttpServletResponse.SC_NOT_FOUND => None
-          case _ => throw new Exception("Unexpected result from server: " + response.resultCode)
         }
       }
     }
@@ -370,21 +404,23 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
              user: String,
              instructions: Option[Iterator[DataCoordinatorInstruction]],
              locale: String = "en_US"): (ReportMetaData, Iterable[ReportItem]) = {
-    withHost(instance) { host =>
-      val createScript = new MutationScript(user, CreateDataset(resource, locale), instructions.getOrElse(Array().iterator))
-      sendScript(createReq(host), createScript) {
-        case Right(r) =>
-          val events = r.jsonEvents().buffered
-          expectStartOfArray(events)
-          if (!events.hasNext || !events.head.isInstanceOf[StringEvent])
-            throw new Exception("Bad response from data coordinator: expected dataset id")
-          val StringEvent(datasetId) = events.next()
-          (ReportMetaData(DatasetId(datasetId),
-                          getHeader(xhDataVersion, r).toLong,
-                          dateTimeParser.parseDateTime(getHeader(xhLastModified, r))),
-           arrayOfResults(events, alreadyInArray = true).toSeq)
-        case other =>
-          throw new Exception("Unexpected response from data-coordinator: " + other)
+    withConnectRetries() {
+      withHost(instance) { host =>
+        val createScript = new MutationScript(user, CreateDataset(resource, locale), instructions.getOrElse(Array().iterator))
+        sendScript(createReq(host), createScript) {
+          case Right(r) =>
+            val events = r.jsonEvents().buffered
+            expectStartOfArray(events)
+            if (!events.hasNext || !events.head.isInstanceOf[StringEvent])
+              throw new Exception("Bad response from data coordinator: expected dataset id")
+            val StringEvent(datasetId) = events.next()
+            (ReportMetaData(DatasetId(datasetId),
+                            getHeader(xhDataVersion, r).toLong,
+                            dateTimeParser.parseDateTime(getHeader(xhLastModified, r))),
+             arrayOfResults(events, alreadyInArray = true).toSeq)
+          case other =>
+            throw new Exception("Unexpected response from data-coordinator: " + other)
+        }
       }
     }
   }
@@ -396,9 +432,11 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
                 instructions: Iterator[DataCoordinatorInstruction])
                (f: Result => T): T = {
     // TODO: update should decode the row op report into something higher-level than JValues
-    withHost(dataset) { host =>
-      val updateScript = new MutationScript(user, UpdateDataset(schemaHash, expectedDataVersion), instructions)
-      sendNonCreateScript(mutateReq(host, dataset), updateScript)(f)
+    withConnectRetries() {
+      withHost(dataset) { host =>
+        val updateScript = new MutationScript(user, UpdateDataset(schemaHash, expectedDataVersion), instructions)
+        sendNonCreateScript(mutateReq(host, dataset), updateScript)(f)
+      }
     }
   }
 
@@ -410,9 +448,11 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
               instructions: Iterator[DataCoordinatorInstruction])
              (f: Result => T): T = {
     // TODO: copy should decode the row op report into something higher-level than JValues
-    withHost(dataset) { host =>
-      val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash, expectedDataVersion), instructions)
-      sendNonCreateScript(mutateReq(host, dataset), createScript)(f)
+    withConnectRetries() {
+      withHost(dataset) { host =>
+        val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash, expectedDataVersion), instructions)
+        sendNonCreateScript(mutateReq(host, dataset), createScript)(f)
+      }
     }
   }
 
@@ -424,9 +464,11 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
                  instructions: Iterator[DataCoordinatorInstruction])
                 (f: Result => T): T = {
     // TODO: publish should decode the row op report into something higher-level than JValues
-    withHost(dataset) { host =>
-      val pubScript = new MutationScript(user, PublishDataset(keepSnapshot, schemaHash, expectedDataVersion), instructions)
-      sendNonCreateScript(mutateReq(host, dataset), pubScript)(f)
+    withConnectRetries() {
+      withHost(dataset) { host =>
+        val pubScript = new MutationScript(user, PublishDataset(keepSnapshot, schemaHash, expectedDataVersion), instructions)
+        sendNonCreateScript(mutateReq(host, dataset), pubScript)(f)
+      }
     }
   }
 
@@ -437,9 +479,11 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
                   instructions: Iterator[DataCoordinatorInstruction])
                  (f: Result => T): T = {
     // TODO: dropCopy should decode the row op report into something higher-level than JValues
-    withHost(dataset) { host =>
-      val dropScript = new MutationScript(user, DropDataset(schemaHash, expectedDataVersion), instructions)
-      sendNonCreateScript(mutateReq(host, dataset), dropScript)(f)
+    withConnectRetries() {
+      withHost(dataset) { host =>
+        val dropScript = new MutationScript(user, DropDataset(schemaHash, expectedDataVersion), instructions)
+        sendNonCreateScript(mutateReq(host, dataset), dropScript)(f)
+      }
     }
   }
 
@@ -450,10 +494,12 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
                          user: String)
                         (f: Result => T): T = {
     // TODO: deleteAllCopies should decode the row op report into something higher-level than JValues
-    withHost(dataset) { host =>
-      val deleteScript = new MutationScript(user, DropDataset(schemaHash, expectedDataVersion), Iterator.empty)
-      val req = mutateReq(host, dataset).method(HttpMethods.DELETE)
-      sendNonCreateScript(req, deleteScript)(f)
+    withConnectRetries() {
+      withHost(dataset) { host =>
+        val deleteScript = new MutationScript(user, DropDataset(schemaHash, expectedDataVersion), Iterator.empty)
+        val req = mutateReq(host, dataset).method(HttpMethods.DELETE)
+        sendNonCreateScript(req, deleteScript)(f)
+      }
     }
   }
 
@@ -461,35 +507,37 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   def UnexpectedDataCoordinatorResponseCode(code: Int) = s"unexpected response code from data-coordinator: $code"
 
   def checkVersionInSecondaries(dataset: DatasetHandle): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]] = {
-    withHost(dataset) { host =>
-      val request = secondariesReq(host, dataset)
-        .addHeader(("Content-type", "application/json"))
-        .timeoutMS(10000)
-        .get
-      try {
-        httpClient.execute(request).run { response =>
-          response.resultCode match {
-            case HttpServletResponse.SC_OK =>
-              val oVers = response.value[SecondaryVersionsReport]()
-              oVers match {
-                case Right(vers) => Right(Some(vers))
-                case Left(other) =>
-                  val reason = UninterpretableDataCoordinatorResponseBody
-                  log.error(s"{}: {}", reason: Any, other.english)
-                  Left(UnexpectedInternalServerResponseResult(reason, tag))
-              }
-            case HttpServletResponse.SC_NOT_FOUND => Right(None)
+    withFullRetries() {
+      withHost(dataset) { host =>
+        val request = secondariesReq(host, dataset)
+          .addHeader(("Content-type", "application/json"))
+          .timeoutMS(10000)
+          .get
+        try {
+          httpClient.execute(request).run { response =>
+            response.resultCode match {
+              case HttpServletResponse.SC_OK =>
+                val oVers = response.value[SecondaryVersionsReport]()
+                oVers match {
+                  case Right(vers) => Right(Some(vers))
+                  case Left(other) =>
+                    val reason = UninterpretableDataCoordinatorResponseBody
+                    log.error(s"{}: {}", reason: Any, other.english)
+                    Left(UnexpectedInternalServerResponseResult(reason, tag))
+                }
+              case HttpServletResponse.SC_NOT_FOUND => Right(None)
 
-            case other =>
-              val reason = UnexpectedDataCoordinatorResponseCode(other)
-              log.error(reason)
-              Left(UnexpectedInternalServerResponseResult(reason, tag))
+              case other =>
+                val reason = UnexpectedDataCoordinatorResponseCode(other)
+                log.error(reason)
+                Left(UnexpectedInternalServerResponseResult(reason, tag))
+            }
           }
+        } catch {
+          case e: FullTimeout =>
+            log.error("DC Version request timed out")
+            throw e
         }
-      } catch {
-        case e: FullTimeout =>
-          log.error("DC Version request timed out")
-          throw e
       }
     }
   }
@@ -499,28 +547,30 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   def checkVersionInSecondary(dataset: DatasetHandle,
                               secondaryId: SecondaryId): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]] = {
-    withHost(dataset) { host =>
-      val request = secondaryReq(host, secondaryId, dataset)
-        .addHeader(("Content-type", "application/json"))
-        .addHeader(resourceHeader(dataset))
-        .timeoutMS(10000)
-        .get
-      httpClient.execute(request).run { response =>
-        response.resultCode match {
-          case HttpServletResponse.SC_OK =>
-            val oVer = response.value[VersionReport]()
-            oVer match {
-              case Right(ver) => Right(Some(ver))
-              case Left(other) =>
-                val reason = UninterpretableDataCoordinatorResponseBody
-                log.error(s"{}: {}", reason: Any, other.english)
-                Left(UnexpectedInternalServerResponseResult(reason, tag))
-            }
-          case HttpServletResponse.SC_NOT_FOUND => Right(None)
-          case other =>
-            val reason = UnexpectedDataCoordinatorResponseCode(other)
-            log.error(reason)
-            Left(UnexpectedInternalServerResponseResult(reason, tag))
+    withFullRetries() {
+      withHost(dataset) { host =>
+        val request = secondaryReq(host, secondaryId, dataset)
+          .addHeader(("Content-type", "application/json"))
+          .addHeader(resourceHeader(dataset))
+          .timeoutMS(10000)
+          .get
+        httpClient.execute(request).run { response =>
+          response.resultCode match {
+            case HttpServletResponse.SC_OK =>
+              val oVer = response.value[VersionReport]()
+              oVer match {
+                case Right(ver) => Right(Some(ver))
+                case Left(other) =>
+                  val reason = UninterpretableDataCoordinatorResponseBody
+                  log.error(s"{}: {}", reason: Any, other.english)
+                  Left(UnexpectedInternalServerResponseResult(reason, tag))
+              }
+            case HttpServletResponse.SC_NOT_FOUND => Right(None)
+            case other =>
+              val reason = UnexpectedDataCoordinatorResponseCode(other)
+              log.error(reason)
+              Left(UnexpectedInternalServerResponseResult(reason, tag))
+          }
         }
       }
     }
@@ -553,21 +603,23 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
 
   def exportSimple(dataset: DatasetHandle, copy: String, resourceScope: ResourceScope) = {
-    withHost(dataset) { host =>
-      val request = exportReq(host, dataset)
-        .addParameter("copy" -> copy)
-        .get
-      using(new ResourceScope()) { tmpScope =>
-        val r = httpClient.execute(request, tmpScope)
-        errorFrom(r) match {
-          case None =>
-            val etag = r.headers("ETag").headOption.map(EntityTagParser.parse(_))
-            val lastModified = r.headers("Last-Modified").headOption.map(HttpUtils.parseHttpDate)
-            tmpScope.transfer(r).to(resourceScope)
-            val array = resourceScope.openUnmanaged(r.array[JValue](), transitiveClose = List(r))
-            ExportResult(array, lastModified, etag)
-          case Some(err) =>
-            convertExportError(r, err)
+    withConnectRetries() {
+      withHost(dataset) { host =>
+        val request = exportReq(host, dataset)
+          .addParameter("copy" -> copy)
+          .get
+        using(new ResourceScope()) { tmpScope =>
+          val r = httpClient.execute(request, tmpScope)
+          errorFrom(r) match {
+            case None =>
+              val etag = r.headers("ETag").headOption.map(EntityTagParser.parse(_))
+              val lastModified = r.headers("Last-Modified").headOption.map(HttpUtils.parseHttpDate)
+              tmpScope.transfer(r).to(resourceScope)
+              val array = resourceScope.openUnmanaged(r.array[JValue](), transitiveClose = List(r))
+              ExportResult(array, lastModified, etag)
+            case Some(err) =>
+              convertExportError(r, err)
+          }
         }
       }
     }
@@ -584,50 +636,54 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
              sorted: Boolean,
              rowId: Option[String],
              resourceScope: ResourceScope): Result = {
-    withHost(dataset) { host =>
-      val limParam = limit.map { limLong => "limit" -> limLong.toString }
-      val offParam = offset.map { offLong => "offset" -> offLong.toString }
-      val columnsParam = if (columns.isEmpty) None else Some("c" -> columns.mkString(","))
-      val rowIdParam = if (rowId.isEmpty) None else rowId.map("row_id" -> _)
-      val sortedParam = "sorted" -> sorted.toString
-      val request = exportReq(host, dataset)
-                    .q("schemaHash" -> schemaHash)
-                    .addParameter("copy"->copy)
-                    .addParameters(limParam ++ offParam ++ columnsParam ++ rowIdParam)
-                    .addParameter(sortedParam)
-                    .addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate))
-                    .get
-      using(new ResourceScope()) { tmpScope =>
-        val r = httpClient.execute(request, tmpScope)
-        errorFrom(r) match {
-          case None =>
-            val etag = r.headers("ETag").headOption.map(EntityTagParser.parse(_))
-            val lastModified = r.headers("Last-Modified").headOption.map(HttpUtils.parseHttpDate)
-            tmpScope.transfer(r).to(resourceScope)
-            val array = resourceScope.openUnmanaged(r.array[JValue](), transitiveClose = List(r))
-            ExportResult(array, lastModified, etag)
-          case Some(err) =>
-            convertExportError(r, err)
+    withConnectRetries() {
+      withHost(dataset) { host =>
+        val limParam = limit.map { limLong => "limit" -> limLong.toString }
+        val offParam = offset.map { offLong => "offset" -> offLong.toString }
+        val columnsParam = if (columns.isEmpty) None else Some("c" -> columns.mkString(","))
+        val rowIdParam = if (rowId.isEmpty) None else rowId.map("row_id" -> _)
+        val sortedParam = "sorted" -> sorted.toString
+        val request = exportReq(host, dataset)
+                      .q("schemaHash" -> schemaHash)
+                      .addParameter("copy"->copy)
+                      .addParameters(limParam ++ offParam ++ columnsParam ++ rowIdParam)
+                      .addParameter(sortedParam)
+                      .addHeaders(PreconditionRenderer(precondition) ++ ifModifiedSince.map("If-Modified-Since" -> _.toHttpDate))
+                      .get
+        using(new ResourceScope()) { tmpScope =>
+          val r = httpClient.execute(request, tmpScope)
+          errorFrom(r) match {
+            case None =>
+              val etag = r.headers("ETag").headOption.map(EntityTagParser.parse(_))
+              val lastModified = r.headers("Last-Modified").headOption.map(HttpUtils.parseHttpDate)
+              tmpScope.transfer(r).to(resourceScope)
+              val array = resourceScope.openUnmanaged(r.array[JValue](), transitiveClose = List(r))
+              ExportResult(array, lastModified, etag)
+            case Some(err) =>
+              convertExportError(r, err)
+          }
         }
       }
     }
   }
 
   private def datasetsWithSnapshotsOn(instance: String): Set[DatasetId] = {
-    hostO(instance).fold(Set.empty[DatasetId]) { host => // there's nothing that can go wrong here that isn't an internal error
-      val request = snapshottedReq(host).get
-      httpClient.execute(request).run { r =>
-        errorFrom(r) match {
-          case None =>
-            r.value[Set[DatasetId]]() match {
-              case Right(ids) =>
-                ids
-              case Left(err) =>
-                // yep, this deserves an internal error
-                throw new Exception("Response from data-coordinator is not interpretable as a set of DatasetIds: " + err.english)
-            }
-          case Some(err) => // there's nothing that can go wrong with this that isn't an internal server error!
-            throw new Exception("Unexpected error from data-coordinator " + instance + " : " + err)
+    withFullRetries() {
+      hostO(instance).fold(Set.empty[DatasetId]) { host => // there's nothing that can go wrong here that isn't an internal error
+        val request = snapshottedReq(host).get
+        httpClient.execute(request).run { r =>
+          errorFrom(r) match {
+            case None =>
+              r.value[Set[DatasetId]]() match {
+                case Right(ids) =>
+                  ids
+                case Left(err) =>
+                  // yep, this deserves an internal error
+                  throw new Exception("Response from data-coordinator is not interpretable as a set of DatasetIds: " + err.english)
+              }
+            case Some(err) => // there's nothing that can go wrong with this that isn't an internal server error!
+              throw new Exception("Unexpected error from data-coordinator " + instance + " : " + err)
+          }
         }
       }
     }
@@ -637,58 +693,64 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     instances().par.flatMap(datasetsWithSnapshotsOn).seq
 
   override def deleteSnapshot(dataset: DatasetHandle, copy: Long): Either[FailResult, Unit] =
-    withHost(dataset) { host =>
-      val request = snapshotReq(host, dataset, copy).delete
-      httpClient.execute(request).run { r =>
-        errorFrom(r) match {
-          case None =>
-            Right(())
-          case Some(NoSuchDataset(dsId)) =>
-            Left(DatasetNotFoundResult(dsId))
-          case Some(NoSuchSnapshot(dsId, snapshot)) =>
-            Left(SnapshotNotFoundResult(dsId, snapshot))
-          case Some(err) =>
-            // ... and everything else is an internal error
-            throw new Exception("Unexpected error from data-coordinator deleting dataset copy " + dataset + "/" + copy + ": " + err)
+    withConnectRetries() {
+      withHost(dataset) { host =>
+        val request = snapshotReq(host, dataset, copy).delete
+        httpClient.execute(request).run { r =>
+          errorFrom(r) match {
+            case None =>
+              Right(())
+            case Some(NoSuchDataset(dsId)) =>
+              Left(DatasetNotFoundResult(dsId))
+            case Some(NoSuchSnapshot(dsId, snapshot)) =>
+              Left(SnapshotNotFoundResult(dsId, snapshot))
+            case Some(err) =>
+              // ... and everything else is an internal error
+              throw new Exception("Unexpected error from data-coordinator deleting dataset copy " + dataset + "/" + copy + ": " + err)
+          }
         }
       }
     }
 
   override def listSnapshots(dataset: DatasetHandle): Option[Seq[Long]] =
-    withHost(dataset) { host =>
-      val request = snapshotsReq(host, dataset).get
-      httpClient.execute(request).run { r =>
-        errorFrom(r) match {
-          case None =>
-            case class Bit(num: Long)
-            implicit val bCodec = AutomaticJsonCodecBuilder[Bit]
-            r.value[Seq[Bit]]() match {
-              case Right(copies) =>
-                Some(copies.map(_.num))
-              case Left(err) =>
-                throw new Exception("Response from data-coordinator is not interpretable as a set of dataset descriptions: " + err.english)
-            }
-          case Some(NoSuchDataset(_)) =>
-            None
-          case Some(err) =>
-            // and everything else is an internal error
-            throw new Exception("Unexpected error from data-coordinator listing snapshots for dataset " + dataset + ": " + err)
+    withFullRetries() {
+      withHost(dataset) { host =>
+        val request = snapshotsReq(host, dataset).get
+        httpClient.execute(request).run { r =>
+          errorFrom(r) match {
+            case None =>
+              case class Bit(num: Long)
+              implicit val bCodec = AutomaticJsonCodecBuilder[Bit]
+              r.value[Seq[Bit]]() match {
+                case Right(copies) =>
+                  Some(copies.map(_.num))
+                case Left(err) =>
+                  throw new Exception("Response from data-coordinator is not interpretable as a set of dataset descriptions: " + err.english)
+              }
+            case Some(NoSuchDataset(_)) =>
+              None
+            case Some(err) =>
+              // and everything else is an internal error
+              throw new Exception("Unexpected error from data-coordinator listing snapshots for dataset " + dataset + ": " + err)
+          }
         }
       }
     }
 
   override def getRollups(dataset: DatasetHandle): Result = {
-    withHost(dataset) { host =>
-      val request = rollupReq(host, dataset).get
-      httpClient.execute(request).run { r =>
-        errorFrom(r) match {
-          case None => r.value[Seq[RollupInfo]]() match {
-            case Right(resp) => RollupResult(resp)
-            case Left(err) => throw new Exception("Unable to parse response from data coordinator: " + err.english)
+    withFullRetries() {
+      withHost(dataset) { host =>
+        val request = rollupReq(host, dataset).get
+        httpClient.execute(request).run { r =>
+          errorFrom(r) match {
+            case None => r.value[Seq[RollupInfo]]() match {
+              case Right(resp) => RollupResult(resp)
+              case Left(err) => throw new Exception("Unable to parse response from data coordinator: " + err.english)
+            }
+            case Some(NoSuchDataset(dataset)) => DatasetNotFoundResult(dataset)
+            case Some(err) =>
+              throw new Exception(s"Unexpected error from data-coordinator getting rollups for dataset $dataset: $err")
           }
-          case Some(NoSuchDataset(dataset)) => DatasetNotFoundResult(dataset)
-          case Some(err) =>
-            throw new Exception(s"Unexpected error from data-coordinator getting rollups for dataset $dataset: $err")
         }
       }
     }
@@ -720,49 +782,55 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     implicit val encoder = AutomaticJsonEncodeBuilder[DCCollocateOperation]
 
     // Use any of the dcs mentioned in the operation as a host
-    withHost(operation.collocations.head.head) { host =>
-      val request = collocateUrl(host, secondaryId)
-        .addParameter("explain" -> explain.toString)
-        .addParameter("job" -> jobId)
-        .jsonBody[DCCollocateOperation](operation)
-      httpClient.execute(request).run { r =>
-        errorFrom(r) match {
-          case None => collocateResult(r)
+    withConnectRetries() {
+      withHost(operation.collocations.head.head) { host =>
+        val request = collocateUrl(host, secondaryId)
+          .addParameter("explain" -> explain.toString)
+          .addParameter("job" -> jobId)
+          .jsonBody[DCCollocateOperation](operation)
+        httpClient.execute(request).run { r =>
+          errorFrom(r) match {
+            case None => collocateResult(r)
             //NOTE: These are duplicated in sendScript, is there any way to prevent this?
-          case Some(InstanceNotExist(instance)) => InstanceNotExistResult(instance)
-          case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
-          case Some(StoreNotExist(store)) => StoreNotExistResult(store)
-          case Some(DatasetNotExist(dataset)) => DatasetNotExistResult(dataset)
-          case Some(e) =>
-            throw new Exception("Unexpected error from data-coordinator on collocation: " + e)
+            case Some(InstanceNotExist(instance)) => InstanceNotExistResult(instance)
+            case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
+            case Some(StoreNotExist(store)) => StoreNotExistResult(store)
+            case Some(DatasetNotExist(dataset)) => DatasetNotExistResult(dataset)
+            case Some(e) =>
+              throw new Exception("Unexpected error from data-coordinator on collocation: " + e)
+          }
         }
       }
     }
   }
 
   override def collocateStatus(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result = {
-    withHost(dataset) { host =>
-      val request = collocateStatusReq(host, secondaryId, jobId).get
-      httpClient.execute(request).run { r =>
-        errorFrom(r) match {
-          case None => collocateResult(r)
-          case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
-          case Some(e) =>
-            throw new Exception("Unexpected error from data-coordinator on collocation status: " + e)
+    withFullRetries() {
+      withHost(dataset) { host =>
+        val request = collocateStatusReq(host, secondaryId, jobId).get
+        httpClient.execute(request).run { r =>
+          errorFrom(r) match {
+            case None => collocateResult(r)
+            case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
+            case Some(e) =>
+              throw new Exception("Unexpected error from data-coordinator on collocation status: " + e)
+          }
         }
       }
     }
   }
 
   override def deleteCollocate(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result = {
-    withHost(dataset) { host =>
-      val request = collocateJobReq(host, jobId).delete
-      httpClient.execute(request).run { r =>
-        errorFrom(r) match {
-          case None => CollocateResult(Some(jobId), "deleted", "deleted", Cost(0, 0), Seq.empty)
-          case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
-          case Some(e) =>
-            throw new Exception("Unexpected error from data-coordinator on collocation status: " + e)
+    withConnectRetries() {
+      withHost(dataset) { host =>
+        val request = collocateJobReq(host, jobId).delete
+        httpClient.execute(request).run { r =>
+          errorFrom(r) match {
+            case None => CollocateResult(Some(jobId), "deleted", "deleted", Cost(0, 0), Seq.empty)
+            case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
+            case Some(e) =>
+              throw new Exception("Unexpected error from data-coordinator on collocation status: " + e)
+          }
         }
       }
     }
