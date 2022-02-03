@@ -27,6 +27,7 @@ import com.socrata.soda.server.metrics.Metrics.{QuerySuccess => QuerySuccessMetr
 import com.socrata.soda.server.persistence.DatasetRecordLike
 import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
+import com.socrata.soql.stdlib.Context
 import com.socrata.thirdparty.metrics.Metrics
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
@@ -198,8 +199,8 @@ case class Resource(etagObfuscator: ETagObfuscator,
                   updatePrecondition(newPrecondition).map(_.dropRight(suffix.length)),
                   req.dateTimeHeader("If-Modified-Since"),
                   req.queryParameter(qpQuery).getOrElse(qpQueryDefault),
-                  req.queryParameter(qpContext).fold(Map.empty[String, String]) { ctxStr =>
-                    JsonUtil.parseJson[Map[String, String]](ctxStr).right.get
+                  req.queryParameter(qpContext).fold(Context.empty) { ctxStr =>
+                    JsonUtil.parseJson[Context](ctxStr).right.get
                   },
                   req.queryParameter(qpRowCount),
                   Stage(req.queryParameter(qpCopy)),
