@@ -8,6 +8,7 @@ import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, DatasetHandle}
 import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.stdlib.Context
 import org.joda.time.DateTime
 
 object QueryCoordinatorClient {
@@ -76,7 +77,7 @@ trait QueryCoordinatorClient {
                precondition: Precondition,
                ifModifiedSince: Option[DateTime],
                query: String,
-               context: Map[String, String],
+               context: Context,
                rowCount: Option[String],
                copy: Option[Stage],
                secondaryInstance: Option[String],

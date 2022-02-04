@@ -13,6 +13,7 @@ import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError._
 import com.socrata.soda.server.{SodaUtils, ThreadLimiter}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.DatasetHandle
+import com.socrata.soql.stdlib.Context
 import org.apache.http.HttpStatus._
 import org.joda.time.DateTime
 
@@ -50,7 +51,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   }
 
   def query[T](dataset: DatasetHandle, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String,
-    context: Map[String, String],
+    context: Context,
     rowCount: Option[String],
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
     obfuscateId: Boolean,
