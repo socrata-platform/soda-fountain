@@ -15,8 +15,6 @@ copied to `soda-fountain-assembly.jar` in this directory before building.
 See the Dockerfile for defaults.
 
 * `ARK_HOST` - The IP address of the host of the docker container, used for service advertisements.
-* `BALBOA_ACTIVEMQ_URI` - URI for Balboa metrics activemq, eg. `failover:tcp://10.1.0.28:61616,tcp://10.1.0.29:61616`
-* `BALBOA_JMS_QUEUE` - Queue name for Balboa metrics
 * `ENABLE_GRAPHITE` - Should various metrics information be reported to graphite
 * `GRAPHITE_HOST` - The hostname or IP of the graphite server, if enabled
 * `GRAPHITE_PORT` - The port number for the graphite server, if enabled

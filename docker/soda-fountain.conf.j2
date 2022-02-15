@@ -25,11 +25,9 @@ com.socrata.soda-fountain  {
   }
 
   metrics {
-    activemq-connection-uri = "{{ BALBOA_ACTIVEMQ_URI }}"
     enable-graphite = {{ ENABLE_GRAPHITE }}
     graphite-host = "{{ GRAPHITE_HOST }}"
     graphite-port = "{{ GRAPHITE_PORT }}"
-    jms-queue = "{{ BALBOA_JMS_QUEUE }}"
     log-metrics = {{ LOG_METRICS }}
   }
 
@@ -47,19 +45,6 @@ com.socrata.soda-fountain  {
     georegion_match_on_string = {{ GEOREGION_MATCH_ON_STRING_SECONDARY_ID }}
     {% endif %}
   }
-
-    # When soda fountain is configured with a message producer
-    # it will send tenant metrics rows-loaded-api when query or export are called
-    {% if BALBOA_ACTIVEMQ_URI is defined and MESSAGE_QUEUE is defined -%}
-    message-producer {
-      raw-messaging {
-        # has a default in Dockerfile
-        producers = "activemq"
-        activemq.connection-string = "{{ BALBOA_ACTIVEMQ_URI }}"
-        queue = "{{ MESSAGE_QUEUE }}"
-      }
-    }
-    {%- endif %}
 
   threadpool {
     max-threads = {{ MAX_THREADS }}

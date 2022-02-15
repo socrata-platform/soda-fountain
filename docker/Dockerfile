@@ -11,8 +11,6 @@ ENV SERVER_ARTIFACT soda-fountain-jetty-assembly.jar
 ENV SERVER_CONFIG soda-fountain.conf
 
 # defaults
-ENV BALBOA_ACTIVEMQ_URI not-configured
-ENV BALBOA_JMS_QUEUE not-configured
 ENV ENABLE_GRAPHITE false
 ENV GRAPHITE_HOST 0.0.0.0
 ENV GRAPHITE_PORT 0
