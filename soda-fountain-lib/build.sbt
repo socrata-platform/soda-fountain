@@ -6,13 +6,13 @@ import Dependencies._
 
 name := "soda-fountain-lib"
 
-fork in Test := true
+Test/fork := true
 
-resourceGenerators in Compile += Def.task {
-  genVersion((resourceManaged in Compile).value,
-             (name in Compile).value,
-             (version in Compile).value,
-             (scalaVersion in Compile).value)
+Compile/resourceGenerators += Def.task {
+  genVersion((Compile/resourceManaged).value,
+             (Compile/name).value,
+             (Compile/version).value,
+             (Compile/scalaVersion).value)
 }
 
 libraryDependencies ++= Seq(

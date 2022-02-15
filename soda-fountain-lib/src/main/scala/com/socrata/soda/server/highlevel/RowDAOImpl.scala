@@ -16,6 +16,7 @@ import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.stdlib.Context
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import com.socrata.soda.server.resources.DebugInfo
@@ -30,7 +31,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             precondition: Precondition,
             ifModifiedSince: Option[DateTime],
             query: String,
-            context: Map[String, String],
+            context: Context,
             rowCount: Option[String],
             copy: Option[Stage],
             secondaryInstance:Option[String],
@@ -72,7 +73,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             val literal = soqlLiteralRep.toSoQLLiteral(soqlValue)
             val query = s"select *, :version where `${pkCol.fieldName}` = $literal"
             getRows(datasetRecord, NoPrecondition, ifModifiedSince, query,
-                    Map.empty, // no context needed
+                    Context.empty, // no context needed
                     None, copy, secondaryInstance,
                     noRollup, obfuscateId, fuseColumns, queryTimeoutSeconds, debugInfo, resourceScope) match {
               case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
@@ -114,7 +115,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                       precondition: Precondition,
                       ifModifiedSince: Option[DateTime],
                       query: String,
-                      context: Map[String, String],
+                      context: Context,
                       rowCount: Option[String],
                       copy: Option[Stage],
                       secondaryInstance:Option[String],

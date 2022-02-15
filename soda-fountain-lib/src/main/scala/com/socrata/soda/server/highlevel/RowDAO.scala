@@ -10,6 +10,7 @@ import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError
 import com.socrata.soda.server.id.{RowSpecifier, ResourceName}
 import com.socrata.soda.server.persistence.DatasetRecordLike
 import com.socrata.soql.environment.ColumnName
+import com.socrata.soql.stdlib.Context
 import com.socrata.soql.types.{SoQLValue, SoQLType}
 import org.joda.time.DateTime
 
@@ -23,7 +24,7 @@ trait RowDAO {
             precondition: Precondition,
             ifModifiedSince: Option[DateTime],
             query: String,
-            context: Map[String, String],
+            context: Context,
             rowCount: Option[String],
             stage: Option[Stage],
             secondaryInstance: Option[String],

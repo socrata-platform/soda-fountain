@@ -7,3 +7,4 @@ keystore.jks
 /*.log
 target/
 configs/local*.conf
+/.bsp/
