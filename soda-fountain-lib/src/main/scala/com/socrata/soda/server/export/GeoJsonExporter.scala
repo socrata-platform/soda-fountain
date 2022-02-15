@@ -17,7 +17,6 @@ import java.io.BufferedWriter
 import javax.activation.MimeType
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
-import com.socrata.soda.message.{MessageProducer, RowsLoadedApiMetricMessage}
 import com.socrata.soda.server.id.ResourceName
 
 /**
@@ -28,21 +27,13 @@ object GeoJsonExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("geojson")
 
-  def export(charset: AliasedCharset,
-             schema: ExportDAO.CSchema,
-             rows: Iterator[Array[SoQLValue]],
-             singleRow: Boolean = false,
-             obfuscateId: Boolean = true,
-             bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, entityIds: Seq[String], accessType: Option[String]): HttpResponse = {
+  def export(charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     exporterHeaders(schema) ~> Write(mt) { rawWriter =>
       using(new BufferedWriter(rawWriter, 65536)) { w =>
         val processor = new GeoJsonProcessor(w, schema, singleRow, obfuscateId)
         val rowsCount = processor.go(rows)
-        entityIds.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount, accessType)))
       }
     }
   }

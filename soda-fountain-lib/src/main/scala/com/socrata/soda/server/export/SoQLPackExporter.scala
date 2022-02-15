@@ -14,7 +14,6 @@ import java.io.DataOutputStream
 import javax.activation.MimeType
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
-import com.socrata.soda.message.{MessageProducer, RowsLoadedApiMetricMessage}
 import com.socrata.soda.server.id.ResourceName
 
 /**
@@ -31,14 +30,7 @@ object SoQLPackExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("soqlpack")
 
-  def export(charset: AliasedCharset,
-             schema: ExportDAO.CSchema,
-             rows: Iterator[Array[SoQLValue]],
-             singleRow: Boolean = false,
-             obfuscateId: Boolean = true,
-             bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, entityIds: Seq[String], accessType: Option[String]): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
+  def export(charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
     // Compute the schema
     val soqlSchema = schema.schema.map { ci =>
       (ci.fieldName.name, ci.typ)
@@ -50,7 +42,6 @@ object SoQLPackExporter extends Exporter {
       //       messageProducer.send(RowsLoadedApiMetricMessage(resourceName.name, ttl), raw = true)
       val writer = new SoQLPackWriter(soqlSchema, Seq(rowCountElem).flatten.toMap)
       val rowsCount = writer.write(os, rows)
-      entityIds.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount, accessType)))
     }
   }
 }

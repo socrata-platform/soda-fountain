@@ -17,7 +17,6 @@ import java.io.BufferedWriter
 import javax.activation.MimeType
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
-import com.socrata.soda.message.{MessageProducer, RowsLoadedApiMetricMessage}
 import com.socrata.soda.server.id.ResourceName
 
 object CJsonExporter extends Exporter {
@@ -25,11 +24,7 @@ object CJsonExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("cjson")
 
-  def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
-             rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
-             obfuscateId: Boolean = true, bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, entityIds: Seq[String], accessType: Option[String]): HttpResponse = {
+  def export(charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     val jsonColumnReps = if (obfuscateId) JsonColumnRep.forClientType
@@ -104,7 +99,6 @@ object CJsonExporter extends Exporter {
           w.write("]\n")
         }
         w.write("]\n")
-        entityIds.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount, accessType)))
       }
     }
   }

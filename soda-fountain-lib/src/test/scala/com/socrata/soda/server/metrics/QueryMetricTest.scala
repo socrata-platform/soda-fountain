@@ -8,7 +8,6 @@ import com.socrata.http.server.{HttpRequest, ConcreteHttpRequest}
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.Precondition
 import com.socrata.soda.clients.datacoordinator.{RowUpdate, RowUpdateOption}
-import com.socrata.soda.message.NoOpMessageProducer
 import com.socrata.soda.server._
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.highlevel.{DatasetDAO, ExportDAO, RowDAO}
@@ -125,8 +124,8 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
-    val export = new Export(ETagObfuscator.noop, NoOpMessageProducer)
-    val mockResource = new Resource(NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer)
+    val export = new Export(ETagObfuscator.noop)
+    val mockResource = new Resource(NoopEtagObfuscator, 1000, provider, export)
     val mockServReq = new MockHttpServletRequest()
     mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}/some-row-id.json")
     headers.foreach(header => mockServReq.addHeader(header._1, header._2))
@@ -194,12 +193,12 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
   }
 
   def mockDatasetQuery(dataset: TestDataset, provider: MetricProvider, headers: Map[String, String]) {
-    val export = new Export(ETagObfuscator.noop, NoOpMessageProducer)
+    val export = new Export(ETagObfuscator.noop)
     val mockServReq = new MockHttpServletRequest()
     mockServReq.setRequestURI(s"http://sodafountain/resource/${dataset.dataset}.json")
     headers.foreach(header => mockServReq.addHeader(header._1, header._2))
     withHttpRequest(mockServReq) { httpReq =>
-      val mockResource = new Resource(NoopEtagObfuscator, 1000, provider, export, NoOpMessageProducer)
+      val mockResource = new Resource(NoopEtagObfuscator, 1000, provider, export)
 
       mockResource.service(OptionallyTypedPathComponent(dataset.resource, None)).
         get(new SodaRequestForTest(httpReq) {

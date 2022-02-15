@@ -6,7 +6,6 @@ import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, NoSuchDataset, NoSuchSnapshot}
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{DatasetNotFoundResult, ExportResult, SnapshotNotFoundResult}
-import com.socrata.soda.message.NoOpMessageProducer
 import com.socrata.soda.server.export.CsvExporter
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
@@ -61,20 +60,17 @@ class SnapshotDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) exte
               (r, toKeep).zipped.collect { case (v, true) => v }.toArray
             }
             SnapshotDAO.Export(
-              CsvExporter.export(
-                AliasedCharset(StandardCharsets.UTF_8, "utf-8"),
-                ExportDAO.CSchema(
-                  approximateRowCount = None,
-                  dataVersion = None,
-                  lastModified = schema.lastModified.map(time => ExportDAO.dateTimeParser.parseDateTime(time)),
-                  locale = schema.locale,
-                  pk = None,
-                  rowCount = None,
-                  schema = schema.schema.map { f =>
-                    val fieldName = f.fieldName.getOrElse(ColumnName(f.columnId.underlying))
-                    ColumnInfo(f.columnId, fieldName, f.typ, None)
-                  }.zip(toKeep).collect { case (v, true) => v }),
-                mappedRows)(NoOpMessageProducer, Seq.empty, None))
+              CsvExporter.export(AliasedCharset(StandardCharsets.UTF_8, "utf-8"), ExportDAO.CSchema(
+                                              approximateRowCount = None,
+                                              dataVersion = None,
+                                              lastModified = schema.lastModified.map(time => ExportDAO.dateTimeParser.parseDateTime(time)),
+                                              locale = schema.locale,
+                                              pk = None,
+                                              rowCount = None,
+                                              schema = schema.schema.map { f =>
+                                                val fieldName = f.fieldName.getOrElse(ColumnName(f.columnId.underlying))
+                                                ColumnInfo(f.columnId, fieldName, f.typ, None)
+                                              }.zip(toKeep).collect { case (v, true) => v }), mappedRows))
           case SnapshotNotFoundResult(_, _) =>
             SnapshotDAO.SnapshotNotFound
           case DatasetNotFoundResult(_) =>

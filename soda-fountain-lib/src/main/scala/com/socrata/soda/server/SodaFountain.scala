@@ -25,7 +25,6 @@ import java.io.Closeable
 import java.security.SecureRandom
 import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
 
-import com.socrata.soda.message.{MessageProducerFromConfig, RowsLoadedApiMetricMessage}
 import javax.sql.DataSource
 import org.apache.log4j.PropertyConfigurator
 import org.slf4j.{LoggerFactory, MDC}
@@ -146,9 +145,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   val etagObfuscator = i(config.etagObfuscationKey.fold(ETagObfuscator.noop) { key => new BlowfishCFBETagObfuscator(key.getBytes("UTF-8")) })
 
-
-  val messageProducer = si(MessageProducerFromConfig(getClass.getSimpleName, executor, config.messageProducerConfig) )
-
   def makeFeedbackSecondaryManifestClient(dc: DataCoordinatorClient): FeedbackSecondaryManifestClient = {
     new FeedbackSecondaryManifestClient(dc, feedbackSecondaryIdMap)
   }
@@ -211,8 +207,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     // TODO: this should probably be a different max size value
     val dataset = Dataset(config.maxDatumSize)
     val column = DatasetColumn(etagObfuscator, config.maxDatumSize)
-    val export = Export(etagObfuscator, messageProducer)
-    val resource = Resource(etagObfuscator, config.maxDatumSize, metricProvider, export, messageProducer)
+    val export = Export(etagObfuscator)
+    val resource = Resource(etagObfuscator, config.maxDatumSize, metricProvider, export)
     val suggest = Suggest(config.suggest)
     val snapshots = Snapshots
 

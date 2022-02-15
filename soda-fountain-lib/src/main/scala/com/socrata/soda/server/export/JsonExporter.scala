@@ -15,7 +15,6 @@ import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
-import com.socrata.soda.message.{MessageProducer, RowsLoadedApiMetricMessage}
 import com.socrata.soda.server.id.ResourceName
 
 object JsonExporter extends Exporter {
@@ -24,12 +23,7 @@ object JsonExporter extends Exporter {
   val extension = Some("json")
   val xhRowCount = "X-SODA2-Row-Count"
 
-  def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
-             rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
-             obfuscateId: Boolean = true,
-             bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, entityIds: Seq[String], accessType: Option[String]): HttpResponse = {
+  def export(charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
 
@@ -79,7 +73,6 @@ object JsonExporter extends Exporter {
             }
             if(!singleRow) writer.write("]\n")
             else writer.write("\n")
-            entityIds.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount, accessType)))
           }
         }
         val processor = new Processor

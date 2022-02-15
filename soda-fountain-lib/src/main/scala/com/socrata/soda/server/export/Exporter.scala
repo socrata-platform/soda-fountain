@@ -12,17 +12,12 @@ import javax.servlet.http.HttpServletResponse
 import com.rojoma.json.v3.ast.{JArray, JString}
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.socrata.http.server.implicits._
-import com.socrata.soda.message.MessageProducer
 import com.socrata.soda.server.id.ResourceName
 
 trait Exporter {
   val mimeType: MimeType
   val extension: Option[String]
-  def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
-             rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
-             obfuscateId: Boolean = true, bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, entityIds: Seq[String], accessType: Option[String]): HttpResponse
+  def export(charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse
   protected def exporterHeaders(schema: ExportDAO.CSchema): HttpResponse =
     schema.lastModified.fold(NoOp) { lm =>
       Header("Last-Modified", HttpUtils.HttpDateFormat.print(lm)) ~> maybeSoda2FieldsHeader(schema)
