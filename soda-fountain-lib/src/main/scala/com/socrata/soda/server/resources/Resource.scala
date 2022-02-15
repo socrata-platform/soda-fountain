@@ -43,7 +43,6 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
 
   val domainIdHeader = "X-SODA2-Domain-Id"
   val lensUidHeader = "X-Socrata-Lens-Uid"
-  val accessTypeHeader = "X-Socrata-Access-Type"
 
   val headerHashAlg = "SHA1"
   val headerHashLength = MessageDigest.getInstance(headerHashAlg).getDigestLength
@@ -161,7 +160,6 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
     override def get = { req: SodaRequest =>
       val domainId = req.header(domainIdHeader)
       val lensUid = req.header(lensUidHeader)
-      val accessType = req.header(accessTypeHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       def metricByStatus(status: Int) = {
         if (status >= 400 && status < 500) metric(QueryErrorUser)
@@ -356,7 +354,7 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
     override def get = { req: SodaRequest =>
       val domainId = req.header(domainIdHeader)
       val lensUid = req.header(lensUidHeader)
-      val accessType = req.header(accessTypeHeader)
+
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       try {
         val suffix = headerHash(req)
