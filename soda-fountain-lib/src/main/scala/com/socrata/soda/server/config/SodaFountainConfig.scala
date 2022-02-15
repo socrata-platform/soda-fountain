@@ -2,7 +2,6 @@ package com.socrata.soda.server.config
 
 import com.typesafe.config.Config
 import com.socrata.curator.{CuratorConfig, DiscoveryConfig}
-import com.socrata.soda.message.MessageProducerConfig
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
 import com.typesafe.config.ConfigException.Missing
 
@@ -26,7 +25,6 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val dataCleanupInterval = getDuration("dataCleanupInterval")
   val computationStrategySecondaryId = optionally(getRawConfig("computation-strategy-secondary-id"))
   val requestHeaderSize = getInt("request-header-size")
-  val messageProducerConfig = optionally(getConfig("message-producer", new MessageProducerConfig(_, _)))
 }
 
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
