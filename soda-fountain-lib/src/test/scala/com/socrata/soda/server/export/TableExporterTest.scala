@@ -13,7 +13,6 @@ import com.socrata.soql.types._
 import com.socrata.thirdparty
 import java.io.{ByteArrayOutputStream, OutputStream, PrintWriter, StringWriter}
 
-import com.socrata.soda.message.NoOpMessageProducer
 import javax.servlet.http.HttpServletResponse
 import com.socrata.thirdparty.opencsv.CSVIterator
 import com.sun.xml.internal.fastinfoset.util.StringArray
@@ -151,7 +150,7 @@ class TableExporterTest extends ExporterTest {
       mockResponse.expects('setContentType)(s"$contentType; charset=UTF-8")
       mockResponse.expects('getOutputStream)().returning(wrapped)
 
-      tableExporter.export(charset, getDCSchema("TableExporterTest", columns, pk, rows), rows.iterator, singleRow)(NoOpMessageProducer, Seq.empty, None)(mockResponse)
+      tableExporter.export(charset, getDCSchema("TableExporterTest", columns, pk, rows), rows.iterator, singleRow)(mockResponse)
       new String(out.toByteArray, "UTF-8")
     }
   }

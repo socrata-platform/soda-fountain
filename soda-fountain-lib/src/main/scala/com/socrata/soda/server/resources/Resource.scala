@@ -16,7 +16,6 @@ import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util._
 import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RowUpdate, RowUpdateOption}
 import com.socrata.soda.clients.querycoordinator.{QueryCoordinatorClient, QueryCoordinatorError}
-import com.socrata.soda.message.MessageProducer
 import com.socrata.soda.server.{responses => SodaErrors, _}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.export.Exporter
@@ -34,11 +33,7 @@ import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 /**
  * Resource: services for upserting, deleting, and querying dataset rows.
  */
-case class Resource(etagObfuscator: ETagObfuscator,
-                    maxRowSize: Long,
-                    metricProvider: MetricProvider,
-                    export: Export,
-                    messageProducer: MessageProducer) extends Metrics {
+case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProvider: MetricProvider, export: Export) extends Metrics {
   import Resource._
 
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Resource])
@@ -49,7 +44,6 @@ case class Resource(etagObfuscator: ETagObfuscator,
 
   val domainIdHeader = "X-SODA2-Domain-Id"
   val lensUidHeader = "X-Socrata-Lens-Uid"
-  val accessTypeHeader = "X-Socrata-Access-Type"
 
   val headerHashAlg = "SHA1"
   val headerHashLength = MessageDigest.getInstance(headerHashAlg).getDigestLength
@@ -167,7 +161,6 @@ case class Resource(etagObfuscator: ETagObfuscator,
     override def get = { req: SodaRequest =>
       val domainId = req.header(domainIdHeader)
       val lensUid = req.header(lensUidHeader)
-      val accessType = req.header(accessTypeHeader)
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       def metricByStatus(status: Int) = {
         if (status >= 400 && status < 500) metric(QueryErrorUser)
@@ -235,7 +228,7 @@ case class Resource(etagObfuscator: ETagObfuscator,
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader ~>
                       exporter.export(charset, schema, rows, singleRow = false, obfuscateId = obfuscateId,
-                                      bom = req.queryParameter(qpBom).map(_.toBoolean).getOrElse(false))(messageProducer, domainId.toSeq ++ lensUid, accessType)
+                                      bom = req.queryParameter(qpBom).map(_.toBoolean).getOrElse(false))
                   case RowDAO.InfoSuccess(_, body) =>
                     // Just drain the iterator into an array, this should never be large
                     OK ~> Json(JArray(body.toSeq))
@@ -362,7 +355,7 @@ case class Resource(etagObfuscator: ETagObfuscator,
     override def get = { req: SodaRequest =>
       val domainId = req.header(domainIdHeader)
       val lensUid = req.header(lensUidHeader)
-      val accessType = req.header(accessTypeHeader)
+
       def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       try {
         val suffix = headerHash(req)
@@ -408,7 +401,7 @@ case class Resource(etagObfuscator: ETagObfuscator,
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader ~>
                         exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId = obfuscateId,
-                                        bom = req.queryParameter(qpBom).map(_.toBoolean).getOrElse(false))(messageProducer, domainId.toSeq ++ lensUid, accessType)
+                                        bom = req.queryParameter(qpBom).map(_.toBoolean).getOrElse(false))
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
                       SodaUtils.response(req, SodaErrors.RowNotFound(row))

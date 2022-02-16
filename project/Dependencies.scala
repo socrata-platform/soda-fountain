@@ -19,7 +19,6 @@ object Dependencies {
     val rojomaJsonGrisu   = "1.0.0"
     val rojomaSimpleArm   = "1.2.0"
     val rojomaSimpleArmV2 = "2.1.0"
-    val socrataEurybates  = "2.1.0"
     val socrataHttp       = "3.13.3"
     val soqlBrita         = "1.4.1"
     val soqlReference     = "4.2.0"
@@ -82,10 +81,6 @@ object Dependencies {
   val soqlStandaloneParser     = "com.socrata"     %% "soql-standalone-parser"      % versions.soqlReference
   val soqlStdLib               = "com.socrata"     %% "soql-stdlib"                 % versions.soqlReference
   val soqlTypes                = "com.socrata"     %% "soql-types"                  % versions.soqlReference
-
-  // tenant metrics messaging support
-  val socrataEurybates = "com.socrata" %% "eurybates" % versions.socrataEurybates  exclude("org.apache.activemq", "activemq-core")
-  val activemqClient = "org.apache.activemq" % "activemq-client" % versions.activemq
 
   val typesafeConfig           = "com.typesafe"     % "config"                      % versions.typesafeConfig
 

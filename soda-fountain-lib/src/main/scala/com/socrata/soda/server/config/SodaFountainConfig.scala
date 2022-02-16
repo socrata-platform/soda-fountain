@@ -2,7 +2,6 @@ package com.socrata.soda.server.config
 
 import com.typesafe.config.Config
 import com.socrata.curator.{CuratorConfig, DiscoveryConfig}
-import com.socrata.soda.message.MessageProducerConfig
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
 import com.typesafe.config.ConfigException.Missing
 
@@ -19,7 +18,6 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val log4j = getRawConfig("log4j")
   // This is a Typesafe config because there are variable number of subentries, one per handler
   val handlers = getRawConfig("handlers")
-  val metrics =  optionally(getConfig("metrics", new BalboaConfig(_,_)))
   val suggest = getConfig("suggest", new SuggestConfig(_,_))
   val codaMetrics = getRawConfig("metrics")
   val threadpool = getRawConfig("threadpool")
@@ -27,7 +25,6 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val dataCleanupInterval = getDuration("dataCleanupInterval")
   val computationStrategySecondaryId = optionally(getRawConfig("computation-strategy-secondary-id"))
   val requestHeaderSize = getInt("request-header-size")
-  val messageProducerConfig = optionally(getConfig("message-producer", new MessageProducerConfig(_, _)))
 }
 
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
@@ -74,11 +71,6 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
   val password = getString("password")
   val applicationName = getString("app-name")
   val poolOptions = optionally(getRawConfig("c3p0")) // these are the c3p0 configuration properties
-}
-
-class BalboaConfig(config: Config, root: String) extends ConfigClass(config, root) {
-  val activeMQConnectionUri = getString("activemq-connection-uri")
-  val jmsQueue = getString("jms-queue")
 }
 
 class SuggestConfig(config: Config, root: String) extends ConfigClass(config, root) {

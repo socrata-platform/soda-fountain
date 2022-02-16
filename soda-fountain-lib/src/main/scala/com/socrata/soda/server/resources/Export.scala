@@ -18,11 +18,10 @@ import com.socrata.soda.server.util.ETagObfuscator
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
-import com.socrata.soda.message.MessageProducer
 import com.socrata.soda.server.resources.Resource.qpObfuscateId
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
-case class Export(etagObfuscator: ETagObfuscator, messageProducer: MessageProducer) {
+case class Export(etagObfuscator: ETagObfuscator) {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Export])
 
   implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
@@ -196,7 +195,7 @@ case class Export(etagObfuscator: ETagObfuscator, messageProducer: MessageProduc
                   else (fullSchema.copy(schema = userColumns),
                     fullRows.map(row => row.take(sysColsStart) ++ row.drop(sysColsStart + sysColumns.size)))
                 // TODO: determine whether tenant metrics is needed in export
-                headers ~> exporter.export(charset, schema, rows, singleRow, obfuscateId, fuseMap = fuseMap)(messageProducer, Seq.empty, None)
+                headers ~> exporter.export(charset, schema, rows, singleRow, obfuscateId, fuseMap = fuseMap)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.response(req, EtagPreconditionFailed)
               case ExportDAO.NotModified(etags) =>

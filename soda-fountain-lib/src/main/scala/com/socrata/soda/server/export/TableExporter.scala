@@ -15,7 +15,6 @@ import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse
 import com.socrata.http.server.responses._
 import com.socrata.http.server.implicits._
-import com.socrata.soda.message.{MessageProducer, RowsLoadedApiMetricMessage}
 import com.socrata.soda.server.id.ResourceName
 
 class TableExporter(val mimeTypeBaseValue: String,
@@ -27,12 +26,7 @@ class TableExporter(val mimeTypeBaseValue: String,
   val extension = extensionValue
   val separator = separatorValue
 
-  def export(charset: AliasedCharset, schema: ExportDAO.CSchema,
-             rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false,
-             obfuscateId: Boolean = true,
-             bom: Boolean = false,
-             fuseMap: Map[String, String] = Map.empty)
-            (messageProducer: MessageProducer, entityIds: Seq[String], accessType: Option[String]): HttpResponse = {
+  def export(charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     exporterHeaders(schema) ~> Write(mt) { rawWriter =>
@@ -97,7 +91,6 @@ class TableExporter(val mimeTypeBaseValue: String,
               convertInto(array, rows.next())
               writeCSVRow(array)
             }
-            entityIds.foreach(id => messageProducer.send(RowsLoadedApiMetricMessage(id, rowsCount, accessType)))
           }
         }
         val processor = new Processor

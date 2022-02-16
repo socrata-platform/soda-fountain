@@ -12,7 +12,6 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
 import java.io.{ByteArrayOutputStream, OutputStream, PrintWriter, StringWriter}
 
-import com.socrata.soda.message.NoOpMessageProducer
 import javax.servlet.http.HttpServletResponse
 import org.joda.time.format.ISODateTimeFormat
 
@@ -233,7 +232,7 @@ class GeoJsonExporterTest  extends ExporterTest {
       mockResponse.expects('setContentType)("application/vnd.geo+json; charset=UTF-8")
       mockResponse.expects('getOutputStream)().returning(wrapped)
 
-      GeoJsonExporter.export(charset, getDCSchema("GeoJsonExporterTest", columns, pk, rows), rows.iterator, singleRow)(NoOpMessageProducer, Seq.empty, None)(mockResponse)
+      GeoJsonExporter.export(charset, getDCSchema("GeoJsonExporterTest", columns, pk, rows), rows.iterator, singleRow)(mockResponse)
 
       JsonReader.fromString(new String(out.toByteArray, "UTF-8"))
     }
