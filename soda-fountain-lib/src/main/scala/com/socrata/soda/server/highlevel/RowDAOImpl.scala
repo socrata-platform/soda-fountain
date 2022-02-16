@@ -183,9 +183,9 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                      instructions: Iterator[DataCoordinatorInstruction],
                      f: UpsertResult => T): T = {
     dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instructions ++ data) {
-      case DataCoordinatorClient.NonCreateScriptResult(result, _, copyNumber, newVersion, lastModified) =>
+      case DataCoordinatorClient.NonCreateScriptResult(result, _, copyNumber, newVersion, newShapeVersion, lastModified) =>
         store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
-        f(StreamSuccess(result, newVersion))
+        f(StreamSuccess(result, newVersion, newShapeVersion))
       case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
         // hm, if we get schema out of date here, we're pretty much out of luck, since we'll
         // have used up "upserts".  Unless we want to spool it to disk, but for something

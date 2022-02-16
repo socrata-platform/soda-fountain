@@ -16,6 +16,7 @@ import scala.language.existentials
 object UpsertUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
   val HEADER_TRUTH_VERSION = "X-SODA2-Truth-Version"
+  val HEADER_TRUTH_SHAPE_VERSION = "X-SODA2-Truth-Shape-Version"
 
 
   def handleUpsertErrors(req: HttpRequest, response: HttpServletResponse)
@@ -85,6 +86,7 @@ object UpsertUtils {
     response.setStatus(HttpServletResponse.SC_OK)
     response.setContentType(SodaUtils.jsonContentTypeUtf8) // TODO: negotiate charset too
     response.setHeader(HEADER_TRUTH_VERSION, success.newDataVersion.toString)
+    response.setHeader(HEADER_TRUTH_SHAPE_VERSION, success.newDataShapeVersion.toString)
     using(response.getWriter) { w =>
       // TODO: send actual response
       val jw = new CompactJsonWriter(w)

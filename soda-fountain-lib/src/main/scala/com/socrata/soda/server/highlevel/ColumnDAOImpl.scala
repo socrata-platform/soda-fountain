@@ -63,7 +63,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
             val addColumn = AddColumnInstruction(spec.datatype, spec.fieldName, Some(spec.id), spec.computationStrategy)
             dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
                       Iterator.single(addColumn)) {
-              case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
+              case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
                 // TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here
                 store.addColumn(datasetRecord.systemId, copyNumber, spec)
                 store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
@@ -149,7 +149,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                       SetRowIdColumnInstruction(columnRecord.id))
                   }
                 dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instructions.iterator) {
-                  case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
+                  case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, newShapeVersion, lastModified) =>
                     store.setPrimaryKey(datasetRecord.systemId, columnRecord.id, copyNumber)
                     store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                     ColumnDAO.Updated(columnRecord, None)
@@ -267,7 +267,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
           expectedDataVersion,
           user,
           instructions.iterator) {
-          case DataCoordinatorClient.NonCreateScriptResult(_, etag, copyNumber, newVersion, lastModified) =>
+          case DataCoordinatorClient.NonCreateScriptResult(_, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
             val updatedColumnRec = columnRecord.copy(fieldName = spec.fieldName.getOrElse(columnRecord.fieldName))
 
             // maybe add secondary manifest
@@ -331,7 +331,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                           expectedDataVersion,
                           user,
                           Iterator.single(DropColumnInstruction(columnRef.id))) {
-                  case DataCoordinatorClient.NonCreateScriptResult(_, etag, copyNumber, newVersion, lastModified) =>
+                  case DataCoordinatorClient.NonCreateScriptResult(_, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
                     store.dropColumn(datasetRecord.systemId, columnRef.id, copyNumber, datasetRecord.primaryKey)
                     store.updateVersionInfo(datasetRecord.systemId,
                                             newVersion,

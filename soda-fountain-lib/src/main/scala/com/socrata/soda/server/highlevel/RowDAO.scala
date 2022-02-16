@@ -93,7 +93,7 @@ object RowDAO {
   sealed trait UpsertFailResult extends FailResult with UpsertResult
 
   // UPSERT SUCCESS
-  case class StreamSuccess(report: Iterator[ReportItem], newDataVersion: Long) extends UpsertSuccessResult
+  case class StreamSuccess(report: Iterator[ReportItem], newDataVersion: Long, newDataShapeVersion: Long) extends UpsertSuccessResult
 
   // UPSERT FAILURE: DataCoordinator
   case object SchemaOutOfSync extends UpsertFailResult
