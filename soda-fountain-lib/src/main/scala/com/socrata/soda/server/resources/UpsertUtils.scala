@@ -86,7 +86,7 @@ object UpsertUtils {
     response.setStatus(HttpServletResponse.SC_OK)
     response.setContentType(SodaUtils.jsonContentTypeUtf8) // TODO: negotiate charset too
     response.setHeader(HEADER_TRUTH_VERSION, success.newDataVersion.toString)
-    response.setHeader(HEADER_TRUTH_SHAPE_VERSION, success.newShapeDataVersion.toString)
+    response.setHeader(HEADER_TRUTH_SHAPE_VERSION, success.newDataShapeVersion.toString)
     using(response.getWriter) { w =>
       // TODO: send actual response
       val jw = new CompactJsonWriter(w)
