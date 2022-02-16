@@ -33,6 +33,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   val dateTimeParser = ISODateTimeFormat.dateTimeParser
   val xhDataVersion = "X-SODA2-Truth-Version"
+  val xhShapeDataVersion = "X-SODA2-Truth-Shape-Version"
   val xhLastModified = "X-SODA2-Truth-Last-Modified"
   val xhCopyNumber = "X-SODA2-Truth-Copy-Number"
 
@@ -395,6 +396,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
             None,
             getHeader(xhCopyNumber, r).toLong,
             getHeader(xhDataVersion, r).toLong,
+            if(headerExists(xhShapeDataVersion) getHeader(xhShapeDataVersion, r).toLong else getHeader(xhDataVersion, r).toLong,
             dateTimeParser.parseDateTime(getHeader(xhLastModified, r))))
       case Left(e) => f(e)
     }

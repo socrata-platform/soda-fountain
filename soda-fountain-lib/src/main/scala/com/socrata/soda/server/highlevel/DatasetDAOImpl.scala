@@ -189,7 +189,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         case Some(datasetRecord) =>
           dc.deleteAllCopies(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, "")
           {
-            case DataCoordinatorClient.NonCreateScriptResult(_, _, _, _, _) =>
+            case DataCoordinatorClient.NonCreateScriptResult(_, _, _, _, _, _) =>
               store.removeResource(dataset)
               Deleted
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
@@ -299,7 +299,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.copy(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, copyData, user) {
-            case DataCoordinatorClient.NonCreateScriptResult(_, _, newCopyNumber, newVersion, lastModified) =>
+            case DataCoordinatorClient.NonCreateScriptResult(_, _, newCopyNumber, newVersion, newShapeVersion, lastModified) =>
               store.makeCopy(datasetRecord.systemId, newCopyNumber, newVersion)
               WorkingCopyCreated(newVersion)
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
@@ -332,7 +332,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
           store.lookupCopyNumber(dataset, Some(Unpublished)) match {
             case Some(unpublishCopyNumber) =>
               dc.dropCopy(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user) {
-                case DataCoordinatorClient.NonCreateScriptResult(_, _, _, newVersion, lastModified) =>
+                case DataCoordinatorClient.NonCreateScriptResult(_, _, _, newVersion, newShapeVersion, lastModified) =>
                   store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber, None)
                   WorkingCopyDropped(newVersion)
                 case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
@@ -363,7 +363,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           dc.publish(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, keepSnapshot, user) {
-            case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, lastModified) =>
+            case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, newShapeVersion, lastModified) =>
               store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, Some(0))
               WorkingCopyPublished(newVersion)
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
@@ -447,7 +447,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                       val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQueries.toString())
                       dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
                         Iterator.single(instruction)) {
-                        case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
+                        case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
                           store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
                           RollupCreatedOrUpdated
                         case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
@@ -539,7 +539,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
 
         dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
                   Iterator.single(instruction)) {
-          case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, lastModified) =>
+          case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
             store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
             RollupDropped
           case DataCoordinatorClient.NoSuchRollupResult(_, _) =>

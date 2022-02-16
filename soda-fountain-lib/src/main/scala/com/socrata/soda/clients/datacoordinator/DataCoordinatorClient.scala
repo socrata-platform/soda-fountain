@@ -16,11 +16,19 @@ object DataCoordinatorClient {
   val client = "DC"
 
   @JsonKeyStrategy(Strategy.Underscore)
+  case class VersionSpec(raw: Long, shape: Long)
+  object VersionSpec {
+    implicit val codec = AutomaticJsonCodecBuilder[VersionSpec]
+  }
+
+  @JsonKeyStrategy(Strategy.Underscore)
   case class SecondaryVersionsReport(truthInstance: String,
                                      truthVersion: Option[Long], // TODO: remove this once `latestVersion` is not optional and CRJ is no-longer looking for it
                                      latestVersion: Long,
-                                     publishedVersion: Option[Long],
-                                     unpublishedVersion: Option[Long],
+                                     publishedVersion: Option[Long], // TODO: remove once publishedVersions is used everywhere
+                                     unpublishedVersion: Option[Long], // TODO: remove once unpublishedVersions is used everywhere
+                                     publishedVersions: Option[VersionSpec],
+                                     unpublishedVersions: Option[VersionSpec],
                                      secondaries: Map[String, Long],
                                      feedbackSecondaries: Set[String],
                                      groups: Map[String, Set[String]],
@@ -62,7 +70,7 @@ object DataCoordinatorClient {
   sealed class SuccessResult extends Result
 
   // SUCCESS CASES
-  case class NonCreateScriptResult(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, lastModified: DateTime) extends SuccessResult
+  case class NonCreateScriptResult(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, newShapeVersion: Long, lastModified: DateTime) extends SuccessResult
   case class ExportResult(json: Iterator[JValue], lastModified: Option[DateTime], etag: Option[EntityTag]) extends SuccessResult
   case class RollupResult(rollups: Seq[RollupInfo]) extends SuccessResult
   case class CollocateResult(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
