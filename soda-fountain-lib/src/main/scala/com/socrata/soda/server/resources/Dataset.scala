@@ -47,8 +47,9 @@ case class Dataset(maxDatumSize: Int) {
     }
   }
 
-  private def dataVersionHeader(v: Long) =
-    Header("X-SODA2-Truth-Version", v.toString)
+  private def dataVersionHeaders(data: Long, shape: Long) =
+    Header("X-SODA2-Truth-Version", data.toString) ~>
+      Header("X-SODA2-Truth-Shape-Version", shape.toString)
 
   def response(req: SodaRequest, result: DatasetDAO.Result): HttpResponse = {
     // TODO: Negotiate content type
@@ -65,14 +66,14 @@ case class Dataset(maxDatumSize: Int) {
         OK ~> Json(vr)
       case DatasetDAO.Created(record) =>
         Created ~> Json(record.asSpec)
-      case DatasetDAO.WorkingCopyCreated(v) =>
-        Created ~> dataVersionHeader(v)
+      case DatasetDAO.WorkingCopyCreated(data, shape) =>
+        Created ~> dataVersionHeaders(data, shape)
       case DatasetDAO.PropagatedToSecondary =>
         Created
-      case DatasetDAO.WorkingCopyDropped(v) =>
-        NoContent ~> dataVersionHeader(v)
-      case DatasetDAO.WorkingCopyPublished(v) =>
-        NoContent ~> dataVersionHeader(v)
+      case DatasetDAO.WorkingCopyDropped(data, shape) =>
+        NoContent ~> dataVersionHeaders(data, shape)
+      case DatasetDAO.WorkingCopyPublished(data, shape) =>
+        NoContent ~> dataVersionHeaders(data, shape)
       case DatasetDAO.RollupCreatedOrUpdated =>
         NoContent
       case DatasetDAO.Deleted =>

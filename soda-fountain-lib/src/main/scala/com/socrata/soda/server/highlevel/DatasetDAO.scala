@@ -89,9 +89,9 @@ object DatasetDAO {
   case object Deleted extends SuccessResult
   case object Undeleted extends SuccessResult
   case object EmptyResult extends SuccessResult
-  case class WorkingCopyCreated(newDataVersion: Long) extends SuccessResult
-  case class WorkingCopyDropped(newDataVersion: Long) extends SuccessResult
-  case class WorkingCopyPublished(newDataVersion: Long) extends SuccessResult
+  case class WorkingCopyCreated(newDataVersion: Long, newDataShapeVersion: Long) extends SuccessResult
+  case class WorkingCopyDropped(newDataVersion: Long, newDataShapeVersion: Long) extends SuccessResult
+  case class WorkingCopyPublished(newDataVersion: Long, newDataShapeVersion: Long) extends SuccessResult
   case object PropagatedToSecondary extends SuccessResult
   case class Rollups(rollups: Seq[RollupSpec]) extends SuccessResult
   case object RollupCreatedOrUpdated extends SuccessResult
