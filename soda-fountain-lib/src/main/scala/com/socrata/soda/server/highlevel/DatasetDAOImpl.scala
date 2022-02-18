@@ -301,7 +301,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
           dc.copy(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, copyData, user) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, newCopyNumber, newVersion, newShapeVersion, lastModified) =>
               store.makeCopy(datasetRecord.systemId, newCopyNumber, newVersion)
-              WorkingCopyCreated(newVersion)
+              WorkingCopyCreated(newVersion, newShapeVersion)
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
@@ -334,7 +334,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               dc.dropCopy(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user) {
                 case DataCoordinatorClient.NonCreateScriptResult(_, _, _, newVersion, newShapeVersion, lastModified) =>
                   store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber, None)
-                  WorkingCopyDropped(newVersion)
+                  WorkingCopyDropped(newVersion, newShapeVersion)
                 case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
                   retry()
@@ -365,7 +365,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
           dc.publish(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, keepSnapshot, user) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, newShapeVersion, lastModified) =>
               store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, Some(0))
-              WorkingCopyPublished(newVersion)
+              WorkingCopyPublished(newVersion, newShapeVersion)
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
               retry()
