@@ -532,18 +532,16 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def deleteRollup(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rollup: RollupName): Result = {
+  def deleteRollups(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rollups: Seq[RollupName]): Result = {
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
-        val instruction = DropRollupInstruction(rollup)
-
-        dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
-                  Iterator.single(instruction)) {
+        val instruction = rollups.map(DropRollupInstruction).toIterator
+        dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instruction) {
           case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
             store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
             RollupDropped
-          case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
-            RollupNotFound(rollup)
+          case DataCoordinatorClient.NoSuchRollupResult(ru, _) =>
+            RollupNotFound(ru)
           case DataCoordinatorClient.DatasetNotFoundResult(_) =>
             DatasetNotFound(dataset)
           case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>

@@ -11,11 +11,11 @@ import com.socrata.soda.server.responses._
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
 import com.socrata.soda.server.id.{ResourceName, RollupName, SecondaryId}
-import com.socrata.soda.server.wiremodels.{Extracted, UserProvidedDatasetSpec, UserProvidedRollupSpec}
-import com.socrata.soda.server.wiremodels.{IOProblem, RequestProblem}
-import javax.servlet.http.HttpServletRequest
+import com.socrata.soda.server.wiremodels.{Extracted, IOProblem, RequestProblem, RollupSpec, UserProvidedDatasetSpec, UserProvidedRollupSpec}
 
+import javax.servlet.http.HttpServletRequest
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
+import com.socrata.soda.server.highlevel.DatasetDAO.Rollups
 
 /**
  * Dataset: CRUD operations for dataset schema and metadata
@@ -247,8 +247,15 @@ case class Dataset(maxDatumSize: Int) {
     override def delete = { req =>
       rollupName match {
         case Some(rollup) =>
-          response(req, req.datasetDAO.deleteRollup(user(req), resourceName, expectedDataVersion(req), rollup))
-        case None => MethodNotAllowed
+          response(req, req.datasetDAO.deleteRollups(user(req), resourceName, expectedDataVersion(req), Seq(rollup)))
+        case None =>
+          req.datasetDAO.getRollups(resourceName) match {
+            case Rollups(Nil) =>
+              NoContent
+            case Rollups(rollups: Seq[RollupSpec]) =>
+              val rollupNames = rollups.map(_.name)
+              response(req, req.datasetDAO.deleteRollups(user(req), resourceName, expectedDataVersion(req), rollupNames))
+          }
       }
     }
 
