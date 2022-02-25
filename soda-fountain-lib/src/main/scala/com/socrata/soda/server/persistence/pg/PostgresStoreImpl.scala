@@ -568,7 +568,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       connection.commit()
     }
 
-  def markResourceForDeletion (resourceName: ResourceName): Unit = {
+  def markResourceForDeletion (resourceName: ResourceName, datetime: Option[DateTime]): Unit = {
     using(dataSource.getConnection()) { connection =>
 
       connection.setAutoCommit(false)
@@ -580,12 +580,15 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         }
       }
       for (datasetId <- datasetIdOpt) {
+        val dt = datetime.getOrElse(DateTime.now())
         using(connection.prepareStatement(
-          """ update dataset_copies dc set  deleted_at = now() where dc.dataset_system_id = ?;
-              update datasets d set deleted_at = now () where d.dataset_system_id = ?;
+          """ update dataset_copies dc set  deleted_at = ? where dc.dataset_system_id = ?;
+              update datasets d set deleted_at = ? where d.dataset_system_id = ?;
         """)) { update =>
           for (i <- 1 to 2) {
-            update.setString(i, datasetId.underlying)
+            val iBase = 2 * (i - 1)
+            update.setTimestamp(iBase + 1, toTimestamp(dt))
+            update.setString(iBase + 2, datasetId.underlying)
           }
           update.execute()
         }

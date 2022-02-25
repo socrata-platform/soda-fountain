@@ -20,7 +20,7 @@ import scala.concurrent.duration.FiniteDuration
 trait NameAndSchemaStore {
   def addResource(newRecord: DatasetRecord)
   def removeResource(resourceName: ResourceName)
-  def markResourceForDeletion(resourceName: ResourceName)
+  def markResourceForDeletion(resourceName: ResourceName, datetime: Option[DateTime])
   def unmarkResourceForDeletion (resourceName: ResourceName)
   def patchResource(toPatch: ResourceName, newResourceName: ResourceName)
   def translateResourceName(resourceName: ResourceName, stage: Option[Stage] = None, deleted: Boolean = false): Option[MinimalDatasetRecord]
