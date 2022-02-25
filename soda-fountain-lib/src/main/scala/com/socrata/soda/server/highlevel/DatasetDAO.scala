@@ -10,6 +10,7 @@ import com.socrata.soda.server.persistence.DatasetRecord
 import com.socrata.soda.server.resources.SFCollocateOperation
 import com.socrata.soda.server.wiremodels.{RollupSpec, UserProvidedDatasetSpec, UserProvidedRollupSpec}
 import com.socrata.soql.environment.ColumnName
+import org.joda.time.DateTime
 
 trait DatasetDAO {
   import DatasetDAO.Result
@@ -20,7 +21,7 @@ trait DatasetDAO {
   def updateDataset(user: String,
                     dataset: ResourceName,
                     spec: UserProvidedDatasetSpec): Result
-  def markDatasetForDeletion(user: String, dataset: ResourceName): Result
+  def markDatasetForDeletion(user: String, dataset: ResourceName, datetime: Option[DateTime]): Result
   def unmarkDatasetForDeletion(user: String, dataset: ResourceName) : Result
   def removeDataset(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result
   def getDataset(dataset: ResourceName, stage: Option[Stage]): Result

@@ -24,6 +24,7 @@ import DatasetDAO._
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
 import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation}
+import org.joda.time.DateTime
 
 class DatasetDAOImpl(dc: DataCoordinatorClient,
                      fbm: FeedbackSecondaryManifestClient,
@@ -217,11 +218,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  def markDatasetForDeletion(user: String, dataset: ResourceName): Result = {
+  def markDatasetForDeletion(user: String, dataset: ResourceName, datetime: Option[DateTime]): Result = {
     //TODO: Ask about retryable and give a return value
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
-          store.markResourceForDeletion(dataset)
+          store.markResourceForDeletion(dataset, datetime)
           Deleted
         case None =>
           DatasetNotFound(dataset)

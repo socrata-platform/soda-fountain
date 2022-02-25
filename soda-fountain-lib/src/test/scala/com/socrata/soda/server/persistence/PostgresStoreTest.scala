@@ -333,7 +333,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with Matchers with Data
       )
     )
     val (resourceName, _) = createMockDataset(columns)
-    store.markResourceForDeletion(resourceName)
+    store.markResourceForDeletion(resourceName, None)
     val f = store.translateResourceName(resourceName, isDeleted = true)
     f match {
       case Some(record) =>
@@ -359,7 +359,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with Matchers with Data
       )
     )
     val (resourceName, _) = createMockDataset(columns)
-    store.markResourceForDeletion(resourceName)
+    store.markResourceForDeletion(resourceName, None)
     store.removeResource(resourceName)
     val f = store.translateResourceName(resourceName, isDeleted = true)
     f match {
@@ -388,7 +388,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with Matchers with Data
       )
     )
     val (resourceName, _) = createMockDataset(columns)
-    store.markResourceForDeletion(resourceName)
+    store.markResourceForDeletion(resourceName, None)
     store.unmarkResourceForDeletion(resourceName)
     val f = store.translateResourceName(resourceName)
     f match {
@@ -403,7 +403,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with Matchers with Data
     // validate we can find it after create
     store.bulkDatasetLookup(Set(datasetId)) should equal(Set(resourceName))
 
-    store.markResourceForDeletion(resourceName)
+    store.markResourceForDeletion(resourceName, None)
 
     // validate by default it isn't returned
     store.bulkDatasetLookup(Set(datasetId)) should equal(Set())

@@ -153,7 +153,8 @@ case class Dataset(maxDatumSize: Int) {
     }
 
     override def delete = { req =>
-      response(req, req.datasetDAO.markDatasetForDeletion(user(req), resourceName))
+      val datetime = req.dateTimeHeader("X-Socrata-Deleted-At") // allow expedited delete
+      response(req, req.datasetDAO.markDatasetForDeletion(user(req), resourceName, datetime))
     }
   }
 
