@@ -10,7 +10,6 @@ object Dependencies {
     val javaxServletApi   = "2.5"
     val liquibaseCore     = "2.0.0"
     val liquibasePlugin   = "1.9.5.0"
-    val log4j             = "1.2.16"
     val metricsScala      = "4.1.1"
     val mortbayJetty      = "6.1.22"
     val msgpack4s         = "0.4.2"
@@ -19,6 +18,7 @@ object Dependencies {
     val rojomaJsonGrisu   = "1.0.0"
     val rojomaSimpleArm   = "1.2.0"
     val rojomaSimpleArmV2 = "2.1.0"
+    val slf4j             = "1.7.33"
     val socrataHttp       = "3.13.3"
     val soqlBrita         = "1.4.1"
     val soqlReference     = "4.2.0"
@@ -51,8 +51,6 @@ object Dependencies {
 
   val liquibasePlugin          = "org.liquibase"    % "liquibase-plugin"            % versions.liquibasePlugin
 
-  val log4j                    = "log4j"            % "log4j"                       % versions.log4j
-
   val metricsScala             = "nl.grons"        %% "metrics4-scala"               % versions.metricsScala
 
   val msgpack4s                = "org.velvia"      %% "msgpack4s"                   % versions.msgpack4s
@@ -65,6 +63,9 @@ object Dependencies {
 
   val rojomaSimpleArm          = "com.rojoma"      %% "simple-arm"                  % versions.rojomaSimpleArm
   val rojomaSimpleArmV2        = "com.rojoma"      %% "simple-arm-v2"               % versions.rojomaSimpleArmV2
+
+  val slf4j                    = "org.slf4j"        % "slf4j-api"                   % versions.slf4j
+  val slf4jLog4j               = "org.slf4j"        % "slf4j-log4j12"               % versions.slf4j
 
   val socrataHttpClient        = "com.socrata"     %% "socrata-http-client"         % versions.socrataHttp
   val socrataHttpCuratorBroker = "com.socrata"     %% "socrata-http-curator-broker" % versions.socrataHttp exclude("org.slf4j", "slf4j-simple")
