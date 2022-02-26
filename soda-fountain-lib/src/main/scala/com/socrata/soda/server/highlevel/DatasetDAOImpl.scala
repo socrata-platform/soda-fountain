@@ -9,21 +9,17 @@ import com.socrata.soda.server.persistence.{DatasetRecordLike, NameAndSchemaStor
 import com.socrata.soda.server.wiremodels._
 import com.socrata.soda.server.SodaUtils.traceHeaders
 import com.socrata.soql.collection.OrderedMap
-import com.socrata.soql.exceptions.{NoSuchColumn, SoQLException}
-import com.socrata.soql.mapping.ColumnNameMapper
 import com.socrata.soql.parsing.StandaloneParser
 import com.socrata.soql.types.SoQLType
-import com.socrata.soql.{Compound, Leaf, SoQLAnalysis, SoQLAnalyzer}
-import com.socrata.soql.aliases.AliasAnalysis
+import com.socrata.soql.{Compound, Leaf}
 import com.socrata.soql.brita.IdentifierFilter
-import com.socrata.soql.environment.{ColumnName, DatasetContext, TableName}
-import com.socrata.soql.functions.SoQLFunctionInfo
-import com.socrata.soql.functions.SoQLTypeInfo
+import com.socrata.soql.environment.{ColumnName, DatasetContext}
 import DatasetDAO._
 
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
 import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation}
+import com.socrata.soql.parsing.RecursiveDescentParser.ParseException
 import org.joda.time.DateTime
 
 class DatasetDAOImpl(dc: DataCoordinatorClient,
@@ -422,50 +418,33 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         case Some(datasetRecord) =>
           spec.soql match {
             case Some(soql) =>
-              // We don't actually need the analysis, we are just running it here so we
-              // can give feedback to the API caller if something is wrong with the query.
-              analyzeQuery(datasetRecord, spec.soql.get) match {
-                case Left(result) => result
-                case Right(_) =>
-                  val columnNameMap = datasetRecord.columnsByName.mapValues(col => rollupColumnNameToIdMapping(col.id))
-
-                  val parsedQueries = new StandaloneParser().binaryTreeSelect(soql)
-                  parsedQueries match {
-                    case Compound(_, _, _) =>
-                      // It cannot get here because it is prevented by analyzeQuery which does not take chained soql.
-                      RollupError("rollup soql cannot be compound query")
-                    case Leaf(parsedQuery) =>
-                      val aliasAnalysis = AliasAnalysis(parsedQuery.selection)(Map(TableName.PrimaryTable.qualifier -> dsContext(datasetRecord)))
-
-                      // I don't think this is _quite_ correct, but
-                      // I'm having a hard time coming up with a
-                      // counterexample
-                      val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
-
-                      log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
-                      log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
-
-                      val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQueries.toString())
-                      dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
-                        Iterator.single(instruction)) {
-                        case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
-                          store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
-                          RollupCreatedOrUpdated
-                        case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
-                          RollupNotFound(rollup)
-                        case DataCoordinatorClient.InvalidRollupResult(ru, _) =>
-                          RollupError(ru.name)
-                        case DataCoordinatorClient.DatasetNotFoundResult(_) =>
-                          DatasetNotFound(dataset)
-                        case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
-                          CannotAcquireDatasetWriteLock(dataset)
-                        case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
-                          InternalServerError(code, tag, data)
-                        case x =>
-                          log.warn("case is NOT implemented %s".format(x.toString))
-                          InternalServerError("unknown", tag, x.toString)
-                      }
-                  }
+              log.debug(s"soql for rollup ${rollup} is: ${soql}")
+              try {
+                val mappedQueries = ColumnNameMapper.mapQuery(store, dataset, soql)
+                log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
+                val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQueries.toString())
+                dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
+                  Iterator.single(instruction)) {
+                  case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
+                    store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+                    RollupCreatedOrUpdated
+                  case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
+                    RollupNotFound(rollup)
+                  case DataCoordinatorClient.InvalidRollupResult(ru, _) =>
+                    RollupError(ru.name)
+                  case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+                    DatasetNotFound(dataset)
+                  case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
+                    CannotAcquireDatasetWriteLock(dataset)
+                  case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+                    InternalServerError(code, tag, data)
+                  case x =>
+                    log.warn("case is NOT implemented %s".format(x.toString))
+                    InternalServerError("unknown", tag, x.toString)
+                }
+              } catch {
+                case ex: ParseException =>
+                  RollupError(s"soql parse error ${ex.getMessage}" )
               }
             case None =>
               RollupError("soql field missing")
@@ -480,20 +459,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
 
     new DatasetContext[SoQLType] {
       val schema = OrderedMap(columnIdMap.mapValues(rawSchema).toSeq.sortBy(_._1) : _*)
-    }
-  }
-
-  private def analyzeQuery(ds: DatasetRecordLike, query: String): Either[Result, SoQLAnalysis[ColumnName, SoQLType]] = {
-    val dsCtx = dsContext(ds)
-    val analyzer = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
-
-    try {
-      val analysis = analyzer.analyzeUnchainedQuery(query)(Map(TableName.PrimaryTable.qualifier -> dsCtx))
-      log.debug(s"Rollup analysis successful: ${analysis}")
-      Right(analysis)
-    } catch {
-      case NoSuchColumn(name, _) => Left(RollupColumnNotFound(name))
-      case e: SoQLException => Left(RollupError(e.getMessage))
     }
   }
 
@@ -513,8 +478,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                   log.error("found saved rollup to be compound soql {}", op)
                   return InternalServerError("unknown", tag, "found saved rollup to be chained soql")
                 case Leaf(parsedQuery) =>
-                  val aliasAnalysis = AliasAnalysis(parsedQuery.selection)(Map(TableName.PrimaryTable.qualifier -> dsContext(datasetRecord)))
-                  val mappedQueries = new ColumnNameMapper(aliasAnalysis.expressions.keys.map { k => (k, k) }.toMap ++ columnNameMap).mapSelect(parsedQueries)
+                  val mappedQueries = ColumnNameMapper.reverseMapQuery(store, dataset, rollup.soql)
                   log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
                   log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
                   RollupSpec(name = rollup.name, soql = mappedQueries.toString())
