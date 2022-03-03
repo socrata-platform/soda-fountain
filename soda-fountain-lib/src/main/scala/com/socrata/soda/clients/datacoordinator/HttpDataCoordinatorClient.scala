@@ -370,6 +370,8 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
                 f(Left(InvalidLocaleResult(locale, commandIndex)))
               case NoSuchRollup(name, commandIndex) =>
                 f(Left(NoSuchRollupResult(name, commandIndex)))
+              case InvalidRollup(name, commandIndex) =>
+                f(Left(InvalidRollupResult(name, commandIndex)))
               case NotModified() =>
                 f(Left(NotModifiedResult(etagsSeq(r))))
             }

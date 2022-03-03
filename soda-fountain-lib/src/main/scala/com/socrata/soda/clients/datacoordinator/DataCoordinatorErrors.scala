@@ -20,6 +20,8 @@ case class InvalidLocale(locale: String, commandIndex: Long) extends DataCoordin
 @Tag("delete.rollup.does-not-exist")
 case class NoSuchRollup(rollup: RollupName, commandIndex: Long) extends DataCoordinatorError
 
+@Tag("create.rollup.invalid")
+case class InvalidRollup(rollup: RollupName, commandIndex: Long) extends DataCoordinatorError
 
 // Request Errors
 
