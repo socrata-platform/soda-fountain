@@ -82,6 +82,7 @@ object DataCoordinatorClient {
   case class NotModifiedResult(etags: Seq[EntityTag]) extends FailResult
   case class IncorrectLifecycleStageResult(actualStage: String, expectedStage: Set[String]) extends FailResult
   case class NoSuchRollupResult(name: RollupName, commandIndex: Long) extends FailResult
+  case class InvalidRollupResult(name: RollupName, commandIndex: Long) extends FailResult
   case object PreconditionFailedResult extends FailResult
   case class InternalServerErrorResult(code: String, tag: String, data: String) extends FailResult
   case class UnexpectedInternalServerResponseResult(reason: String, tag: String) extends FailResult

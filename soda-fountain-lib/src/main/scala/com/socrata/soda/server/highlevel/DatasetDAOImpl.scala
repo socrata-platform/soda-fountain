@@ -453,6 +453,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                           RollupCreatedOrUpdated
                         case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
                           RollupNotFound(rollup)
+                        case DataCoordinatorClient.InvalidRollupResult(ru, _) =>
+                          RollupError(ru.name)
                         case DataCoordinatorClient.DatasetNotFoundResult(_) =>
                           DatasetNotFound(dataset)
                         case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
