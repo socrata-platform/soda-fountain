@@ -9,7 +9,7 @@ import com.socrata.soda.server.SodaInternalException
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.persistence.ColumnRecordLike
-import com.socrata.soda.server.wiremodels.JsonColumnRep
+import com.socrata.soda.external.JsonColumnRep
 import com.socrata.soql.types._
 import com.socrata.thirdparty.geojson.JtsCodecs.geoCodec
 import java.io.BufferedWriter

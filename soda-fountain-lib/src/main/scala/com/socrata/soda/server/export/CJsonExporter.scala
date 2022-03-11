@@ -10,7 +10,7 @@ import com.socrata.http.common.util.AliasedCharset
 import com.socrata.http.server.HttpResponse
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
-import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
+import com.socrata.soda.external.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.types.SoQLValue
 import java.io.BufferedWriter
 

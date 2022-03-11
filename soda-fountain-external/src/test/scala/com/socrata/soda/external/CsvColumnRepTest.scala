@@ -1,4 +1,4 @@
-package com.socrata.soda.server.wiremodels
+package com.socrata.soda.external
 
 import com.rojoma.json.v3.ast.JString
 import com.socrata.soql.types.{SoQLNumber, SoQLType}

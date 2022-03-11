@@ -5,7 +5,7 @@ import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.conversions._
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
-import com.socrata.soda.server.wiremodels.{JsonColumnRep, JsonColumnWriteRep}
+import com.socrata.soda.external.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.types._
 import com.rojoma.json.util.JsonUtil
 

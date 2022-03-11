@@ -9,7 +9,7 @@ import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord, ColumnRecordLike, NameAndSchemaStore}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.SodaUtils.traceHeaders
-import com.socrata.soda.server.wiremodels.JsonColumnRep
+import com.socrata.soda.external.JsonColumnRep
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat

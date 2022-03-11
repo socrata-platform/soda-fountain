@@ -10,7 +10,7 @@ import com.socrata.soda.server.export.CsvExporter
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.NameAndSchemaStore
-import com.socrata.soda.server.wiremodels.JsonColumnRep
+import com.socrata.soda.external.JsonColumnRep
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLValue
 
