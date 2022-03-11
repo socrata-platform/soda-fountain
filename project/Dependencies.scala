@@ -14,7 +14,7 @@ object Dependencies {
     val mortbayJetty      = "6.1.22"
     val msgpack4s         = "0.4.2"
     val postgresql        = "42.2.5"
-    val rojomaJson        = "3.9.1"
+    val rojomaJson        = "3.14.0"
     val rojomaJsonGrisu   = "1.0.0"
     val rojomaSimpleArm   = "1.2.0"
     val rojomaSimpleArmV2 = "2.1.0"
@@ -59,7 +59,8 @@ object Dependencies {
 
   val postgresql               = "org.postgresql"   % "postgresql"                  % versions.postgresql
 
-  val rojomaJson               = "com.rojoma"      %% "rojoma-json-v3-grisu"        % versions.rojomaJsonGrisu
+  val rojomaJsonGrisu          = "com.rojoma"      %% "rojoma-json-v3-grisu"        % versions.rojomaJsonGrisu
+  val rojomaJson               = "com.rojoma"      %% "rojoma-json-v3"              % versions.rojomaJson
 
   val rojomaSimpleArm          = "com.rojoma"      %% "simple-arm"                  % versions.rojomaSimpleArm
   val rojomaSimpleArmV2        = "com.rojoma"      %% "simple-arm-v2"               % versions.rojomaSimpleArmV2

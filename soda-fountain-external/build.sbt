@@ -7,6 +7,7 @@ libraryDependencies ++= Seq(
   socrataHttpClient,
   socrataThirdPartyUtils,
   socrataCuratorUtils,
+  soqlTypes,
   typesafeConfig,
   TestDeps.apacheCurator,
   TestDeps.socrataCuratorUtils,
