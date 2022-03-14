@@ -15,6 +15,7 @@ def boolean stage_cut = false
 def boolean stage_build = false
 def boolean stage_dockerize = false
 def boolean stage_deploy = false
+def boolean stage_publish = false
 
 // instanciate libraries
 def sbtbuild = new com.socrata.SBTBuild(steps, service, project_wd)
@@ -60,6 +61,7 @@ pipeline {
           // determine what triggered the build and what stages need to be run
           if (params.RELEASE_CUT == true) { // RELEASE_CUT parameter was set by a cut job
             stage_cut = true  // other stages will be turned on in the cut step as needed
+            stage_publish = true
             deploy_environment = "rc"
           }
           else if (env.CHANGE_ID != null) { // we're running a PR builder
@@ -144,6 +146,18 @@ pipeline {
           // build
           echo "Building sbt project..."
           sbtbuild.build()
+        }
+      }
+	}
+    stage('Publish') {
+      when { expression { stage_publish } }
+      steps {
+        script {
+         echo "Publishing external library"
+         sbtbuild.setSubprojectName("sodaFountainExternal")
+         sbtbuild.setPublish(true)
+         sbtbuild.setBuildType("library")
+         sbtbuild.build()
         }
       }
     }
