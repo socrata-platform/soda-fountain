@@ -1,4 +1,4 @@
-package com.socrata.soda.server.wiremodels
+package com.socrata.soda.external
 
 import org.scalatest.{Assertions, FunSuite, MustMatchers}
 import com.socrata.soql.types._

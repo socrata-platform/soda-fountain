@@ -7,7 +7,7 @@ import com.socrata.soda.clients.datacoordinator.{DeleteRow, RowUpdate, UpsertRow
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.SodaInvalidRequestException
 import com.socrata.soda.server.persistence.{ColumnRecordLike, DatasetRecordLike}
-import com.socrata.soda.server.wiremodels.{JsonColumnReadRep, JsonColumnRep, JsonColumnWriteRep}
+import com.socrata.soda.external._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNull, SoQLType, SoQLValue}
 

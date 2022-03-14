@@ -11,7 +11,7 @@ import com.socrata.soda.server.highlevel.CJson.CJsonException
 import com.socrata.soda.server.highlevel.ExportDAO.ColumnInfo
 import com.socrata.soda.server.highlevel.{CJson, ExportDAO}
 import com.socrata.soda.server.persistence.ColumnRecord
-import com.socrata.soda.server.wiremodels.JsonColumnRep
+import com.socrata.soda.external.JsonColumnRep
 import com.socrata.soql.types.{SoQLType, SoQLValue}
 import org.joda.time.format.ISODateTimeFormat
 import org.scalamock.proxy.ProxyMockFactory

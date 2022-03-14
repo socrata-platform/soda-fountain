@@ -1,6 +1,7 @@
 package com.socrata.soda.server.wiremodels
 
 import com.socrata.soql.types._
+import com.socrata.soda.external._
 
 /*
     The string column rep is used for row specifiers that are part of urls in single-row operations

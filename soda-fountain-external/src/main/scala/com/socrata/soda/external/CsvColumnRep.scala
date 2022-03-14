@@ -1,4 +1,4 @@
-package com.socrata.soda.server.wiremodels
+package com.socrata.soda.external
 
 import java.net.URLEncoder
 
@@ -6,7 +6,7 @@ import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.codec.{JsonDecode, JsonEncode}
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.json.v3.util.JsonUtil
-import com.socrata.soda.server.wiremodels.JsonColumnRep.ClientNumberRep
+import JsonColumnRep.ClientNumberRep
 import com.socrata.soql.types._
 import com.vividsolutions.jts.geom._
 

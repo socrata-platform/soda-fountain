@@ -15,6 +15,7 @@ import com.socrata.soda.server.highlevel.RowDAO._
 import com.socrata.soda.server.id.{ResourceName, RowSpecifier}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.wiremodels._
+import com.socrata.soda.external.JsonColumnRep
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.stdlib.Context
 import org.joda.time.DateTime

@@ -1,6 +1,7 @@
 package com.socrata.soda.server.wiremodels
 
 import com.socrata.soql.types._
+import com.socrata.soda.external._
 import com.rojoma.json.ast.JString
 
 trait SoQLLiteralColumnCommonRep {

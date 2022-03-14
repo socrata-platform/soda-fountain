@@ -11,13 +11,13 @@ ThisBuild / evictionErrorLevel := Level.Warn
 
 val sodaFountainLibMacros = project in file("soda-fountain-lib-macros")
 
+val sodaFountainExternal = project in file("soda-fountain-external")
+
 val sodaFountainLib = (project in file("soda-fountain-lib")).
-  dependsOn(sodaFountainLibMacros)
+  dependsOn(sodaFountainLibMacros, sodaFountainExternal)
 
 val sodaFountainJetty = (project in file("soda-fountain-jetty")).
   dependsOn(sodaFountainLib)
-
-val sodaFountainExternal = project in file("soda-fountain-external")
 
 releaseProcess -= ReleaseTransformations.publishArtifacts
 
