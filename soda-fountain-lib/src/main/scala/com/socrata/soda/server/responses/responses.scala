@@ -192,6 +192,10 @@ case class BadParameter(param: String, value: String)
     "parameter" -> JString(param),
     "value" -> JString(value))
 
+case class SecondaryNotFound(value: String)
+  extends SodaResponse(SC_BAD_REQUEST, "req.secondary",
+    s"Secondary with id '$value' does not exist")
+
 case class ColumnHasDependencies(columnName: ColumnName,
                                  deps: Seq[ColumnName])
   extends SodaResponse(SC_BAD_REQUEST, "soda.column-with-dependencies-not-deleteable",
