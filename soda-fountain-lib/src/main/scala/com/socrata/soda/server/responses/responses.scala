@@ -194,7 +194,9 @@ case class BadParameter(param: String, value: String)
 
 case class SecondaryNotFound(value: String)
   extends SodaResponse(SC_BAD_REQUEST, "req.secondary",
-    s"Secondary with id '$value' does not exist")
+    s"Secondary with id '$value' does not exist",
+    "secondary_id" -> JString(value)
+)
 
 case class ColumnHasDependencies(columnName: ColumnName,
                                  deps: Seq[ColumnName])
