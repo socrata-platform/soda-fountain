@@ -1,7 +1,7 @@
 package com.socrata.soda.clients.querycoordinator
 
 import java.net.URLEncoder
-import com.rojoma.json.v3.ast.{JNull, JValue, JNumber}
+import com.rojoma.json.v3.ast.{JNull, JNumber, JValue}
 import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil}
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, ReceiveTimeout, UnexpectedContentType}
@@ -17,10 +17,14 @@ import com.socrata.soql.stdlib.Context
 import org.apache.http.HttpStatus._
 import org.joda.time.DateTime
 
+import scala.concurrent.duration.FiniteDuration
+
 trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   def qchost : Option[RequestBuilder]
   val httpClient: HttpClient
   val threadLimiter: ThreadLimiter
+
+  val defaultReceiveTimeout: FiniteDuration
 
   // The threadlimiter wants to be able to log messages on behalf of this
   val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpQueryCoordinatorClient])
@@ -62,7 +66,8 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
       qpDataset -> dataset.datasetId.underlying,
       qpQuery -> query,
       qpContext -> JsonUtil.renderJson(context, pretty=false)) ++
-      queryTimeoutSeconds.map(qpQueryTimeoutSeconds -> _) ++
+      // when $$query_timeout_seconds is not given, always limit it to the default value - typically 10 minutes
+      queryTimeoutSeconds.orElse(Some(defaultReceiveTimeout.toSeconds.toString)).map(qpQueryTimeoutSeconds -> _) ++
       copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
       rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
       (if (noRollup) List(qpNoRollup -> "y") else Nil) ++

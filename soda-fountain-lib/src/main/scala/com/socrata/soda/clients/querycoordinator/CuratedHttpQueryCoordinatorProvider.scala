@@ -37,6 +37,7 @@ class CuratedHttpQueryCoordinatorClientProvider(discovery: ServiceDiscovery[Auxi
     new HttpQueryCoordinatorClient {
       val httpClient = http
       val threadLimiter = CuratedHttpQueryCoordinatorClientProvider.this.threadLimiter
+      override val defaultReceiveTimeout: FiniteDuration = receiveTimeout
 
       def qchost: Option[RequestBuilder] = Option(provider.getInstance()).map { serv =>
         RequestBuilder(new java.net.URI(serv.buildUriSpec())).
