@@ -1,7 +1,6 @@
 package com.socrata.querycoordinator
 
 import java.io.{ByteArrayInputStream, InputStream}
-
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
@@ -9,9 +8,12 @@ import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.client.{Response, StandardResponse, _}
 import com.socrata.soda.clients.datacoordinator.{ColumnNotFound, HttpDataCoordinatorClient, UnknownDataCoordinatorError}
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient.QueryCoordinatorResult
-import com.socrata.soda.clients.querycoordinator.{QueryCoordinatorError, HttpQueryCoordinatorClient}
+import com.socrata.soda.clients.querycoordinator.{HttpQueryCoordinatorClient, QueryCoordinatorError}
 import com.socrata.soda.server.ThreadLimiter
 import org.scalatest.{FunSuite, Matchers, Tag}
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.Duration
 
 class HttpQueryCoordinatorClientTest extends FunSuite with Matchers {
 
@@ -106,6 +108,8 @@ class HttpQueryCoordinatorClientTest extends FunSuite with Matchers {
   class MyClient extends HttpQueryCoordinatorClient{
     val threadLimiter = new ThreadLimiter("TestClient", 50)
     val httpClient: HttpClient = null
+    val defaultReceiveTimeout = Duration(1, TimeUnit.MINUTES)
+
     def qchost: Option[RequestBuilder] = None
   }
 
