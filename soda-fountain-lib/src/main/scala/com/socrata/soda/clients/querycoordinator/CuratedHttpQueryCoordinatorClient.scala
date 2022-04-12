@@ -22,7 +22,7 @@ class CuratedHttpQueryCoordinatorClient(val httpClient: HttpClient,
   override val threadLimiter = new ThreadLimiter("QueryCoordinatorClient",
                                                  (maxThreadRatio * maxJettyThreadPoolSize).toInt)
 
-  override val defaultReceiveTimeout: FiniteDuration = receiveTimeout
+  override val defaultQueryTimeout: FiniteDuration = receiveTimeout
 
   private[this] val connectTimeoutMS = connectTimeout.toMillis.toInt
   if (connectTimeoutMS != connectTimeout.toMillis) {

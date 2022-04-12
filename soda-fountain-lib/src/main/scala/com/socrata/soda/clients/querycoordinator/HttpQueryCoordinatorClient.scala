@@ -17,14 +17,11 @@ import com.socrata.soql.stdlib.Context
 import org.apache.http.HttpStatus._
 import org.joda.time.DateTime
 
-import scala.concurrent.duration.FiniteDuration
 
 trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   def qchost : Option[RequestBuilder]
   val httpClient: HttpClient
   val threadLimiter: ThreadLimiter
-
-  val defaultReceiveTimeout: FiniteDuration
 
   // The threadlimiter wants to be able to log messages on behalf of this
   val log = org.slf4j.LoggerFactory.getLogger(classOf[HttpQueryCoordinatorClient])
@@ -67,7 +64,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
       qpQuery -> query,
       qpContext -> JsonUtil.renderJson(context, pretty=false)) ++
       // when $$query_timeout_seconds is not given, always limit it to the default value - typically 10 minutes
-      queryTimeoutSeconds.orElse(Some(defaultReceiveTimeout.toSeconds.toString)).map(qpQueryTimeoutSeconds -> _) ++
+      queryTimeoutSeconds.orElse(Some(defaultQueryTimeout.toSeconds.toString)).map(qpQueryTimeoutSeconds -> _) ++
       copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
       rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
       (if (noRollup) List(qpNoRollup -> "y") else Nil) ++

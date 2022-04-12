@@ -11,6 +11,8 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.stdlib.Context
 import org.joda.time.DateTime
 
+import scala.concurrent.duration.FiniteDuration
+
 object QueryCoordinatorClient {
   val client = "QC"
 
@@ -73,6 +75,9 @@ object QueryCoordinatorClient {
 
 trait QueryCoordinatorClient {
   import QueryCoordinatorClient._
+
+  val defaultQueryTimeout: FiniteDuration
+
   def query[T](dataset: DatasetHandle,
                precondition: Precondition,
                ifModifiedSince: Option[DateTime],

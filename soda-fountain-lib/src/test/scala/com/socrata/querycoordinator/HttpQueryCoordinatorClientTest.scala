@@ -108,7 +108,7 @@ class HttpQueryCoordinatorClientTest extends FunSuite with Matchers {
   class MyClient extends HttpQueryCoordinatorClient{
     val threadLimiter = new ThreadLimiter("TestClient", 50)
     val httpClient: HttpClient = null
-    val defaultReceiveTimeout = Duration(1, TimeUnit.MINUTES)
+    val defaultQueryTimeout = Duration(1, TimeUnit.MINUTES)
 
     def qchost: Option[RequestBuilder] = None
   }
