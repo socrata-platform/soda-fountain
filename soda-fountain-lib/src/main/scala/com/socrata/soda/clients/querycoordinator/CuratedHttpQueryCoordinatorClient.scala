@@ -29,15 +29,9 @@ class CuratedHttpQueryCoordinatorClient(val httpClient: HttpClient,
     throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")
   }
 
-  private[this] val receiveTimeoutMS = receiveTimeout.toMillis.toInt
-  if (receiveTimeoutMS != receiveTimeout.toMillis) {
-    throw new IllegalArgumentException("Receive timeout out of range (milliseconds must fit in an int)")
-  }
-
   def qchost: Option[RequestBuilder] = Option(provider.getInstance()).map { serv =>
     RequestBuilder(new java.net.URI(serv.buildUriSpec())).
       livenessCheckInfo(Option(serv.getPayload).flatMap(_.livenessCheckInfo)).
-      connectTimeoutMS(connectTimeoutMS).
-      receiveTimeoutMS(receiveTimeoutMS)
+      connectTimeoutMS(connectTimeoutMS)
   }
 }
