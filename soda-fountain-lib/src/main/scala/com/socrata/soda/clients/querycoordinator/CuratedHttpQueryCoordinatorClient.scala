@@ -22,6 +22,8 @@ class CuratedHttpQueryCoordinatorClient(val httpClient: HttpClient,
   override val threadLimiter = new ThreadLimiter("QueryCoordinatorClient",
                                                  (maxThreadRatio * maxJettyThreadPoolSize).toInt)
 
+  override val defaultReceiveTimeout: FiniteDuration = receiveTimeout
+
   private[this] val connectTimeoutMS = connectTimeout.toMillis.toInt
   if (connectTimeoutMS != connectTimeout.toMillis) {
     throw new IllegalArgumentException("Connect timeout out of range (milliseconds must fit in an int)")
