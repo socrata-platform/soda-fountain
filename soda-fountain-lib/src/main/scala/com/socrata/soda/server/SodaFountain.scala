@@ -175,7 +175,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
                          override lazy val rowDAO = new RowDAOImpl(store, dc, qc)
                          override lazy val exportDAO = new ExportDAOImpl(store, dc)
                          override lazy val snapshotDAO = new SnapshotDAOImpl(store, dc)
-                         override lazy val resyncDAO = ResyncDAOImpl(store)
+                         override lazy val resyncDAO = ResyncDAOImpl(store, dc)
                        })
         } catch {
           case e: Throwable if !e.isInstanceOf[Error] =>

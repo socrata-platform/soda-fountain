@@ -5,8 +5,10 @@ import java.io.Reader
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.HttpResponse
 import com.socrata.soda.server.id.{ResourceName, SecondaryId}
+import com.socrata.soda.clients.datacoordinator._
 
 import com.socrata.soda.server.persistence.NameAndSchemaStore
+import DataCoordinatorClient._
 
 
 trait ResyncDAO {
@@ -15,11 +17,19 @@ trait ResyncDAO {
 
 object ResyncDAO {
   trait ResyncResponse
-  case object Success extends ResyncResponse
+  case class Success(secondary: SecondaryId) extends ResyncResponse
   case class SecondaryNotFound(secondary: SecondaryId) extends ResyncResponse
+  case class DatasetNotFound(resource: ResourceName) extends ResyncResponse
 }
 
-case class ResyncDAOImpl(store: NameAndSchemaStore) extends ResyncDAO {
-  override def resync(resourceName: ResourceName, secondary: SecondaryId): ResyncDAO.ResyncResponse = ResyncDAO.Success
-  // do sql here
+case class ResyncDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) extends ResyncDAO {
+  override def resync(resourceName: ResourceName, secondary: SecondaryId): ResyncDAO.ResyncResponse = {
+    val dataset = store.translateResourceName(resourceName).map(_.systemId)
+    val result = dataset.map(dc.resync(_, secondary))
+    result match {
+      case Some(ResyncResult(secondary)) => ResyncDAO.Success(secondary)
+      case Some(SecondaryDoesNotExistResult(secondary)) => ResyncDAO.SecondaryNotFound(secondary)
+      case None => ResyncDAO.DatasetNotFound(resourceName)
+    }
+  }
 }

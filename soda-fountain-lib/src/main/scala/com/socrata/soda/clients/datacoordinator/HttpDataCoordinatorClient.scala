@@ -21,6 +21,7 @@ import com.socrata.soda.server.highlevel.ColumnDAO.DatasetNotFound
 import com.socrata.soda.server.resources.DCCollocateOperation
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
+import com.socrata.http.client.BodylessHttpRequest
 
 
 abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
@@ -76,6 +77,8 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     host.p("secondary-manifest", "move", secondaryId.underlying, "job", jobId)
   def collocateJobReq(host: RequestBuilder, jobId: String) =
     host.p("secondary-move-jobs", "job", jobId)
+  def resyncReq(host: RequestBuilder, dataset: DatasetId, secondaryId: SecondaryId) =
+    host.p("resync", dataset.underlying, secondaryId.underlying)
 
   @tailrec
   final def withConnectRetries[T](retriesRemaining: Int = 5)(f: => T): T = {
@@ -834,6 +837,20 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
             case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
             case Some(e) =>
               throw new Exception("Unexpected error from data-coordinator on collocation status: " + e)
+          }
+        }
+      }
+    }
+  }
+
+  override def resync(dataset: DatasetId, secondaryId: SecondaryId): Result = {
+    withConnectRetries() {
+      withHost(dataset) { host =>
+        val request =  new BodylessHttpRequest(resyncReq(host, dataset, secondaryId).method("PUT"))
+        httpClient.execute(request).run { r: Response =>
+          errorFrom(r) match {
+            case None => ResyncResult(secondaryId)
+            case Some(NoSuchSecondary(secondaryId)) => SecondaryDoesNotExistResult(SecondaryId(secondaryId))
           }
         }
       }

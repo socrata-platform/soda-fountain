@@ -74,7 +74,7 @@ object DataCoordinatorClient {
   case class ExportResult(json: Iterator[JValue], lastModified: Option[DateTime], etag: Option[EntityTag]) extends SuccessResult
   case class RollupResult(rollups: Seq[RollupInfo]) extends SuccessResult
   case class CollocateResult(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
-
+  case class ResyncResult(secondary: SecondaryId) extends SuccessResult
 
 
   // FAIL CASES
@@ -137,6 +137,9 @@ object DataCoordinatorClient {
   case class StoreGroupNotExistResult(storeGroup: String) extends FailResult
   case class StoreNotExistResult(store: String) extends FailResult
   case class DatasetNotExistResult(dataset: DatasetId) extends FailResult
+
+  // FAIL CASES: Resync
+  case class SecondaryDoesNotExistResult(secondary: SecondaryId) extends FailResult
 }
 
 trait DataCoordinatorClient {
@@ -216,4 +219,7 @@ trait DataCoordinatorClient {
   def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result
   def collocateStatus(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
   def deleteCollocate(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
+
+   def resync(dataset: DatasetId, secondaryId: SecondaryId): Result
+
 }

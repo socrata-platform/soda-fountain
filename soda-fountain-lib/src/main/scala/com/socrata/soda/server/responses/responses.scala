@@ -184,6 +184,12 @@ case class SnapshotNotFound(value: ResourceName, snapshot: Long)
     "dataset" -> JString(value.name),
     "snapshot" -> JNumber(snapshot))
 
+case class SecondaryNotFound(value: String)
+  extends SodaResponse(SC_NOT_FOUND, "req.secondary",
+    s"Secondary with id '$value' does not exist",
+    "secondary_id" -> JString(value)
+)
+
 // BAD REQUESTS
 
 case class BadParameter(param: String, value: String)
@@ -191,12 +197,6 @@ case class BadParameter(param: String, value: String)
     s"Request has bad parameter '$param' with value '$value'",
     "parameter" -> JString(param),
     "value" -> JString(value))
-
-case class SecondaryNotFound(value: String)
-  extends SodaResponse(SC_BAD_REQUEST, "req.secondary",
-    s"Secondary with id '$value' does not exist",
-    "secondary_id" -> JString(value)
-)
 
 case class ColumnHasDependencies(columnName: ColumnName,
                                  deps: Seq[ColumnName])
