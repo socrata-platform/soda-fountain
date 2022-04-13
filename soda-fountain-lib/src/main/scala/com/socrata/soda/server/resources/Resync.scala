@@ -13,7 +13,7 @@ import com.socrata.soda.server.responses.{SecondaryNotFound, DatasetNotFound}
 case object Resync {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
   case class service(resource: ResourceName, secondary: SecondaryId) extends SodaResource {
-    override def get = req => {
+    override def put = req => {
       req.resyncDAO.resync(resource, secondary) match {
         case ResyncDAO.Success(_) =>                      OK
         case ResyncDAO.SecondaryNotFound(secondary) => response(req, SecondaryNotFound(secondary.underlying))
