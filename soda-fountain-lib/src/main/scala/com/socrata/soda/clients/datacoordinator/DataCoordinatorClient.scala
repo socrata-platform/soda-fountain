@@ -139,7 +139,7 @@ object DataCoordinatorClient {
   case class DatasetNotExistResult(dataset: DatasetId) extends FailResult
 
   // FAIL CASES: Resync
-  case class SecondaryDoesNotExistResult(secondary: SecondaryId) extends FailResult
+  case class DatasetNotInSecondaryResult(secondary: SecondaryId) extends FailResult
 }
 
 trait DataCoordinatorClient {

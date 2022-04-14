@@ -850,7 +850,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
         httpClient.execute(request).run { r: Response =>
           errorFrom(r) match {
             case None => ResyncResult(secondaryId)
-            case Some(NoSuchSecondary(secondaryId)) => SecondaryDoesNotExistResult(SecondaryId(secondaryId))
+            case Some(DatasetNotInSecondary(secondaryId)) => DatasetNotInSecondaryResult(SecondaryId(secondaryId))
           }
         }
       }

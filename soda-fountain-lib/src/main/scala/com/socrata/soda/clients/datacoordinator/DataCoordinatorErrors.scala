@@ -192,8 +192,8 @@ case class DeleteOnRowId(dataset: DatasetId, column: ColumnId, commandIndex: Lon
 
 // Resync Errors
 
-@Tag("resync.secondary-does-not-exist")
-case class NoSuchSecondary(secondary: String) extends DCUpdateError
+@Tag("resync.dataset.not-in-secondary")
+case class DatasetNotInSecondary(secondary: String) extends DCUpdateError
 
 // Collocate Errors
 

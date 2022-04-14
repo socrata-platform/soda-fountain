@@ -18,7 +18,7 @@ trait ResyncDAO {
 object ResyncDAO {
   trait ResyncResponse
   case class Success(secondary: SecondaryId) extends ResyncResponse
-  case class SecondaryNotFound(secondary: SecondaryId) extends ResyncResponse
+  case class DatasetNotInSecondary(secondary: SecondaryId) extends ResyncResponse
   case class DatasetNotFound(resource: ResourceName) extends ResyncResponse
 }
 
@@ -28,7 +28,7 @@ case class ResyncDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient) e
     val result = dataset.map(dc.resync(_, secondary))
     result match {
       case Some(ResyncResult(secondary)) => ResyncDAO.Success(secondary)
-      case Some(SecondaryDoesNotExistResult(secondary)) => ResyncDAO.SecondaryNotFound(secondary)
+      case Some(DatasetNotInSecondaryResult(secondary)) => ResyncDAO.DatasetNotInSecondary(secondary)
       case None => ResyncDAO.DatasetNotFound(resourceName)
     }
   }
