@@ -190,6 +190,10 @@ case class NotPrimaryKey(dataset: DatasetId, column: ColumnId, commandIndex: Lon
 @Tag("update.row-identifier.delete")
 case class DeleteOnRowId(dataset: DatasetId, column: ColumnId, commandIndex: Long) extends DCUpdateError
 
+// Resync Errors
+
+@Tag("resync.dataset.not-in-secondary")
+case class DatasetNotInSecondary(secondary: String) extends DCUpdateError
 
 // Collocate Errors
 

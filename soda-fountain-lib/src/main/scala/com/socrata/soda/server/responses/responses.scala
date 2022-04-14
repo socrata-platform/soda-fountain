@@ -184,6 +184,13 @@ case class SnapshotNotFound(value: ResourceName, snapshot: Long)
     "dataset" -> JString(value.name),
     "snapshot" -> JNumber(snapshot))
 
+case class DatasetNotInSecondary(secondary: String, dataset: ResourceName)
+  extends SodaResponse(SC_NOT_FOUND, "req.secondary",
+    s"Dataset with name '${dataset.name}' is not in secondary with id '$secondary'",
+    "secondary_id" -> JString(secondary),
+    "dataset" -> JString(dataset.name)
+)
+
 // BAD REQUESTS
 
 case class BadParameter(param: String, value: String)

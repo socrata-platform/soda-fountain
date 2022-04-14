@@ -7,7 +7,7 @@ import com.socrata.http.server.{HttpRequest, GeneratedHttpRequestApi}
 import com.socrata.http.server.util.RequestId.RequestId
 
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
-import com.socrata.soda.server.highlevel.{DatasetDAO, ColumnDAO, RowDAO, ExportDAO, SnapshotDAO}
+import com.socrata.soda.server.highlevel.{DatasetDAO, ColumnDAO, RowDAO, ExportDAO, ResyncDAO, SnapshotDAO}
 
 trait SodaRequest {
   def httpClient: HttpClient
@@ -19,6 +19,7 @@ trait SodaRequest {
   def rowDAO: RowDAO
   def exportDAO: ExportDAO
   def snapshotDAO: SnapshotDAO
+  def resyncDAO: ResyncDAO
 
   final def resourceScope = httpRequest.resourceScope
 }

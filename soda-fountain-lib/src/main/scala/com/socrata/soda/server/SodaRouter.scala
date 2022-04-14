@@ -23,6 +23,7 @@ class SodaRouter(versionResource: SodaHttpService,
                  resourceResource: OptionallyTypedPathComponent[ResourceName] => SodaHttpService,
                  resourceExtensions: String => Boolean,
                  resourceRowResource: (ResourceName, RowSpecifier) => SodaHttpService,
+                 resyncResource: (ResourceName, SecondaryId) => SodaHttpService,
                  datasetCopyResource: ResourceName => SodaHttpService,
                  datasetSecondaryCopyResource: (ResourceName, SecondaryId) => SodaHttpService,
                  datasetSecondaryCollocateResource: (SecondaryId) => SodaHttpService,
@@ -94,7 +95,8 @@ class SodaRouter(versionResource: SodaHttpService,
     Route("/dataset-rollup/{ResourceName}", datasetRollupsResource),
     Route("/dataset-rollup/{ResourceName}/{RollupName}", datasetRollupResource),
     Route("/suggest/{ResourceName}/{ColumnName}", sampleResource),
-    Route("/suggest/{ResourceName}/{ColumnName}/{String}", suggestResource)
+    Route("/suggest/{ResourceName}/{ColumnName}/{String}", suggestResource),
+    Route("/resync/{ResourceName}/{SecondaryId}", resyncResource)
   )
 
   def route(req: SodaRequest): HttpResponse = {
