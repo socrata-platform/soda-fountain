@@ -457,16 +457,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
             val rollups = result.rollups.map { rollup =>
               try {
                 val parsedQueries = new StandaloneParser().binaryTreeSelect(rollup.soql)
-                parsedQueries match {
-                  case Compound(op, _, _) =>
-                    log.error("found saved rollup to be compound soql {}", op)
-                    return InternalServerError("unknown", tag, "found saved rollup to be chained soql")
-                  case Leaf(parsedQuery) =>
-                    val mappedQueries = ColumnNameMapperHelper.reverseMapQuery(store, dataset, rollup.soql)
-                    log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
-                    log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
-                    RollupSpec(name = rollup.name, soql = mappedQueries.toString())
-                }
+                val mappedQueries = ColumnNameMapperHelper.reverseMapQuery(store, dataset, rollup.soql)
+                log.debug(s"soql for rollup ${rollup} is: ${parsedQueries}")
+                log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
+                RollupSpec(name = rollup.name, soql = mappedQueries.toString())
               } catch {
                 case _: BadParse =>
                   log.info(s"invalid rollup SoQL ${rollup.name} ${rollup.soql}")

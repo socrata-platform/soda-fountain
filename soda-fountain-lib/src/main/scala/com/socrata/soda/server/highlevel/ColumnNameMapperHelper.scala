@@ -32,7 +32,7 @@ object ColumnNameMapperHelper {
     }
 
     val mapper = new ColumnNameMapper(mapperContexts)
-    val mappedAst = mapper.mapSelects(parsedQueries, false)
+    val mappedAst = mapper.mapSelects(parsedQueries, true)
     mappedAst.toString
   }
 
