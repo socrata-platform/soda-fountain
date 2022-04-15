@@ -9,12 +9,12 @@ class RollupMutationTest extends DataCoordinatorClientTest {
   val soql = "SELECT clown_type, count(*)"
 
   test("create or update toString produces JSON") {
-    val ac = new CreateOrUpdateRollupInstruction(name, soql)
-    ac.toString must equal (normalizeWhitespace(s"{c:'create or update rollup', name:'$name', soql:'$soql'}"))
+    val ac = CreateOrUpdateRollupInstruction(name, soql, soql)
+    ac.toString must equal (normalizeWhitespace(s"{c:'create or update rollup', name:'$name', soql:'$soql', raw_soql:'$soql'}"))
   }
 
   test("drop toString produces JSON") {
-    val ac = new DropRollupInstruction(name)
+    val ac = DropRollupInstruction(name)
     ac.toString must equal (normalizeWhitespace(s"{c:'drop rollup', name:'$name'}"))
   }
 }
