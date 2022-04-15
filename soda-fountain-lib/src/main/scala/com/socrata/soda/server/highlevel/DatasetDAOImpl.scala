@@ -20,6 +20,7 @@ import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
 import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation}
 import com.socrata.soql.parsing.RecursiveDescentParser.ParseException
+import com.socrata.soql.parsing.standalone_exceptions.BadParse
 import org.joda.time.DateTime
 
 class DatasetDAOImpl(dc: DataCoordinatorClient,
@@ -395,20 +396,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
-  /**
-   * Maps a rollup definition column name to column id that can be used by lower layers
-   * that don't know about column mappings.  We need to ensure the names are valid soql,
-   * so if it isn't a system column we prefix a "_".  The specific case we are worried
-   * about is when it is a 4x4 that starts with a number.
-   */
-  private def rollupColumnNameToIdMapping(cid: ColumnId): ColumnName = {
-    val name = cid.underlying
-    name(0) match {
-      case ':' => new ColumnName(name)
-      case _ => new ColumnName("_" + name)
-    }
-  }
-
   def replaceOrCreateRollup(user: String,
                             dataset: ResourceName,
                             expectedDataVersion: Option[Long],
@@ -465,23 +452,25 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   def getRollups(dataset: ResourceName): Result = {
     store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
       case Some(datasetRecord) =>
-        val columnNameMap = datasetRecord.columns.map { columnRecord =>
-          (rollupColumnNameToIdMapping(columnRecord.id), columnRecord.fieldName)
-        }.toMap
-
         dc.getRollups(datasetRecord.handle) match {
           case result: DataCoordinatorClient.RollupResult =>
             val rollups = result.rollups.map { rollup =>
-              val parsedQueries = new StandaloneParser().binaryTreeSelect(rollup.soql)
-              parsedQueries match {
-                case Compound(op, _, _) =>
-                  log.error("found saved rollup to be compound soql {}", op)
-                  return InternalServerError("unknown", tag, "found saved rollup to be chained soql")
-                case Leaf(parsedQuery) =>
-                  val mappedQueries = ColumnNameMapperHelper.reverseMapQuery(store, dataset, rollup.soql)
-                  log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
-                  log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
-                  RollupSpec(name = rollup.name, soql = mappedQueries.toString())
+              try {
+                val parsedQueries = new StandaloneParser().binaryTreeSelect(rollup.soql)
+                parsedQueries match {
+                  case Compound(op, _, _) =>
+                    log.error("found saved rollup to be compound soql {}", op)
+                    return InternalServerError("unknown", tag, "found saved rollup to be chained soql")
+                  case Leaf(parsedQuery) =>
+                    val mappedQueries = ColumnNameMapperHelper.reverseMapQuery(store, dataset, rollup.soql)
+                    log.debug(s"soql for rollup ${rollup} is: ${parsedQuery}")
+                    log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
+                    RollupSpec(name = rollup.name, soql = mappedQueries.toString())
+                }
+              } catch {
+                case _: BadParse =>
+                  log.info(s"invalid rollup SoQL ${rollup.name} ${rollup.soql}")
+                  RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
               }
             }
 
