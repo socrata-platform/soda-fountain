@@ -8,11 +8,12 @@ sealed abstract class RollupMutation extends DataCoordinatorInstruction {
   override def toString = JsonUtil.renderJson(asJson)
 }
 
-case class CreateOrUpdateRollupInstruction(name: RollupName, soql: String) extends RollupMutation {
+case class CreateOrUpdateRollupInstruction(name: RollupName, soql: String, rawSoql: String) extends RollupMutation {
   def asJson = JObject(Map(
     "c"     -> JString("create or update rollup"),
     "name"  -> JString(name.name),
-    "soql"  -> JString(soql)
+    "soql"  -> JString(soql),
+    "raw_soql"  -> JString(rawSoql)
   ))
 }
 

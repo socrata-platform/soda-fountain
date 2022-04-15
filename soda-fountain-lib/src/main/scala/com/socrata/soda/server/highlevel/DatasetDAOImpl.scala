@@ -422,7 +422,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               try {
                 val mappedQueries = ColumnNameMapperHelper.mapQuery(store, dataset, soql)
                 log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
-                val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQueries.toString())
+                val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQueries.toString(), soql)
                 dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
                   Iterator.single(instruction)) {
                   case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
