@@ -10,12 +10,12 @@ import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.responses._
 import com.socrata.soda.server.highlevel._
 import com.socrata.soda.server.highlevel.DatasetDAO
-import com.socrata.soda.server.id.{ResourceName, RollupName, SecondaryId}
-import com.socrata.soda.server.wiremodels.{Extracted, IOProblem, RequestProblem, RollupSpec, UserProvidedDatasetSpec, UserProvidedRollupSpec}
+import com.socrata.soda.server.id.{IndexName, ResourceName, RollupName, SecondaryId}
+import com.socrata.soda.server.wiremodels.{Extracted, IOProblem, IndexSpec, RequestProblem, RollupSpec, UserProvidedDatasetSpec, UserProvidedIndexSpec, UserProvidedRollupSpec}
 
 import javax.servlet.http.HttpServletRequest
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
-import com.socrata.soda.server.highlevel.DatasetDAO.Rollups
+import com.socrata.soda.server.highlevel.DatasetDAO.{Indexes, Rollups}
 
 /**
  * Dataset: CRUD operations for dataset schema and metadata
@@ -38,6 +38,17 @@ case class Dataset(maxDatumSize: Int) {
 
   def withRollupSpec(request: HttpRequest, logTags: LogTag*)(f: UserProvidedRollupSpec => HttpResponse): HttpResponse = {
     UserProvidedRollupSpec.fromRequest(request, maxDatumSize) match {
+      case Extracted(datasetSpec) =>
+        f(datasetSpec)
+      case RequestProblem(err) =>
+        SodaUtils.response(request, err, logTags : _*)
+      case IOProblem(err) =>
+        SodaUtils.internalError(request, err)
+    }
+  }
+
+  def withIndexSpec(request: HttpRequest, logTags: LogTag*)(f: UserProvidedIndexSpec => HttpResponse): HttpResponse = {
+    UserProvidedIndexSpec.fromRequest(request, maxDatumSize) match {
       case Extracted(datasetSpec) =>
         f(datasetSpec)
       case RequestProblem(err) =>
@@ -86,6 +97,12 @@ case class Dataset(maxDatumSize: Int) {
         NoContent
       case DatasetDAO.Rollups(rollups) =>
         OK ~> Json(rollups)
+      case DatasetDAO.Indexes(indexes) =>
+        OK ~> Json(indexes)
+      case DatasetDAO.IndexCreatedOrUpdated =>
+        NoContent
+      case DatasetDAO.IndexDropped =>
+        NoContent
       case collocateResult: DatasetDAO.CollocateDone =>
         implicit val codec = AutomaticJsonCodecBuilder[DatasetDAO.CollocateDone]
         OK ~> Json(collocateResult)
@@ -108,6 +125,10 @@ case class Dataset(maxDatumSize: Int) {
         SodaUtils.response(req, RollupCreationFailed(reason))
       case DatasetDAO.RollupColumnNotFound(column) =>
         SodaUtils.response(req, RollupColumnNotFound(column))
+      case DatasetDAO.IndexNotFound(name) =>
+        SodaUtils.response(req, IndexNotFound(name))
+      case DatasetDAO.IndexError(reason) =>
+        SodaUtils.response(req, IndexCreationFailed(reason))
       case DatasetDAO.CannotAcquireDatasetWriteLock(dataset) =>
         SodaUtils.response(req, DatasetWriteLockError(dataset))
       case DatasetDAO.FeedbackInProgress(dataset, stores) =>
@@ -256,6 +277,8 @@ case class Dataset(maxDatumSize: Int) {
             case Rollups(rollups: Seq[RollupSpec]) =>
               val rollupNames = rollups.map(_.name)
               response(req, req.datasetDAO.deleteRollups(user(req), resourceName, expectedDataVersion(req), rollupNames))
+            case other =>
+              SodaUtils.internalError(req,new UnknownError(other.getClass.getCanonicalName))
           }
       }
     }
@@ -268,6 +291,43 @@ case class Dataset(maxDatumSize: Int) {
           case None => MethodNotAllowed
         }
 
+      }
+    }
+  }
+
+  case class indexService(resourceName: ResourceName, indexName: Option[IndexName]) extends SodaResource {
+    override def get = { req =>
+      indexName match {
+        case Some(_) => MethodNotAllowed
+        case None =>
+          response(req, req.datasetDAO.getIndexes(resourceName))
+      }
+    }
+
+    override def delete = { req =>
+      indexName match {
+        case Some(name) =>
+          response(req, req.datasetDAO.deleteIndexes(user(req), resourceName, expectedDataVersion(req), Seq(name)))
+        case None =>
+          req.datasetDAO.getIndexes(resourceName) match {
+            case Indexes(Nil) =>
+              NoContent
+            case Indexes(indexes: Seq[IndexSpec]) =>
+              val names = indexes.map(_.name)
+              response(req, req.datasetDAO.deleteIndexes(user(req), resourceName, expectedDataVersion(req), names))
+            case other =>
+              SodaUtils.internalError(req,new UnknownError(other.getClass.getCanonicalName))
+          }
+      }
+    }
+
+    override def put = { req =>
+      withIndexSpec(req.httpRequest) { spec =>
+        indexName match {
+          case Some(name) =>
+            response(req, req.datasetDAO.replaceOrCreateIndex(user(req), resourceName, expectedDataVersion(req), name, spec))
+          case None => MethodNotAllowed
+        }
       }
     }
   }

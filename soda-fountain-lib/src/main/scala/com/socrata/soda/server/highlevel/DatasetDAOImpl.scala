@@ -507,6 +507,95 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
+  def replaceOrCreateIndex(user: String,
+                           dataset: ResourceName,
+                           expectedDataVersion: Option[Long],
+                           name: IndexName,
+                           spec: UserProvidedIndexSpec): Result =
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        spec.expressions match {
+          case Some(expressions) =>
+            log.debug(s"expressions for index ${name} is: ${expressions}")
+            try {
+              val instruction = CreateOrUpdateIndexInstruction(name, expressions, spec.filter)
+              dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
+                Iterator.single(instruction)) {
+                case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
+                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+                  IndexCreatedOrUpdated
+                case DataCoordinatorClient.NoSuchIndexResult(_, _) =>
+                  IndexNotFound(name)
+                case DataCoordinatorClient.InvalidIndexResult(name, _) =>
+                  RollupError(name.name)
+                case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+                  DatasetNotFound(dataset)
+                case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
+                  CannotAcquireDatasetWriteLock(dataset)
+                case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+                  InternalServerError(code, tag, data)
+                case x =>
+                  log.warn("case is NOT implemented %s".format(x.toString))
+                  InternalServerError("unknown", tag, x.toString)
+              }
+            } catch {
+              case ex: ParseException =>
+                IndexError(s"index parse error ${ex.getMessage}" )
+            }
+          case None =>
+            IndexError("index field missing")
+        }
+      case None =>
+        DatasetNotFound(dataset)
+    }
+
+  def getIndexes(dataset: ResourceName): Result = {
+    store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
+      case Some(datasetRecord) =>
+        dc.getIndexes(datasetRecord.handle) match {
+          case result: DataCoordinatorClient.IndexResult =>
+            val indexes = result.indexes.map { index =>
+              IndexSpec(name = index.name, expressions = index.expressions, index.filter)
+            }
+            Indexes(indexes)
+          case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+            DatasetNotFound(dataset)
+          case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+            InternalServerError(code, tag, data)
+          case x =>
+            log.warn("case is NOT implemented %s".format(x.toString))
+            InternalServerError("unknown", tag, x.toString)
+        }
+      case None =>
+        DatasetNotFound(dataset)
+    }
+  }
+
+  def deleteIndexes(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], indexes: Seq[IndexName]): Result = {
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        val instruction = indexes.map(DropIndexInstruction).toIterator
+        dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instruction) {
+          case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
+            store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+            IndexDropped
+          case DataCoordinatorClient.NoSuchIndexResult(name, _) =>
+            IndexNotFound(name)
+          case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+            DatasetNotFound(dataset)
+          case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
+            CannotAcquireDatasetWriteLock(dataset)
+          case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+            InternalServerError(code, tag, data)
+          case x =>
+            log.warn("case is NOT implemented %s".format(x.toString))
+            InternalServerError("unknown", tag, x.toString)
+        }
+      case None =>
+        DatasetNotFound(dataset)
+    }
+  }
+
   def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result = {
     def translate(resource: ResourceName): Option[DatasetId] = store.translateResourceName(resource).map(_.systemId)
     DCCollocateOperation(operation, translate _) match {

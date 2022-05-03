@@ -71,6 +71,9 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   def rollupReq(host: RequestBuilder, dataset: DatasetHandle) =
     host.p("dataset-rollup", dataset.datasetId.underlying).
       addResourceHeader(dataset)
+  def indexReq(host: RequestBuilder, dataset: DatasetHandle) =
+    host.p("dataset-index", dataset.datasetId.underlying).
+      addResourceHeader(dataset)
   def collocateUrl(host: RequestBuilder, secondaryId: SecondaryId) =
     host.p("secondary-manifest", secondaryId.underlying, "collocate")
   def collocateStatusReq(host: RequestBuilder, secondaryId: SecondaryId, jobId: String) =
@@ -752,6 +755,25 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
           errorFrom(r) match {
             case None => r.value[Seq[RollupInfo]]() match {
               case Right(resp) => RollupResult(resp)
+              case Left(err) => throw new Exception("Unable to parse response from data coordinator: " + err.english)
+            }
+            case Some(NoSuchDataset(dataset)) => DatasetNotFoundResult(dataset)
+            case Some(err) =>
+              throw new Exception(s"Unexpected error from data-coordinator getting rollups for dataset $dataset: $err")
+          }
+        }
+      }
+    }
+  }
+
+  override def getIndexes(dataset: DatasetHandle): Result = {
+    withFullRetries() {
+      withHost(dataset) { host =>
+        val request = indexReq(host, dataset).get
+        httpClient.execute(request).run { r =>
+          errorFrom(r) match {
+            case None => r.value[Seq[IndexInfo]]() match {
+              case Right(resp) => IndexResult(resp)
               case Left(err) => throw new Exception("Unable to parse response from data coordinator: " + err.english)
             }
             case Some(NoSuchDataset(dataset)) => DatasetNotFoundResult(dataset)

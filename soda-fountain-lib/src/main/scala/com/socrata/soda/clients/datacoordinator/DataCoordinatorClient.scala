@@ -73,6 +73,7 @@ object DataCoordinatorClient {
   case class NonCreateScriptResult(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, newShapeVersion: Long, lastModified: DateTime) extends SuccessResult
   case class ExportResult(json: Iterator[JValue], lastModified: Option[DateTime], etag: Option[EntityTag]) extends SuccessResult
   case class RollupResult(rollups: Seq[RollupInfo]) extends SuccessResult
+  case class IndexResult(indexes: Seq[IndexInfo]) extends SuccessResult
   case class CollocateResult(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
   case class ResyncResult(secondary: SecondaryId) extends SuccessResult
 
@@ -83,6 +84,8 @@ object DataCoordinatorClient {
   case class IncorrectLifecycleStageResult(actualStage: String, expectedStage: Set[String]) extends FailResult
   case class NoSuchRollupResult(name: RollupName, commandIndex: Long) extends FailResult
   case class InvalidRollupResult(name: RollupName, commandIndex: Long) extends FailResult
+  case class NoSuchIndexResult(name: IndexName, commandIndex: Long) extends FailResult
+  case class InvalidIndexResult(name: IndexName, commandIndex: Long) extends FailResult
   case object PreconditionFailedResult extends FailResult
   case class InternalServerErrorResult(code: String, tag: String, data: String) extends FailResult
   case class UnexpectedInternalServerResponseResult(reason: String, tag: String) extends FailResult
@@ -215,6 +218,7 @@ trait DataCoordinatorClient {
              resourceScope: ResourceScope): Result
 
   def getRollups(dataset: DatasetHandle): Result
+  def getIndexes(dataset: DatasetHandle): Result
 
   def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result
   def collocateStatus(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
