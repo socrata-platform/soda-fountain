@@ -778,7 +778,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
             }
             case Some(NoSuchDataset(dataset)) => DatasetNotFoundResult(dataset)
             case Some(err) =>
-              throw new Exception(s"Unexpected error from data-coordinator getting rollups for dataset $dataset: $err")
+              throw new Exception(s"Unexpected error from data-coordinator getting indexes for dataset $dataset: $err")
           }
         }
       }

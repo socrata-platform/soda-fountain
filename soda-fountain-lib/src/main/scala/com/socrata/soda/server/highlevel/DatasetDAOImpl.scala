@@ -527,7 +527,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                 case DataCoordinatorClient.NoSuchIndexResult(_, _) =>
                   IndexNotFound(name)
                 case DataCoordinatorClient.InvalidIndexResult(name, _) =>
-                  RollupError(name.name)
+                  IndexError(name.name)
                 case DataCoordinatorClient.DatasetNotFoundResult(_) =>
                   DatasetNotFound(dataset)
                 case DataCoordinatorClient.CannotAcquireDatasetWriteLockResult(_) =>
