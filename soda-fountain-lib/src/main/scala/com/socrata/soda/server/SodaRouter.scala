@@ -2,11 +2,11 @@ package com.socrata.soda.server
 
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.RouteContext
-import com.socrata.http.server.routing.{OptionallyTypedPathComponent, Extractor}
-import com.socrata.http.server.{HttpRequest, HttpService, HttpResponse}
+import com.socrata.http.server.routing.{Extractor, OptionallyTypedPathComponent}
+import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
 import com.socrata.soda.server._
 import com.socrata.soda.server.responses.GeneralNotFoundError
-import com.socrata.soda.server.id.{RollupName, RowSpecifier, SecondaryId, ResourceName}
+import com.socrata.soda.server.id.{IndexName, ResourceName, RollupName, RowSpecifier, SecondaryId}
 import com.socrata.soql.environment.ColumnName
 
 case class SnapshotResources(listDatasetsResource: SodaHttpService,  // list all datasets with snapshots
@@ -35,6 +35,8 @@ class SodaRouter(versionResource: SodaHttpService,
                  exportExtensions: String => Boolean,
                  datasetRollupsResource: ResourceName => SodaHttpService,
                  datasetRollupResource: (ResourceName, RollupName) => SodaHttpService,
+                 datasetIndexesResource: ResourceName => SodaHttpService,
+                 datasetIndexResource: (ResourceName, IndexName) => SodaHttpService,
                  sampleResource: (ResourceName, ColumnName) => SodaHttpService,
                  suggestResource: (ResourceName, ColumnName, String) => SodaHttpService,
                  snapshotResources: SnapshotResources,
@@ -61,6 +63,10 @@ class SodaRouter(versionResource: SodaHttpService,
 
   private[this] implicit val RollupNameExtractor = new Extractor[RollupName] {
     def extract(s: String): Option[RollupName] = Some(new RollupName(s))
+  }
+
+  private[this] implicit val IndexNameExtractor = new Extractor[IndexName] {
+    def extract(s: String): Option[IndexName] = Some(new IndexName(s))
   }
 
   // NOTE: until there's something like Swagger, document routes with comments
@@ -94,6 +100,8 @@ class SodaRouter(versionResource: SodaHttpService,
     Route("/snapshot/{ResourceName}/{Long}", snapshotResources.snapshotResource),
     Route("/dataset-rollup/{ResourceName}", datasetRollupsResource),
     Route("/dataset-rollup/{ResourceName}/{RollupName}", datasetRollupResource),
+    Route("/dataset-index/{ResourceName}", datasetIndexesResource),
+    Route("/dataset-index/{ResourceName}/{IndexName}", datasetIndexResource),
     Route("/suggest/{ResourceName}/{ColumnName}", sampleResource),
     Route("/suggest/{ResourceName}/{ColumnName}/{String}", suggestResource),
     Route("/resync/{ResourceName}/{SecondaryId}", resyncResource)

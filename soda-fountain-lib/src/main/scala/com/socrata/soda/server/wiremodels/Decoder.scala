@@ -2,7 +2,7 @@ package com.socrata.soda.server.wiremodels
 
 import com.rojoma.json.v3.ast._
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{ColumnId, ResourceName, RollupName}
+import com.socrata.soda.server.id.{ColumnId, IndexName, ResourceName, RollupName}
 import com.socrata.soql.environment.{ColumnName, TypeName}
 
 trait Decoder[T] {
@@ -69,6 +69,13 @@ object Decoder {
   implicit val RollupNameDecoder = new Decoder[RollupName] {
     def apply(v: JValue) = v match {
       case JString(s) => Right(new RollupName(s))
+      case _ => Left(("string", v))
+    }
+  }
+
+  implicit val IndexNameDecoder = new Decoder[IndexName] {
+    def apply(v: JValue) = v match {
+      case JString(s) => Right(new IndexName(s))
       case _ => Left(("string", v))
     }
   }

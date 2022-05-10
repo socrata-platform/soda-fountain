@@ -8,7 +8,7 @@ import com.rojoma.json.v3.codec._
 import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.EntityTag
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError
-import com.socrata.soda.server.id.{ResourceName, RollupName, RowSpecifier}
+import com.socrata.soda.server.id.{IndexName, ResourceName, RollupName, RowSpecifier}
 import com.socrata.soql.environment.{ColumnName, TypeName}
 
 case class ResourceNotModified(override val etags: Seq[EntityTag],
@@ -150,6 +150,21 @@ case class RollupColumnNotFound(value: ColumnName)
 case class RollupNotFound(value: RollupName)
   extends SodaResponse("soda.rollup.not-found", s"Rollup '${value.name}' was not found",
     "value" -> JString(value.name))
+
+case class IndexSpecMaltyped(field: String, expected: String, got: JValue)
+  extends SodaResponse("soda.index.maltyped",
+    s"Index is maltyped; for field '$field' we expected '$expected' but got '$got'",
+    "field" -> JString(field),
+    "expected" -> JString(expected),
+    "got" -> got)
+
+case class IndexNotFound(value: IndexName)
+  extends SodaResponse("soda.index.not-found", s"Index '${value.name}' was not found",
+    "value" -> JString(value.name))
+
+case class IndexCreationFailed(error: String)
+  extends SodaResponse("soda.index.creation-failed", s"Index creation failed due to $error",
+    "error" -> JString(error))
 
 case class NonUniqueRowId(column: ColumnName)
   extends SodaResponse("soda.column.not-unique",

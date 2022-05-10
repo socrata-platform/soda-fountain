@@ -26,7 +26,7 @@ class MutationScript(
 
       val ops = new scala.collection.mutable.ListBuffer[JValue]
       instruction match {
-        case _:ColumnMutation | _:RollupMutation  => {
+        case _:ColumnMutation | _:RollupMutation | _:IndexMutation  => {
           if (rowDataDeclared){
             rowDataDeclared = false
             ops += JNull
@@ -91,7 +91,7 @@ class MutationScript(
 
       out.write(',')
       instruction match {
-        case _:ColumnMutation | _:RollupMutation  => {
+        case _:ColumnMutation | _:RollupMutation | _:IndexMutation => {
           if (rowDataDeclared){
             out.write("null,")
             rowDataDeclared = false

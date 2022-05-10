@@ -8,7 +8,7 @@ import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.persistence.DatasetRecord
 import com.socrata.soda.server.resources.SFCollocateOperation
-import com.socrata.soda.server.wiremodels.{RollupSpec, UserProvidedDatasetSpec, UserProvidedRollupSpec}
+import com.socrata.soda.server.wiremodels.{IndexSpec, RollupSpec, UserProvidedDatasetSpec, UserProvidedIndexSpec, UserProvidedRollupSpec}
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
 
@@ -45,6 +45,14 @@ trait DatasetDAO {
   def collocateStatus(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
   def deleteCollocate(dataset: ResourceName, secondaryId: SecondaryId, jobId: String): Result
   def secondaryReindex(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result
+
+  def replaceOrCreateIndex(user: String,
+                           dataset: ResourceName,
+                           expectedDataVersion: Option[Long],
+                           name: IndexName,
+                           spec: UserProvidedIndexSpec): Result
+  def getIndexes(dataset: ResourceName): Result
+  def deleteIndexes(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], names: Seq[IndexName]): Result
 }
 
 object DatasetDAO {
@@ -97,6 +105,9 @@ object DatasetDAO {
   case class Rollups(rollups: Seq[RollupSpec]) extends SuccessResult
   case object RollupCreatedOrUpdated extends SuccessResult
   case object RollupDropped extends SuccessResult
+  case class Indexes(indexes: Seq[IndexSpec]) extends SuccessResult
+  case object IndexCreatedOrUpdated extends SuccessResult
+  case object IndexDropped extends SuccessResult
   case class CollocateDone(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
   object CollocateDone {
     def apply(r: DataCoordinatorClient.CollocateResult, translator: DatasetId => Option[ResourceName]): CollocateDone = {
@@ -112,6 +123,7 @@ object DatasetDAO {
 
   // FAILURES: DataCoordinator
   case class RollupNotFound(name: RollupName) extends FailResult
+  case class IndexNotFound(name: IndexName) extends FailResult
   case class DatasetNotFound(name: ResourceName) extends FailResult
   case class DatasetVersionMismatch(name: ResourceName, version: Long) extends FailResult
   case class CannotAcquireDatasetWriteLock(name: ResourceName) extends FailResult
@@ -128,5 +140,6 @@ object DatasetDAO {
   case class LocaleChanged(locale: String) extends FailResult
   case class RollupError(message: String) extends FailResult
   case class RollupColumnNotFound(column: ColumnName) extends FailResult
+  case class IndexError(message: String) extends FailResult
   case class UnsupportedUpdateOperation(message: String) extends FailResult
 }
