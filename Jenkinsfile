@@ -59,7 +59,10 @@ pipeline {
 
           // determine what triggered the build and what stages need to be run
           if (params.RELEASE_CUT) { // RELEASE_CUT parameter was set by a cut job
-            stage_cut = true  // other stages will be turned on in the cut step as needed
+            stage_cut = true // stage_publish is turned on in the cut step as needed
+            stage_build = true
+            stage_dockerize = true
+            stage_deploy = true
             deploy_environment = "rc"
           }
           else if (env.CHANGE_ID != null) { // we're running a PR builder
@@ -115,11 +118,6 @@ pipeline {
 
           // set the service_sha to the current tag because it might not be the same as env.GIT_COMMIT
           service_sha = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
-
-          // set later stages to run since we're cutting
-          stage_build = true
-          stage_dockerize = true
-          stage_deploy = true
         }
       }
     }
