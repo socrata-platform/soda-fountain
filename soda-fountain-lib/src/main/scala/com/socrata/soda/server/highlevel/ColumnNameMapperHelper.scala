@@ -14,7 +14,8 @@ object ColumnNameMapperHelper {
    * mapping soql from user column id to internal column id
    */
   def mapQuery(store: NameAndSchemaStore, resourceName: ResourceName, soql: String,
-               columnNameMap: MinimalDatasetRecord => Map[ColumnName, ColumnName] = columnNameMap): String = {
+               columnNameMap: MinimalDatasetRecord => Map[ColumnName, ColumnName] = columnNameMap,
+               generateAliases: Boolean = false): String = {
     val parsedQueries = new StandaloneParser().binaryTreeSelect(soql)
     val tableNames = collectTableNames(parsedQueries)
     val context: Map[String, Map[ColumnName, ColumnName]] = store.translateResourceName(resourceName).map { ds =>
@@ -32,7 +33,7 @@ object ColumnNameMapperHelper {
     }
 
     val mapper = new ColumnNameMapper(mapperContexts)
-    val mappedAst = mapper.mapSelects(parsedQueries, true)
+    val mappedAst = mapper.mapSelects(parsedQueries, generateAliases)
     mappedAst.toString
   }
 
@@ -40,7 +41,7 @@ object ColumnNameMapperHelper {
    * mapping soql from internal column id to user column id
    */
   def reverseMapQuery(store: NameAndSchemaStore, resourceName: ResourceName, soql: String): String = {
-    mapQuery(store, resourceName, soql, reverseColumnNameMap)
+    mapQuery(store, resourceName, soql, reverseColumnNameMap, false)
   }
 
   private def columnNameMap(dsRecord: MinimalDatasetRecord): Map[ColumnName, ColumnName] = {
