@@ -19,6 +19,7 @@ import DatasetDAO._
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
 import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation}
+import com.socrata.soql.exceptions.SoQLException
 import com.socrata.soql.parsing.RecursiveDescentParser.ParseException
 import com.socrata.soql.parsing.standalone_exceptions.BadParse
 import org.joda.time.DateTime
@@ -407,7 +408,9 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
             case Some(soql) =>
               log.debug(s"soql for rollup ${rollup} is: ${soql}")
               try {
-                val mappedQueries = ColumnNameMapperHelper.mapQuery(store, dataset, soql, generateAliases = true)
+                val (parsedQueries, tableNames) = RollupHelper.parse(soql)
+                RollupHelper.validate(store, dataset, parsedQueries, tableNames)
+                val mappedQueries = RollupHelper.mapQuery(store, dataset, parsedQueries, tableNames, generateAliases = true)
                 log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
                 val instruction = CreateOrUpdateRollupInstruction(rollup, mappedQueries.toString(), soql)
                 dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
@@ -432,6 +435,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               } catch {
                 case ex: ParseException =>
                   RollupError(s"soql parse error ${ex.getMessage}" )
+                case ex: SoQLException =>
+                  RollupError(s"soql analyze error ${ex.getMessage}" )
               }
             case None =>
               RollupError("soql field missing")
@@ -456,8 +461,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
           case result: DataCoordinatorClient.RollupResult =>
             val rollups = result.rollups.map { rollup =>
               try {
-                val parsedQueries = new StandaloneParser().binaryTreeSelect(rollup.soql)
-                val mappedQueries = ColumnNameMapperHelper.reverseMapQuery(store, dataset, rollup.soql)
+                val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)
+                val mappedQueries = RollupHelper.reverseMapQuery(store, dataset, parsedQueries, tableNames)
                 log.debug(s"soql for rollup ${rollup} is: ${parsedQueries}")
                 log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
                 RollupSpec(name = rollup.name, soql = mappedQueries.toString())
