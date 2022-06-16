@@ -17,7 +17,6 @@ object RollupHelper {
 
   private val soqlAnalyzer: SoQLAnalyzer[SoQLType] = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
 
-
   def parse(soql: String): (BinaryTree[Select], Set[TableName]) = {
     val parsedQueries = new Parser(AbstractParser.defaultParameters).binaryTreeSelect(soql)
     val tableNames = collectTableNames(parsedQueries).map(name => TableName(name))
@@ -81,16 +80,16 @@ object RollupHelper {
   }
 
   private def columnNameMap(dsRecord: MinimalDatasetRecord): Map[ColumnName, ColumnName] = {
-    dsRecord.columnsByName.mapValues(col => rollupColumnNameToIdMapping(col.id))
+    dsRecord.columnsByName.mapValues(col => rollupColumnIdToColumnNameMapping(col.id))
   }
 
   private def reverseColumnNameMap(dsRecord: MinimalDatasetRecord): Map[ColumnName, ColumnName] = {
     dsRecord.columns.map { columnRecord =>
-      (rollupColumnNameToIdMapping(columnRecord.id), columnRecord.fieldName)
+      (rollupColumnIdToColumnNameMapping(columnRecord.id), columnRecord.fieldName)
     }.toMap
   }
 
-  private def rollupColumnNameToIdMapping(cid: ColumnId): ColumnName = {
+  private def rollupColumnIdToColumnNameMapping(cid: ColumnId): ColumnName = {
     val name = cid.underlying
     name(0) match {
       case ':' => new ColumnName(name)
