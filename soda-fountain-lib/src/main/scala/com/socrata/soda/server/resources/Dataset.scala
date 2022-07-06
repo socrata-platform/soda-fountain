@@ -81,6 +81,8 @@ case class Dataset(maxDatumSize: Int) {
         Created ~> dataVersionHeaders(data, shape)
       case DatasetDAO.PropagatedToSecondary =>
         Created
+      case DatasetDAO.DeletedFromSecondary =>
+        OK
       case DatasetDAO.WorkingCopyDropped(data, shape) =>
         NoContent ~> dataVersionHeaders(data, shape)
       case DatasetDAO.WorkingCopyPublished(data, shape) =>
