@@ -148,6 +148,21 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
       }
     }
 
+  def deleteFromSecondary(dataset: DatasetHandle,
+                           secondaryId: SecondaryId): Unit =
+    withConnectRetries() {
+      withHost(dataset.datasetId) { host =>
+        val request = secondaryReq(host, secondaryId, dataset).delete
+        httpClient.execute(request).run { response =>
+          response.resultCode match {
+            case HttpServletResponse.SC_OK => // ok
+            case HttpServletResponse.SC_NOT_FOUND => // ok
+            case _ => throw new Exception(s"could not delete from secondary ${secondaryId}")
+          }
+        }
+      }
+    }
+
   implicit class Augmenting(r: RequestBuilder) {
     def precondition(p: Precondition): RequestBuilder = r.addHeaders(PreconditionRenderer(p))
   }

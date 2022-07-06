@@ -33,6 +33,7 @@ trait DatasetDAO {
   def dropCurrentWorkingCopy(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result
   def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean]): Result
   def propagateToSecondary(dataset: ResourceName, secondary: SecondaryId, secondariesLike: Option[ResourceName]): Result
+  def deleteFromSecondary(dataset: ResourceName, secondary: SecondaryId): Result
 
   def replaceOrCreateRollup(user: String,
                             dataset: ResourceName,
@@ -102,6 +103,7 @@ object DatasetDAO {
   case class WorkingCopyDropped(newDataVersion: Long, newDataShapeVersion: Long) extends SuccessResult
   case class WorkingCopyPublished(newDataVersion: Long, newDataShapeVersion: Long) extends SuccessResult
   case object PropagatedToSecondary extends SuccessResult
+  case object DeletedFromSecondary extends SuccessResult
   case class Rollups(rollups: Seq[RollupSpec]) extends SuccessResult
   case object RollupCreatedOrUpdated extends SuccessResult
   case object RollupDropped extends SuccessResult

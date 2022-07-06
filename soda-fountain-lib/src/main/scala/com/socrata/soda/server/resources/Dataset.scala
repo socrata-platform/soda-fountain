@@ -81,6 +81,8 @@ case class Dataset(maxDatumSize: Int) {
         Created ~> dataVersionHeaders(data, shape)
       case DatasetDAO.PropagatedToSecondary =>
         Created
+      case DatasetDAO.DeletedFromSecondary =>
+        OK
       case DatasetDAO.WorkingCopyDropped(data, shape) =>
         NoContent ~> dataVersionHeaders(data, shape)
       case DatasetDAO.WorkingCopyPublished(data, shape) =>
@@ -228,6 +230,10 @@ case class Dataset(maxDatumSize: Int) {
     override def post = { req =>
       val secondariesLike = req.queryParameter("secondaries_like").map(x => new ResourceName(x))
       response(req, req.datasetDAO.propagateToSecondary(resourceName, secondary, secondariesLike))
+    }
+
+    override def delete = { req =>
+      response(req, req.datasetDAO.deleteFromSecondary(resourceName, secondary))
     }
   }
 
