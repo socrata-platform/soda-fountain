@@ -151,6 +151,8 @@ trait DataCoordinatorClient {
   def propagateToSecondary(dataset: DatasetHandle,
                            secondaryId: SecondaryId,
                            secondariesLike: Option[DatasetId])
+  def deleteFromSecondary(dataset: DatasetHandle,
+                           secondaryId: SecondaryId)
   def getSchema(dataset: DatasetHandle): Option[SchemaSpec]
 
   def create(resource: ResourceName,

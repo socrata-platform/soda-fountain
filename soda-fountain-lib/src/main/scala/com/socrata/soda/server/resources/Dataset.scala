@@ -229,6 +229,10 @@ case class Dataset(maxDatumSize: Int) {
       val secondariesLike = req.queryParameter("secondaries_like").map(x => new ResourceName(x))
       response(req, req.datasetDAO.propagateToSecondary(resourceName, secondary, secondariesLike))
     }
+
+    override def delete = { req =>
+      response(req, req.datasetDAO.deleteFromSecondary(resourceName, secondary))
+    }
   }
 
   case class secondaryCollocateService(secondaryId: SecondaryId) extends SodaResource{

@@ -397,6 +397,16 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
+  def deleteFromSecondary(dataset: ResourceName, secondary: SecondaryId): Result = {
+    store.translateResourceName(dataset) match {
+      case Some(datasetRecord) =>
+        dc.deleteFromSecondary(datasetRecord.handle, secondary)
+        DeletedFromSecondary
+      case None =>
+        DatasetNotFound(dataset)
+    }
+  }
+
   def replaceOrCreateRollup(user: String,
                             dataset: ResourceName,
                             expectedDataVersion: Option[Long],
