@@ -156,6 +156,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
         httpClient.execute(request).run { response =>
           response.resultCode match {
             case HttpServletResponse.SC_OK => // ok
+            case HttpServletResponse.SC_NOT_FOUND => // ok
             case _ => throw new Exception(s"could not delete from secondary ${secondaryId}")
           }
         }
