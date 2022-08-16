@@ -477,9 +477,12 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                 log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
                 RollupSpec(name = rollup.name, soql = mappedQueries.toString())
               } catch {
-                case _: BadParse =>
-                  log.info(s"invalid rollup SoQL ${rollup.name} ${rollup.soql}")
+                case ex: BadParse =>
+                  log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
                   RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
+                case ex: Exception =>
+                  log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
+                  RollupSpec(name = rollup.name, soql = "__Invalid Rollup__")
               }
             }
 
