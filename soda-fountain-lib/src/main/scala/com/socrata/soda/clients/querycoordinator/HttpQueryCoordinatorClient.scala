@@ -38,6 +38,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   private val qpNoRollup = "no_rollup"
   private val qpObfuscateId = "obfuscateId"
   private val qpQueryTimeoutSeconds = "queryTimeoutSeconds"
+  private val qpLensUid = "lensUid"
 
   private def retrying[T](limit: Int)(f: => T): T = {
     def doRetry(count: Int, e: Exception): T = {
@@ -60,11 +61,12 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
     obfuscateId: Boolean,
     extraHeaders: Map[String, String], queryTimeoutSeconds: Option[String],
-    rs: ResourceScope)(f: Result => T): T = {
+    rs: ResourceScope, lensUid: String)(f: Result => T): T = {
 
     val params = List(
       qpDataset -> dataset.datasetId.underlying,
       qpQuery -> query,
+      qpLensUid -> lensUid,
       qpContext -> JsonUtil.renderJson(context, pretty=false)) ++
       // when $$query_timeout_seconds is not given, always limit it to the default value - typically 10 minutes
       queryTimeoutSeconds.orElse(Some(defaultReceiveTimeout.toSeconds.toString)).map(qpQueryTimeoutSeconds -> _) ++

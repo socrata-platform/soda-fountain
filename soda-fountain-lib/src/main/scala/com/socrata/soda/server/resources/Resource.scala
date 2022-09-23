@@ -207,7 +207,8 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
                     req.header("X-Socrata-Explain").isDefined,
                     req.header("X-Socrata-Analyze").isDefined
                   ),
-                  req.resourceScope) match {
+                  req.resourceScope,
+                  req.header("X-Socrata-Lens-Uid").get) match {
                   case RowDAO.QuerySuccess(etags, truthVersion, truthLastModified, rollup, schema, rows) =>
                     metric(QuerySuccessMetric)
                     if (isConditionalGet(req)) {
@@ -385,7 +386,8 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
                       req.header("X-Socrata-Explain").isDefined,
                       req.header("X-Socrata-Analyze").isDefined
                     ),
-                    resourceScope) match {
+                    resourceScope,
+                    req.header("X-Socrata-Lens-Uid").get) match {
                     case RowDAO.SingleRowQuerySuccess(etags, truthVersion, truthLastModified, schema, row) =>
                       metric(QuerySuccessMetric)
                       if (isConditionalGet(req)) {
