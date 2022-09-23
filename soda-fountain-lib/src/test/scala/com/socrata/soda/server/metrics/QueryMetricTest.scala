@@ -32,6 +32,8 @@ import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResp
 trait QueryMetricTestBase extends FunSuite with MockFactory {
   val domainIdHeader = "X-SODA2-Domain-ID"
   val testDomainId = "1"
+  val lensUidHeader = "X-Socrata-Lens-Uid"
+  val lensUid = "aaaa-aaaa"
 
   def withHttpRequest[T](req: HttpServletRequest)(f: HttpRequest => T): T = {
     using(new ResourceScope) { scope =>
@@ -43,7 +45,7 @@ trait QueryMetricTestBase extends FunSuite with MockFactory {
     mockDatasetQuery(
       CacheHit,
       mockMetricProvider(testDomainId, Seq(QueryCacheHit)),
-      Map(domainIdHeader -> testDomainId)
+      Map(domainIdHeader -> testDomainId, lensUidHeader -> lensUid)
     )
   }
 
@@ -51,7 +53,7 @@ trait QueryMetricTestBase extends FunSuite with MockFactory {
     mockDatasetQuery(
       PreconditionFailedNoMatch,
       mockMetricProvider(testDomainId, Seq(QueryErrorUser)),
-      Map(domainIdHeader -> testDomainId)
+      Map(domainIdHeader -> testDomainId, lensUidHeader -> lensUid)
     )
   }
 
@@ -59,7 +61,7 @@ trait QueryMetricTestBase extends FunSuite with MockFactory {
     mockDatasetQuery(
       MissingDataset,
       mockMetricProvider(testDomainId, Seq(QueryErrorUser)),
-      Map(domainIdHeader -> testDomainId)
+      Map(domainIdHeader -> testDomainId, lensUidHeader -> lensUid)
     )
   }
 
@@ -68,7 +70,7 @@ trait QueryMetricTestBase extends FunSuite with MockFactory {
       mockDatasetQuery(
         ThrowUnexpectedException,
         mockMetricProvider(testDomainId, Seq(QueryErrorInternal)),
-        Map(domainIdHeader -> testDomainId)
+        Map(domainIdHeader -> testDomainId, lensUidHeader -> lensUid)
       )
     }
   }
@@ -92,7 +94,8 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
       mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryCacheMiss)),
       Map(
         domainIdHeader -> testDomainId,
-        "If-Modified-Since" -> "Sat, 09 Jun 2007 23:55:38 GMT"
+        "If-Modified-Since" -> "Sat, 09 Jun 2007 23:55:38 GMT",
+        lensUidHeader -> lensUid
       )
     )
   }
@@ -103,7 +106,8 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
       mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryCacheMiss)),
       Map(
         domainIdHeader -> testDomainId,
-        "If-None-Match" -> ""
+        "If-None-Match" -> "",
+        lensUidHeader -> lensUid
       )
     )
   }
@@ -112,7 +116,7 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
     mockDatasetQuery(
       SingleRowSuccess,
       mockMetricProvider(testDomainId,  Seq(QuerySuccess)),
-      Map(domainIdHeader -> testDomainId)
+      Map(domainIdHeader -> testDomainId, lensUidHeader -> lensUid)
     )
   }
 
@@ -120,7 +124,7 @@ class SingleRowQueryMetricTest extends QueryMetricTestBase {
     mockDatasetQuery(
       SingleRowMissing,
       mockMetricProvider(testDomainId,  Seq(QueryErrorUser)),
-      Map(domainIdHeader -> testDomainId)
+      Map(domainIdHeader -> testDomainId, lensUidHeader -> lensUid)
     )
   }
 
@@ -151,7 +155,7 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
     mockDatasetQuery(
       InvalidUserRequest,
       mockMetricProvider(testDomainId, Seq(QueryErrorUser)),
-      Map(domainIdHeader -> testDomainId)
+      Map(domainIdHeader -> testDomainId, lensUidHeader -> lensUid)
     )
   }
 
@@ -159,7 +163,7 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
     mockDatasetQuery(
       InvalidInternalRequest,
       mockMetricProvider(testDomainId, Seq(QueryErrorInternal)),
-      Map(domainIdHeader -> testDomainId)
+      Map(domainIdHeader -> testDomainId, lensUidHeader -> lensUid)
     )
   }
 
@@ -169,7 +173,8 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
       mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryCacheMiss)),
       Map(
         domainIdHeader -> testDomainId,
-        "If-Modified-Since" -> "Sat, 09 Jun 2007 23:55:38 GMT"
+        "If-Modified-Since" -> "Sat, 09 Jun 2007 23:55:38 GMT",
+        lensUidHeader -> lensUid
       )
     )
   }
@@ -180,7 +185,8 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
       mockMetricProvider(testDomainId, Seq(QuerySuccess, QueryCacheMiss)),
       Map(
         domainIdHeader -> testDomainId,
-        "If-None-Match" -> ""
+        "If-None-Match" -> "",
+        lensUidHeader -> lensUid
       )
     )
   }
@@ -189,7 +195,7 @@ class MultiRowQueryMetricTest extends QueryMetricTestBase {
     mockDatasetQuery(
       MultiRowSuccess,
       mockMetricProvider(testDomainId,  Seq(QuerySuccess)),
-      Map(domainIdHeader -> testDomainId)
+      Map(domainIdHeader -> testDomainId, lensUidHeader -> lensUid)
     )
   }
 
@@ -263,14 +269,14 @@ private object TestDatasets {
 private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
   def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, context: Context, rowCount: Option[String],
             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
-            fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope): Result = {
+            fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope, lensUid: String): Result = {
     testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
   }
   def getRow(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
              stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
-             fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope): Result = {
+             fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope, lensUid: String): Result = {
     query(dataset, precondition, ifModifiedSince, "give me one row!", Context.empty, None, None, secondaryInstance, noRollup, obfuscateId,
-          fuseColumns, None, debugInfo, rs)
+          fuseColumns, None, debugInfo, rs, lensUid)
   }
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate])(f: UpsertResult => T): T = ???
   def upsert[T](user: String, datasetRecord: DatasetRecordLike, expectedDataVersion: Option[Long], data: Iterator[RowUpdate], rowUpdateOption: RowUpdateOption)(f: UpsertResult => T): T = ???
