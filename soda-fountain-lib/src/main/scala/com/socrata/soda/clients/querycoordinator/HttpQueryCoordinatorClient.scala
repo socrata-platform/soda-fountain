@@ -61,17 +61,17 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
     obfuscateId: Boolean,
     extraHeaders: Map[String, String], queryTimeoutSeconds: Option[String],
-    rs: ResourceScope, lensUid: String)(f: Result => T): T = {
+    rs: ResourceScope, lensUid: Option[String])(f: Result => T): T = {
 
     val params = List(
       qpDataset -> dataset.datasetId.underlying,
       qpQuery -> query,
-      qpLensUid -> lensUid,
       qpContext -> JsonUtil.renderJson(context, pretty=false)) ++
       // when $$query_timeout_seconds is not given, always limit it to the default value - typically 10 minutes
       queryTimeoutSeconds.orElse(Some(defaultReceiveTimeout.toSeconds.toString)).map(qpQueryTimeoutSeconds -> _) ++
       copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
       rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
+      lensUid.map(uid => List(qpLensUid -> uid)).getOrElse(Nil) ++
       (if (noRollup) List(qpNoRollup -> "y") else Nil) ++
       (if (!obfuscateId) List(qpObfuscateId -> "false") else Nil) ++
       secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)

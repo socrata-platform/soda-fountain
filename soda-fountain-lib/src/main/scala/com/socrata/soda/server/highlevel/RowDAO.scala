@@ -34,7 +34,7 @@ trait RowDAO {
             queryTimeoutSeconds: Option[String],
             debugInfo: DebugInfo,
             resourceScope: ResourceScope,
-            lensUid: String): Result
+            lensUid: Option[String]): Result
 
   def getRow(dataset: ResourceName,
              precondition: Precondition,
@@ -48,7 +48,7 @@ trait RowDAO {
              queryTimeoutSeconds: Option[String],
              debugInfo: DebugInfo,
              resourceScope: ResourceScope,
-             lensUid: String): Result
+             lensUid: Option[String]): Result
 
   def upsert[T](user: String,
                 datasetRecord: DatasetRecordLike,

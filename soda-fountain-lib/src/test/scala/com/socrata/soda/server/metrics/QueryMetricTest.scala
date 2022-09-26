@@ -269,12 +269,12 @@ private object TestDatasets {
 private class QueryOnlyRowDAO(testDatasets: Set[TestDataset]) extends RowDAO {
   def query(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], query: String, context: Context, rowCount: Option[String],
             stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
-            fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope, lensUid: String): Result = {
+            fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope, lensUid: Option[String]): Result = {
     testDatasets.find(_.resource == dataset).map(_.getResult).getOrElse(throw new Exception("TestDataset not defined"))
   }
   def getRow(dataset: ResourceName, precondition: Precondition, ifModifiedSince: Option[DateTime], rowId: RowSpecifier,
              stage: Option[Stage], secondaryInstance: Option[String], noRollup: Boolean, obfuscateId: Boolean,
-             fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope, lensUid: String): Result = {
+             fuseColumns: Option[String], queryTimeoutSeconds: Option[String], debugInfo: DebugInfo, rs: ResourceScope, lensUid: Option[String]): Result = {
     query(dataset, precondition, ifModifiedSince, "give me one row!", Context.empty, None, None, secondaryInstance, noRollup, obfuscateId,
           fuseColumns, None, debugInfo, rs, lensUid)
   }

@@ -86,6 +86,6 @@ trait QueryCoordinatorClient {
                extraHeaders: Map[String, String],
                queryTimeoutSeconds: Option[String],
                rs: ResourceScope,
-               lensUid: String)(f: Result => T): T
+               lensUid: Option[String])(f: Result => T): T
 
 }

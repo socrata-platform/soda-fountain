@@ -42,7 +42,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             queryTimeoutSeconds: Option[String],
             debugInfo: DebugInfo,
             resourceScope: ResourceScope,
-            lensUid: String): Result = {
+            lensUid: Option[String]): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(ds) =>
         getRows(ds, precondition, ifModifiedSince, query, context, rowCount, copy, secondaryInstance, noRollup, obfuscateId,
@@ -65,7 +65,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
              queryTimeoutSeconds: Option[String],
              debugInfo: DebugInfo,
              resourceScope: ResourceScope,
-             lensUid: String): Result = {
+             lensUid: Option[String]): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(datasetRecord) =>
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
@@ -128,7 +128,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                       queryTimeoutSeconds: Option[String],
                       debugInfo: DebugInfo,
                       resourceScope: ResourceScope,
-                      lensUid: String): Result = {
+                      lensUid: Option[String]): Result = {
     val extraHeaders = Map(
                            "X-SODA2-DataVersion"    -> ds.truthVersion.toString,
                            "X-SODA2-LastModified"   -> ds.lastModified.toHttpDate) ++
