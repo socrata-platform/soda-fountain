@@ -85,6 +85,7 @@ trait QueryCoordinatorClient {
                obfuscateId: Boolean,
                extraHeaders: Map[String, String],
                queryTimeoutSeconds: Option[String],
-               rs: ResourceScope)(f: Result => T): T
+               rs: ResourceScope,
+               lensUid: Option[String])(f: Result => T): T
 
 }

@@ -33,7 +33,8 @@ trait RowDAO {
             fuseColumns: Option[String],
             queryTimeoutSeconds: Option[String],
             debugInfo: DebugInfo,
-            resourceScope: ResourceScope): Result
+            resourceScope: ResourceScope,
+            lensUid: Option[String]): Result
 
   def getRow(dataset: ResourceName,
              precondition: Precondition,
@@ -46,7 +47,8 @@ trait RowDAO {
              fuseColumns: Option[String],
              queryTimeoutSeconds: Option[String],
              debugInfo: DebugInfo,
-             resourceScope: ResourceScope): Result
+             resourceScope: ResourceScope,
+             lensUid: Option[String]): Result
 
   def upsert[T](user: String,
                 datasetRecord: DatasetRecordLike,

@@ -38,6 +38,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   private val qpNoRollup = "no_rollup"
   private val qpObfuscateId = "obfuscateId"
   private val qpQueryTimeoutSeconds = "queryTimeoutSeconds"
+  private val qpLensUid = "lensUid"
 
   private def retrying[T](limit: Int)(f: => T): T = {
     def doRetry(count: Int, e: Exception): T = {
@@ -60,7 +61,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     copy: Option[Stage], secondaryInstance:Option[String], noRollup: Boolean,
     obfuscateId: Boolean,
     extraHeaders: Map[String, String], queryTimeoutSeconds: Option[String],
-    rs: ResourceScope)(f: Result => T): T = {
+    rs: ResourceScope, lensUid: Option[String])(f: Result => T): T = {
 
     val params = List(
       qpDataset -> dataset.datasetId.underlying,
@@ -70,6 +71,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
       queryTimeoutSeconds.orElse(Some(defaultReceiveTimeout.toSeconds.toString)).map(qpQueryTimeoutSeconds -> _) ++
       copy.map(c => List(qpCopy -> c.name.toLowerCase)).getOrElse(Nil) ++ // Query coordinate needs publication stage in lower case.
       rowCount.map(rc => List(qpRowCount -> rc)).getOrElse(Nil) ++
+      lensUid.map(uid => List(qpLensUid -> uid)).getOrElse(Nil) ++
       (if (noRollup) List(qpNoRollup -> "y") else Nil) ++
       (if (!obfuscateId) List(qpObfuscateId -> "false") else Nil) ++
       secondaryInstance.map(so => List(secondaryStoreOverride -> so)).getOrElse(Nil)

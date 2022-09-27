@@ -41,11 +41,12 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             fuseColumns: Option[String],
             queryTimeoutSeconds: Option[String],
             debugInfo: DebugInfo,
-            resourceScope: ResourceScope): Result = {
+            resourceScope: ResourceScope,
+            lensUid: Option[String]): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(ds) =>
         getRows(ds, precondition, ifModifiedSince, query, context, rowCount, copy, secondaryInstance, noRollup, obfuscateId,
-          fuseColumns, queryTimeoutSeconds, debugInfo, resourceScope)
+          fuseColumns, queryTimeoutSeconds, debugInfo, resourceScope, lensUid)
       case None =>
         log.info("dataset not found {}", resourceName.name)
         DatasetNotFound(resourceName)
@@ -63,7 +64,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
              fuseColumns: Option[String],
              queryTimeoutSeconds: Option[String],
              debugInfo: DebugInfo,
-             resourceScope: ResourceScope): Result = {
+             resourceScope: ResourceScope,
+             lensUid: Option[String]): Result = {
     store.lookupDataset(resourceName, copy) match {
       case Some(datasetRecord) =>
         val pkCol = datasetRecord.columnsById(datasetRecord.primaryKey)
@@ -76,7 +78,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
             getRows(datasetRecord, NoPrecondition, ifModifiedSince, query,
                     Context.empty, // no context needed
                     None, copy, secondaryInstance,
-                    noRollup, obfuscateId, fuseColumns, queryTimeoutSeconds, debugInfo, resourceScope) match {
+                    noRollup, obfuscateId, fuseColumns, queryTimeoutSeconds, debugInfo, resourceScope, lensUid) match {
               case QuerySuccess(_, truthVersion, truthLastModified, rollup, simpleSchema, rows) =>
                 val version = ColumnName(":version")
                 val versionPos = simpleSchema.schema.indexWhere(_.fieldName == version)
@@ -125,7 +127,8 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
                       fuseColumns: Option[String],
                       queryTimeoutSeconds: Option[String],
                       debugInfo: DebugInfo,
-                      resourceScope: ResourceScope): Result = {
+                      resourceScope: ResourceScope,
+                      lensUid: Option[String]): Result = {
     val extraHeaders = Map(
                            "X-SODA2-DataVersion"    -> ds.truthVersion.toString,
                            "X-SODA2-LastModified"   -> ds.lastModified.toHttpDate) ++
@@ -134,7 +137,7 @@ class RowDAOImpl(store: NameAndSchemaStore, dc: DataCoordinatorClient, qc: Query
       (if (debugInfo.explain) Map("X-Socrata-Explain" -> "true") else Map.empty) ++
       (if (debugInfo.analyze) Map("X-Socrata-Analyze" -> "true") else Map.empty)
     qc.query(ds.handle, precondition, ifModifiedSince, query, context, rowCount,
-             copy, secondaryInstance, noRollup, obfuscateId, extraHeaders, queryTimeoutSeconds, resourceScope) {
+             copy, secondaryInstance, noRollup, obfuscateId, extraHeaders, queryTimeoutSeconds, resourceScope, lensUid) {
       case QueryCoordinatorClient.Success(etags, rollup, lastModifiedStr, response) if !debugInfo.explain =>
         val jsonColumnReps = if (obfuscateId) JsonColumnRep.forDataCoordinatorType
                              else JsonColumnRep.forDataCoordinatorTypeClearId
