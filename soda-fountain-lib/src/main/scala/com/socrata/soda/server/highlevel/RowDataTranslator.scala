@@ -1,7 +1,6 @@
 package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.ast._
-import com.rojoma.json.v3.conversions._
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.{DeleteRow, RowUpdate, UpsertRow}
 import com.socrata.soda.server.id.ColumnId

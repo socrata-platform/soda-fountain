@@ -2,12 +2,11 @@ package com.socrata.soda.server.export
 
 import com.rojoma.json.v3.ast.JObject
 import com.rojoma.json.v3.codec._
-import com.rojoma.json.v3.conversions._
 import com.socrata.soda.server.highlevel.ExportDAO
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.external.{JsonColumnRep, JsonColumnWriteRep}
 import com.socrata.soql.types._
-import com.rojoma.json.util.JsonUtil
+import com.rojoma.json.v3.util.JsonUtil
 
 /**
   * This class supports chaining multiple location fusers.
