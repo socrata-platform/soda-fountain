@@ -2,7 +2,6 @@ package com.socrata.soda.server.export
 
 import com.rojoma.json.v3.ast.{JNumber, JString}
 import com.rojoma.json.v3.codec._
-import com.rojoma.json.v3.conversions._
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.json.v3.io.CompactJsonWriter
 import com.rojoma.simplearm.v2._

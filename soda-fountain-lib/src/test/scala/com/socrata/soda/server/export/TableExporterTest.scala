@@ -4,7 +4,6 @@ import javax.servlet.ServletOutputStream
 import com.rojoma.simplearm.v2._
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
-import com.rojoma.json.v3.conversions._
 import com.socrata.soda.server.export.GeoJsonProcessor.InvalidGeoJsonSchema
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.ColumnRecord

@@ -1,6 +1,5 @@
 package com.socrata.soda.clients.querycoordinator
 
-import com.rojoma.json.ast.JObject
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.rojoma.simplearm.v2.ResourceScope
