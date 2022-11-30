@@ -6,6 +6,7 @@ import java.security.MessageDigest
 import scala.collection.JavaConverters._
 import scala.language.existentials
 import com.rojoma.json.v3.ast.{JArray, JNumber, JString, JValue}
+import com.rojoma.json.v3.codec.JsonDecode
 import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.ContentNegotiation
@@ -157,11 +158,39 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
     }
   }
 
+  class MetricContext(req: SodaRequest) {
+    val domainId = req.header(domainIdHeader)
+    def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
+  }
+
   case class service(resourceName: OptionallyTypedPathComponent[ResourceName]) extends SodaResource {
+    override def query = { req: SodaRequest =>
+      val metricContext = new MetricContext(req)
+      InputUtils.jsonSingleObjectStream(req.httpRequest, Long.MaxValue) match {
+        case Right(obj) =>
+          JsonDecode.fromJValue[Map[String, String]](obj) match {
+            case Right(body) =>
+              log.info("Request parameters: {}", JsonUtil.renderJson(obj, pretty=false))
+              getlike(req, body.get _, metricContext)
+            case Left(err) =>
+              log.info("Body wasn't a map of strings: {}", err.english)
+              metricContext.metric(QueryErrorUser)
+              BadRequest // todo: better error
+          }
+        case Left(err) =>
+          metricContext.metric(QueryErrorUser)
+          SodaUtils.response(req, err)
+      }
+    }
+
     override def get = { req: SodaRequest =>
-      val domainId = req.header(domainIdHeader)
+      getlike(req, req.queryParameter, new MetricContext(req))
+    }
+
+    def getlike(req: SodaRequest, parameter: String => Option[String], metricContext: MetricContext): HttpResponse = {
+      import metricContext._
       val lensUid = req.header(lensUidHeader)
-      def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
+
       def metricByStatus(status: Int) = {
         if (status >= 400 && status < 500) metric(QueryErrorUser)
         else if (status >= 500 && status < 600) metric(QueryErrorInternal)
@@ -186,22 +215,22 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
             req.negotiateContent match {
               case Some((mimeType, charset, language)) =>
                 val exporter = Exporter.exportForMimeType(mimeType)
-                val obfuscateId = reqObfuscateId(req)
+                val obfuscateId = reqObfuscateId(parameter)
                 req.rowDAO.query(
                   resourceName.value,
                   updatePrecondition(newPrecondition).map(_.dropRight(suffix.length)),
                   req.dateTimeHeader("If-Modified-Since"),
-                  req.queryParameter(qpQuery).getOrElse(qpQueryDefault),
-                  req.queryParameter(qpContext).fold(Context.empty) { ctxStr =>
+                  parameter(qpQuery).getOrElse(qpQueryDefault),
+                  parameter(qpContext).fold(Context.empty) { ctxStr =>
                     JsonUtil.parseJson[Context](ctxStr).right.get
                   },
-                  req.queryParameter(qpRowCount),
-                  Stage(req.queryParameter(qpCopy)),
-                  req.queryParameter(qpSecondary),
-                  req.queryParameter(qpNoRollup).isDefined,
+                  parameter(qpRowCount),
+                  Stage(parameter(qpCopy)),
+                  parameter(qpSecondary),
+                  parameter(qpNoRollup).isDefined,
                   obfuscateId,
                   req.header("X-Socrata-Fuse-Columns"),
-                  req.queryParameter(qpQueryTimeoutSeconds),
+                  parameter(qpQueryTimeoutSeconds),
                   DebugInfo(
                     req.header("X-Socrata-Debug").isDefined,
                     req.header("X-Socrata-Explain").isDefined,
@@ -229,7 +258,7 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader ~>
                       exporter.export(charset, schema, rows, singleRow = false, obfuscateId = obfuscateId,
-                                      bom = req.queryParameter(qpBom).map(_.toBoolean).getOrElse(false))
+                                      bom = parameter(qpBom).map(_.toBoolean).getOrElse(false))
                   case RowDAO.InfoSuccess(_, body) =>
                     // Just drain the iterator into an array, this should never be large
                     OK ~> Json(JArray(body.toSeq))
@@ -353,11 +382,33 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
 
     implicit val contentNegotiation = new ContentNegotiation(Exporter.exporters.map { exp => exp.mimeType -> exp.extension }, List("en-US"))
 
+    override def query = { req: SodaRequest =>
+      val metricContext = new MetricContext(req)
+      InputUtils.jsonSingleObjectStream(req.httpRequest, Long.MaxValue) match {
+        case Right(obj) =>
+          JsonDecode.fromJValue[Map[String, String]](obj) match {
+            case Right(body) =>
+              log.info("Request parameters: {}", JsonUtil.renderJson(obj, pretty=false))
+              getlike(req, body.get _, metricContext)
+            case Left(err) =>
+              log.info("Body wasn't a map of strings: {}", err.english)
+              metricContext.metric(QueryErrorUser)
+              BadRequest // todo: better error
+          }
+        case Left(err) =>
+          metricContext.metric(QueryErrorUser)
+          SodaUtils.response(req, err)
+      }
+    }
+
     override def get = { req: SodaRequest =>
-      val domainId = req.header(domainIdHeader)
+      getlike(req, req.queryParameter, new MetricContext(req))
+    }
+
+    def getlike(req: SodaRequest, parameter: String => Option[String], metricContext: MetricContext): HttpResponse = {
+      import metricContext._
       val lensUid = req.header(lensUidHeader)
 
-      def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
       try {
         val suffix = headerHash(req)
         val precondition = req.precondition.map(etagObfuscator.deobfuscate)
@@ -368,19 +419,19 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
             contentNegotiation(req.accept, req.contentType, None, req.acceptCharset, req.acceptLanguage) match {
               case Some((mimeType, charset, language)) =>
                 val exporter = Exporter.exportForMimeType(mimeType)
-                val obfuscateId = reqObfuscateId(req)
+                val obfuscateId = reqObfuscateId(parameter)
                 using(new ResourceScope) { resourceScope =>
                   req.rowDAO.getRow(
                     resourceName,
                     newPrecondition.map(_.dropRight(suffix.length)),
                     req.dateTimeHeader("If-Modified-Since"),
                     rowId,
-                    Stage(req.queryParameter(qpCopy)),
-                    req.queryParameter(qpSecondary),
-                    req.queryParameter(qpNoRollup).isDefined,
+                    Stage(parameter(qpCopy)),
+                    parameter(qpSecondary),
+                    parameter(qpNoRollup).isDefined,
                     obfuscateId,
                     req.header("X-Socrata-Fuse-Columns"),
-                    req.queryParameter(qpQueryTimeoutSeconds),
+                    parameter(qpQueryTimeoutSeconds),
                     DebugInfo(
                       req.header("X-Socrata-Debug").isDefined,
                       req.header("X-Socrata-Explain").isDefined,
@@ -403,7 +454,7 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader ~>
                         exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId = obfuscateId,
-                                        bom = req.queryParameter(qpBom).map(_.toBoolean).getOrElse(false))
+                                        bom = parameter(qpBom).map(_.toBoolean).getOrElse(false))
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)
                       SodaUtils.response(req, SodaErrors.RowNotFound(row))
@@ -459,8 +510,8 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
     }
   }
 
-  private def reqObfuscateId(req: SodaRequest): Boolean =
-    !req.queryParameter(qpObfuscateId).exists(_ == "false")
+  private def reqObfuscateId(parameter: String => Option[String]): Boolean =
+    !parameter(qpObfuscateId).exists(_ == "false")
 }
 
 object Resource {
