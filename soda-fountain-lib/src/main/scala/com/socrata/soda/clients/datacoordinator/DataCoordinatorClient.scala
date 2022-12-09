@@ -29,7 +29,7 @@ object DataCoordinatorClient {
                                      unpublishedVersion: Option[Long], // TODO: remove once unpublishedVersions is used everywhere
                                      publishedVersions: Option[VersionSpec],
                                      unpublishedVersions: Option[VersionSpec],
-                                     secondaries: Map[String, Long],
+                                     secondaries: Map[String, (Long, Boolean)],
                                      feedbackSecondaries: Set[String],
                                      groups: Map[String, Set[String]],
                                      brokenSecondaries: Option[Map[String, DateTime]] // TODO: make this not an Option once data-coordinator is always sending it
