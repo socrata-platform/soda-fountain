@@ -21,6 +21,28 @@ object DataCoordinatorClient {
     implicit val codec = AutomaticJsonCodecBuilder[VersionSpec]
   }
 
+  sealed trait SecondaryValue {}
+
+  @JsonKeyStrategy(Strategy.Underscore)
+  case class OnlyVersion(version: Long) extends SecondaryValue
+  object  OnlyVersion{
+    implicit val codec = WrapperJsonCodec[OnlyVersion].apply[Long](OnlyVersion.apply, _.version)
+  }
+
+  @JsonKeyStrategy(Strategy.Underscore)
+  case class VersionAndPending(version: Long, pendingDrop: Boolean) extends SecondaryValue
+  object  VersionAndPending{
+    implicit val codec = AutomaticJsonCodecBuilder[VersionAndPending]
+  }
+
+  object SecondaryValue {
+    implicit val codec =
+    SimpleHierarchyCodecBuilder[SecondaryValue](NoTag)
+      .branch[VersionAndPending]
+      .branch[OnlyVersion]
+      .build
+  }
+
   @JsonKeyStrategy(Strategy.Underscore)
   case class SecondaryVersionsReport(truthInstance: String,
                                      truthVersion: Option[Long], // TODO: remove this once `latestVersion` is not optional and CRJ is no-longer looking for it
@@ -29,7 +51,7 @@ object DataCoordinatorClient {
                                      unpublishedVersion: Option[Long], // TODO: remove once unpublishedVersions is used everywhere
                                      publishedVersions: Option[VersionSpec],
                                      unpublishedVersions: Option[VersionSpec],
-                                     secondaries: Map[String, Long],
+                                     secondaries: Map[String, SecondaryValue],
                                      feedbackSecondaries: Set[String],
                                      groups: Map[String, Set[String]],
                                      brokenSecondaries: Option[Map[String, DateTime]] // TODO: make this not an Option once data-coordinator is always sending it
