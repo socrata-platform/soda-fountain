@@ -22,14 +22,17 @@ object DataCoordinatorClient {
   }
 
   sealed trait SecondaryValue {}
+
+  @JsonKeyStrategy(Strategy.Underscore)
   case class OnlyVersion(version: Long) extends SecondaryValue
   object  OnlyVersion{
     implicit val codec = WrapperJsonCodec[OnlyVersion].apply[Long](OnlyVersion.apply, _.version)
   }
 
-  case class VersionAndPending(version: Long, pending: Boolean) extends SecondaryValue
+  @JsonKeyStrategy(Strategy.Underscore)
+  case class VersionAndPending(version: Long, pendingDrop: Boolean) extends SecondaryValue
   object  VersionAndPending{
-    implicit val codec = WrapperJsonCodec[VersionAndPending].apply[(Long, Boolean)]((VersionAndPending.apply _).tupled, ov => (ov.version, ov.pending))
+    implicit val codec = AutomaticJsonCodecBuilder[VersionAndPending]
   }
 
   object SecondaryValue {
