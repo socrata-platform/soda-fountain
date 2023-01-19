@@ -1,9 +1,9 @@
 FROM socrata/java8-bionic
 
 EXPOSE 6010
-EXPOSE 6012
+EXPOSE 6012/udp
 ENV JMX_PORT 6019
-EXPOSE 6019
+#EXPOSE 6039
 
 ENV SERVER_ROOT /srv/soda-fountain/
 # TODO sbt task to copy latest jar into docker/
