@@ -11,7 +11,7 @@ import com.socrata.thirdparty.metrics.{SocrataHttpSupport, MetricsOptions, Metri
 import com.typesafe.config.ConfigFactory
 
 
-object SodaFountainJetty extends App {
+object SodaFountainJetty extends App with DynamicPortMap {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
   val config = new SodaFountainConfig(ConfigFactory.load())
   val metricsOptions = MetricsOptions(config.codaMetrics)
@@ -28,11 +28,18 @@ object SodaFountainJetty extends App {
         withRequestHeaderSize(config.requestHeaderSize).
         withExtraHandlers(List(SocrataHttpSupport.getHandler(metricsOptions))).
         withPoolOptions(SocrataServerJetty.Pool(config.threadpool)).
-        withBroker(new CuratorBroker[Void](
-          discovery,
-          config.discovery.address,
-          config.discovery.name,
-          None)))
+        withBroker(
+          new CuratorBroker[Void](
+            discovery,
+            config.discovery.address,
+            config.discovery.name,
+            None
+          ) {
+            override def register(port: Int): Cookie = {
+              super.register(hostPort(port))
+            }
+          }
+        ))
 
     try {
       log.info("starting table dropper thread")
