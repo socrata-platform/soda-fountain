@@ -7,21 +7,23 @@ import com.rojoma.json.v3.ast.{JNull, JValue}
 import com.rojoma.json.v3.io._
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, AutomaticJsonEncodeBuilder, JsonArrayIterator}
 import com.rojoma.simplearm.v2._
-import com.socrata.http.client.exceptions.{FullTimeout, UnexpectedContentType, ConnectFailed, ConnectTimeout}
+import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, FullTimeout, UnexpectedContentType}
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.common.util.HttpUtils
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.HttpMethods
 import com.socrata.http.server.util._
-import com.socrata.soda.server.{ThreadLimiter, SodaUtils}
+import com.socrata.soda.server.{SodaUtils, ThreadLimiter}
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.util.schema.SchemaSpec
+
 import javax.servlet.http.HttpServletResponse
 import com.socrata.soda.server.highlevel.ColumnDAO.DatasetNotFound
 import com.socrata.soda.server.resources.DCCollocateOperation
 import org.joda.time.DateTime
 import org.joda.time.format.ISODateTimeFormat
 import com.socrata.http.client.BodylessHttpRequest
+import com.socrata.soda.server.util.RelationSide.RelationSide
 
 
 abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
@@ -70,6 +72,10 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
       addResourceHeader(dataset)
   def rollupReq(host: RequestBuilder, dataset: DatasetHandle) =
     host.p("dataset-rollup", dataset.datasetId.underlying).
+      addResourceHeader(dataset)
+
+  def rollupRelationReq(host: RequestBuilder, dataset: DatasetHandle,relationSide: RelationSide) =
+    host.p("dataset-rollup", dataset.datasetId.underlying,relationSide.toString).
       addResourceHeader(dataset)
   def indexReq(host: RequestBuilder, dataset: DatasetHandle) =
     host.p("dataset-index", dataset.datasetId.underlying).
@@ -773,6 +779,28 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
               case Left(err) => throw new Exception("Unable to parse response from data coordinator: " + err.english)
             }
             case Some(NoSuchDataset(dataset)) => DatasetNotFoundResult(dataset)
+            case Some(err) =>
+              throw new Exception(s"Unexpected error from data-coordinator getting rollups for dataset $dataset: $err")
+          }
+        }
+      }
+    }
+  }
+
+  override def getRollupRelations(dataset: DatasetHandle, relationSide: RelationSide): Result={
+    withFullRetries() {
+      withHost(dataset) { host =>
+        val request = rollupRelationReq(host, dataset,relationSide).get
+        httpClient.execute(request).run { r =>
+          errorFrom(r) match {
+            case None => r.value[Seq[RollupDatasetRelation]]() match {
+              case Right(resp) =>
+                println(resp)
+                RollupRelationResult(resp)
+              case Left(err) => throw new Exception("Unable to parse response from data coordinator: " + err.english)
+            }
+            case Some(NoSuchDataset(dataset)) => DatasetNotFoundResult(dataset)
+            case Some(NoRelationsFoundError(dataset,side)) => DatasetNotFoundResult(dataset)
             case Some(err) =>
               throw new Exception(s"Unexpected error from data-coordinator getting rollups for dataset $dataset: $err")
           }

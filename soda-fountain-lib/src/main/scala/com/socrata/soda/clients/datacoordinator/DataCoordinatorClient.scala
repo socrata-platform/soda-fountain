@@ -8,6 +8,7 @@ import com.socrata.soda.server.util.CopySpecifier
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.resources.DCCollocateOperation
+import com.socrata.soda.server.util.RelationSide.RelationSide
 import com.socrata.thirdparty.json.AdditionalJsonCodecs._
 import org.joda.time.DateTime
 
@@ -95,6 +96,8 @@ object DataCoordinatorClient {
   case class NonCreateScriptResult(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, newShapeVersion: Long, lastModified: DateTime) extends SuccessResult
   case class ExportResult(json: Iterator[JValue], lastModified: Option[DateTime], etag: Option[EntityTag]) extends SuccessResult
   case class RollupResult(rollups: Seq[RollupInfo]) extends SuccessResult
+
+  case class RollupRelationResult(rollupRelations: Seq[RollupDatasetRelation]) extends SuccessResult
   case class IndexResult(indexes: Seq[IndexInfo]) extends SuccessResult
   case class CollocateResult(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
   case class ResyncResult(secondary: SecondaryId) extends SuccessResult
@@ -242,6 +245,8 @@ trait DataCoordinatorClient {
              resourceScope: ResourceScope): Result
 
   def getRollups(dataset: DatasetHandle): Result
+
+  def getRollupRelations(dataset: DatasetHandle, relationSide: RelationSide): Result
   def getIndexes(dataset: DatasetHandle): Result
 
   def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result

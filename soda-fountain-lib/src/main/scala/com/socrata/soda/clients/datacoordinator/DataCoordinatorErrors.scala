@@ -3,9 +3,10 @@ package com.socrata.soda.clients.datacoordinator
 import com.rojoma.json.v3.ast.{JObject, JValue}
 import com.rojoma.json.v3.util._
 import com.socrata.http.server.util.EntityTag
-import com.socrata.soda.server.macros.{Tag, BranchCodec}
-import com.socrata.soda.server.id.{RowSpecifier, ColumnId, RollupName, DatasetId}
+import com.socrata.soda.server.macros.{BranchCodec, Tag}
+import com.socrata.soda.server.id.{ColumnId, DatasetId, RollupName, RowSpecifier}
 import com.socrata.soda.server.util.CopySpecifier
+import com.socrata.soda.server.util.RelationSide.RelationSide
 import com.socrata.soda.server.util.schema.SchemaSpec
 
 
@@ -215,6 +216,8 @@ case class DatasetNotExist(dataset: DatasetId) extends DCUpdateError
 case class NotModified() extends DataCoordinatorError
 // etags are sent in headers
 
+@Tag("query.rollup-relations.not-found")
+case class NoRelationsFoundError(dataset: DatasetId,side:String) extends DCRollupError
 
 //// Sealed Super Classes
 sealed abstract class DCDatasetUpdateError extends PossiblyUnknownDataCoordinatorError {
@@ -267,6 +270,13 @@ object UnknownDataCoordinatorError {
   implicit val jCodec = AutomaticJsonCodecBuilder[UnknownDataCoordinatorError]
 }
 
+sealed abstract class DCRollupError extends PossiblyUnknownDataCoordinatorError {
+  def code: String = getClass.getAnnotation(classOf[Tag]).value()
+}
+object DCRollupError {
+  implicit val jCodec = BranchCodec(SimpleHierarchyCodecBuilder[DCRollupError](TagAndValue("errorCode", "data"))).build
+}
+
 
 sealed abstract class PossiblyUnknownDataCoordinatorError
 object PossiblyUnknownDataCoordinatorError {
@@ -277,6 +287,7 @@ object PossiblyUnknownDataCoordinatorError {
     branch[DCRowUpdateError].
     branch[DCColumnUpdateError].
     branch[DCDatasetUpdateError].
+    branch[DCRollupError].
     branch[UnknownDataCoordinatorError].
     build
 }

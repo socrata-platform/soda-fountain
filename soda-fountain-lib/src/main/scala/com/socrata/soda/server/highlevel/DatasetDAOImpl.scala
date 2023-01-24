@@ -19,6 +19,7 @@ import DatasetDAO._
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
 import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation}
+import com.socrata.soda.server.util.RelationSide.{From, RelationSide, To}
 import com.socrata.soql.exceptions.SoQLException
 import com.socrata.soql.parsing.RecursiveDescentParser.ParseException
 import com.socrata.soql.parsing.standalone_exceptions.BadParse
@@ -463,7 +464,24 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       val schema = OrderedMap(columnIdMap.mapValues(rawSchema).toSeq.sortBy(_._1) : _*)
     }
   }
-
+  def getRollupRelations(dataset: ResourceName, relationSide: RelationSide): Result ={
+    store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
+      case Some(datasetRecord) =>
+        dc.getRollupRelations(datasetRecord.handle,relationSide) match {
+          case result: DataCoordinatorClient.RollupRelationResult =>
+            RollupRelations(result.rollupRelations)
+          case DataCoordinatorClient.DatasetNotFoundResult(_) =>
+            DatasetNotFound(dataset)
+          case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
+            InternalServerError(code, tag, data)
+          case x =>
+            log.warn("case is NOT implemented %s".format(x.toString))
+            InternalServerError("unknown", tag, x.toString)
+        }
+      case None =>
+        DatasetNotFound(dataset)
+    }
+  }
   def getRollups(dataset: ResourceName): Result = {
     store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
       case Some(datasetRecord) =>

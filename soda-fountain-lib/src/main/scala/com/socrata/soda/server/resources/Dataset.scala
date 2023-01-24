@@ -1,7 +1,7 @@
 package com.socrata.soda.server.resources
 
 import com.rojoma.json.v3.ast.JString
-import com.socrata.http.server.{HttpRequest, HttpResponse}
+import com.socrata.http.server.{HttpRequest, HttpResponse, Service}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.util.RequestId
@@ -16,6 +16,8 @@ import com.socrata.soda.server.wiremodels.{Extracted, IOProblem, IndexSpec, Requ
 import javax.servlet.http.HttpServletRequest
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.soda.server.highlevel.DatasetDAO.{Indexes, Rollups}
+import com.socrata.soda.server.util.RelationSide
+import com.socrata.soda.server.util.RelationSide.RelationSide
 
 /**
  * Dataset: CRUD operations for dataset schema and metadata
@@ -99,6 +101,8 @@ case class Dataset(maxDatumSize: Int) {
         NoContent
       case DatasetDAO.Rollups(rollups) =>
         OK ~> Json(rollups)
+      case DatasetDAO.RollupRelations(relations) =>
+        OK ~> Json(relations)
       case DatasetDAO.Indexes(indexes) =>
         OK ~> Json(indexes)
       case DatasetDAO.IndexCreatedOrUpdated =>
@@ -298,6 +302,12 @@ case class Dataset(maxDatumSize: Int) {
         }
 
       }
+    }
+  }
+
+  case class rollupRelationService(resourceName: ResourceName, relationSide: RelationSide) extends SodaResource {
+    override def get = {req=>
+      response(req, req.datasetDAO.getRollupRelations(resourceName,relationSide))
     }
   }
 

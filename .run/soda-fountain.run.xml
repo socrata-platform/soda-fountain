@@ -1,0 +1,17 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="soda-fountain" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="com.socrata.soda.server.SodaFountainJetty" />
+    <module name="soda-fountain-jetty" />
+    <option name="VM_PARAMETERS" value="-Djava.net.preferIPv4Stack=true -Dconfig.file=configs/application.conf" />
+    <option name="WORKING_DIRECTORY" value="$ProjectFileDir$" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="com.socrata.soda.server.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
