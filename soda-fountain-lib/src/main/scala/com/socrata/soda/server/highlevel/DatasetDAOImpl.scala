@@ -474,6 +474,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
             DatasetNotFound(dataset)
           case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
             InternalServerError(code, tag, data)
+          case DataCoordinatorClient.RollupNoRelationsFoundResult(dataset,side)=>
+            RollupRelationsNotFound(dataset,side)
           case x =>
             log.warn("case is NOT implemented %s".format(x.toString))
             InternalServerError("unknown", tag, x.toString)

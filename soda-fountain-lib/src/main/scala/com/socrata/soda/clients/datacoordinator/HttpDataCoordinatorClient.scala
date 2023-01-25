@@ -795,12 +795,11 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
           errorFrom(r) match {
             case None => r.value[Seq[RollupDatasetRelation]]() match {
               case Right(resp) =>
-                println(resp)
                 RollupRelationResult(resp)
               case Left(err) => throw new Exception("Unable to parse response from data coordinator: " + err.english)
             }
             case Some(NoSuchDataset(dataset)) => DatasetNotFoundResult(dataset)
-            case Some(NoRelationsFoundError(dataset,side)) => DatasetNotFoundResult(dataset)
+            case Some(NoRelationsFoundError(dataset,side)) => RollupNoRelationsFoundResult(dataset,side)
             case Some(err) =>
               throw new Exception(s"Unexpected error from data-coordinator getting rollups for dataset $dataset: $err")
           }

@@ -131,6 +131,8 @@ object DatasetDAO {
 
   // FAILURES: DataCoordinator
   case class RollupNotFound(name: RollupName) extends FailResult
+
+  case class RollupRelationsNotFound(dataset: DatasetId, side: String) extends FailResult
   case class IndexNotFound(name: IndexName) extends FailResult
   case class DatasetNotFound(name: ResourceName) extends FailResult
   case class DatasetVersionMismatch(name: ResourceName, version: Long) extends FailResult

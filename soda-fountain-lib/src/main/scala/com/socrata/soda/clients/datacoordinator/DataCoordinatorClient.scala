@@ -168,6 +168,8 @@ object DataCoordinatorClient {
 
   // FAIL CASES: Resync
   case class DatasetNotInSecondaryResult(secondary: SecondaryId) extends FailResult
+
+  case class RollupNoRelationsFoundResult(dataset: DatasetId,side: String) extends FailResult
 }
 
 trait DataCoordinatorClient {

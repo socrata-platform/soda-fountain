@@ -127,6 +127,8 @@ case class Dataset(maxDatumSize: Int) {
         SodaUtils.response(req, DatasetNameInvalidNameSodaErr(name))
       case DatasetDAO.RollupNotFound(name) =>
         SodaUtils.response(req, RollupNotFound(name))
+      case DatasetDAO.RollupRelationsNotFound(dataset,side)=>
+        SodaUtils.response(req,RollupRelationsNotFound(dataset,side))
       case DatasetDAO.RollupError(reason) =>
         SodaUtils.response(req, RollupCreationFailed(reason))
       case DatasetDAO.RollupColumnNotFound(column) =>
