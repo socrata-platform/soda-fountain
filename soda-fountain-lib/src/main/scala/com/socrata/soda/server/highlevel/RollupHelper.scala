@@ -3,15 +3,61 @@ package com.socrata.soda.server.highlevel
 import com.socrata.soda.server.copy.Published
 import com.socrata.soda.server.id.{ColumnId, ResourceName}
 import com.socrata.soda.server.persistence.{DatasetRecord, MinimalDatasetRecord, NameAndSchemaStore}
+import com.socrata.soql.aliases.AliasAnalysis
 import com.socrata.soql.ast._
-import com.socrata.soql.collection.OrderedMap
-import com.socrata.soql.environment.{ColumnName, TableName}
+import com.socrata.soql.collection.{OrderedMap, OrderedSet}
+import com.socrata.soql.environment.{ColumnName, TableName, UntypedDatasetContext}
 import com.socrata.soql.functions.{SoQLFunctionInfo, SoQLTypeInfo}
 import com.socrata.soql.mapping.ColumnNameMapper
 import com.socrata.soql.parsing.{AbstractParser, Parser}
 import com.socrata.soql.types.SoQLType
-import com.socrata.soql.{BinaryTree, Compound, Leaf, SoQLAnalyzer}
+import com.socrata.soql.{BinaryTree, Compound, Leaf, PipeQuery, SoQLAnalyzer}
 
+
+class StarSelectionExpander(rootSchemas: Map[String, Map[ColumnName, ColumnName]]) {
+  def expand(selects: BinaryTree[Select]): BinaryTree[Select] = {
+    selects match {
+      case PipeQuery(_, _) =>
+        _expand(selects)
+      case _ =>
+        selects
+    }
+  }
+
+  private def _expand(selects: BinaryTree[Select]): BinaryTree[Select] = {
+    selects match {
+      case PipeQuery(l, r) =>
+        val nl = _expand(l)
+        PipeQuery(nl, r)
+      case Leaf(select) if select.selection.allUserExcept.nonEmpty =>
+        Leaf(select.copy(
+          selection = Selection(select.selection.allSystemExcept, Seq.empty, expandSelection(select.selection, rootSchemas))
+        ))
+      case _ =>
+        selects
+    }
+  }
+
+  private def expandSelection(selection: Selection, rootSchemas: Map[String, Map[ColumnName, ColumnName]]): Seq[SelectedExpression] = {
+    val context: AliasAnalysis.AnalysisContext = rootSchemas.mapValues(schema => new UntypedDatasetContext {
+      lazy val columns: OrderedSet[ColumnName] = {
+        val result = OrderedSet.newBuilder[ColumnName]
+        result ++= schema.keys
+        result.result()
+      }
+    })
+    // Would be nice to have AliasAnalysis.expandUserStar()
+    val allColumns = AliasAnalysis.expandSelection(selection)(context)
+    val allExceptSystem = allColumns.filterNot {
+      _.expression match {
+      case ColumnOrAliasRef(qualifier, column) => column.name.startsWith(":")
+      case _ => false
+      }
+    }
+
+    allExceptSystem
+  }
+}
 
 object RollupHelper {
 
@@ -68,7 +114,9 @@ object RollupHelper {
     }
 
     val mapper = new ColumnNameMapper(mapperContexts)
-    val mappedAst = mapper.mapSelects(parsedQueries, generateAliases)
+    val expander = new StarSelectionExpander(mapperContexts)
+    val expandedQueries = expander.expand(parsedQueries)
+    val mappedAst = mapper.mapSelects(expandedQueries, generateAliases)
     mappedAst.toString
   }
 

@@ -1,5 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="soda-fountain" type="Application" factoryName="Application">
+    <option name="ALTERNATIVE_JRE_PATH" value="$USER_HOME$/.asdf/installs/java/adoptopenjdk-8.0.265+1" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="MAIN_CLASS_NAME" value="com.socrata.soda.server.SodaFountainJetty" />
     <module name="soda-fountain-jetty" />
     <option name="VM_PARAMETERS" value="-Djava.net.preferIPv4Stack=true -Dconfig.file=configs/application.conf" />
