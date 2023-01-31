@@ -5,10 +5,10 @@ import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonUtil}
 import com.socrata.http.server.HttpRequest
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.Cost
 import com.socrata.soda.server.highlevel.DatasetDAO
-import com.socrata.soda.server.id.{DatasetId, ResourceName}
+import com.socrata.soda.server.id.{DatasetInternalName, ResourceName}
 
 
-case class DCCollocateOperation(collocations: Seq[Seq[DatasetId]], limits: Cost)
+case class DCCollocateOperation(collocations: Seq[Seq[DatasetInternalName]], limits: Cost)
 case class SFCollocateOperation(collocations: Seq[Seq[ResourceName]], limits: Cost)
 
 object SFCollocateOperation{
@@ -18,7 +18,7 @@ object SFCollocateOperation{
   }
 }
 object DCCollocateOperation{
-  def apply(sfCollocate: SFCollocateOperation, transformer: ResourceName => Option[DatasetId]): Either[DCCollocateOperation, DatasetDAO.FailResult] = {
+  def apply(sfCollocate: SFCollocateOperation, transformer: ResourceName => Option[DatasetInternalName]): Either[DCCollocateOperation, DatasetDAO.FailResult] = {
     val translatedIds = sfCollocate.collocations.map{_.map{
       resource =>
         transformer(resource) match {

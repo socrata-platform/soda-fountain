@@ -76,7 +76,7 @@ object DatasetDAO {
                   complete: Option[Boolean] = None)
   object Move {
     implicit val codec = AutomaticJsonCodecBuilder[Move]
-    def apply(m: DataCoordinatorClient.Move, translator: DatasetId => Option[ResourceName]): Option[Move] = {
+    def apply(m: DataCoordinatorClient.Move, translator: DatasetInternalName => Option[ResourceName]): Option[Move] = {
       translator(m.datasetInternalName).map { resourceName =>
         Move(
           resourceName,
@@ -118,7 +118,7 @@ object DatasetDAO {
   case object IndexDropped extends SuccessResult
   case class CollocateDone(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
   object CollocateDone {
-    def apply(r: DataCoordinatorClient.CollocateResult, translator: DatasetId => Option[ResourceName]): CollocateDone = {
+    def apply(r: DataCoordinatorClient.CollocateResult, translator: DatasetInternalName => Option[ResourceName]): CollocateDone = {
       CollocateDone(
         r.jobId,
         r.status,
@@ -132,7 +132,7 @@ object DatasetDAO {
   // FAILURES: DataCoordinator
   case class RollupNotFound(name: RollupName) extends FailResult
 
-  case class RollupRelationsNotFound(dataset: DatasetId, side: String) extends FailResult
+  case class RollupRelationsNotFound(dataset: DatasetInternalName, side: String) extends FailResult
   case class IndexNotFound(name: IndexName) extends FailResult
   case class DatasetNotFound(name: ResourceName) extends FailResult
   case class DatasetVersionMismatch(name: ResourceName, version: Long) extends FailResult

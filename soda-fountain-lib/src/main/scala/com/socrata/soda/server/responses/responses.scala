@@ -7,7 +7,7 @@ import com.rojoma.json.v3.codec._
 import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.EntityTag
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError
-import com.socrata.soda.server.id.{DatasetId, IndexName, ResourceName, RollupName, RowSpecifier}
+import com.socrata.soda.server.id.{DatasetInternalName, IndexName, ResourceName, RollupName, RowSpecifier}
 import com.socrata.soql.environment.{ColumnName, TypeName}
 
 case class ResourceNotModified(override val etags: Seq[EntityTag],
@@ -150,7 +150,7 @@ case class RollupNotFound(value: RollupName)
   extends SodaResponse("soda.rollup.not-found", s"Rollup '${value.name}' was not found",
     "value" -> JString(value.name))
 
-case class RollupRelationsNotFound(dataset: DatasetId, side: String)
+case class RollupRelationsNotFound(dataset: DatasetInternalName, side: String)
   extends SodaResponse(SC_NOT_FOUND, "soda.rollup.relations.not-found", s"No rollup relations found.",
       "dataset" -> JString(dataset.underlying),
       "side" -> JString(side)

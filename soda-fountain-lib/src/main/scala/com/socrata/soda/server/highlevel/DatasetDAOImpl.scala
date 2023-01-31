@@ -635,7 +635,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   }
 
   def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result = {
-    def translate(resource: ResourceName): Option[DatasetId] = store.translateResourceName(resource).map(_.systemId)
+    def translate(resource: ResourceName): Option[DatasetInternalName] = store.translateResourceName(resource).map(_.systemId)
     DCCollocateOperation(operation, translate _) match {
       case Left(op) =>
         // TODO: Translate dc errors better, need to clarify what actually needs to be propogated

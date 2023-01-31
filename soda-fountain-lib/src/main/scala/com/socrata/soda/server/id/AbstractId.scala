@@ -10,15 +10,15 @@ trait AbstractId {
   def underlying: String
 }
 
-case class DatasetId(underlying: String) extends AbstractId {
+case class DatasetInternalName(underlying: String) extends AbstractId {
   def nativeDataCoordinator = underlying.substring(0, underlying.lastIndexOf('.'))
 }
 
-object DatasetId {
-  implicit val jCodec = new JsonEncode[DatasetId] with JsonDecode[DatasetId] {
-    def encode(x: DatasetId): JValue = JString(x.underlying)
-    def decode(x: JValue): DecodeResult[DatasetId] = x match {
-      case JString(n) => Right(DatasetId(n))
+object DatasetInternalName {
+  implicit val jCodec = new JsonEncode[DatasetInternalName] with JsonDecode[DatasetInternalName] {
+    def encode(x: DatasetInternalName): JValue = JString(x.underlying)
+    def decode(x: JValue): DecodeResult[DatasetInternalName] = x match {
+      case JString(n) => Right(DatasetInternalName(n))
       case u => Left(InvalidType(JString, u.jsonType))
     }
   }

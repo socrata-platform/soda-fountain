@@ -86,7 +86,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     host.p("secondary-manifest", "move", secondaryId.underlying, "job", jobId)
   def collocateJobReq(host: RequestBuilder, jobId: String) =
     host.p("secondary-move-jobs", "job", jobId)
-  def resyncReq(host: RequestBuilder, dataset: DatasetId, secondaryId: SecondaryId) =
+  def resyncReq(host: RequestBuilder, dataset: DatasetInternalName, secondaryId: SecondaryId) =
     host.p("resync", dataset.underlying, secondaryId.underlying)
 
   @tailrec
@@ -128,7 +128,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
   }
 
-  def withHost[T](datasetId: DatasetId)(f: RequestBuilder => T): T =
+  def withHost[T](datasetId: DatasetInternalName)(f: RequestBuilder => T): T =
     withHost(datasetId.nativeDataCoordinator)(f)
 
   def withHost[T](datasetHandle: DatasetHandle)(f: RequestBuilder => T): T =
@@ -136,7 +136,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   def propagateToSecondary(dataset: DatasetHandle,
                            secondaryId: SecondaryId,
-                           secondariesLike: Option[DatasetId]): Unit =
+                           secondariesLike: Option[DatasetInternalName]): Unit =
     withConnectRetries() {
       withHost(dataset.datasetId) { host =>
         val sr = secondaryReq(host, secondaryId, dataset)
@@ -445,7 +445,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
             if (!events.hasNext || !events.head.isInstanceOf[StringEvent])
               throw new Exception("Bad response from data coordinator: expected dataset id")
             val StringEvent(datasetId) = events.next()
-            (ReportMetaData(DatasetId(datasetId),
+            (ReportMetaData(DatasetInternalName(datasetId),
                             getHeader(xhDataVersion, r).toLong,
                             dateTimeParser.parseDateTime(getHeader(xhLastModified, r))),
              arrayOfResults(events, alreadyInArray = true).toSeq)
@@ -698,14 +698,14 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
   }
 
-  private def datasetsWithSnapshotsOn(instance: String): Set[DatasetId] = {
+  private def datasetsWithSnapshotsOn(instance: String): Set[DatasetInternalName] = {
     withFullRetries() {
-      hostO(instance).fold(Set.empty[DatasetId]) { host => // there's nothing that can go wrong here that isn't an internal error
+      hostO(instance).fold(Set.empty[DatasetInternalName]) { host => // there's nothing that can go wrong here that isn't an internal error
         val request = snapshottedReq(host).get
         httpClient.execute(request).run { r =>
           errorFrom(r) match {
             case None =>
-              r.value[Set[DatasetId]]() match {
+              r.value[Set[DatasetInternalName]]() match {
                 case Right(ids) =>
                   ids
                 case Left(err) =>
@@ -720,7 +720,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
   }
 
-  override def datasetsWithSnapshots(): Set[DatasetId] =
+  override def datasetsWithSnapshots(): Set[DatasetInternalName] =
     instances().par.flatMap(datasetsWithSnapshotsOn).seq
 
   override def deleteSnapshot(dataset: DatasetHandle, copy: Long): Either[FailResult, Unit] =
@@ -907,7 +907,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
   }
 
-  override def resync(dataset: DatasetId, secondaryId: SecondaryId): Result = {
+  override def resync(dataset: DatasetInternalName, secondaryId: SecondaryId): Result = {
     withConnectRetries() {
       withHost(dataset) { host =>
         val request =  new BodylessHttpRequest(resyncReq(host, dataset, secondaryId).method("PUT"))

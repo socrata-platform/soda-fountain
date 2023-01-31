@@ -13,7 +13,7 @@ import com.socrata.http.server.{HttpRequest, ConcreteHttpRequest}
 import com.socrata.soda.server.config.{SodaFountainConfig, SuggestConfig}
 import com.socrata.soda.server.copy.Published
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
-import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
+import com.socrata.soda.server.id.{ColumnId, DatasetInternalName, ResourceName}
 import com.socrata.soda.server.persistence.{ColumnRecord, DatasetRecord}
 import com.socrata.soda.server.util.CloseableExecutorService
 import com.socrata.soda.server.{SodaRequest, SodaRequestForTest}
@@ -46,7 +46,7 @@ class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with T
   val expectedStatusCode = 200
 
   val datasetRecord = new DatasetRecord(
-    resourceName, new DatasetId(expectedDatasetId),
+    resourceName, new DatasetInternalName(expectedDatasetId),
     "", "", "", "", new ColumnId(""), Seq.empty, 0L, None, DateTime.now()
   )
   val columnRecord = new ColumnRecord(
