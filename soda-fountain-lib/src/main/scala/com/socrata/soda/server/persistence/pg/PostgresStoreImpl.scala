@@ -851,11 +851,11 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           |     WHERE copy_id = (SELECT id FROM tmp_last_copy);
         with newCopy as (select * from dataset_copies where dataset_system_id = ? And copy_number = ?)
           |update rollup_map
-          |set dataset_copy_id=newCopy.id
+          |set dataset_copy_id=(select id from newCopy)
           |where dataset_copy_id = (select id FROM tmp_last_copy);
         with newCopy as (select * from dataset_copies where dataset_system_id = ? And copy_number = ?)
           |update rollup_relationship_map
-          |set dataset_copy_id=newCopy.id
+          |set dataset_copy_id=(select id from newCopy)
           |where dataset_copy_id = (select id FROM tmp_last_copy);
         """.stripMargin)) { stmt =>
         stmt.setString(1, datasetId.underlying)
