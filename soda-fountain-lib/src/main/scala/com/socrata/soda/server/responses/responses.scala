@@ -2,13 +2,12 @@ package com.socrata.soda.server.responses
 
 import javax.activation.MimeType
 import javax.servlet.http.HttpServletResponse._
-
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec._
 import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.EntityTag
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError
-import com.socrata.soda.server.id.{IndexName, ResourceName, RollupName, RowSpecifier}
+import com.socrata.soda.server.id.{DatasetId, IndexName, ResourceName, RollupName, RowSpecifier}
 import com.socrata.soql.environment.{ColumnName, TypeName}
 
 case class ResourceNotModified(override val etags: Seq[EntityTag],
@@ -150,6 +149,9 @@ case class RollupColumnNotFound(value: ColumnName)
 case class RollupNotFound(value: RollupName)
   extends SodaResponse("soda.rollup.not-found", s"Rollup '${value.name}' was not found",
     "value" -> JString(value.name))
+
+case class RollupRelationsNotFound()
+  extends SodaResponse(SC_NOT_FOUND, "soda.rollup.relations.not-found", s"No rollup relations found.")
 
 case class IndexSpecMaltyped(field: String, expected: String, got: JValue)
   extends SodaResponse("soda.index.maltyped",

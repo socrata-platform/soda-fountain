@@ -1,8 +1,9 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.server.copy.Published
-import com.socrata.soda.server.id.{ColumnId, ResourceName}
+import com.socrata.soda.server.id.{ColumnId, CopyId, ResourceName, RollupMapId, RollupName}
 import com.socrata.soda.server.persistence.{DatasetRecord, MinimalDatasetRecord, NameAndSchemaStore}
+import com.socrata.soda.server.wiremodels.UserProvidedRollupSpec
 import com.socrata.soql.aliases.AliasAnalysis
 import com.socrata.soql.ast._
 import com.socrata.soql.collection.{OrderedMap, OrderedSet}
@@ -171,5 +172,24 @@ object RollupHelper {
           }
         }
     }
+  }
+
+  def rollupCreatedOrUpdated(store: NameAndSchemaStore, datasetResourceName: ResourceName, rollupName: RollupName, soql:String, tableNames: Set[TableName]): Unit ={
+    val latestCopyId: CopyId = store.latestCopyId(datasetResourceName)
+
+    val rollupMapId: RollupMapId = store.createOrUpdateRollup(latestCopyId, rollupName, soql)
+    store.deleteRollupRelations(Set(rollupMapId))
+
+    tableNames.foreach{tableName=>
+      val latestRelatedCopyId: CopyId = store.latestCopyId(new ResourceName(tableName.name))
+      store.createRollupRelation(rollupMapId,latestRelatedCopyId)
+    }
+  }
+
+  def rollupsDeleted(store: NameAndSchemaStore, datasetResourceName: ResourceName, rollups: Seq[RollupName]): Unit = {
+    val latestCopyId: CopyId = store.latestCopyId(datasetResourceName)
+    val rollupMapIds:Set[RollupMapId] = store.getRollupMapIds(latestCopyId,rollups.toSet)
+    store.deleteRollupRelations(rollupMapIds)
+    store.deleteRollups(rollupMapIds)
   }
 }

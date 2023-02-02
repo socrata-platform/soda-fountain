@@ -3,17 +3,18 @@ package com.socrata.soda.server.persistence
 import com.rojoma.json.v3.ast.JObject
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.computation_strategies.StrategyType
+import com.socrata.soda.clients.datacoordinator.RollupDatasetRelation
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName, DatasetHandle}
+import com.socrata.soda.server.id.{ColumnId, CopyId, DatasetHandle, DatasetId, ResourceName, RollupMapId, RollupName}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.soda.server.wiremodels.ColumnSpec
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.SoQLType
 import com.socrata.thirdparty.json.AdditionalJsonCodecs._
-
 import org.joda.time.DateTime
 
+import scala.collection.immutable.Set
 import scala.concurrent.duration.FiniteDuration
 
 // TODO: this needs to expose a notion of transactions
@@ -27,6 +28,12 @@ trait NameAndSchemaStore {
   def latestCopyNumber(resourceName: ResourceName): Long
   def lookupCopyNumber(resourceName: ResourceName, copy: Option[Stage]): Option[Long]
   def latestCopyNumber(resourceName: DatasetRecord): Long
+
+  def latestCopyId(resourceName: ResourceName): CopyId
+
+  def lookupCopyId(resourceName: ResourceName, copy: Option[Stage]): Option[CopyId]
+
+  def latestCopyId(resourceName: DatasetRecord): CopyId
   def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord]
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
     lookupCopyNumber(resourceName, copy).flatMap(lookupDataset(resourceName, _))
@@ -51,6 +58,22 @@ trait NameAndSchemaStore {
   def bulkDatasetLookup(id: Set[DatasetId], includeDeleted: Boolean = false): Set[ResourceName]
 
   def withColumnUpdater[T](datasetId: DatasetId, copyNumber: Long, columnId: ColumnId)(f: NameAndSchemaStore.ColumnUpdater => T): T
+
+  def createOrUpdateRollup(copyId: CopyId, rollupName: RollupName, soql: String): RollupMapId
+
+  def deleteRollupRelations(rollupMapId: Set[RollupMapId]): Int
+
+  def deleteRollupRelations(copyId: CopyId): Int
+
+  def createRollupRelation(rollupMapId: RollupMapId,copyId: CopyId): Int
+
+  def getRollupMapIds(copyId: CopyId, rollupNames: Set[RollupName]): Set[RollupMapId]
+
+  def deleteRollups(rollups: Set[RollupMapId]): Int
+
+  def rollupDatasetRelationByPrimaryDataset(primaryDataset: ResourceName): Set[RollupDatasetRelation]
+
+  def rollupDatasetRelationBySecondaryDataset(secondaryDataset: ResourceName): Set[RollupDatasetRelation]
 }
 
 object NameAndSchemaStore {

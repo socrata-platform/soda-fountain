@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+    <changeSet author="paul maksimovich" id="20230201-rollups-rollup_map">
+        <sql>
+            create table rollup_map(
+               id bigserial primary key,
+               dataset_copy_id bigint not null references dataset_copies(id),
+               name varchar not null,
+               soql varchar not null,
+               unique (dataset_copy_id,name)
+            );
+        </sql>
+        <rollback>
+            <sql>
+                drop table rollup_map;
+            </sql>
+        </rollback>
+    </changeSet>
+    <changeSet author="paul maksimovich" id="20230201-rollups-rollup_relationship_map">
+        <sql>
+            create table rollup_relationship_map(
+                rollup_map_id bigint not null references rollup_map(id),
+                dataset_copy_id bigint not null references dataset_copies(id),
+                unique (rollup_map_id,dataset_copy_id)
+            );
+        </sql>
+        <rollback>
+            <sql>
+                drop table rollup_relationship_map;
+            </sql>
+        </rollback>
+    </changeSet>
+    <changeSet author="paul maksimovich" id="20230201-rollups-rollup_dataset_relations-view">
+        <sql>
+            create or replace view rollup_dataset_relations as
+            select d1.resource_name as primary_dataset,
+                   rm1.name as name,
+                   rm1.soql as soql,
+                   array_agg(d2.resource_name) as secondary_datasets
+            from rollup_map rm1
+                     join dataset_copies c1 on rm1.dataset_copy_id = c1.id
+                     join datasets d1 on c1.dataset_system_id = d1.dataset_system_id
+                     join rollup_relationship_map rrm1 on rrm1.rollup_map_id = rm1.id
+                     join dataset_copies c2 on rrm1.dataset_copy_id = c2.id
+                     join datasets d2 on c2.dataset_system_id = d2.dataset_system_id
+            group by d1.resource_name,rm1.name,rm1.soql;
+        </sql>
+        <rollback>
+            <sql>
+                drop view rollup_dataset_relations;
+            </sql>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>
