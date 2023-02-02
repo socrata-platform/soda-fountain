@@ -583,13 +583,12 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           """
             delete from computation_strategies where dataset_system_id = ?;
             delete from columns where dataset_system_id = ?;
-            delete from rollup_relationship_map where rollup_map_id in (select id from rollup_map where dataset_copy_id in (select id from dataset_copies where dataset_system_id = ?));
-            delete from rollup_relationship_map where dataset_copy_id in (select id from dataset_copies where dataset_system_id = ?);
             delete from rollup_map where dataset_copy_id in (select id from dataset_copies where dataset_system_id = ?);
+            delete from rollup_map where id in (select rollup_map_id from rollup_relationship_map where dataset_copy_id in (select id from dataset_copies where dataset_system_id = ?));
             delete from dataset_copies where dataset_system_id = ?;
             delete from datasets where dataset_system_id = ?;
           """)) { deleter =>
-          for (i <- 1 to 7) {
+          for (i <- 1 to 6) {
             deleter.setString(i, datasetId.underlying)
           }
           deleter.execute()

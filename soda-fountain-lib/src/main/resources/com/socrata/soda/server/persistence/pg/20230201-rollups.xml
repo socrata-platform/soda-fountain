@@ -22,7 +22,7 @@
     <changeSet author="paul maksimovich" id="20230201-rollups-rollup_relationship_map">
         <sql>
             create table rollup_relationship_map(
-                rollup_map_id bigint not null references rollup_map(id),
+                rollup_map_id bigint not null references rollup_map(id) on delete cascade,
                 dataset_copy_id bigint not null references dataset_copies(id),
                 unique (rollup_map_id,dataset_copy_id)
             );
