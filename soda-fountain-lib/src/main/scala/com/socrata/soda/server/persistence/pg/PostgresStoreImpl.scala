@@ -962,12 +962,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         stmt.setLong(1, copyId.underlying)
         stmt.setString(2,rollupName.name)
         stmt.setString(3,soql)
-        using(stmt.executeQuery()) { rs =>
-          if (rs.next()){
-            new RollupMapId(rs.getLong(1))
-          }else{
-            throw new IllegalStateException("There should always be a primary key returned when updating/inserting.")
-          }
+        using(stmt.executeQuery()) {
+          ResultSetMapper.extractRollupMapId
         }
       }
     }
@@ -1022,11 +1018,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         stmt.setLong(1, copyId.underlying)
         stmt.setArray(2,conn.createArrayOf("varchar",rollupNames.map(_.name).toArray))
         using(stmt.executeQuery()) {
-          Iterator.continually(_)
-            .takeWhile(_.next())
-            .map(rs =>
-              new RollupMapId(rs.getLong("id"))
-            ).toList.toSet
+          ResultSetMapper.extractSetRollupMapId
         }
       }
     }
@@ -1052,7 +1044,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         """.stripMargin)) { stmt =>
         stmt.setString(1, primaryDataset.name)
         using(stmt.executeQuery()) {
-          ResultSetMapper.extractSeqRollupDatasetRelation
+          ResultSetMapper.extractSetRollupDatasetRelation
         }
       }
     }
@@ -1066,7 +1058,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         """.stripMargin)) { stmt =>
         stmt.setString(1, secondaryDataset.name)
         using(stmt.executeQuery()) {
-          ResultSetMapper.extractSeqRollupDatasetRelation
+          ResultSetMapper.extractSetRollupDatasetRelation
         }
       }
     }
