@@ -5,7 +5,7 @@ import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.clients.datacoordinator.RollupDatasetRelation
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{ColumnId, CopyId, DatasetHandle, DatasetId, ResourceName, RollupMapId, RollupName}
+import com.socrata.soda.server.id.{ColumnId, CopyId, DatasetHandle, DatasetInternalName, ResourceName, RollupMapId, RollupName}
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.soda.server.wiremodels.ColumnSpec
@@ -43,21 +43,21 @@ trait NameAndSchemaStore {
    * Return all copies most recent first
    */
   def lookupDataset(resourceName: ResourceName): Seq[DatasetRecord]
-  def resolveSchemaInconsistency(datasetId: DatasetId, newSchema: SchemaSpec)
+  def resolveSchemaInconsistency(datasetId: DatasetInternalName, newSchema: SchemaSpec)
 
-  def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId, copyNumber: Long)
+  def setPrimaryKey(datasetId: DatasetInternalName, pkCol: ColumnId, copyNumber: Long)
 
-  def addColumn(datasetId: DatasetId, copyNumber: Long, columnSpec: ColumnSpec) : ColumnRecord
-  def addComputationStrategy(datasetId: DatasetId, copyNumber: Long, columnSpec: ColumnSpec): ColumnRecord
-  def dropComputationStrategy(datasetId: DatasetId, copyNumber: Long, columnSpec: ColumnSpec): ColumnRecord
-  def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName, copyNumber: Long) : Int
-  def dropColumn(datasetId: DatasetId, columnId: ColumnId, copyNumber: Long, primaryKeyColId: ColumnId) : Unit
-  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]): Unit
-  def makeCopy(datasetId: DatasetId, copyNumber: Long, dataVersion: Long): Unit
+  def addColumn(datasetId: DatasetInternalName, copyNumber: Long, columnSpec: ColumnSpec) : ColumnRecord
+  def addComputationStrategy(datasetId: DatasetInternalName, copyNumber: Long, columnSpec: ColumnSpec): ColumnRecord
+  def dropComputationStrategy(datasetId: DatasetInternalName, copyNumber: Long, columnSpec: ColumnSpec): ColumnRecord
+  def updateColumnFieldName(datasetId: DatasetInternalName, columnId: ColumnId, newFieldName: ColumnName, copyNumber: Long) : Int
+  def dropColumn(datasetId: DatasetInternalName, columnId: ColumnId, copyNumber: Long, primaryKeyColId: ColumnId) : Unit
+  def updateVersionInfo(datasetId: DatasetInternalName, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]): Unit
+  def makeCopy(datasetId: DatasetInternalName, copyNumber: Long, dataVersion: Long): Unit
 
-  def bulkDatasetLookup(id: Set[DatasetId], includeDeleted: Boolean = false): Set[ResourceName]
+  def bulkDatasetLookup(id: Set[DatasetInternalName], includeDeleted: Boolean = false): Set[ResourceName]
 
-  def withColumnUpdater[T](datasetId: DatasetId, copyNumber: Long, columnId: ColumnId)(f: NameAndSchemaStore.ColumnUpdater => T): T
+  def withColumnUpdater[T](datasetId: DatasetInternalName, copyNumber: Long, columnId: ColumnId)(f: NameAndSchemaStore.ColumnUpdater => T): T
 
   def createOrUpdateRollup(copyId: CopyId, rollupName: RollupName, soql: String): RollupMapId
 
@@ -86,7 +86,7 @@ trait DatasetRecordLike {
   type ColumnRecordT <: ColumnRecordLike
 
   val resourceName: ResourceName
-  val systemId: DatasetId
+  val systemId: DatasetInternalName
   val columns: Seq[ColumnRecordT]
   val locale: String
   val schemaHash: String
@@ -128,16 +128,16 @@ case class MinimalColumnRecord(
     extends ColumnRecordLike
 
 case class MinimalDatasetRecord(
-  resourceName: ResourceName,
-  systemId: DatasetId,
-  locale: String,
-  schemaHash: String,
-  primaryKey: ColumnId,
-  columns: Seq[MinimalColumnRecord],
-  truthVersion: Long,
-  stage: Option[Stage],
-  lastModified: DateTime,
-  deletedAt: Option[DateTime]= None)
+                                 resourceName: ResourceName,
+                                 systemId: DatasetInternalName,
+                                 locale: String,
+                                 schemaHash: String,
+                                 primaryKey: ColumnId,
+                                 columns: Seq[MinimalColumnRecord],
+                                 truthVersion: Long,
+                                 stage: Option[Stage],
+                                 lastModified: DateTime,
+                                 deletedAt: Option[DateTime]= None)
     extends DatasetRecordLike {
   type ColumnRecordT = MinimalColumnRecord
 }
@@ -151,18 +151,18 @@ case class ColumnRecord(
     extends ColumnRecordLike
 
 case class DatasetRecord(
-  resourceName: ResourceName,
-  systemId: DatasetId,
-  name: String,
-  description: String,
-  locale: String,
-  schemaHash: String,
-  primaryKey: ColumnId,
-  columns: Seq[ColumnRecord],
-  truthVersion: Long,
-  stage: Option[Stage],
-  lastModified: DateTime,
-  deletedAt: Option[DateTime] = None)
+                          resourceName: ResourceName,
+                          systemId: DatasetInternalName,
+                          name: String,
+                          description: String,
+                          locale: String,
+                          schemaHash: String,
+                          primaryKey: ColumnId,
+                          columns: Seq[ColumnRecord],
+                          truthVersion: Long,
+                          stage: Option[Stage],
+                          lastModified: DateTime,
+                          deletedAt: Option[DateTime] = None)
     extends DatasetRecordLike {
   type ColumnRecordT = ColumnRecord
 }

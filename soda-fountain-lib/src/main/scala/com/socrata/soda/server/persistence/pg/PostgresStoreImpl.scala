@@ -13,7 +13,7 @@ import com.rojoma.simplearm.v2._
 import com.socrata.soda.clients.datacoordinator.RollupDatasetRelation
 import com.socrata.soda.server.copy.{Latest, Published, Stage}
 import com.socrata.soda.server.highlevel.csrec
-import com.socrata.soda.server.id.{ColumnId, CopyId, DatasetId, ResourceName, RollupMapId, RollupName}
+import com.socrata.soda.server.id.{ColumnId, CopyId, DatasetInternalName, ResourceName, RollupMapId, RollupName}
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.util.ResultSetMapper
 import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
@@ -90,7 +90,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def lookupCopyNumber(datasetId: DatasetId, stage: Option[Stage]): Option[Long] = {
+  def lookupCopyNumber(datasetId: DatasetInternalName, stage: Option[Stage]): Option[Long] = {
     using(dataSource.getConnection()){ connection =>
       using(connection.prepareStatement(
         """
@@ -132,7 +132,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         stage.foreach(s => translator.setString(2, s.name))
         val rs = translator.executeQuery()
         if(rs.next()) {
-          val datasetId = DatasetId(rs.getString("dataset_system_id"))
+          val datasetId = DatasetInternalName(rs.getString("dataset_system_id"))
           val copyNumber = rs.getLong("copy_number")
           Some(MinimalDatasetRecord(
             new ResourceName(rs.getString("resource_name")),
@@ -180,7 +180,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
         using(dsQuery.executeQuery()) { dsResult =>
           resultSetToDatasetRecords(conn, dsResult, (rs: ResultSet) => {
-            val datasetId = DatasetId(rs.getString("dataset_system_id"))
+            val datasetId = DatasetInternalName(rs.getString("dataset_system_id"))
             val copyNumber = rs.getLong("copy_number")
             DatasetRecord(
               new ResourceName(rs.getString("resource_name")),
@@ -211,7 +211,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def updateSchemaHash(conn: Connection, datasetId: DatasetId, copyNumber: Long) {
+  def updateSchemaHash(conn: Connection, datasetId: DatasetInternalName, copyNumber: Long) {
     val (locale, pkcol) = using(conn.prepareStatement(
       """
       SELECT d.locale, c.primary_key_column_id
@@ -243,7 +243,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def resolveSchemaInconsistency(datasetId: DatasetId, newSchema: SchemaSpec) {
+  def resolveSchemaInconsistency(datasetId: DatasetInternalName, newSchema: SchemaSpec) {
     using(dataSource.getConnection()) { conn =>
       conn.setAutoCommit(false)
       val schemaHash = using(conn.prepareStatement("select schema_hash from datasets where dataset_system_id = ? for update")) { stmt =>
@@ -347,7 +347,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def fetchMinimalColumn(conn: Connection, datasetId: DatasetId, columnId: ColumnId, copyNumber: Long): Option[MinimalColumnRecord] = {
+  def fetchMinimalColumn(conn: Connection, datasetId: DatasetInternalName, columnId: ColumnId, copyNumber: Long): Option[MinimalColumnRecord] = {
     val sql = fetchMinimalColumnsSql(includeColumnFilter = true, isDeleted = false)
 
     using(conn.prepareStatement(sql)) { colQuery =>
@@ -361,7 +361,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def fetchMinimalColumns (conn: Connection, datasetId: DatasetId, copyNumber: Long, isDeleted: Boolean = false): Seq[MinimalColumnRecord] = {
+  def fetchMinimalColumns (conn: Connection, datasetId: DatasetInternalName, copyNumber: Long, isDeleted: Boolean = false): Seq[MinimalColumnRecord] = {
     val sql = fetchMinimalColumnsSql(includeColumnFilter = false, isDeleted = isDeleted)
     using(conn.prepareStatement(sql)) { colQuery =>
       colQuery.setString(1, datasetId.underlying)
@@ -375,7 +375,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       }
     }
   }
-  def parseMinimalColumn(conn: Connection, datasetId: DatasetId, rs: ResultSet, copyNumber: Long): MinimalColumnRecord =
+  def parseMinimalColumn(conn: Connection, datasetId: DatasetInternalName, rs: ResultSet, copyNumber: Long): MinimalColumnRecord =
     MinimalColumnRecord(
       ColumnId(rs.getString("column_id")),
       new ColumnName(rs.getString("column_name")),
@@ -384,7 +384,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       //fetchComputationStrategy(conn, datasetId, rs, copyNumber)
     )
 
-  def fetchFullColumns(conn: Connection, datasetId: DatasetId, copyNumber: Long): Seq[ColumnRecord] = {
+  def fetchFullColumns(conn: Connection, datasetId: DatasetInternalName, copyNumber: Long): Seq[ColumnRecord] = {
     val sql =
       """SELECT c.column_name,
         |       c.column_id,
@@ -421,7 +421,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def fetchComputationStrategy(conn: Connection, datasetId: DatasetId, rs: ResultSet, copyNumber: Long): Option[ComputationStrategyRecord] = {
+  def fetchComputationStrategy(conn: Connection, datasetId: DatasetInternalName, rs: ResultSet, copyNumber: Long): Option[ComputationStrategyRecord] = {
     def parseStrategyType(raw: String) =
       StrategyType.withName(raw) match {
         case Some(typ) => typ
@@ -464,7 +464,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     } yield ComputationStrategyRecord(typ, source, params)
   }
 
-  def addColumns(connection: Connection, datasetId: DatasetId, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
+  def addColumns(connection: Connection, datasetId: DatasetInternalName, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
     if(columns.nonEmpty) {
       val addColumnSql =
         """INSERT INTO columns
@@ -502,7 +502,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def addComputationStrategy(connection: Connection, datasetId: DatasetId, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
+  def addComputationStrategy(connection: Connection, datasetId: DatasetInternalName, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
     using (connection.prepareStatement(addCompStrategySql)) { csAdder =>
       for (crec <- columns.filter(col => col.computationStrategy.isDefined)) {
         val cs = crec.computationStrategy.get
@@ -528,7 +528,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def dropComputationStrategy(connection: Connection, datasetId: DatasetId, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
+  def dropComputationStrategy(connection: Connection, datasetId: DatasetInternalName, copyNumber: Long, columns: TraversableOnce[ColumnRecord]) {
     using (connection.prepareStatement(dropCompStrategySql)) { batch =>
       for (crec <- columns) {
         batch.setString(1, datasetId.underlying)
@@ -574,7 +574,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       val datasetIdOpt = using(connection.prepareStatement("select dataset_system_id from datasets where resource_name_casefolded = ? for update")) { idFetcher =>
         idFetcher.setString(1, resourceName.caseFolded)
         using(idFetcher.executeQuery()) { rs =>
-          if(rs.next()) Some(DatasetId(rs.getString(1)))
+          if(rs.next()) Some(DatasetInternalName(rs.getString(1)))
           else None
         }
       }
@@ -605,7 +605,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       val datasetIdOpt = using(connection.prepareStatement("select dataset_system_id from datasets where resource_name_casefolded = ? for update")) { idFetcher =>
         idFetcher.setString(1, resourceName.caseFolded)
         using(idFetcher.executeQuery()) { rs =>
-          if (rs.next()) Some(DatasetId(rs.getString(1)))
+          if (rs.next()) Some(DatasetInternalName(rs.getString(1)))
           else None
         }
       }
@@ -641,7 +641,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       )) { idFetcher =>
         idFetcher.setString(1, resourceName.caseFolded)
         using(idFetcher.executeQuery()) { rs =>
-          if (rs.next()) Some(DatasetId(rs.getString(1)))
+          if (rs.next()) Some(DatasetInternalName(rs.getString(1)))
           else None
         }
       }
@@ -695,7 +695,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         val rs = lookup.executeQuery()
         val result = List.newBuilder[MinimalDatasetRecord]
         while (rs.next()) {
-          val datasetId = DatasetId(rs.getString("dataset_system_id"))
+          val datasetId = DatasetInternalName(rs.getString("dataset_system_id"))
           val copyNumber = rs.getLong("copy_number")
           result += MinimalDatasetRecord(
             new ResourceName(rs.getString("resource_name")),
@@ -716,7 +716,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
 
-  def addColumn(datasetId: DatasetId, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
+  def addColumn(datasetId: DatasetInternalName, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
     using(dataSource.getConnection()) { conn =>
       val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
       addColumns(conn, datasetId, copyNumber, Seq(result))
@@ -724,7 +724,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       result
     }
 
-  def addComputationStrategy(datasetId: DatasetId, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
+  def addComputationStrategy(datasetId: DatasetInternalName, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
     using(dataSource.getConnection()) { conn =>
       val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
       addComputationStrategy(conn, datasetId, copyNumber, Seq(result))
@@ -732,7 +732,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       result
     }
 
-  def dropComputationStrategy(datasetId: DatasetId, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
+  def dropComputationStrategy(datasetId: DatasetInternalName, copyNumber: Long, spec: ColumnSpec): ColumnRecord =
     using(dataSource.getConnection()) { conn =>
       val result = ColumnRecord(spec.id, spec.fieldName, spec.datatype, isInconsistencyResolutionGenerated = false, spec.computationStrategy.asRecord)
       dropComputationStrategy(conn, datasetId, copyNumber, Seq(result))
@@ -740,13 +740,13 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       result
     }
 
-  def setPrimaryKey(datasetId: DatasetId, pkCol: ColumnId, copyNumber: Long) {
+  def setPrimaryKey(datasetId: DatasetInternalName, pkCol: ColumnId, copyNumber: Long) {
     using(dataSource.getConnection()) { conn =>
       setPrimaryKeyGuts(conn, datasetId, pkCol, copyNumber)
     }
   }
 
-  private def setPrimaryKeyGuts(conn: Connection, datasetId: DatasetId, pkCol: ColumnId, copyNumber: Long) {
+  private def setPrimaryKeyGuts(conn: Connection, datasetId: DatasetInternalName, pkCol: ColumnId, copyNumber: Long) {
     using(conn.prepareStatement("update dataset_copies set primary_key_column_id = ? where dataset_system_id = ? and copy_number = ?")) { stmt =>
       stmt.setString(1, pkCol.underlying)
       stmt.setString(2, datasetId.underlying)
@@ -756,7 +756,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def updateColumnFieldName(datasetId: DatasetId, columnId: ColumnId, newFieldName: ColumnName, copyNumber: Long): Int = {
+  def updateColumnFieldName(datasetId: DatasetInternalName, columnId: ColumnId, newFieldName: ColumnName, copyNumber: Long): Int = {
     using(dataSource.getConnection()) { conn =>
       using(conn.prepareStatement(
         """
@@ -774,7 +774,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def updateVersionInfo(datasetId: DatasetId, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]) = {
+  def updateVersionInfo(datasetId: DatasetInternalName, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]) = {
     using(dataSource.getConnection) { conn =>
       using (conn.prepareStatement(updateVersionInfoSql)) { stmt =>
         stmt.setLong(1, dataVersion)
@@ -805,7 +805,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def makeCopy(datasetId: DatasetId, copyNumber: Long, dataVersion: Long) = {
+  def makeCopy(datasetId: DatasetInternalName, copyNumber: Long, dataVersion: Long) = {
     using(dataSource.getConnection) { conn =>
       using (conn.prepareStatement(
         """
@@ -873,7 +873,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def dropColumn(datasetId: DatasetId, columnId: ColumnId, copyNumber: Long, pkColId: ColumnId) : Unit = {
+  def dropColumn(datasetId: DatasetInternalName, columnId: ColumnId, copyNumber: Long, pkColId: ColumnId) : Unit = {
     using(dataSource.getConnection) { conn =>
       using(conn.prepareStatement(
         """
@@ -904,7 +904,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  override def bulkDatasetLookup(ids: Set[DatasetId], includeDeleted: Boolean): Set[ResourceName] =
+  override def bulkDatasetLookup(ids: Set[DatasetInternalName], includeDeleted: Boolean): Set[ResourceName] =
     if(ids.isEmpty) Set.empty
     else {
       using(dataSource.getConnection) { conn =>
@@ -924,7 +924,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       }
     }
 
-  override def withColumnUpdater[T](datasetId: DatasetId, copyNumber: Long, columnId: ColumnId)(f: ColumnUpdater => T): T = {
+  override def withColumnUpdater[T](datasetId: DatasetInternalName, copyNumber: Long, columnId: ColumnId)(f: ColumnUpdater => T): T = {
     using(dataSource.getConnection) { conn =>
       var fieldName: Option[ColumnName] = None
 

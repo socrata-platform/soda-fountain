@@ -7,7 +7,7 @@ import com.rojoma.json.v3.codec._
 import com.socrata.computation_strategies.StrategyType
 import com.socrata.http.server.util.EntityTag
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError
-import com.socrata.soda.server.id.{DatasetId, IndexName, ResourceName, RollupName, RowSpecifier}
+import com.socrata.soda.server.id.{DatasetInternalName, IndexName, ResourceName, RollupName, RowSpecifier}
 import com.socrata.soql.environment.{ColumnName, TypeName}
 
 case class ResourceNotModified(override val etags: Seq[EntityTag],

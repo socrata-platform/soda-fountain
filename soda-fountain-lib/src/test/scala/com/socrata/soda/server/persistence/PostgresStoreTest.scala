@@ -5,7 +5,7 @@ import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.copy._
 import com.socrata.soda.server.highlevel.csrec
-import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
+import com.socrata.soda.server.id.{ColumnId, DatasetInternalName, ResourceName}
 import com.socrata.soda.server.wiremodels.{SourceColumnSpec, ComputationStrategySpec, ColumnSpec}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText}
@@ -411,7 +411,7 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with Matchers with Data
     store.bulkDatasetLookup(Set(datasetId), true) should equal(Set(resourceName))
   }
 
-  private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetId) = {
+  private def createMockDataset(columns: Seq[ColumnRecord]): (ResourceName, DatasetInternalName) = {
     val dataset = generateDataset("PostgresStoreTest", columns)
     store.addResource(dataset)
 

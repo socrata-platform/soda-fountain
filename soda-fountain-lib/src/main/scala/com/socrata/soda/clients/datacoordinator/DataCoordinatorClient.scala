@@ -65,7 +65,7 @@ object DataCoordinatorClient {
     implicit val codec = SimpleJsonCodecBuilder[VersionReport].build("version", _.version)
   }
 
-  case class ReportMetaData(val datasetId: DatasetId, val version: Long, val lastModified: DateTime)
+  case class ReportMetaData(val datasetId: DatasetInternalName, val version: Long, val lastModified: DateTime)
 
   sealed abstract class ReportItem
   case class UpsertReportItem(data: Iterator[JValue] /* Note: this MUST be completely consumed before calling hasNext/next on parent iterator! */) extends ReportItem
@@ -78,7 +78,7 @@ object DataCoordinatorClient {
   }
 
   @JsonKeyStrategy(Strategy.Underscore)
-  case class Move(datasetInternalName: DatasetId,
+  case class Move(datasetInternalName: DatasetInternalName,
                   storeIdFrom: String,
                   storeIdTo: String,
                   cost: Cost,
@@ -125,43 +125,43 @@ object DataCoordinatorClient {
 
 
   // FAIL CASES: Columns
-  case class DuplicateValuesInColumnResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult
-  case class ColumnExistsAlreadyResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult
+  case class DuplicateValuesInColumnResult(datasetId: DatasetInternalName, columnId: ColumnId, commandIndex: Long) extends FailResult
+  case class ColumnExistsAlreadyResult(datasetId: DatasetInternalName, columnId: ColumnId, commandIndex: Long) extends FailResult
   case class IllegalColumnIdResult(columnId: ColumnId, commandIndex: Long) extends FailResult
-  case class InvalidSystemColumnOperationResult(datasetId: DatasetId, column: ColumnId, commandIndex: Long) extends FailResult
-  case class ColumnNotFoundResult(datasetId: DatasetId, column: ColumnId, commandIndex: Long) extends FailResult
+  case class InvalidSystemColumnOperationResult(datasetId: DatasetInternalName, column: ColumnId, commandIndex: Long) extends FailResult
+  case class ColumnNotFoundResult(datasetId: DatasetInternalName, column: ColumnId, commandIndex: Long) extends FailResult
 
   // FAIL CASES: Datasets
-  case class DatasetNotFoundResult(datasetId: DatasetId) extends FailResult
-  case class SnapshotNotFoundResult(datasetId: DatasetId, snapshot: CopySpecifier) extends FailResult
-  case class CannotAcquireDatasetWriteLockResult(datasetId: DatasetId) extends FailResult
-  case class InitialCopyDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
-  case class OperationAfterDropResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
-  case class FeedbackInProgressResult(datasetId: DatasetId, commandIndex: Long, stores: Set[String]) extends FailResult
-  case class DatasetVersionMismatchResult(dataset: DatasetId, version: Long) extends FailResult
+  case class DatasetNotFoundResult(datasetId: DatasetInternalName) extends FailResult
+  case class SnapshotNotFoundResult(datasetId: DatasetInternalName, snapshot: CopySpecifier) extends FailResult
+  case class CannotAcquireDatasetWriteLockResult(datasetId: DatasetInternalName) extends FailResult
+  case class InitialCopyDropResult(datasetId: DatasetInternalName, commandIndex: Long) extends FailResult
+  case class OperationAfterDropResult(datasetId: DatasetInternalName, commandIndex: Long) extends FailResult
+  case class FeedbackInProgressResult(datasetId: DatasetInternalName, commandIndex: Long, stores: Set[String]) extends FailResult
+  case class DatasetVersionMismatchResult(dataset: DatasetInternalName, version: Long) extends FailResult
 
   // FAIL CASES: Updates
-  case class NotPrimaryKeyResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult
-  case class NullsInColumnResult(datasetId: DatasetId, columnId: ColumnId, commandIndex: Long) extends FailResult
-  case class InvalidTypeForPrimaryKeyResult(datasetId: DatasetId, columnId: ColumnId,
+  case class NotPrimaryKeyResult(datasetId: DatasetInternalName, columnId: ColumnId, commandIndex: Long) extends FailResult
+  case class NullsInColumnResult(datasetId: DatasetInternalName, columnId: ColumnId, commandIndex: Long) extends FailResult
+  case class InvalidTypeForPrimaryKeyResult(datasetId: DatasetInternalName, columnId: ColumnId,
                                             tp: String, commandIndex: Long) extends FailResult
-  case class PrimaryKeyAlreadyExistsResult(datasetId: DatasetId, columnId: ColumnId,
+  case class PrimaryKeyAlreadyExistsResult(datasetId: DatasetInternalName, columnId: ColumnId,
                                            existing: ColumnId, commandIndex: Long) extends FailResult
   case class NoSuchTypeResult(tp: String, commandIndex: Long) extends FailResult
-  case class RowVersionMismatchResult(dataset: DatasetId,
+  case class RowVersionMismatchResult(dataset: DatasetInternalName,
                                       value: JValue,
                                       commandIndex: Long,
                                       expected: Option[JValue],
                                       actual: Option[JValue]) extends FailResult
-  case class VersionOnNewRowResult(datasetId: DatasetId, commandIndex: Long) extends FailResult
-  case class ScriptRowDataInvalidValueResult(datasetId: DatasetId, value: JValue,
+  case class VersionOnNewRowResult(datasetId: DatasetInternalName, commandIndex: Long) extends FailResult
+  case class ScriptRowDataInvalidValueResult(datasetId: DatasetInternalName, value: JValue,
                                              commandIndex: Long, commandSubIndex: Long) extends FailResult
 
   // FAIL CASES: Collocation
   case class InstanceNotExistResult(instance: String) extends FailResult
   case class StoreGroupNotExistResult(storeGroup: String) extends FailResult
   case class StoreNotExistResult(store: String) extends FailResult
-  case class DatasetNotExistResult(dataset: DatasetId) extends FailResult
+  case class DatasetNotExistResult(dataset: DatasetInternalName) extends FailResult
 
   // FAIL CASES: Resync
   case class DatasetNotInSecondaryResult(secondary: SecondaryId) extends FailResult
@@ -172,7 +172,7 @@ trait DataCoordinatorClient {
 
   def propagateToSecondary(dataset: DatasetHandle,
                            secondaryId: SecondaryId,
-                           secondariesLike: Option[DatasetId])
+                           secondariesLike: Option[DatasetInternalName])
   def deleteFromSecondary(dataset: DatasetHandle,
                            secondaryId: SecondaryId)
   def getSchema(dataset: DatasetHandle): Option[SchemaSpec]
@@ -223,7 +223,7 @@ trait DataCoordinatorClient {
 
   def checkVersionInSecondary(dataset: DatasetHandle, secondary: SecondaryId): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]]
 
-  def datasetsWithSnapshots(): Set[DatasetId]
+  def datasetsWithSnapshots(): Set[DatasetInternalName]
   def listSnapshots(dataset: DatasetHandle): Option[Seq[Long]]
   def deleteSnapshot(dataset: DatasetHandle, copy: Long): Either[FailResult, Unit]
 
@@ -248,6 +248,6 @@ trait DataCoordinatorClient {
   def collocateStatus(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
   def deleteCollocate(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result
 
-   def resync(dataset: DatasetId, secondaryId: SecondaryId): Result
+   def resync(dataset: DatasetInternalName, secondaryId: SecondaryId): Result
 
 }

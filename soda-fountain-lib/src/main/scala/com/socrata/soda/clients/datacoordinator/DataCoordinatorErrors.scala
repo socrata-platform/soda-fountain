@@ -4,7 +4,7 @@ import com.rojoma.json.v3.ast.{JObject, JValue}
 import com.rojoma.json.v3.util._
 import com.socrata.http.server.util.EntityTag
 import com.socrata.soda.server.macros.{Tag, BranchCodec}
-import com.socrata.soda.server.id.{RowSpecifier, ColumnId, RollupName, DatasetId}
+import com.socrata.soda.server.id.{RowSpecifier, ColumnId, RollupName, DatasetInternalName}
 import com.socrata.soda.server.util.CopySpecifier
 import com.socrata.soda.server.util.schema.SchemaSpec
 
@@ -47,7 +47,7 @@ case class ContentTypeUnknownCharset(`content-type`: String) extends DCRequestEr
 // Request Errors: Export
 
 @Tag("req.export.mismatched-schema")
-case class SchemaMismatchForExport(dataset: DatasetId, schema: SchemaSpec) extends DCRequestError
+case class SchemaMismatchForExport(dataset: DatasetInternalName, schema: SchemaSpec) extends DCRequestError
 
 
 // Request Errors: Body
@@ -67,13 +67,13 @@ case class InvalidRowId() extends DCRequestError
 // Request Errors: Script Header
 
 @Tag("req.script.header.mismatched-schema")
-case class SchemaMismatch(dataset: DatasetId, schema: SchemaSpec) extends DCRequestError
+case class SchemaMismatch(dataset: DatasetInternalName, schema: SchemaSpec) extends DCRequestError
 
 @Tag("req.script.header.missing")
 case class EmptyCommandStream() extends DCRequestError
 
 @Tag("req.script.header.mismatched-data-version")
-case class DatasetVersionMismatch(dataset: DatasetId,
+case class DatasetVersionMismatch(dataset: DatasetInternalName,
                                   version: Long) extends DCUpdateError
 
 // Request Errors: Script Command
@@ -98,97 +98,97 @@ case class SystemInReadOnlyMode(commandIndex: Long) extends DCUpdateError
 case class NoSuchType(`type`: String, commandIndex: Long) extends DCUpdateError
 
 @Tag("update.row-version-mismatch")
-case class RowVersionMismatch(dataset: DatasetId,
+case class RowVersionMismatch(dataset: DatasetInternalName,
                               value: JValue,
                               commandIndex: Long,
                               expected: Option[JValue],
                               actual: Option[JValue]) extends DCUpdateError
 
 @Tag("update.version-on-new-row")
-case class VersionOnNewRow(dataset: DatasetId, commandIndex: Long) extends DCUpdateError
+case class VersionOnNewRow(dataset: DatasetInternalName, commandIndex: Long) extends DCUpdateError
 
 // Update Errors: Column
 
 @Tag("update.column.exists")
-case class ColumnAlreadyExists(dataset: DatasetId, column: ColumnId, commandIndex: Long) extends DCColumnUpdateError
+case class ColumnAlreadyExists(dataset: DatasetInternalName, column: ColumnId, commandIndex: Long) extends DCColumnUpdateError
 
 @Tag("update.column.illegal-id")
 case class IllegalColumnId(id: String, commandIndex: Long) extends DCColumnUpdateError
 
 @Tag("update.column.system")
-case class InvalidSystemColumnOperation(dataset: DatasetId, column: ColumnId, commandIndex: Long) extends DCColumnUpdateError
+case class InvalidSystemColumnOperation(dataset: DatasetInternalName, column: ColumnId, commandIndex: Long) extends DCColumnUpdateError
 
 @Tag("update.column.not-found")
-case class ColumnNotFound(dataset: DatasetId, column: ColumnId, commandIndex: Long) extends DCColumnUpdateError
+case class ColumnNotFound(dataset: DatasetInternalName, column: ColumnId, commandIndex: Long) extends DCColumnUpdateError
 
 
 // Update Errors: Dataset
 
 @Tag("update.dataset.does-not-exist") // orignally dataset was a string, but not sure why it wouldnt be DatasetId
-case class NoSuchDataset(dataset: DatasetId) extends DCDatasetUpdateError
+case class NoSuchDataset(dataset: DatasetInternalName) extends DCDatasetUpdateError
 
 @Tag("update.snapshot.does-not-exist")
-case class NoSuchSnapshot(dataset: DatasetId, copy: CopySpecifier) extends DCDatasetUpdateError
+case class NoSuchSnapshot(dataset: DatasetInternalName, copy: CopySpecifier) extends DCDatasetUpdateError
 
 @Tag("update.dataset.temporarily-not-writable")
-case class CannotAcquireDatasetWriteLock(dataset: DatasetId) extends DCDatasetUpdateError
+case class CannotAcquireDatasetWriteLock(dataset: DatasetInternalName) extends DCDatasetUpdateError
 
 @Tag("update.dataset.invalid-state")
-case class IncorrectLifecycleStage(dataset: DatasetId,
+case class IncorrectLifecycleStage(dataset: DatasetInternalName,
                                    `actual-state`: String,
                                    `expected-state`: Set[String]) extends DCDatasetUpdateError
 
 @Tag("update.dataset.initial-copy-drop")
-case class InitialCopyDrop(dataset: DatasetId, commandIndex: Long) extends DCDatasetUpdateError
+case class InitialCopyDrop(dataset: DatasetInternalName, commandIndex: Long) extends DCDatasetUpdateError
 
 @Tag("update.dataset.operation-after-drop")
-case class OperationAfterDrop(dataset: DatasetId, commandIndex: Long) extends DCDatasetUpdateError
+case class OperationAfterDrop(dataset: DatasetInternalName, commandIndex: Long) extends DCDatasetUpdateError
 
 @Tag("update.dataset.feedback-in-progress")
-case class FeedbackInProgress(dataset: DatasetId, commandIndex: Long, stores: Set[String]) extends DCDatasetUpdateError
+case class FeedbackInProgress(dataset: DatasetInternalName, commandIndex: Long, stores: Set[String]) extends DCDatasetUpdateError
 
 // Update Errors: Row
 
 @Tag("update.row.primary-key-nonexistent-or-null")
-case class RowPrimaryKeyNonexistentOrNull(dataset: DatasetId, commandIndex: Long) extends DCRowUpdateError
+case class RowPrimaryKeyNonexistentOrNull(dataset: DatasetInternalName, commandIndex: Long) extends DCRowUpdateError
 
 @Tag("update.row.no-such-id")
-case class NoSuchRow(dataset: DatasetId, value: RowSpecifier, commandIndex: Long) extends DCRowUpdateError
+case class NoSuchRow(dataset: DatasetInternalName, value: RowSpecifier, commandIndex: Long) extends DCRowUpdateError
 
 @Tag("update.row.unparsable-value")
-case class UnparsableRowValue(dataset: DatasetId, column: ColumnId, `type`: String, value: JValue,
+case class UnparsableRowValue(dataset: DatasetInternalName, column: ColumnId, `type`: String, value: JValue,
                               commandIndex: Long, commandSubIndex: Long) extends DCRowUpdateError
 
 @Tag("update.row.unknown-column")
-case class RowNoSuchColumn(dataset: DatasetId, column: ColumnId, commandIndex: Long, commandSubIndex: Long) extends DCRowUpdateError
+case class RowNoSuchColumn(dataset: DatasetInternalName, column: ColumnId, commandIndex: Long, commandSubIndex: Long) extends DCRowUpdateError
 
 // Update Errors: Script Row-Data
 
 @Tag("update.script.row-data.invalid-value")
-case class ScriptRowDataInvalidValue(dataset: DatasetId, value: JValue, commandIndex: Long, commandSubIndex: Long) extends DCUpdateError
+case class ScriptRowDataInvalidValue(dataset: DatasetInternalName, value: JValue, commandIndex: Long, commandSubIndex: Long) extends DCUpdateError
 
 
 // Update Errors: Row-Identifier
 
 @Tag("update.row-identifier.already-set")
-case class PrimaryKeyAlreadyExists(dataset: DatasetId, column: ColumnId, `existing-column`: ColumnId, commandIndex: Long)
+case class PrimaryKeyAlreadyExists(dataset: DatasetInternalName, column: ColumnId, `existing-column`: ColumnId, commandIndex: Long)
   extends DCUpdateError
 
 @Tag("update.row-identifier.invalid-type")
-case class InvalidTypeForPrimaryKey(dataset: DatasetId, column: ColumnId, `type`: String, commandIndex: Long) extends DCUpdateError
+case class InvalidTypeForPrimaryKey(dataset: DatasetInternalName, column: ColumnId, `type`: String, commandIndex: Long) extends DCUpdateError
 
 @Tag("update.row-identifier.duplicate-values")
-case class DuplicateValuesInColumn(dataset: DatasetId, column: ColumnId, commandIndex: Long) extends DCUpdateError
+case class DuplicateValuesInColumn(dataset: DatasetInternalName, column: ColumnId, commandIndex: Long) extends DCUpdateError
 
 @Tag("update.row-identifier.null-values")
-case class NullsInColumn(dataset: DatasetId, column: ColumnId, commandIndex: Long) extends DCUpdateError
+case class NullsInColumn(dataset: DatasetInternalName, column: ColumnId, commandIndex: Long) extends DCUpdateError
 
 @Tag("update.row-identifier.not-row-identifier")
-case class NotPrimaryKey(dataset: DatasetId, column: ColumnId, commandIndex: Long) extends DCUpdateError
+case class NotPrimaryKey(dataset: DatasetInternalName, column: ColumnId, commandIndex: Long) extends DCUpdateError
 
 
 @Tag("update.row-identifier.delete")
-case class DeleteOnRowId(dataset: DatasetId, column: ColumnId, commandIndex: Long) extends DCUpdateError
+case class DeleteOnRowId(dataset: DatasetInternalName, column: ColumnId, commandIndex: Long) extends DCUpdateError
 
 // Resync Errors
 
@@ -207,7 +207,7 @@ case class StoreGroupNotExist(storeGroup: String) extends DCUpdateError
 case class StoreNotExist(store: String) extends DCUpdateError
 
 @Tag("collocation.datataset.does-not-exist")
-case class DatasetNotExist(dataset: DatasetId) extends DCUpdateError
+case class DatasetNotExist(dataset: DatasetInternalName) extends DCUpdateError
 
 // Unknown Errors not found in Data-Coodinator:
 
