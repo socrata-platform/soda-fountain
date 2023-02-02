@@ -868,6 +868,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         stmt.setLong(8, copyNumber)
         stmt.setString(9, datasetId.underlying)
         stmt.setLong(10, copyNumber)
+        stmt.setString(11, datasetId.underlying)
+        stmt.setLong(12, copyNumber)
         stmt.executeUpdate()
       }
     }
