@@ -19,6 +19,7 @@ import DatasetDAO._
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
 import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation}
+import com.socrata.soda.server.util.RelationSide.{From, RelationSide, To}
 import com.socrata.soql.exceptions.SoQLException
 import com.socrata.soql.parsing.RecursiveDescentParser.ParseException
 import com.socrata.soql.parsing.standalone_exceptions.BadParse
@@ -427,6 +428,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                   Iterator.single(instruction)) {
                   case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
                     store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+                    RollupHelper.rollupCreatedOrUpdated(store,dataset,rollup,soql, tableNames);
                     RollupCreatedOrUpdated
                   case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
                     RollupNotFound(rollup)
@@ -463,7 +465,15 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       val schema = OrderedMap(columnIdMap.mapValues(rawSchema).toSeq.sortBy(_._1) : _*)
     }
   }
-
+  def getRollupRelations(dataset: ResourceName, relationSide: RelationSide): Result ={
+    (relationSide match{
+      case From => store.rollupDatasetRelationBySecondaryDataset _
+      case To => store.rollupDatasetRelationByPrimaryDataset _
+    })(dataset) match {
+      case i: Set[RollupDatasetRelation] if i.isEmpty => RollupRelationsNotFound()
+      case rollupDatasetRelations=> RollupRelations(rollupDatasetRelations)
+    }
+  }
   def getRollups(dataset: ResourceName): Result = {
     store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
       case Some(datasetRecord) =>
@@ -507,6 +517,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instruction) {
           case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
             store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+            RollupHelper.rollupsDeleted(store,dataset,rollups)
             RollupDropped
           case DataCoordinatorClient.NoSuchRollupResult(ru, _) =>
             RollupNotFound(ru)
@@ -615,7 +626,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   }
 
   def collocate(secondaryId: SecondaryId, operation: SFCollocateOperation, explain: Boolean, jobId: String): Result = {
-    def translate(resource: ResourceName): Option[DatasetId] = store.translateResourceName(resource).map(_.systemId)
+    def translate(resource: ResourceName): Option[DatasetInternalName] = store.translateResourceName(resource).map(_.systemId)
     DCCollocateOperation(operation, translate _) match {
       case Left(op) =>
         // TODO: Translate dc errors better, need to clarify what actually needs to be propogated

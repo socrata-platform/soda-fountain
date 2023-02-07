@@ -5,7 +5,7 @@ import com.socrata.http.common.AuxiliaryData
 import com.socrata.curator.ProviderCache
 import com.socrata.soda.server.ThreadLimiter
 import java.io.Closeable
-import com.socrata.soda.server.id.DatasetId
+import com.socrata.soda.server.id.DatasetInternalName
 import org.apache.curator.x.discovery.{strategies => providerStrategies, ServiceDiscovery}
 import scala.concurrent.duration.FiniteDuration
 

@@ -3,17 +3,17 @@ package com.socrata.soda.clients.querycoordinator
 import com.rojoma.json.v3.ast.JObject
 import com.rojoma.json.v3.ast.{JObject, JValue}
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, NoTag, SimpleHierarchyCodecBuilder, TagAndValue}
-import com.socrata.soda.server.id.{ColumnId, DatasetId}
+import com.socrata.soda.server.id.{ColumnId, DatasetInternalName}
 import com.socrata.soda.server.macros.{BranchCodec, Tag}
 
 
 
 // Query Errors
 @Tag("query.datasource.unavailable")
-case class DataSourceUnavailable(datasetId: DatasetId) extends QueryError
+case class DataSourceUnavailable(datasetId: DatasetInternalName) extends QueryError
 
 @Tag("query.dataset.does-not-exist")
-case class DoesNotExist(datasetId: DatasetId) extends QueryError
+case class DoesNotExist(datasetId: DatasetInternalName) extends QueryError
 
 // Request Errors
 @Tag("req.no-dataset-specified")
@@ -124,6 +124,3 @@ case class QueryCoordinatorError(errorCode: String, description: String, data: M
 object QueryCoordinatorError{
   implicit val jCodec = AutomaticJsonCodecBuilder[QueryCoordinatorError]
 }
-
-
-

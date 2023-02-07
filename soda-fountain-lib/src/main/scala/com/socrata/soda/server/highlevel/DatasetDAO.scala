@@ -3,11 +3,12 @@ package com.socrata.soda.server.highlevel
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Strategy}
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{SecondaryVersionsReport, VersionReport}
-import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
+import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RollupDatasetRelation}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.persistence.DatasetRecord
 import com.socrata.soda.server.resources.SFCollocateOperation
+import com.socrata.soda.server.util.RelationSide.RelationSide
 import com.socrata.soda.server.wiremodels.{IndexSpec, RollupSpec, UserProvidedDatasetSpec, UserProvidedIndexSpec, UserProvidedRollupSpec}
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
@@ -53,6 +54,8 @@ trait DatasetDAO {
                            name: IndexName,
                            spec: UserProvidedIndexSpec): Result
   def getIndexes(dataset: ResourceName): Result
+
+  def getRollupRelations(dataset: ResourceName, relationSide: RelationSide): Result
   def deleteIndexes(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], names: Seq[IndexName]): Result
 }
 
@@ -73,7 +76,7 @@ object DatasetDAO {
                   complete: Option[Boolean] = None)
   object Move {
     implicit val codec = AutomaticJsonCodecBuilder[Move]
-    def apply(m: DataCoordinatorClient.Move, translator: DatasetId => Option[ResourceName]): Option[Move] = {
+    def apply(m: DataCoordinatorClient.Move, translator: DatasetInternalName => Option[ResourceName]): Option[Move] = {
       translator(m.datasetInternalName).map { resourceName =>
         Move(
           resourceName,
@@ -105,6 +108,9 @@ object DatasetDAO {
   case object PropagatedToSecondary extends SuccessResult
   case object DeletedFromSecondary extends SuccessResult
   case class Rollups(rollups: Seq[RollupSpec]) extends SuccessResult
+
+  case class RollupRelations(rollupRelations: Set[RollupDatasetRelation]) extends SuccessResult
+
   case object RollupCreatedOrUpdated extends SuccessResult
   case object RollupDropped extends SuccessResult
   case class Indexes(indexes: Seq[IndexSpec]) extends SuccessResult
@@ -112,7 +118,7 @@ object DatasetDAO {
   case object IndexDropped extends SuccessResult
   case class CollocateDone(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
   object CollocateDone {
-    def apply(r: DataCoordinatorClient.CollocateResult, translator: DatasetId => Option[ResourceName]): CollocateDone = {
+    def apply(r: DataCoordinatorClient.CollocateResult, translator: DatasetInternalName => Option[ResourceName]): CollocateDone = {
       CollocateDone(
         r.jobId,
         r.status,
@@ -125,6 +131,8 @@ object DatasetDAO {
 
   // FAILURES: DataCoordinator
   case class RollupNotFound(name: RollupName) extends FailResult
+
+  case class RollupRelationsNotFound() extends FailResult
   case class IndexNotFound(name: IndexName) extends FailResult
   case class DatasetNotFound(name: ResourceName) extends FailResult
   case class DatasetVersionMismatch(name: ResourceName, version: Long) extends FailResult

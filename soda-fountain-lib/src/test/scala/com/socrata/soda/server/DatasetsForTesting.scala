@@ -4,7 +4,7 @@ import com.rojoma.json.v3.ast.{JObject, JString}
 import com.rojoma.json.v3.codec.JsonEncode
 import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.server.highlevel.ExportDAO
-import com.socrata.soda.server.id.{ColumnId, DatasetId, ResourceName}
+import com.socrata.soda.server.id.{ColumnId, DatasetInternalName, ResourceName}
 import com.socrata.soda.server.persistence._
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types._
@@ -20,7 +20,7 @@ trait DatasetsForTesting {
   def generateDataset(humanReadableTestIdentifier: String, columns: Seq[ColumnRecord]): DatasetRecord = {
     val time = System.currentTimeMillis().toString
     val resourceName = new ResourceName(s"$humanReadableTestIdentifier @$time")
-    val datasetId = new DatasetId(s"id @$time")
+    val datasetId = new DatasetInternalName(s"id @$time")
 
     new DatasetRecord(
       resourceName,
@@ -69,7 +69,7 @@ trait DatasetsForTesting {
 
     val dataset = DatasetRecord(
       new ResourceName("test_resource"),
-      new DatasetId("abcd-1234"),
+      new DatasetInternalName("abcd-1234"),
       "Test resource",
       "Description",
       "en_US",
