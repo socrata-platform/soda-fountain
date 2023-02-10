@@ -170,12 +170,14 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
                          lazy val fbm = makeFeedbackSecondaryManifestClient(dc)
 
                          override def dataCoordinator = dc
+                         override def queryCoordinator = qc
                          override lazy val datasetDAO = makeDatasetDAO(dc, fbm)
                          override lazy val columnDAO = new ColumnDAOImpl(dc, fbm, store, columnSpecUtils)
                          override lazy val rowDAO = new RowDAOImpl(store, dc, qc)
                          override lazy val exportDAO = new ExportDAOImpl(store, dc)
                          override lazy val snapshotDAO = new SnapshotDAOImpl(store, dc)
                          override lazy val resyncDAO = ResyncDAOImpl(store, dc)
+                         override val nameAndSchemaStore = store
                        })
         } catch {
           case e: Throwable if !e.isInstanceOf[Error] =>
@@ -210,6 +212,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     val column = DatasetColumn(etagObfuscator, config.maxDatumSize)
     val export = Export(etagObfuscator)
     val resource = Resource(etagObfuscator, config.maxDatumSize, metricProvider, export)
+    val newResource = NewResource(etagObfuscator, config.maxDatumSize, metricProvider)
     val suggest = Suggest(config.suggest)
     val snapshots = Snapshots
     val resync = Resync
@@ -225,6 +228,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       resourceResource = resource.service,
       resourceExtensions = resource.extensions,
       resourceRowResource = resource.rowService,
+      newResourceResource = newResource.service,
       resyncResource = resync.service,
       datasetCopyResource = dataset.copyService,
       datasetSecondaryCopyResource = dataset.secondaryCopyService,

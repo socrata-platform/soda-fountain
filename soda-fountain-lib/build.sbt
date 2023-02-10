@@ -53,6 +53,8 @@ libraryDependencies ++= Seq(
   TestDeps.testContainersPostgres
 ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
 
+addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full)
+
 def genVersion(resourceManaged: File, name: String, version: String, scalaVersion: String): Seq[File] = {
   val file = resourceManaged / "soda-fountain-version.json"
 
