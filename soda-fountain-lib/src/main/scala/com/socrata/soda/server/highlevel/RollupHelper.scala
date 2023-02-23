@@ -12,7 +12,7 @@ import com.socrata.soql.functions.{SoQLFunctionInfo, SoQLTypeInfo}
 import com.socrata.soql.mapping.ColumnNameMapper
 import com.socrata.soql.parsing.{AbstractParser, Parser}
 import com.socrata.soql.types.{SoQLType, SoQLValue}
-import com.socrata.soql.{AnalysisContext, BinaryTree, Compound, Leaf, PipeQuery, SoQLAnalyzer}
+import com.socrata.soql.{AnalysisContext, BinaryTree, Compound, Leaf, ParameterSpec, PipeQuery, SoQLAnalyzer}
 
 
 class StarSelectionExpander(rootSchemas: Map[String, Map[ColumnName, ColumnName]]) {
@@ -89,7 +89,7 @@ object RollupHelper {
       }
     }
 
-    soqlAnalyzer.analyzeBinary(parsedQueries)(AnalysisContext(contexts,null))
+    soqlAnalyzer.analyzeBinary(parsedQueries)(AnalysisContext(schemas = contexts,parameters = ParameterSpec.empty))
   }
 
   /**
