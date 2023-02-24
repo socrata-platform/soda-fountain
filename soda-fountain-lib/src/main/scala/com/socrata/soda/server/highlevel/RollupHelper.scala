@@ -11,8 +11,8 @@ import com.socrata.soql.environment.{ColumnName, TableName, UntypedDatasetContex
 import com.socrata.soql.functions.{SoQLFunctionInfo, SoQLTypeInfo}
 import com.socrata.soql.mapping.ColumnNameMapper
 import com.socrata.soql.parsing.{AbstractParser, Parser}
-import com.socrata.soql.types.SoQLType
-import com.socrata.soql.{BinaryTree, Compound, Leaf, PipeQuery, SoQLAnalyzer}
+import com.socrata.soql.types.{SoQLType, SoQLValue}
+import com.socrata.soql.{AnalysisContext, BinaryTree, Compound, Leaf, ParameterSpec, PipeQuery, SoQLAnalyzer}
 
 
 class StarSelectionExpander(rootSchemas: Map[String, Map[ColumnName, ColumnName]]) {
@@ -62,7 +62,7 @@ class StarSelectionExpander(rootSchemas: Map[String, Map[ColumnName, ColumnName]
 
 object RollupHelper {
 
-  private val soqlAnalyzer: SoQLAnalyzer[SoQLType] = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
+  private val soqlAnalyzer: SoQLAnalyzer[SoQLType,SoQLValue] = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
 
   def parse(soql: String): (BinaryTree[Select], Set[TableName]) = {
     val parsedQueries = new Parser(AbstractParser.defaultParameters).binaryTreeSelect(soql)
@@ -89,7 +89,7 @@ object RollupHelper {
       }
     }
 
-    soqlAnalyzer.analyzeBinary(parsedQueries)(contexts)
+    soqlAnalyzer.analyzeBinary(parsedQueries)(AnalysisContext(schemas = contexts,parameters = ParameterSpec.empty))
   }
 
   /**
