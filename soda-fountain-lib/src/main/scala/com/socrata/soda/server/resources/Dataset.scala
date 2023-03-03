@@ -25,6 +25,7 @@ case class Dataset(maxDatumSize: Int) {
 
   val schemaHashHeaderName = "x-socrata-version-hash"
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Dataset])
+  val accessControlService = new AccessControlService()
 
   def withDatasetSpec(request: SodaRequest, logTags: LogTag*)(f: UserProvidedDatasetSpec => HttpResponse): HttpResponse = {
     UserProvidedDatasetSpec.fromRequest(request.httpRequest, maxDatumSize) match {
@@ -270,10 +271,11 @@ case class Dataset(maxDatumSize: Int) {
 
   case class rollupService(resourceName: ResourceName, rollupName: Option[RollupName]) extends SodaResource {
     override def get = { req =>
-      rollupName match {
-        case Some(_) => MethodNotAllowed
-        case None =>
-          response(req, req.datasetDAO.getRollups(resourceName))
+      val mapping = accessControlService.askRollupList(req.httpRequest, resourceName)
+      (rollupName, mapping) match {
+        case (None, AccessControlService.Dataset(mappedName)) =>
+          response(req, req.datasetDAO.getRollups(mappedName))
+        case (_, _) => MethodNotAllowed
       }
     }
 
