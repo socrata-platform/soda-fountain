@@ -271,7 +271,7 @@ case class Dataset(maxDatumSize: Int) {
 
   case class rollupService(resourceName: ResourceName, rollupName: Option[RollupName]) extends SodaResource {
     override def get = { req =>
-      val mapping = accessControlService.askRollupList(req.httpRequest, resourceName)
+      val mapping = accessControlService.listRollupAuth(req.httpRequest, resourceName)
       (rollupName, mapping) match {
         case (None, AccessControlService.Dataset(mappedName)) =>
           response(req, req.datasetDAO.getRollups(mappedName))

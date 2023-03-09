@@ -25,8 +25,8 @@ class AccessControlService {
    * @return
    *    Resource mapping if access is granted, or None if access is denied
    */
-  def askRollupList(request: HttpRequest, resourceName: ResourceName): ResourceNameMapping = {
-    val body = ask(request, "rollup", List(("viewUid", resourceName.name), ("op", "list")))
+  def listRollupAuth(request: HttpRequest, resourceName: ResourceName): ResourceNameMapping = {
+    val body = auth(request, "rollup", List(("viewUid", resourceName.name), ("op", "list")))
     Dataset(new ResourceName(body))
   }
 
@@ -39,7 +39,7 @@ class AccessControlService {
    * @return
    *      freeform text response (to be interpreted by higher-level methods)
    */
-  private def ask(request: HttpRequest, service: String, query: List[(String, String)]): String = {
+  private def auth(request: HttpRequest, service: String, query: List[(String, String)]): String = {
 
     val headers: Iterable[(String, String)] = request.headerNames.filter(_ != "Accept-Encoding").map(
       {
@@ -50,7 +50,7 @@ class AccessControlService {
     val req = RequestBuilder("localhost")
       .secure(false)
       .port(8080)
-      .p("accesscontrol", service, "ask")
+      .p("accesscontrol", service, "auth")
       .query(query)
       .headers(headers)
       .get
