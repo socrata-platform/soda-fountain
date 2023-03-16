@@ -122,17 +122,20 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     }
   }
 
-  def withHost[T](datasetId: DatasetInternalName)(f: RequestBuilder => T): T =
-    withHost(datasetId.nativeDataCoordinator)(f)
+  def withHost[T](datasetId: DatasetInternalName, mutate: Boolean)(f: RequestBuilder => T): T = {
+    var instance = datasetId.nativeDataCoordinator
+    if(mutate) instance += ".mutation"
+    withHost(instance)(f)
+  }
 
-  def withHost[T](datasetHandle: DatasetHandle)(f: RequestBuilder => T): T =
-    withHost(datasetHandle.datasetId)(f)
+  def withHost[T](datasetHandle: DatasetHandle, mutate: Boolean)(f: RequestBuilder => T): T =
+    withHost(datasetHandle.datasetId, mutate)(f)
 
   def propagateToSecondary(dataset: DatasetHandle,
                            secondaryId: SecondaryId,
                            secondariesLike: Option[DatasetInternalName]): Unit =
     withConnectRetries() {
-      withHost(dataset.datasetId) { host =>
+      withHost(dataset.datasetId, mutate = false) { host =>
         val sr = secondaryReq(host, secondaryId, dataset)
         val sr2 = secondariesLike match {
           case Some(datasetId) => sr.addParameter(("secondaries_like", datasetId.underlying))
@@ -151,7 +154,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   def deleteFromSecondary(dataset: DatasetHandle,
                            secondaryId: SecondaryId): Unit =
     withConnectRetries() {
-      withHost(dataset.datasetId) { host =>
+      withHost(dataset.datasetId, mutate = false) { host =>
         val request = secondaryReq(host, secondaryId, dataset).delete
         httpClient.execute(request).run { response =>
           response.resultCode match {
@@ -173,7 +176,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   def getSchema(dataset: DatasetHandle): Option[SchemaSpec] = {
     withFullRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request = schemaReq(host, dataset).get
         httpClient.execute(request).run { response =>
           response.resultCode match {
@@ -458,7 +461,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
                (f: Result => T): T = {
     // TODO: update should decode the row op report into something higher-level than JValues
     withConnectRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = true) { host =>
         val updateScript = new MutationScript(user, UpdateDataset(schemaHash, expectedDataVersion), instructions)
         sendNonCreateScript(mutateReq(host, dataset), updateScript)(f)
       }
@@ -474,7 +477,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
              (f: Result => T): T = {
     // TODO: copy should decode the row op report into something higher-level than JValues
     withConnectRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = true) { host =>
         val createScript = new MutationScript(user, CopyDataset(copyData, schemaHash, expectedDataVersion), instructions)
         sendNonCreateScript(mutateReq(host, dataset), createScript)(f)
       }
@@ -490,7 +493,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
                 (f: Result => T): T = {
     // TODO: publish should decode the row op report into something higher-level than JValues
     withConnectRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = true) { host =>
         val pubScript = new MutationScript(user, PublishDataset(keepSnapshot, schemaHash, expectedDataVersion), instructions)
         sendNonCreateScript(mutateReq(host, dataset), pubScript)(f)
       }
@@ -505,7 +508,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
                  (f: Result => T): T = {
     // TODO: dropCopy should decode the row op report into something higher-level than JValues
     withConnectRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = true) { host =>
         val dropScript = new MutationScript(user, DropDataset(schemaHash, expectedDataVersion), instructions)
         sendNonCreateScript(mutateReq(host, dataset), dropScript)(f)
       }
@@ -520,7 +523,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
                         (f: Result => T): T = {
     // TODO: deleteAllCopies should decode the row op report into something higher-level than JValues
     withConnectRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = true) { host =>
         val deleteScript = new MutationScript(user, DropDataset(schemaHash, expectedDataVersion), Iterator.empty)
         val req = mutateReq(host, dataset).method(HttpMethods.DELETE)
         sendNonCreateScript(req, deleteScript)(f)
@@ -533,7 +536,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   def checkVersionInSecondaries(dataset: DatasetHandle): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]] = {
     withFullRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request = secondariesReq(host, dataset)
           .addHeader(("Content-type", "application/json"))
           .timeoutMS(10000)
@@ -573,7 +576,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   def checkVersionInSecondary(dataset: DatasetHandle,
                               secondaryId: SecondaryId): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]] = {
     withFullRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request = secondaryReq(host, secondaryId, dataset)
           .addHeader(("Content-type", "application/json"))
           .addHeader(resourceHeader(dataset))
@@ -629,7 +632,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   def exportSimple(dataset: DatasetHandle, copy: String, resourceScope: ResourceScope) = {
     withConnectRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request = exportReq(host, dataset)
           .addParameter("copy" -> copy)
           .get
@@ -662,7 +665,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
              rowId: Option[String],
              resourceScope: ResourceScope): Result = {
     withConnectRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val limParam = limit.map { limLong => "limit" -> limLong.toString }
         val offParam = offset.map { offLong => "offset" -> offLong.toString }
         val columnsParam = if (columns.isEmpty) None else Some("c" -> columns.mkString(","))
@@ -719,7 +722,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   override def deleteSnapshot(dataset: DatasetHandle, copy: Long): Either[FailResult, Unit] =
     withConnectRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request = snapshotReq(host, dataset, copy).delete
         httpClient.execute(request).run { r =>
           errorFrom(r) match {
@@ -739,7 +742,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   override def listSnapshots(dataset: DatasetHandle): Option[Seq[Long]] =
     withFullRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request = snapshotsReq(host, dataset).get
         httpClient.execute(request).run { r =>
           errorFrom(r) match {
@@ -764,7 +767,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   override def getRollups(dataset: DatasetHandle): Result = {
     withFullRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request = rollupReq(host, dataset).get
         httpClient.execute(request).run { r =>
           errorFrom(r) match {
@@ -783,7 +786,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   override def getIndexes(dataset: DatasetHandle): Result = {
     withFullRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request = indexReq(host, dataset).get
         httpClient.execute(request).run { r =>
           errorFrom(r) match {
@@ -827,7 +830,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
     // Use any of the dcs mentioned in the operation as a host
     withConnectRetries() {
-      withHost(operation.collocations.head.head) { host =>
+      withHost(operation.collocations.head.head, mutate = false) { host =>
         val request = collocateUrl(host, secondaryId)
           .addParameter("explain" -> explain.toString)
           .addParameter("job" -> jobId)
@@ -850,7 +853,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   override def collocateStatus(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result = {
     withFullRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request = collocateStatusReq(host, secondaryId, jobId).get
         httpClient.execute(request).run { r =>
           errorFrom(r) match {
@@ -866,7 +869,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   override def deleteCollocate(dataset: DatasetHandle, secondaryId: SecondaryId, jobId: String): Result = {
     withConnectRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request = collocateJobReq(host, jobId).delete
         httpClient.execute(request).run { r =>
           errorFrom(r) match {
@@ -882,7 +885,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
 
   override def resync(dataset: DatasetInternalName, secondaryId: SecondaryId): Result = {
     withConnectRetries() {
-      withHost(dataset) { host =>
+      withHost(dataset, mutate = false) { host =>
         val request =  new BodylessHttpRequest(resyncReq(host, dataset, secondaryId).method("PUT"))
         httpClient.execute(request).run { r: Response =>
           errorFrom(r) match {
