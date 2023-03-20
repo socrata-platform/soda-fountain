@@ -2,13 +2,12 @@ package com.socrata.soda.server
 
 import com.socrata.http.server.HttpRequest
 import com.socrata.soda.server.AccessControlService._
-import com.socrata.soda.server.id.ResourceName
+import com.socrata.soda.server.id.{ResourceName, RollupName}
 import com.socrata.http.client._
 import com.socrata.soda.server.util.CloseableExecutorService
 
 import java.util.concurrent.Executors
-
-import scala.io.{Source}
+import scala.io.Source
 
 class AccessControlService {
 
@@ -27,6 +26,11 @@ class AccessControlService {
    */
   def listRollupAuth(request: HttpRequest, resourceName: ResourceName): ResourceNameMapping = {
     val body = auth(request, "rollup", List(("viewUid", resourceName.name), ("op", "list")))
+    Dataset(new ResourceName(body))
+  }
+
+  def deleleRollupAuth(request: HttpRequest, resourceName: ResourceName): ResourceNameMapping = {
+    val body = auth(request, "rollup", List(("viewUid", resourceName.name), ("op", "delete")))
     Dataset(new ResourceName(body))
   }
 

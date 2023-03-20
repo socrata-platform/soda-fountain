@@ -269,13 +269,12 @@ case class Dataset(maxDatumSize: Int) {
     }
   }
 
-  case class rollupService(resourceName: ResourceName, rollupName: Option[RollupName]) extends SodaResource {
+  case class rollupService_(resourceName: ResourceName, rollupName: Option[RollupName]) extends SodaResource {
     override def get = { req =>
-      val mapping = accessControlService.listRollupAuth(req.httpRequest, resourceName)
-      (rollupName, mapping) match {
-        case (None, AccessControlService.Dataset(mappedName)) =>
-          response(req, req.datasetDAO.getRollups(mappedName))
-        case (_, _) => MethodNotAllowed
+      rollupName match {
+        case Some(_) => MethodNotAllowed
+        case None =>
+          response(req, req.datasetDAO.getRollups(resourceName))
       }
     }
 
@@ -292,6 +291,46 @@ case class Dataset(maxDatumSize: Int) {
               response(req, req.datasetDAO.deleteRollups(user(req), resourceName, expectedDataVersion(req), rollupNames))
             case other =>
               SodaUtils.internalError(req,new UnknownError(other.getClass.getCanonicalName))
+          }
+      }
+    }
+
+    override def put = { req =>
+      withRollupSpec(req.httpRequest) { spec =>
+        rollupName match {
+          case Some(rollup) =>
+            response(req, req.datasetDAO.replaceOrCreateRollup(user(req), resourceName, expectedDataVersion(req), rollup, spec))
+          case None => MethodNotAllowed
+        }
+
+      }
+    }
+  }
+
+  case class rollupService(resourceName: ResourceName, rollupName: Option[RollupName]) extends SodaResource {
+    override def get = { req =>
+      val mapping = accessControlService.listRollupAuth(req.httpRequest, resourceName)
+      (rollupName, mapping) match {
+        case (None, AccessControlService.Dataset(mappedName)) =>
+          response(req, req.datasetDAO.getRollups(mappedName))
+        case (_, _) => MethodNotAllowed
+      }
+    }
+
+    override def delete = { req =>
+      val mapping = accessControlService.deleleRollupAuth(req.httpRequest, resourceName)
+      (rollupName, mapping) match {
+        case (Some(rollup), AccessControlService.Dataset(mappedName)) =>
+          response(req, req.datasetDAO.deleteRollups(user(req), mappedName, expectedDataVersion(req), Seq(rollup)))
+        case (None, AccessControlService.Dataset(mappedName)) =>
+          req.datasetDAO.getRollups(mappedName) match {
+            case Rollups(Nil) =>
+              NoContent
+            case Rollups(rollups: Seq[RollupSpec]) =>
+              val rollupNames = rollups.map(_.name)
+              response(req, req.datasetDAO.deleteRollups(user(req), mappedName, expectedDataVersion(req), rollupNames))
+            case other =>
+              SodaUtils.internalError(req, new UnknownError(other.getClass.getCanonicalName))
           }
       }
     }
