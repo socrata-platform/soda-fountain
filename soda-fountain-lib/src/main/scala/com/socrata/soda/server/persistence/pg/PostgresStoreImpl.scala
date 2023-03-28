@@ -1064,6 +1064,19 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       }
     }
   }
+
+  override def markRollupAccessed(copyId: CopyId,rollupName: RollupName):Boolean ={
+    using(dataSource.getConnection()) { conn =>
+      using(conn.prepareStatement(
+        """
+        update rollup_map set last_accessed=now() where dataset_copy_id=? and name=?
+        """.stripMargin)) { stmt =>
+        stmt.setLong(1, copyId.underlying)
+        stmt.setString(2,rollupName.name)
+        stmt.executeUpdate()>0
+      }
+    }
+  }
 }
 
 object PostgresStoreImpl {

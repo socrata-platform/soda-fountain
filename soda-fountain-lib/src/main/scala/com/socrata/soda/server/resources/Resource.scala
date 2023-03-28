@@ -2,7 +2,6 @@ package com.socrata.soda.server.resources
 
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-
 import scala.collection.JavaConverters._
 import scala.language.existentials
 import com.rojoma.json.v3.ast.{JArray, JNumber, JString, JValue}
@@ -21,7 +20,7 @@ import com.socrata.soda.server.{responses => SodaErrors, _}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.export.Exporter
 import com.socrata.soda.server.highlevel.{DatasetDAO, RowDAO, RowDataTranslator}
-import com.socrata.soda.server.id.{ResourceName, RowSpecifier, SecondaryId}
+import com.socrata.soda.server.id.{ResourceName, RollupName, RowSpecifier, SecondaryId}
 import com.socrata.soda.server.metrics.{MetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.metrics.Metrics.{QuerySuccess => QuerySuccessMetric, _}
 import com.socrata.soda.server.persistence.DatasetRecordLike
@@ -29,6 +28,7 @@ import com.socrata.soda.server.util.ETagObfuscator
 import com.socrata.soda.server.wiremodels.InputUtils
 import com.socrata.soql.stdlib.Context
 import com.socrata.thirdparty.metrics.Metrics
+
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse}
 
 /**
@@ -244,8 +244,13 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
                       metric(QueryCacheMiss)
                     }
                     val latencyMs = System.currentTimeMillis - start
-                    if (rollup.isDefined) queryLatencyRollup += latencyMs
-                    else                  queryLatencyNonRollup += latencyMs
+                    if (rollup.isDefined) {
+                      queryLatencyRollup += latencyMs
+                      req.datasetDAO.markRollupAccessed(resourceName.value,new RollupName(rollup.get))
+                    }
+                    else {
+                      queryLatencyNonRollup += latencyMs
+                    }
                     val createHeader =
                       OK ~> // ContentType is handled in exporter
                         Header("Vary", ContentNegotiation.headers.mkString(",")) ~>

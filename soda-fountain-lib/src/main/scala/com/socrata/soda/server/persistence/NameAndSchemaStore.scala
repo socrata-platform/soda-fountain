@@ -74,6 +74,8 @@ trait NameAndSchemaStore {
   def rollupDatasetRelationByPrimaryDataset(primaryDataset: ResourceName): Set[RollupDatasetRelation]
 
   def rollupDatasetRelationBySecondaryDataset(secondaryDataset: ResourceName): Set[RollupDatasetRelation]
+
+  def markRollupAccessed(copyId: CopyId,rollupName: RollupName):Boolean
 }
 
 object NameAndSchemaStore {

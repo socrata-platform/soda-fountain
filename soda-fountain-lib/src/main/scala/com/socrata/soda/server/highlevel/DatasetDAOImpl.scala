@@ -474,6 +474,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       case rollupDatasetRelations=> RollupRelations(rollupDatasetRelations)
     }
   }
+
+  override def markRollupAccessed(resourceName: ResourceName,rollupName: RollupName):Result={
+    if (store.markRollupAccessed(store.latestCopyId(resourceName),rollupName)){
+      RollupMarkedAccessed()
+    }else{
+      RollupNotFound(rollupName)
+    }
+  }
   def getRollups(dataset: ResourceName): Result = {
     store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
       case Some(datasetRecord) =>
