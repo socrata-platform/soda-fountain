@@ -6,6 +6,7 @@ import com.socrata.computation_strategies.StrategyType
 import com.socrata.soda.clients.datacoordinator.RollupDatasetRelation
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{ColumnId, CopyId, DatasetHandle, DatasetInternalName, ResourceName, RollupMapId, RollupName}
+import com.socrata.soda.server.model.RollupInfo
 import com.socrata.soda.server.util.AdditionalJsonCodecs._
 import com.socrata.soda.server.util.schema.SchemaSpec
 import com.socrata.soda.server.wiremodels.ColumnSpec
@@ -59,23 +60,21 @@ trait NameAndSchemaStore {
 
   def withColumnUpdater[T](datasetId: DatasetInternalName, copyNumber: Long, columnId: ColumnId)(f: NameAndSchemaStore.ColumnUpdater => T): T
 
-  def createOrUpdateRollup(copyId: CopyId, rollupName: RollupName, soql: String): RollupMapId
+  def createOrUpdateRollup(resourceName: ResourceName,copyNumber:Long, rollupName: RollupName, soql: String): RollupMapId
 
-  def deleteRollupRelations(rollupMapId: Set[RollupMapId]): Int
+  def deleteRollupRelations(resourceName: ResourceName,copyNumber:Long,rollupName: RollupName): Int
 
-  def deleteRollupRelations(copyId: CopyId): Int
+  def createRollupRelation(primaryResourceName: ResourceName,primaryCopyNumber:Long,secondaryResourceName: ResourceName,secondaryCopyNumber:Long,rollupName: RollupName): (RollupMapId,CopyId)
+  def deleteRollups(resourceName: ResourceName,copyNumber:Long,rollups:Set[RollupName]): Int
 
-  def createRollupRelation(rollupMapId: RollupMapId,copyId: CopyId): Int
+  def rollupDatasetRelationByPrimaryDataset(primaryDataset: ResourceName,copyNumber:Long): Set[RollupDatasetRelation]
 
-  def getRollupMapIds(copyId: CopyId, rollupNames: Set[RollupName]): Set[RollupMapId]
+  def rollupDatasetRelationBySecondaryDataset(secondaryDataset: ResourceName,copyNumber:Long): Set[RollupDatasetRelation]
 
-  def deleteRollups(rollups: Set[RollupMapId]): Int
+  def markRollupAccessed(resourceName: ResourceName,copyNumber:Long,rollupName: RollupName):Boolean
 
-  def rollupDatasetRelationByPrimaryDataset(primaryDataset: ResourceName): Set[RollupDatasetRelation]
+  def getRollups(resourceName: ResourceName,copyNumber:Long):Set[RollupInfo]
 
-  def rollupDatasetRelationBySecondaryDataset(secondaryDataset: ResourceName): Set[RollupDatasetRelation]
-
-  def markRollupAccessed(copyId: CopyId,rollupName: RollupName):Boolean
 }
 
 object NameAndSchemaStore {

@@ -1,11 +1,12 @@
 package com.socrata.soda.server.wiremodels
 
 import com.rojoma.json.v3.ast.{JObject, JValue}
-import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, Strategy, JsonKeyStrategy}
+import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Strategy}
 import com.socrata.soda.server.responses.RollupSpecMaltyped
-
 import com.socrata.soda.server.id.RollupName
 import com.socrata.soda.server.wiremodels.InputUtils.ExtractContext
+
+import java.time.OffsetDateTime
 import scala.{collection => sc}
 
 
@@ -17,9 +18,11 @@ import scala.{collection => sc}
 @JsonKeyStrategy(Strategy.Underscore)
 case class RollupSpec(
   name: RollupName,
-  soql: String)
+  soql: String,
+  lastAccessed:OffsetDateTime)
 
 object RollupSpec {
+  import com.rojoma.json.v3.util.time.ISO8601.codec.offsetDateTimeCodec
   implicit val jsonCodec = AutomaticJsonCodecBuilder[RollupSpec]
 }
 

@@ -428,7 +428,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                   Iterator.single(instruction)) {
                   case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
                     store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
-                    RollupHelper.rollupCreatedOrUpdated(store,dataset,rollup,soql, tableNames);
+                    RollupHelper.rollupCreatedOrUpdated(store,dataset,copyNumber,rollup,soql, tableNames);
                     RollupCreatedOrUpdated
                   case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
                     RollupNotFound(rollup)
@@ -469,53 +469,28 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     (relationSide match{
       case From => store.rollupDatasetRelationBySecondaryDataset _
       case To => store.rollupDatasetRelationByPrimaryDataset _
-    })(dataset) match {
+    })(dataset,store.latestCopyNumber(dataset)) match {
       case i: Set[RollupDatasetRelation] if i.isEmpty => RollupRelationsNotFound()
       case rollupDatasetRelations=> RollupRelations(rollupDatasetRelations)
     }
   }
 
   override def markRollupAccessed(resourceName: ResourceName,rollupName: RollupName):Result={
-    if (store.markRollupAccessed(store.latestCopyId(resourceName),rollupName)){
+    if (store.markRollupAccessed(resourceName,store.latestCopyNumber(resourceName),rollupName)){
       RollupMarkedAccessed()
     }else{
       RollupNotFound(rollupName)
     }
   }
   def getRollups(dataset: ResourceName): Result = {
-    store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
-      case Some(datasetRecord) =>
-        dc.getRollups(datasetRecord.handle) match {
-          case result: DataCoordinatorClient.RollupResult =>
-            val rollups = result.rollups.map { rollup =>
-              try {
-                val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)
-                val mappedQueries = RollupHelper.reverseMapQuery(store, dataset, parsedQueries, tableNames)
-                log.debug(s"soql for rollup ${rollup} is: ${parsedQueries}")
-                log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
-                RollupSpec(name = rollup.name, soql = mappedQueries.toString())
-              } catch {
-                case ex: BadParse =>
-                  log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
-                  RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
-                case ex: Exception =>
-                  log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
-                  RollupSpec(name = rollup.name, soql = "__Invalid Rollup__")
-              }
-            }
-
-            Rollups(rollups)
-          case DataCoordinatorClient.DatasetNotFoundResult(_) =>
-            DatasetNotFound(dataset)
-          case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
-            InternalServerError(code, tag, data)
-          case x =>
-            log.warn("case is NOT implemented %s".format(x.toString))
-            InternalServerError("unknown", tag, x.toString)
-        }
-      case None =>
-        DatasetNotFound(dataset)
-    }
+    Rollups(
+      store.getRollups(
+        dataset,
+        store.latestCopyNumber(dataset)
+      ).toSeq.map { rollup =>
+        RollupSpec(name = rollup.name, soql = rollup.soql, lastAccessed = rollup.lastAccessed)
+      }
+    )
   }
 
   def deleteRollups(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], rollups: Seq[RollupName]): Result = {
@@ -525,7 +500,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instruction) {
           case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
             store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
-            RollupHelper.rollupsDeleted(store,dataset,rollups)
+            store.deleteRollups(dataset,copyNumber,rollups.toSet)
             RollupDropped
           case DataCoordinatorClient.NoSuchRollupResult(ru, _) =>
             RollupNotFound(ru)
