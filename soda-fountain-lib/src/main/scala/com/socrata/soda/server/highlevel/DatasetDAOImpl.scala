@@ -486,15 +486,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   def getRollups(dataset: ResourceName): Result = {
     store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
       case Some(datasetRecord) =>
-        //Ideally we would no longer reach out to DC after starting to track rollup metadata in soda fountain.
-        //However the DC has historical knowledge of rollups that predates Soda knowledge.
+        //Ideally I'd like to no longer reach out to DC after starting to track rollup metadata in soda fountain.
+        //However, the DC has historical knowledge of rollups that predates Soda knowledge.
         //Soda would only know about rollup metadata that was created since the Soda enhancement.
         //We could synchronize DC rollup knowledge to Soda, but that needs to have some additional thought.
         //So lets do both for now.
-        //The Soda rollup knowledge gives us the benefit of knowing rollup join relations, and lastAccessed.
         dc.getRollups(datasetRecord.handle) match {
           case result: DataCoordinatorClient.RollupResult =>
-            val rollups = result.rollups.map { rollup =>
+            val dcRollups = result.rollups.map { rollup =>
               try {
                 val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)
                 val mappedQueries = RollupHelper.reverseMapQuery(store, dataset, parsedQueries, tableNames)
@@ -515,16 +514,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               dataset,
               store.latestCopyNumber(dataset)
             ).toSeq.map { rollup =>
+              //Soda knows the lastAccessed date of a rollup
               RollupSpec(name = rollup.name, soql = rollup.soql, lastAccessed = Some(rollup.lastAccessed))
             }
 
             Rollups(
               //Convert both dc and soda rollup specs to a map of [spec.name,spec]
-              //Merge them together, with soda taking precedence
-              //This is done because soda knows the lastAccessed field of a rollup
-              //DC rollup specs do not track lastAccessed
-              //Rollup specs present in DC but not soda means that this rollup has not been created recently, and is a historic record - probably not used anymore/often
-              (rollups.map(a => a.name -> a).toMap ++ sodaRollups.map(a => a.name -> a).toMap)
+              //Merge them together, with soda taking precedence(overwriting)
+              (dcRollups.map(a => a.name -> a).toMap ++ sodaRollups.map(a => a.name -> a).toMap)
                 .values.toSeq
             )
           case DataCoordinatorClient.DatasetNotFoundResult(_) =>
