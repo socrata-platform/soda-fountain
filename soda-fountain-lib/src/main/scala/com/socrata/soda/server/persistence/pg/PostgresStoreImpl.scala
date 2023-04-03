@@ -1086,18 +1086,23 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     using(dataSource.getConnection()) { conn =>
       using(conn.prepareStatement(
         """
-        select d1.resource_name as primary_dataset,
+        select t1.primary_dataset,
+               t1.name,
+               t1.soql,
+               t1.secondary_datasets
+        from (select d1.resource_name as primary_dataset,
                rm1.name as name,
                rm1.soql as soql,
-               array_agg(d2.resource_name) as secondary_datasets
+               array_agg(d2.resource_name) as secondary_datasets,
+               array_agg((d2.resource_name_casefolded,c1.copy_number)) as secondary_datasets_internal
         from rollup_map rm1
         join dataset_copies c1 on rm1.dataset_copy_id = c1.id
         join datasets d1 on c1.dataset_system_id = d1.dataset_system_id
         join rollup_relationship_map rrm1 on rrm1.rollup_map_id = rm1.id
         join dataset_copies c2 on rrm1.dataset_copy_id = c2.id
         join datasets d2 on c2.dataset_system_id = d2.dataset_system_id
-        where d2.resource_name_casefolded=? and c2.copy_number=?
-        group by d1.resource_name,rm1.name,rm1.soql
+        group by d1.resource_name,rm1.name,rm1.soql) as t1
+        where t1.secondary_datasets_internal @> Array[(?,?)]
         """.stripMargin)) { stmt =>
         stmt.setString(1, secondaryDataset.caseFolded)
         stmt.setLong(2,copyNumber)

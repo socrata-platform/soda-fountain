@@ -19,7 +19,7 @@ import scala.{collection => sc}
 case class RollupSpec(
   name: RollupName,
   soql: String,
-  lastAccessed:OffsetDateTime)
+  lastAccessed:Option[OffsetDateTime]=None)
 
 object RollupSpec {
   import com.rojoma.json.v3.util.time.ISO8601.codec.offsetDateTimeCodec

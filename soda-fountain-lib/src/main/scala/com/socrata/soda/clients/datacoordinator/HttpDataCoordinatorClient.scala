@@ -765,6 +765,25 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
       }
     }
 
+  override def getRollups(dataset: DatasetHandle): Result = {
+    withFullRetries() {
+      withHost(dataset, mutate = false) { host =>
+        val request = rollupReq(host, dataset).get
+        httpClient.execute(request).run { r =>
+          errorFrom(r) match {
+            case None => r.value[Seq[RollupInfo]]() match {
+              case Right(resp) => RollupResult(resp)
+              case Left(err) => throw new Exception("Unable to parse response from data coordinator: " + err.english)
+            }
+            case Some(NoSuchDataset(dataset)) => DatasetNotFoundResult(dataset)
+            case Some(err) =>
+              throw new Exception(s"Unexpected error from data-coordinator getting rollups for dataset $dataset: $err")
+          }
+        }
+      }
+    }
+  }
+
   override def getIndexes(dataset: DatasetHandle): Result = {
     withFullRetries() {
       withHost(dataset, mutate = false) { host =>

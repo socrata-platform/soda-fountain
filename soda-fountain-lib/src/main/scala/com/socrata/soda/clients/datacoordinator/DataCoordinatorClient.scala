@@ -94,6 +94,7 @@ object DataCoordinatorClient {
   // SUCCESS CASES
   case class NonCreateScriptResult(report: Iterator[ReportItem], etag: Option[EntityTag], copyNumber: Long, newVersion: Long, newShapeVersion: Long, lastModified: DateTime) extends SuccessResult
   case class ExportResult(json: Iterator[JValue], lastModified: Option[DateTime], etag: Option[EntityTag]) extends SuccessResult
+  case class RollupResult(rollups: Seq[RollupInfo]) extends SuccessResult
   case class IndexResult(indexes: Seq[IndexInfo]) extends SuccessResult
   case class CollocateResult(jobId : Option[String], status: String, message: String, cost: Cost, moves: Seq[Move]) extends SuccessResult
   case class ResyncResult(secondary: SecondaryId) extends SuccessResult
@@ -240,6 +241,7 @@ trait DataCoordinatorClient {
              rowId: Option[String],
              resourceScope: ResourceScope): Result
 
+  def getRollups(dataset: DatasetHandle): Result
   def getIndexes(dataset: DatasetHandle): Result
 
   def collocate(secondaryId: SecondaryId, operation: DCCollocateOperation, explain: Boolean, jobId: String): Result
