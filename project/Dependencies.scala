@@ -96,5 +96,8 @@ object Dependencies {
     val springTest             = "org.springframework"    % "spring-test"           % versions.springTest      % "test"
     val wiremock               = "com.github.tomakehurst" % "wiremock"              % versions.wiremock        % "test"
     val scalaTest = "org.scalatest" %% "scalatest" % "3.0.8" % "test"
+    val testContainers = "org.testcontainers" % "testcontainers" % "1.17.6" % "test"
+    val testContainersPostgres = "org.testcontainers" % "postgresql" % "1.17.6" % "test"
+
   }
 }
