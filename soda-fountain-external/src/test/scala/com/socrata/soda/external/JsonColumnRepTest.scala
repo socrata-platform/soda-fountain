@@ -1,12 +1,14 @@
 package com.socrata.soda.external
 
-import org.scalatest.{Assertions, FunSuite, MustMatchers}
+import org.scalatest.{Assertions}
 import com.socrata.soql.types._
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.io.JsonReader
 import com.vividsolutions.jts.geom._
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.must.Matchers
 
-class JsonColumnRepTest extends FunSuite with MustMatchers with Assertions {
+class JsonColumnRepTest extends AnyFunSuite with Matchers with Assertions {
   test("Client reps know about all types") {
     JsonColumnRep.forClientType.keySet must equal (SoQLType.typesByName.values.toSet)
   }

@@ -1,18 +1,20 @@
 package com.socrata.soda.external
 
 import com.rojoma.json.v3.ast._
-import com.rojoma.json.v3.io.{JsonReader, CompactJsonWriter}
+import com.rojoma.json.v3.io.{CompactJsonWriter, JsonReader}
 import com.github.tomakehurst.wiremock.WireMockServer
-import com.github.tomakehurst.wiremock.client.{WireMock => WM, MappingBuilder, UrlMatchingStrategy}
+import com.github.tomakehurst.wiremock.client.{MappingBuilder, UrlMatchingStrategy, WireMock => WM}
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
 import com.socrata.http.client.exceptions.ConnectFailed
 import com.socrata.soda.external.SodaFountainClient._
 import com.socrata.curator.{CuratorBroker, CuratorServiceIntegration}
 import com.socrata.curator.ServerProvider._
 import com.typesafe.config.ConfigFactory
-import org.scalatest.{FunSuite, Matchers, BeforeAndAfterAll}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{BeforeAndAfterAll}
 
-class SodaFountainClientTest extends FunSuite with Matchers with BeforeAndAfterAll with CuratorServiceIntegration {
+class SodaFountainClientTest extends AnyFunSuite with Matchers with BeforeAndAfterAll with CuratorServiceIntegration {
   val mockServerPort = 1234
   val mockServer = new WireMockServer(wireMockConfig.port(mockServerPort))
 

@@ -2,10 +2,11 @@ package com.socrata.soda.server.resources
 
 import com.socrata.soda.server.SodaRequest
 import org.scalamock.scalatest.proxy.MockFactory
-import org.scalatest.{Matchers, FunSuite}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 import org.springframework.mock.web.MockHttpServletResponse
 
-class HealthZTest extends FunSuite with Matchers with MockFactory {
+class HealthZTest extends AnyFunSuite with Matchers with MockFactory {
   test("All services up") {
     val response = testResource(up = true)
     response.getStatus should be (200)

@@ -1,13 +1,14 @@
 package com.socrata.soda.server.services
 
 import com.socrata.computation_strategies.StrategyType
-import org.scalatest.{Matchers, FunSuite}
-import com.socrata.soda.server.wiremodels.{RequestProblem, Extracted, UserProvidedComputationStrategySpec}
+import com.socrata.soda.server.wiremodels.{Extracted, RequestProblem, UserProvidedComputationStrategySpec}
 import com.rojoma.json.v3.util.JsonUtil
-import com.rojoma.json.v3.ast.{JString, JObject}
+import com.rojoma.json.v3.ast.{JObject, JString}
 import com.socrata.soda.server.responses.ComputationStrategySpecUnknownType
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class ComputationStrategyExtractorTest extends FunSuite with Matchers {
+class ComputationStrategyExtractorTest extends AnyFunSuite with Matchers {
   def extract(input: String) = UserProvidedComputationStrategySpec.fromObject(JsonUtil.parseJson[JObject](input).right.get)
 
   test("All fields populated") {

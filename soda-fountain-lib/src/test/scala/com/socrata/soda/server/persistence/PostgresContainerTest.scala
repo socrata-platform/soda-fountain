@@ -1,13 +1,14 @@
 package com.socrata.soda.server.persistence
 
 import org.postgresql.ds.PGSimpleDataSource
-import org.scalatest.{BeforeAndAfterAll, FunSuite}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.{BeforeAndAfterAll}
 import org.testcontainers.containers.PostgreSQLContainer
 
 import java.sql.{Connection, DriverManager}
 import javax.sql.DataSource
 
-trait PostgresContainerTest extends FunSuite with BeforeAndAfterAll {
+trait PostgresContainerTest extends AnyFunSpec with BeforeAndAfterAll {
   private lazy val postgresContainer: PostgreSQLContainer[Nothing] = {
     new PostgreSQLContainer("postgres:15.1")
   }

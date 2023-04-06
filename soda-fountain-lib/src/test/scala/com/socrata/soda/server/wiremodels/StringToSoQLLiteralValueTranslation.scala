@@ -1,13 +1,14 @@
 package com.socrata.soda.server.wiremodels
 
-import org.scalatest.{FunSuite, MustMatchers}
 import com.socrata.soql.types._
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.must.Matchers
 
 /*
     Single-row operations send a column value rep in the URL, and this is plumbed into a SoQL query
  */
 
-class StringToSoQLLiteralValueTranslation extends FunSuite with MustMatchers {
+class StringToSoQLLiteralValueTranslation extends AnyFunSuite with Matchers {
 
   test("String reps know about all types") {
     pendingUntilFixed {

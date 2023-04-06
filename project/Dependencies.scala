@@ -33,6 +33,7 @@ object Dependencies {
     val scalaMock         = "4.4.0"
     val springTest        = "3.2.10.RELEASE"
     val wiremock          = "1.46"
+    val scalatest  = "3.2.15"
   }
 
   val apacheCuratorDiscovery   = "org.apache.curator" % "curator-x-discovery"   % versions.apacheCurator
@@ -95,7 +96,8 @@ object Dependencies {
     val socrataCuratorUtils    = "com.socrata"           %% "socrata-curator-test-utils" % versions.curatorUtils % "test"
     val springTest             = "org.springframework"    % "spring-test"           % versions.springTest      % "test"
     val wiremock               = "com.github.tomakehurst" % "wiremock"              % versions.wiremock        % "test"
-    val scalaTest = "org.scalatest" %% "scalatest" % "3.0.8" % "test"
+    val scalaTest = "org.scalatest" %% "scalatest" % versions.scalatest % "test"
+    val scalaTestFunSpec = "org.scalatest" %% "scalatest-funspec" % versions.scalatest % "test"
     val testContainers = "org.testcontainers" % "testcontainers" % "1.17.6" % "test"
     val testContainersPostgres = "org.testcontainers" % "postgresql" % "1.17.6" % "test"
 

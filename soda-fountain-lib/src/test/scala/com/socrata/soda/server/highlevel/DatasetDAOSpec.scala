@@ -1,16 +1,17 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.clients.datacoordinator.{FeedbackSecondaryManifestClient, DataCoordinatorClient}
+import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, FeedbackSecondaryManifestClient}
 import com.socrata.soda.server.copy.{Published, Unpublished}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence.NameAndSchemaStore
 import org.scalamock.proxy.ProxyMockFactory
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{FunSuiteLike, Matchers}
+import org.scalatest.funsuite.AnyFunSuiteLike
+import org.scalatest.matchers.should.Matchers
 
 import scala.util.Random
 
-class DatasetDAOSpec extends FunSuiteLike with Matchers with MockFactory with ProxyMockFactory {
+class DatasetDAOSpec extends AnyFunSuiteLike with Matchers with MockFactory with ProxyMockFactory {
   test("current copy is latest published") {
     val dataset = new ResourceName("dataset")
     val expectedCopyNum = Some(42)

@@ -10,12 +10,14 @@ import com.socrata.soda.clients.datacoordinator.{ColumnNotFound, HttpDataCoordin
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient.QueryCoordinatorResult
 import com.socrata.soda.clients.querycoordinator.{HttpQueryCoordinatorClient, QueryCoordinatorError}
 import com.socrata.soda.server.ThreadLimiter
-import org.scalatest.{FunSuite, Matchers, Tag}
+import org.scalatest.Tag
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.Duration
 
-class HttpQueryCoordinatorClientTest extends FunSuite with Matchers {
+class HttpQueryCoordinatorClientTest extends AnyFunSuite with Matchers {
 
 
   object tag extends Tag("HttpQueryCoordinatorClientTest")

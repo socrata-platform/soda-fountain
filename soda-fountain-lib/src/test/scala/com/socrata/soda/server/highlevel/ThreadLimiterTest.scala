@@ -1,13 +1,13 @@
 package com.socrata.soda.server.highlevel
 
 import java.util.concurrent.{CountDownLatch, ForkJoinPool, TimeUnit}
-
 import com.socrata.soda.server.ThreadLimiter
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future}
 
-class ThreadLimiterTest  extends FunSuite with Matchers {
+class ThreadLimiterTest  extends AnyFunSuite with Matchers {
   import ThreadLimiterTest._
 
   test("Thread limiter should allow a number of threads below the limit") {

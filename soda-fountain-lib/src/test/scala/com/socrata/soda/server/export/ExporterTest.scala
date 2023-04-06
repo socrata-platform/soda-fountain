@@ -3,7 +3,6 @@ package com.socrata.soda.server.export
 import java.io.OutputStream
 import java.nio.charset.StandardCharsets
 import javax.servlet.ServletOutputStream
-
 import com.rojoma.json.v3.ast._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.soda.server.DatasetsForTesting
@@ -16,9 +15,10 @@ import com.socrata.soql.types.{SoQLType, SoQLValue}
 import org.joda.time.format.ISODateTimeFormat
 import org.scalamock.proxy.ProxyMockFactory
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{Matchers, FunSuite}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-trait ExporterTest extends FunSuite with MockFactory with ProxyMockFactory with Matchers with DatasetsForTesting{
+trait ExporterTest extends AnyFunSuite with MockFactory with ProxyMockFactory with Matchers with DatasetsForTesting{
 
   val charset = AliasedCharset(StandardCharsets.UTF_8, StandardCharsets.UTF_8.name)
 

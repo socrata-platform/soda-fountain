@@ -48,6 +48,7 @@ libraryDependencies ++= Seq(
   TestDeps.springTest,
   TestDeps.wiremock,
   TestDeps.scalaTest,
+  TestDeps.scalaTestFunSpec,
   TestDeps.testContainers,
   TestDeps.testContainersPostgres
 ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))

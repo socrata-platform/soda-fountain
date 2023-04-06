@@ -7,12 +7,14 @@ import com.socrata.computation_strategies._
 import com.socrata.soda.server.highlevel.ColumnSpecUtils._
 import com.socrata.soda.server.id.ColumnId
 import com.socrata.soda.server.wiremodels._
-import com.socrata.soql.types.{SoQLPoint, SoQLNumber, SoQLText, SoQLType}
-import org.scalatest.{FunSuite, Matchers}
+import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText, SoQLType}
+
 import java.security.SecureRandom
 import com.socrata.soql.environment.ColumnName
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class ColumnSpecUtilsTest extends FunSuite with Matchers {
+class ColumnSpecUtilsTest extends AnyFunSuite with Matchers {
   lazy val rng = new scala.util.Random(new SecureRandom())
   lazy val columnSpecUtils = new ColumnSpecUtils(rng)
 

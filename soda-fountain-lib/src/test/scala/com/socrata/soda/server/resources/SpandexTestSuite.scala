@@ -1,14 +1,14 @@
 package com.socrata.soda.server.resources
 
 import java.net.URI
-
 import com.github.tomakehurst.wiremock.WireMockServer
 import com.github.tomakehurst.wiremock.client.{MappingBuilder, UrlMatchingStrategy, WireMock}
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration._
 import com.github.tomakehurst.wiremock.http.ContentTypeHeader
-import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, FunSuiteLike}
+import org.scalatest.funsuite.AnyFunSuiteLike
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
-trait SpandexTestSuite extends FunSuiteLike with BeforeAndAfterAll with BeforeAndAfterEach {
+trait SpandexTestSuite extends AnyFunSuiteLike with BeforeAndAfterAll with BeforeAndAfterEach {
   val mockServerHost = "localhost"
   val mockServerPort = 51200 + (util.Random.nextInt % 100)
   val mockServer = new WireMockServer(wireMockConfig.port(mockServerPort))

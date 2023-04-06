@@ -4,10 +4,12 @@ import com.rojoma.simplearm.v2._
 import com.socrata.soda.server.config.SodaFountainConfig
 import com.socrata.soda.server.persistence.pg.PostgresStoreImpl
 import com.typesafe.config.ConfigFactory
-import java.sql.DriverManager
-import org.scalatest.{FunSuite, BeforeAndAfterAll}
+import org.scalatest.funsuite.AnyFunSuite
 
-trait SodaFountainDatabaseTest extends FunSuite with BeforeAndAfterAll {
+import java.sql.DriverManager
+import org.scalatest.{BeforeAndAfterAll}
+
+trait SodaFountainDatabaseTest extends AnyFunSuite with BeforeAndAfterAll {
   lazy val config = new SodaFountainConfig(ConfigFactory.load())
   lazy val dataSource = DataSourceFromConfig(config.database)
   lazy val store = new PostgresStoreImpl(dataSource)
