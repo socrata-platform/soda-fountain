@@ -541,12 +541,12 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               //Merge them together, with soda taking precedence(overwriting)
               sodaRollups.map(a => a.name -> a).toMap.foldLeft(dcRollups.map(a => a.name -> a).toMap){
                 case (acc,(rollupName,rollupSpec))=>
-                  acc.updated(rollupName,acc.get(rollupName).map{ dcRollupSpec=>
-                    if (dcRollupSpec.soql!=rollupSpec.soql){
-                      log.error(s"Rollup soql mismatch. DC:'${dcRollupSpec.soql}', Soda:'${rollupSpec.soql}'")
+                  acc.get(rollupName).foreach { dcRollup =>
+                    if(dcRollup.soql != rollupSpec.soql) {
+                      log.error(s"Rollup soql mismatch. DC:'${dcRollup.soql}', Soda:'${rollupSpec.soql}'")
                     }
-                    dcRollupSpec.copy(lastAccessed = rollupSpec.lastAccessed)
-                  }.getOrElse(rollupSpec))
+                  }
+                  acc.updated(rollupName, rollupSpec)
               }.values.toSeq
             )
           case DataCoordinatorClient.DatasetNotFoundResult(_) =>
