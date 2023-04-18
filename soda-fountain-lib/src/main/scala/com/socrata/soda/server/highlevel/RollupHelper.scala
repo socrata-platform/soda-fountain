@@ -92,6 +92,13 @@ object RollupHelper {
     soqlAnalyzer.analyzeBinary(parsedQueries)(AnalysisContext(schemas = contexts,parameters = ParameterSpec.empty))
   }
 
+  def mapQueryToInternalAndBackToUser(store:NameAndSchemaStore, dataset:ResourceName, soql:String):String={
+    val (parsedQueriesUser, tableNamesUser) = RollupHelper.parse(soql)
+    val soqlInternal = RollupHelper.mapQuery(store, dataset, parsedQueriesUser, tableNamesUser, generateAliases = true)
+    val (parsedQueriesInternal, tableNamesInternal) = RollupHelper.parse(soqlInternal)
+    RollupHelper.reverseMapQuery(store, dataset, parsedQueriesInternal, tableNamesInternal)
+  }
+
   /**
    * mapping soql from user column id to internal column id
    */

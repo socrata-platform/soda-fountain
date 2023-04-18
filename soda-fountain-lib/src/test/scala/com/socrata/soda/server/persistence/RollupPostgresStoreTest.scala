@@ -2,7 +2,7 @@ package com.socrata.soda.server.persistence
 
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{RollupResult, Result => DcResult}
 import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, DataCoordinatorInstruction, RollupDatasetRelation, RollupInfo}
-import com.socrata.soda.server.highlevel.DatasetDAO
+import com.socrata.soda.server.highlevel.{DatasetDAO, RollupHelper}
 import com.socrata.soda.server.highlevel.DatasetDAO.{RollupMarkedAccessed, RollupRelations, RollupRelationsNotFound, Rollups, Result => DdResult}
 import com.socrata.soda.server.id.{ColumnId, DatasetHandle, RollupName}
 import com.socrata.soda.server.util.RelationSide
@@ -94,7 +94,7 @@ class RollupPostgresStoreTest extends SodaPostgresContainerTest with Matchers {
               RollupDatasetRelation(
                 dataset1.resourceName,
                 rollupName,
-                soql,
+                RollupHelper.mapQueryToInternalAndBackToUser(nameAndSchemaStore,dataset1.resourceName,soql),
                 Set(dataset2.resourceName)
               )
             )
@@ -178,7 +178,7 @@ class RollupPostgresStoreTest extends SodaPostgresContainerTest with Matchers {
               RollupDatasetRelation(
                 dataset1.resourceName,
                 rollupName,
-                soql,
+                RollupHelper.mapQueryToInternalAndBackToUser(nameAndSchemaStore,dataset1.resourceName,soql),
                 Set(dataset2.resourceName)
               )
             )

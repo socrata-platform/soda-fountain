@@ -471,7 +471,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       case To => store.rollupDatasetRelationByPrimaryDataset _
     })(dataset,store.latestCopyNumber(dataset)) match {
       case i: Set[RollupDatasetRelation] if i.isEmpty => RollupRelationsNotFound()
-      case rollupDatasetRelations=> RollupRelations(rollupDatasetRelations)
+      case rollupDatasetRelations=> RollupRelations(rollupDatasetRelations.map{relation=>
+        val (parsedQueriesInternal, tableNamesInternal) = RollupHelper.parse(relation.soql)
+        val soqlUser = RollupHelper.reverseMapQuery(store, relation.primaryDataset, parsedQueriesInternal, tableNamesInternal)
+        relation.copy(soql = soqlUser)
+      })
     }
   }
 
