@@ -27,7 +27,7 @@ object ResultSetMapper {
 
   def extractRollupMapId(rs:ResultSet): RollupMapId={
     if (rs.next()) {
-      new RollupMapId(rs.getLong(1))
+      new RollupMapId(rs.getLong("id"))
     } else {
       throw new IllegalStateException("There should always be a primary key returned when updating/inserting.")
     }
@@ -35,7 +35,7 @@ object ResultSetMapper {
 
   def extractRollupMapIdCopyId(rs: ResultSet): (RollupMapId,CopyId) = {
     if (rs.next()) {
-      (new RollupMapId(rs.getLong(1)),new CopyId(rs.getLong(2)))
+      (new RollupMapId(rs.getLong("rollup_map_id")),new CopyId(rs.getLong("dataset_copy_id")))
     } else {
       throw new IllegalStateException("There should always be a primary key returned when updating/inserting.")
     }
