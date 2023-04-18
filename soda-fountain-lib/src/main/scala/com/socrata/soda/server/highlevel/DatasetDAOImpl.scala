@@ -539,8 +539,16 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
             Rollups(
               //Convert both dc and soda rollup specs to a map of [spec.name,spec]
               //Merge them together, with soda taking precedence(overwriting)
-              (dcRollups.map(a => a.name -> a).toMap ++ sodaRollups.map(a => a.name -> a).toMap)
-                .values.toSeq
+              sodaRollups.map(a => a.name -> a).toMap.foldLeft(dcRollups.map(a => a.name -> a).toMap){
+                (acc,next)=>
+                  val (rollupName,rollupSpec) = next
+                  acc.updated(rollupName,acc.get(rollupName).map{ dcRollupSpec=>
+                    if (dcRollupSpec.soql!=rollupSpec.soql){
+                      log.error(s"Rollup soql mismatch. DC:'${dcRollupSpec.soql}', Soda:'${rollupSpec.soql}'")
+                    }
+                    dcRollupSpec.copy(lastAccessed = rollupSpec.lastAccessed)
+                  }.getOrElse(rollupSpec))
+              }.values.toSeq
             )
           case DataCoordinatorClient.DatasetNotFoundResult(_) =>
             DatasetNotFound(dataset)

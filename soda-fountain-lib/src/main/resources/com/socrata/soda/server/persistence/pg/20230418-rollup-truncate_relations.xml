@@ -5,8 +5,7 @@
                    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
     <changeSet author="paul maksimovich" id="20230418-rollup-truncate_relations-1">
         <sql>
-            truncate table rollup_relationship_map;
-            truncate table rollup_map;
+            truncate table rollup_relationship_map, rollup_map;
         </sql>
     </changeSet>
 </databaseChangeLog>
