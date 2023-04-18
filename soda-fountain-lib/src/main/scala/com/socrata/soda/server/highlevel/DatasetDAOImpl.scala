@@ -428,7 +428,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                   Iterator.single(instruction)) {
                   case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
                     store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
-                    RollupHelper.rollupCreatedOrUpdated(store,dataset,copyNumber,rollup,mappedQueries, tableNames);
+                    RollupHelper.rollupCreatedOrUpdated(store,dataset,copyNumber,rollup,mappedQueries, tableNames)
                     RollupCreatedOrUpdated
                   case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
                     RollupNotFound(rollup)

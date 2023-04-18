@@ -92,6 +92,8 @@ object RollupHelper {
     soqlAnalyzer.analyzeBinary(parsedQueries)(AnalysisContext(schemas = contexts,parameters = ParameterSpec.empty))
   }
 
+  //Take a soql with user identifiers, map it to internal identifiers, then map it back to user identifiers
+  //Helper method for easier assertion, as our system likes you generate column aliases
   def mapQueryToInternalAndBackToUser(store:NameAndSchemaStore, dataset:ResourceName, soql:String):String={
     val (parsedQueriesUser, tableNamesUser) = RollupHelper.parse(soql)
     val soqlInternal = RollupHelper.mapQuery(store, dataset, parsedQueriesUser, tableNamesUser, generateAliases = true)
