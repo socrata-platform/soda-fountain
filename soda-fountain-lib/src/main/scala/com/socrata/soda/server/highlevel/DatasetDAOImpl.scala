@@ -540,8 +540,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               //Convert both dc and soda rollup specs to a map of [spec.name,spec]
               //Merge them together, with soda taking precedence(overwriting)
               sodaRollups.map(a => a.name -> a).toMap.foldLeft(dcRollups.map(a => a.name -> a).toMap){
-                (acc,next)=>
-                  val (rollupName,rollupSpec) = next
+                case (acc,(rollupName,rollupSpec))=>
                   acc.updated(rollupName,acc.get(rollupName).map{ dcRollupSpec=>
                     if (dcRollupSpec.soql!=rollupSpec.soql){
                       log.error(s"Rollup soql mismatch. DC:'${dcRollupSpec.soql}', Soda:'${rollupSpec.soql}'")
