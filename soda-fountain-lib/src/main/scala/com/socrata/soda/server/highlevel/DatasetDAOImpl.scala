@@ -544,8 +544,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                   acc.updated(rollupName,acc.get(rollupName).map{ dcRollupSpec=>
                     if (dcRollupSpec.soql!=rollupSpec.soql){
                       log.error(s"Rollup soql mismatch. DC:'${dcRollupSpec.soql}', Soda:'${rollupSpec.soql}'")
+                      dcRollupSpec
+                    }else{
+                      rollupSpec
                     }
-                    dcRollupSpec.copy(lastAccessed = rollupSpec.lastAccessed)
                   }.getOrElse(rollupSpec))
               }.values.toSeq
             )
