@@ -2,9 +2,11 @@ package com.socrata.soda.external
 
 import com.rojoma.json.v3.ast.JString
 import com.socrata.soql.types.{SoQLNumber, SoQLType}
-import org.scalatest.{FunSuite, MustMatchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.must.Matchers
 
-class CsvColumnRepTest extends FunSuite with MustMatchers {
+
+class CsvColumnRepTest extends AnyFunSuite with Matchers {
   test("Reps know about all types") {
     CsvColumnRep.forType.keySet must equal (SoQLType.typesByName.values.toSet)
   }

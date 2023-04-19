@@ -19,4 +19,7 @@
     <include file="com/socrata/soda/server/persistence/pg/20181023-add-indexes.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20190515-align-truth-instance-name.xml"/>
     <include file="com/socrata/soda/server/persistence/pg/20230201-rollups.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20230318-rollup-ttl.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20230331-rollup-drop-rollup_dataset_relations.xml"/>
+    <include file="com/socrata/soda/server/persistence/pg/20230418-rollup-truncate_relations.xml"/>
 </databaseChangeLog>

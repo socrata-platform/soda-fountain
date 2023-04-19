@@ -4,7 +4,7 @@ import javax.servlet.http.HttpServletRequest
 import com.rojoma.json.v3.ast.JString
 import com.rojoma.simplearm.v2._
 import com.socrata.datacoordinator.client.HttpDatatCoordinatorClientTest
-import com.socrata.http.server.{HttpRequest, ConcreteHttpRequest}
+import com.socrata.http.server.{ConcreteHttpRequest, HttpRequest}
 import com.socrata.http.server.routing.OptionallyTypedPathComponent
 import com.socrata.http.server.util.Precondition
 import com.socrata.soda.clients.datacoordinator.{RowUpdate, RowUpdateOption}
@@ -23,13 +23,13 @@ import com.socrata.soql.stdlib.Context
 import com.socrata.soql.types.SoQLValue
 import org.joda.time.DateTime
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.FunSuite
+import org.scalatest.funsuite.AnyFunSuite
 import org.springframework.mock.web.{MockHttpServletRequest, MockHttpServletResponse}
 
 /**
  * Metric scenarios which are common between multi-row queries and single-row operations
  */
-trait QueryMetricTestBase extends FunSuite with MockFactory {
+trait QueryMetricTestBase extends AnyFunSuite with MockFactory {
   val domainIdHeader = "X-SODA2-Domain-ID"
   val testDomainId = "1"
   val lensUidHeader = "X-Socrata-Lens-Uid"

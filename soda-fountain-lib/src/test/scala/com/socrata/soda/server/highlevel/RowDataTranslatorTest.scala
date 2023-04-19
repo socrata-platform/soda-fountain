@@ -6,9 +6,10 @@ import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.highlevel.RowDataTranslator._
 import com.socrata.soql.environment.ColumnName
 import org.joda.time.DateTime
-import org.scalatest.{Matchers, FunSuite}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-class RowDataTranslatorTest extends FunSuite with Matchers with DatasetsForTesting {
+class RowDataTranslatorTest extends AnyFunSuite with Matchers with DatasetsForTesting {
   val ds = TestDatasetWithComputedColumn.dataset
   val dsInfo = TestDatasetWithComputedColumn
   val translator = new RowDataTranslator(ds, false, true)

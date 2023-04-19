@@ -1,9 +1,11 @@
 package com.socrata.soda.server.metrics
 
-import java.util.concurrent.atomic.AtomicLong
-import org.scalatest.{FunSpec, Matchers}
+import org.scalatest.funspec.AnyFunSpec
+import org.scalatest.matchers.should.Matchers
 
-class MetricCounterTest extends FunSpec with Matchers {
+import java.util.concurrent.atomic.AtomicLong
+
+class MetricCounterTest extends AnyFunSpec with Matchers {
   describe("A MetricCounter") {
 
     it("Should initialize correctly by default") {

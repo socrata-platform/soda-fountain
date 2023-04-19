@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                   http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+    <changeSet author="paul maksimovich" id="20230328-rollup-ttl-last_accessed">
+        <sql>
+            alter table rollup_map
+            add column last_accessed timestamp with time zone default now() not null;
+        </sql>
+        <rollback>
+            <sql>
+                alter table rollup_map
+                drop column last_accessed;
+            </sql>
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

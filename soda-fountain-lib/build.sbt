@@ -47,7 +47,10 @@ libraryDependencies ++= Seq(
   TestDeps.socrataCuratorUtils,
   TestDeps.springTest,
   TestDeps.wiremock,
-  TestDeps.scalaTest
+  TestDeps.scalaTest,
+  TestDeps.scalaTestFunSpec,
+  TestDeps.testContainers,
+  TestDeps.testContainersPostgres
 ).map(_.excludeAll(ExclusionRule(organization = "commons-logging")))
 
 def genVersion(resourceManaged: File, name: String, version: String, scalaVersion: String): Seq[File] = {

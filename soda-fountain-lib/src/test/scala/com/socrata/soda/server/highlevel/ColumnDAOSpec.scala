@@ -1,6 +1,6 @@
 package com.socrata.soda.server.highlevel
 
-import com.socrata.soda.clients.datacoordinator.{FeedbackSecondaryManifestClient, DataCoordinatorClient}
+import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, FeedbackSecondaryManifestClient}
 import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.copy.Latest
 import com.socrata.soda.server.highlevel.ColumnDAO._
@@ -8,10 +8,12 @@ import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.soql.environment.ColumnName
 import org.scalamock.proxy.ProxyMockFactory
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.{Matchers, FunSuiteLike}
+import org.scalatest.funsuite.AnyFunSuiteLike
+import org.scalatest.matchers.should.Matchers
+
 import scala.util.Random
 
-class ColumnDAOSpec extends FunSuiteLike
+class ColumnDAOSpec extends AnyFunSuiteLike
   with Matchers with MockFactory with ProxyMockFactory with DatasetsForTesting {
 
   test("Delete nonexistent column") {

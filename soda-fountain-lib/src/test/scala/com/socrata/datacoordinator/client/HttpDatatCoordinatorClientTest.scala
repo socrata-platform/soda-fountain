@@ -2,19 +2,19 @@ package com.socrata.datacoordinator.client
 
 import java.io.ByteArrayInputStream
 import java.io.InputStream
-
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.rojoma.json.v3.ast._
 import com.rojoma.json.v3.codec.JsonEncode
 import com.socrata.http.client._
 import com.socrata.http.client.Response
 import com.socrata.http.client.StandardResponse
-import com.socrata.soda.clients.datacoordinator.{ColumnNotFound, UnknownDataCoordinatorError, HttpDataCoordinatorClient}
+import com.socrata.soda.clients.datacoordinator.{ColumnNotFound, HttpDataCoordinatorClient, UnknownDataCoordinatorError}
 import com.socrata.soda.server.ThreadLimiter
+import org.scalatest.Tag
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
 
-import org.scalatest.{FunSuite, Matchers, Tag}
-
-class HttpDatatCoordinatorClientTest extends FunSuite with Matchers {
+class HttpDatatCoordinatorClientTest extends AnyFunSuite with Matchers {
 
   object tag extends Tag("HttpDatatCoordinatorClientTest")
 

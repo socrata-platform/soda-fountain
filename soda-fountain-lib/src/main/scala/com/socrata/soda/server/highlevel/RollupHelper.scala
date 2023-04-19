@@ -92,6 +92,15 @@ object RollupHelper {
     soqlAnalyzer.analyzeBinary(parsedQueries)(AnalysisContext(schemas = contexts,parameters = ParameterSpec.empty))
   }
 
+  //Take a soql with user identifiers, map it to internal identifiers, then map it back to user identifiers
+  //Helper method for easier assertion, as our system likes you generate column aliases
+  def mapQueryToInternalAndBackToUser(store:NameAndSchemaStore, dataset:ResourceName, soql:String):String={
+    val (parsedQueriesUser, tableNamesUser) = RollupHelper.parse(soql)
+    val soqlInternal = RollupHelper.mapQuery(store, dataset, parsedQueriesUser, tableNamesUser, generateAliases = true)
+    val (parsedQueriesInternal, tableNamesInternal) = RollupHelper.parse(soqlInternal)
+    RollupHelper.reverseMapQuery(store, dataset, parsedQueriesInternal, tableNamesInternal)
+  }
+
   /**
    * mapping soql from user column id to internal column id
    */
@@ -174,22 +183,13 @@ object RollupHelper {
     }
   }
 
-  def rollupCreatedOrUpdated(store: NameAndSchemaStore, datasetResourceName: ResourceName, rollupName: RollupName, soql:String, tableNames: Set[TableName]): Unit ={
-    val latestCopyId: CopyId = store.latestCopyId(datasetResourceName)
+  def rollupCreatedOrUpdated(store: NameAndSchemaStore, primaryResourceName: ResourceName, primaryCopyNumber:Long, rollupName: RollupName, soql:String, tableNames: Set[TableName]): Unit ={
+    store.createOrUpdateRollup(primaryResourceName,primaryCopyNumber, rollupName, soql)
+    store.deleteRollupRelations(primaryResourceName,primaryCopyNumber,rollupName)
 
-    val rollupMapId: RollupMapId = store.createOrUpdateRollup(latestCopyId, rollupName, soql)
-    store.deleteRollupRelations(Set(rollupMapId))
-
-    tableNames.foreach{tableName=>
-      val latestRelatedCopyId: CopyId = store.latestCopyId(new ResourceName(tableName.name))
-      store.createRollupRelation(rollupMapId,latestRelatedCopyId)
+    tableNames.map(a=>new ResourceName(a.name)).foreach{ secondaryResourceName=>
+      store.createRollupRelation(primaryResourceName,primaryCopyNumber,secondaryResourceName,store.latestCopyNumber(secondaryResourceName),rollupName)
     }
   }
 
-  def rollupsDeleted(store: NameAndSchemaStore, datasetResourceName: ResourceName, rollups: Seq[RollupName]): Unit = {
-    val latestCopyId: CopyId = store.latestCopyId(datasetResourceName)
-    val rollupMapIds:Set[RollupMapId] = store.getRollupMapIds(latestCopyId,rollups.toSet)
-    store.deleteRollupRelations(rollupMapIds)
-    store.deleteRollups(rollupMapIds)
-  }
 }

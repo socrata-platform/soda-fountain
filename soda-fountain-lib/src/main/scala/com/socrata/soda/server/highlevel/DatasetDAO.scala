@@ -57,6 +57,8 @@ trait DatasetDAO {
 
   def getRollupRelations(dataset: ResourceName, relationSide: RelationSide): Result
   def deleteIndexes(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], names: Seq[IndexName]): Result
+
+  def markRollupAccessed(resourceName: ResourceName,rollupName: RollupName):Result
 }
 
 object DatasetDAO {
@@ -110,6 +112,8 @@ object DatasetDAO {
   case class Rollups(rollups: Seq[RollupSpec]) extends SuccessResult
 
   case class RollupRelations(rollupRelations: Set[RollupDatasetRelation]) extends SuccessResult
+
+  case class RollupMarkedAccessed() extends SuccessResult
 
   case object RollupCreatedOrUpdated extends SuccessResult
   case object RollupDropped extends SuccessResult

@@ -14,6 +14,7 @@ import com.socrata.soda.clients.datacoordinator.RollupDatasetRelation
 import com.socrata.soda.server.copy.{Latest, Published, Stage}
 import com.socrata.soda.server.highlevel.csrec
 import com.socrata.soda.server.id.{ColumnId, CopyId, DatasetInternalName, ResourceName, RollupMapId, RollupName}
+import com.socrata.soda.server.model.RollupInfo
 import com.socrata.soda.server.persistence._
 import com.socrata.soda.server.util.ResultSetMapper
 import com.socrata.soda.server.util.schema.{SchemaHash, SchemaSpec}
@@ -950,19 +951,30 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  override def createOrUpdateRollup(copyId: CopyId, rollupName: RollupName, soql: String): RollupMapId = {
+  override def createOrUpdateRollup(resourceName: ResourceName,copyNumber:Long, rollupName: RollupName, soql: String): RollupMapId = {
     using(dataSource.getConnection()) { conn =>
       using(conn.prepareStatement(
         //excluded.soql is the original "soql" of the insert event. If copyId and rollupName are the same, lets just update the soql
         """
         insert into rollup_map(dataset_copy_id, name, soql)
-        values (?,?,?)
-        on conflict(dataset_copy_id, name) do update set soql=excluded.soql
+        values (
+            (
+                select c1.id
+                from datasets d1
+                join dataset_copies c1 on c1.dataset_system_id = d1.dataset_system_id
+                where d1.resource_name_casefolded=? and c1.copy_number=?
+            ),
+            ?,
+            ?
+        )
+        on conflict(dataset_copy_id, name) do update
+        set soql=excluded.soql
         returning id
         """.stripMargin)) { stmt =>
-        stmt.setLong(1, copyId.underlying)
-        stmt.setString(2,rollupName.name)
-        stmt.setString(3,soql)
+        stmt.setString(1, resourceName.caseFolded)
+        stmt.setLong(2,copyNumber)
+        stmt.setString(3,rollupName.name)
+        stmt.setString(4,soql)
         using(stmt.executeQuery()) {
           ResultSetMapper.extractRollupMapId
         }
@@ -970,80 +982,99 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  override def deleteRollupRelations(rollupMapId: Set[RollupMapId]): Int = {
+  override def deleteRollupRelations(resourceName: ResourceName,copyNumber:Long,rollupName: RollupName): Int = {
     using(dataSource.getConnection()) { conn =>
       using(conn.prepareStatement(
         """
-        delete from rollup_relationship_map where rollup_map_id =  any(?)
+        delete from rollup_relationship_map rrm1
+        using rollup_map rm1
+        join dataset_copies c1 on rm1.dataset_copy_id = c1.id
+        join datasets d1 on c1.dataset_system_id = d1.dataset_system_id
+        where rrm1.rollup_map_id=rm1.id
+        and d1.resource_name_casefolded = ? and c1.copy_number = ? and rm1.name = ?
         """.stripMargin)) { stmt =>
-        stmt.setArray(1, conn.createArrayOf("bigInt",rollupMapId.map(_.underlying.asInstanceOf[AnyRef]).toArray))
+        stmt.setString(1, resourceName.caseFolded)
+        stmt.setLong(2,copyNumber)
+        stmt.setString(3,rollupName.name)
         stmt.executeUpdate()
       }
     }
   }
 
-  override def deleteRollupRelations(copyId: CopyId): Int = {
-    using(dataSource.getConnection()) { conn =>
-      using(conn.prepareStatement(
-        """
-        delete from rollup_relationship_map where dataset_copy_id=?
-        """.stripMargin)) { stmt =>
-        stmt.setLong(1, copyId.underlying)
-        stmt.executeUpdate()
-      }
-    }
-  }
-
-  override def createRollupRelation(rollupMapId: RollupMapId, copyId: CopyId): Int = {
+  override def createRollupRelation(primaryResourceName: ResourceName,primaryCopyNumber:Long,secondaryResourceName: ResourceName,secondaryCopyNumber:Long,rollupName: RollupName): (RollupMapId,CopyId) = {
     using(dataSource.getConnection()) { conn =>
       using(conn.prepareStatement(
         """
         insert into rollup_relationship_map(rollup_map_id, dataset_copy_id)
-        values (?,?)
+        values (
+            (
+                select rm1.id
+                from rollup_map rm1
+                join dataset_copies c1 on rm1.dataset_copy_id=c1.id
+                join datasets d1 on c1.dataset_system_id=d1.dataset_system_id
+                where d1.resource_name_casefolded=? and c1.copy_number=? and rm1.name=?
+                ),
+            (
+                select c1.id
+                from datasets d1
+                join dataset_copies c1 on  d1.dataset_system_id = c1.dataset_system_id
+                where d1.resource_name_casefolded=? and c1.copy_number=?
+                )
+        )
+        returning rollup_map_id, dataset_copy_id
         """.stripMargin)) { stmt =>
-        stmt.setLong(1, rollupMapId.underlying)
-        stmt.setLong(2, copyId.underlying)
-        stmt.executeUpdate()
-      }
-    }
-  }
-
-  override def getRollupMapIds(copyId: CopyId, rollupNames: Set[RollupName]): Set[RollupMapId] = {
-    using(dataSource.getConnection()) { conn =>
-      using(conn.prepareStatement(
-        """
-        select id
-        from rollup_map
-        where dataset_copy_id=? and name = any(?)
-        """.stripMargin)) { stmt =>
-        stmt.setLong(1, copyId.underlying)
-        stmt.setArray(2,conn.createArrayOf("varchar",rollupNames.map(_.name).toArray))
+        stmt.setString(1,primaryResourceName.caseFolded)
+        stmt.setLong(2,primaryCopyNumber)
+        stmt.setString(3,rollupName.name)
+        stmt.setString(4,secondaryResourceName.caseFolded)
+        stmt.setLong(5,secondaryCopyNumber)
         using(stmt.executeQuery()) {
-          ResultSetMapper.extractSetRollupMapId
+          ResultSetMapper.extractRollupMapIdCopyId
         }
       }
     }
   }
 
-  override def deleteRollups(rollups: Set[RollupMapId]): Int ={
+  override def deleteRollups(resourceName: ResourceName,copyNumber:Long,rollups:Set[RollupName]): Int ={
     using(dataSource.getConnection()) { conn =>
       using(conn.prepareStatement(
         """
-        delete from rollup_map where id = any(?)
+        delete from rollup_map rm1
+        using dataset_copies c1
+        join datasets d1 on c1.dataset_system_id = d1.dataset_system_id
+        where
+            rm1.dataset_copy_id = c1.id
+            and d1.resource_name_casefolded = ?
+            and c1.copy_number = ?
+            and rm1.name = any(?)
         """.stripMargin)) { stmt =>
-        stmt.setArray(1, conn.createArrayOf("bigInt", rollups.map(_.underlying.asInstanceOf[AnyRef]).toArray))
+        stmt.setString(1,resourceName.caseFolded)
+        stmt.setLong(2,copyNumber)
+        stmt.setArray(3, conn.createArrayOf("varchar", rollups.map(_.name).toArray))
         stmt.executeUpdate()
       }
     }
   }
 
-  override def rollupDatasetRelationByPrimaryDataset(primaryDataset: ResourceName): Set[RollupDatasetRelation] = {
+  override def rollupDatasetRelationByPrimaryDataset(primaryDataset: ResourceName,copyNumber:Long): Set[RollupDatasetRelation] = {
     using(dataSource.getConnection()) { conn =>
       using(conn.prepareStatement(
         """
-        select * from rollup_dataset_relations where primary_dataset = ?
+        select d1.resource_name as primary_dataset,
+               rm1.name as name,
+               rm1.soql as soql,
+               array_agg(d2.resource_name) as secondary_datasets
+        from rollup_map rm1
+        join dataset_copies c1 on rm1.dataset_copy_id = c1.id
+        join datasets d1 on c1.dataset_system_id = d1.dataset_system_id
+        join rollup_relationship_map rrm1 on rrm1.rollup_map_id = rm1.id
+        join dataset_copies c2 on rrm1.dataset_copy_id = c2.id
+        join datasets d2 on c2.dataset_system_id = d2.dataset_system_id
+        where d1.resource_name_casefolded=? and c1.copy_number=?
+        group by d1.resource_name,rm1.name,rm1.soql
         """.stripMargin)) { stmt =>
-        stmt.setString(1, primaryDataset.name)
+        stmt.setString(1, primaryDataset.caseFolded)
+        stmt.setLong(2,copyNumber)
         using(stmt.executeQuery()) {
           ResultSetMapper.extractSetRollupDatasetRelation
         }
@@ -1051,15 +1082,71 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  override def rollupDatasetRelationBySecondaryDataset(secondaryDataset: ResourceName): Set[RollupDatasetRelation] = {
+  override def rollupDatasetRelationBySecondaryDataset(secondaryDataset: ResourceName,copyNumber:Long): Set[RollupDatasetRelation] = {
     using(dataSource.getConnection()) { conn =>
       using(conn.prepareStatement(
         """
-        select * from rollup_dataset_relations where ? =Any(secondary_datasets)
+        select d1.resource_name as primary_dataset,
+               rm1.name as name,
+               rm1.soql as soql,
+               array_agg(d2.resource_name) as secondary_datasets
+        from rollup_map rm1
+        join dataset_copies c1 on rm1.dataset_copy_id = c1.id
+        join datasets d1 on c1.dataset_system_id = d1.dataset_system_id
+        join rollup_relationship_map rrm1 on rrm1.rollup_map_id = rm1.id
+        join dataset_copies c2 on rrm1.dataset_copy_id = c2.id
+        join datasets d2 on c2.dataset_system_id = d2.dataset_system_id
+        where rm1.id in (
+            select rrm1i.rollup_map_id
+            from rollup_relationship_map rrm1i
+            join dataset_copies c1i on rrm1i.dataset_copy_id = c1i.id
+            join datasets d1i on c1i.dataset_system_id = d1i.dataset_system_id
+            where d1i.resource_name_casefolded = ? and c1i.copy_number = ?
+            )
+        group by d1.resource_name,rm1.name,rm1.soql
         """.stripMargin)) { stmt =>
-        stmt.setString(1, secondaryDataset.name)
+        stmt.setString(1, secondaryDataset.caseFolded)
+        stmt.setLong(2,copyNumber)
         using(stmt.executeQuery()) {
           ResultSetMapper.extractSetRollupDatasetRelation
+        }
+      }
+    }
+  }
+
+  override def markRollupAccessed(resourceName: ResourceName,copyNumber:Long,rollupName: RollupName):Boolean ={
+    using(dataSource.getConnection()) { conn =>
+      using(conn.prepareStatement(
+        """
+        update rollup_map rm1
+        set last_accessed=now()
+        from dataset_copies c1
+        join datasets d1 on c1.dataset_system_id = d1.dataset_system_id
+        where rm1.dataset_copy_id = c1.id
+        and d1.resource_name_casefolded=? and c1.copy_number=? and rm1.name=?
+        """.stripMargin)) { stmt =>
+        stmt.setString(1, resourceName.caseFolded)
+        stmt.setLong(2,copyNumber)
+        stmt.setString(3,rollupName.name)
+        stmt.executeUpdate()>0
+      }
+    }
+  }
+
+  override def getRollups(resourceName: ResourceName,copyNumber:Long):Set[RollupInfo]={
+    using(dataSource.getConnection()) { conn =>
+      using(conn.prepareStatement(
+        """
+        select rm1.*
+        from rollup_map rm1
+        join dataset_copies c1 on rm1.dataset_copy_id = c1.id
+        join datasets d1 on c1.dataset_system_id = d1.dataset_system_id
+        where d1.resource_name_casefolded=? and c1.copy_number=?
+        """.stripMargin)) { stmt =>
+        stmt.setString(1, resourceName.caseFolded)
+        stmt.setLong(2,copyNumber)
+        using(stmt.executeQuery()) {
+          ResultSetMapper.extractSetRollupInfo
         }
       }
     }

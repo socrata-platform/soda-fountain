@@ -6,12 +6,12 @@ import com.socrata.soda.server.DatasetsForTesting
 import com.socrata.soda.server.copy._
 import com.socrata.soda.server.highlevel.csrec
 import com.socrata.soda.server.id.{ColumnId, DatasetInternalName, ResourceName}
-import com.socrata.soda.server.wiremodels.{SourceColumnSpec, ComputationStrategySpec, ColumnSpec}
+import com.socrata.soda.server.wiremodels.{ColumnSpec, ComputationStrategySpec, SourceColumnSpec}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLNumber, SoQLPoint, SoQLText}
 import org.joda.time.DateTime
 import org.joda.time.chrono.ISOChronology
-import org.scalatest.Matchers
+import org.scalatest.matchers.should.Matchers
 
 class PostgresStoreTest extends SodaFountainDatabaseTest with Matchers with DatasetsForTesting {
 

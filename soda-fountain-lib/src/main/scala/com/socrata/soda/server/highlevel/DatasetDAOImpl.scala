@@ -428,7 +428,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                   Iterator.single(instruction)) {
                   case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
                     store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
-                    RollupHelper.rollupCreatedOrUpdated(store,dataset,rollup,soql, tableNames);
+                    RollupHelper.rollupCreatedOrUpdated(store,dataset,copyNumber,rollup,mappedQueries, tableNames)
                     RollupCreatedOrUpdated
                   case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
                     RollupNotFound(rollup)
@@ -469,17 +469,35 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     (relationSide match{
       case From => store.rollupDatasetRelationBySecondaryDataset _
       case To => store.rollupDatasetRelationByPrimaryDataset _
-    })(dataset) match {
+    })(dataset,store.latestCopyNumber(dataset)) match {
       case i: Set[RollupDatasetRelation] if i.isEmpty => RollupRelationsNotFound()
-      case rollupDatasetRelations=> RollupRelations(rollupDatasetRelations)
+      case rollupDatasetRelations=> RollupRelations(rollupDatasetRelations.map{relation=>
+        val (parsedQueriesInternal, tableNamesInternal) = RollupHelper.parse(relation.soql)
+        val soqlUser = RollupHelper.reverseMapQuery(store, relation.primaryDataset, parsedQueriesInternal, tableNamesInternal)
+        relation.copy(soql = soqlUser)
+      })
     }
   }
+
+  override def markRollupAccessed(resourceName: ResourceName,rollupName: RollupName):Result={
+    if (store.markRollupAccessed(resourceName,store.latestCopyNumber(resourceName),rollupName)){
+      RollupMarkedAccessed()
+    }else{
+      RollupNotFound(rollupName)
+    }
+  }
+
   def getRollups(dataset: ResourceName): Result = {
     store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
       case Some(datasetRecord) =>
+        //Ideally I'd like to no longer reach out to DC after starting to track rollup metadata in soda fountain.
+        //However, the DC has historical knowledge of rollups that predates Soda knowledge.
+        //Soda would only know about rollup metadata that was created since the Soda enhancement.
+        //We could synchronize DC rollup knowledge to Soda, but that needs to have some additional thought.
+        //So lets do both for now.
         dc.getRollups(datasetRecord.handle) match {
           case result: DataCoordinatorClient.RollupResult =>
-            val rollups = result.rollups.map { rollup =>
+            val dcRollups = result.rollups.map { rollup =>
               try {
                 val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)
                 val mappedQueries = RollupHelper.reverseMapQuery(store, dataset, parsedQueries, tableNames)
@@ -496,7 +514,43 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               }
             }
 
-            Rollups(rollups)
+            val sodaRollups = store.getRollups(
+              dataset,
+              store.latestCopyNumber(dataset)
+            ).toSeq.map { rollup =>
+              try{
+                val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)
+                val soqlWithUserIdentifiers = RollupHelper.reverseMapQuery(store, dataset, parsedQueries, tableNames)
+                RollupSpec(
+                  name = rollup.name,
+                  soql = soqlWithUserIdentifiers,
+                  //Soda knows the lastAccessed date of a rollup
+                  lastAccessed = Some(rollup.lastAccessed))
+              } catch {
+                case ex: BadParse =>
+                  log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
+                  RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
+                case ex: Exception =>
+                  log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
+                  RollupSpec(name = rollup.name, soql = "__Invalid Rollup__")
+              }
+            }
+
+            Rollups(
+              //Convert both dc and soda rollup specs to a map of [spec.name,spec]
+              //Merge them together
+              sodaRollups.map(a => a.name -> a).toMap.foldLeft(dcRollups.map(a => a.name -> a).toMap){
+                case (acc,(rollupName,rollupSpec))=>
+                  acc.updated(rollupName,acc.get(rollupName).map{ dcRollupSpec=>
+                    if (dcRollupSpec.soql!=rollupSpec.soql){
+                      log.error(s"Rollup soql mismatch. DC:'${dcRollupSpec.soql}', Soda:'${rollupSpec.soql}'")
+                      dcRollupSpec
+                    }else{
+                      rollupSpec
+                    }
+                  }.getOrElse(rollupSpec))
+              }.values.toSeq
+            )
           case DataCoordinatorClient.DatasetNotFoundResult(_) =>
             DatasetNotFound(dataset)
           case DataCoordinatorClient.InternalServerErrorResult(code, tag, data) =>
@@ -517,7 +571,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instruction) {
           case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
             store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
-            RollupHelper.rollupsDeleted(store,dataset,rollups)
+            store.deleteRollups(dataset,copyNumber,rollups.toSet)
             RollupDropped
           case DataCoordinatorClient.NoSuchRollupResult(ru, _) =>
             RollupNotFound(ru)

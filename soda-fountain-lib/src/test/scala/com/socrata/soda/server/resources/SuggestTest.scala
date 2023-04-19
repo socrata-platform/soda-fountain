@@ -3,13 +3,12 @@ package com.socrata.soda.server.resources
 import java.net.URI
 import java.util.concurrent.Executors
 import javax.servlet.http.{HttpServletRequest, HttpServletResponse => HttpStatus}
-
 import com.rojoma.json.v3.ast.{JNull, JObject, JString}
 import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.simplearm.v2._
 import com.socrata.http.client._
 import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, ReceiveTimeout}
-import com.socrata.http.server.{HttpRequest, ConcreteHttpRequest}
+import com.socrata.http.server.{ConcreteHttpRequest, HttpRequest}
 import com.socrata.soda.server.config.{SodaFountainConfig, SuggestConfig}
 import com.socrata.soda.server.copy.Published
 import com.socrata.soda.server.highlevel.{ColumnDAO, DatasetDAO}
@@ -22,14 +21,14 @@ import com.socrata.soql.types.SoQLNull
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.joda.time.DateTime
 import org.scalamock.scalatest.proxy.MockFactory
-import org.scalatest.Matchers
-import org.scalatest.concurrent.Timeouts
+import org.scalatest.concurrent.TimeLimits
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.SpanSugar._
 import org.springframework.mock.web.MockHttpServletResponse
 
 import scala.language.postfixOps
 
-class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with Timeouts {
+class SuggestTest extends SpandexTestSuite with Matchers with MockFactory with TimeLimits {
   val resourceName = new ResourceName("abcd-1234")
   val expectedDatasetId = "alpha.1234"
   val lifecycleStage = Published
