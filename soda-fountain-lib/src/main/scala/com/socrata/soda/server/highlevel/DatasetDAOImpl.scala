@@ -538,7 +538,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
 
             Rollups(
               //Convert both dc and soda rollup specs to a map of [spec.name,spec]
-              //Merge them together, with soda taking precedence(overwriting)
+              //Merge them together
               sodaRollups.map(a => a.name -> a).toMap.foldLeft(dcRollups.map(a => a.name -> a).toMap){
                 case (acc,(rollupName,rollupSpec))=>
                   acc.updated(rollupName,acc.get(rollupName).map{ dcRollupSpec=>
