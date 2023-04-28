@@ -449,6 +449,8 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                   RollupError(s"soql parse error ${ex.getMessage}" )
                 case ex: SoQLException =>
                   RollupError(s"soql analyze error ${ex.getMessage}" )
+                case ex: RollupException =>
+                  RollupError(s"rollup error: ${ex.getMessage}" )
               }
             case None =>
               RollupError("soql field missing")
