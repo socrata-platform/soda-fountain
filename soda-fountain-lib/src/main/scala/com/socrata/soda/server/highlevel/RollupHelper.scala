@@ -8,11 +8,11 @@ import com.socrata.soql.aliases.AliasAnalysis
 import com.socrata.soql.ast._
 import com.socrata.soql.collection.{OrderedMap, OrderedSet}
 import com.socrata.soql.environment.{ColumnName, TableName, UntypedDatasetContext}
-import com.socrata.soql.functions.{SoQLFunctionInfo, SoQLTypeInfo}
+import com.socrata.soql.functions.{SoQLFunctionInfo, SoQLFunctions, SoQLTypeInfo}
 import com.socrata.soql.mapping.ColumnNameMapper
 import com.socrata.soql.parsing.{AbstractParser, Parser}
 import com.socrata.soql.types.{SoQLType, SoQLValue}
-import com.socrata.soql.{AnalysisContext, BinaryTree, Compound, Leaf, ParameterSpec, PipeQuery, SoQLAnalyzer}
+import com.socrata.soql.{AnalysisContext, BinaryTree, Compound, Leaf, ParameterSpec, PipeQuery, SoQLAnalysis, SoQLAnalyzer}
 
 
 class StarSelectionExpander(rootSchemas: Map[String, Map[ColumnName, ColumnName]]) {
@@ -89,7 +89,12 @@ object RollupHelper {
       }
     }
 
-    soqlAnalyzer.analyzeBinary(parsedQueries)(AnalysisContext(schemas = contexts,parameters = ParameterSpec.empty))
+    val analysis = soqlAnalyzer.analyzeBinary(parsedQueries)(AnalysisContext(schemas = contexts,parameters = ParameterSpec.empty))
+    val merged = SoQLAnalysis.merge(SoQLFunctions.And.monomorphic.get, analysis)
+    merged match {
+      case Leaf(_) =>
+      case _ => throw RollupException("this type of rollup queries is not supported (complex pipes or unions)")
+    }
   }
 
   //Take a soql with user identifiers, map it to internal identifiers, then map it back to user identifiers
@@ -193,3 +198,6 @@ object RollupHelper {
   }
 
 }
+
+
+case class RollupException(message: String) extends Exception(message)
