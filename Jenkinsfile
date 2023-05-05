@@ -28,6 +28,7 @@ pipeline {
   }
   parameters {
     booleanParam(name: 'RELEASE_CUT', defaultValue: false, description: 'Are we cutting a new release candidate?')
+    booleanParam(name: 'FORCE_DOCKERIZE', defaultValue: false, description: 'Are we forcing a docker build?')
     string(name: 'AGENT', defaultValue: 'build-worker-pg13', description: 'Which build agent to use?')
     string(name: 'BRANCH_SPECIFIER', defaultValue: default_branch_specifier, description: 'Use this branch for building the artifact.')
   }
@@ -56,6 +57,12 @@ pipeline {
 
           // set the service sha to what was checked out (GIT_COMMIT isn't always set)
           service_sha = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
+
+          // if we need to force a docker build
+          if (params.FORCE_DOCKERIZE) {
+            stage_build = true
+            stage_dockerize = true
+          }
 
           // determine what triggered the build and what stages need to be run
           if (params.RELEASE_CUT) { // RELEASE_CUT parameter was set by a cut job
