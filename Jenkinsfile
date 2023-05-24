@@ -43,18 +43,18 @@ pipeline {
             echo "Files changed:\n${files}"
 
             // the release build process changes the version file, so it will always be changed
-            // if there are changes in addition to the version file, then we publish them as part of the release build process
+            // if there are other files changed, then publish the changes, increment the version and create a new tag
             if (files != 'version.sbt') {
               publishStage = true
+
+              echo 'Running sbt-release'
+              // The git config setup required for your project prior to running 'sbt release with-defaults' may vary:
+              sh(returnStdout: true, script: "git config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*")
+              sh(returnStdout: true, script: "git config branch.main.remote origin")
+              sh(returnStdout: true, script: "git config branch.main.merge refs/heads/main")
+
+              echo sh(returnStdout: true, script: "echo y | sbt \"release with-defaults\"")
             }
-
-            echo 'Running sbt-release'
-            // The git config setup required for your project prior to running 'sbt release with-defaults' may vary:
-            sh(returnStdout: true, script: "git config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*")
-            sh(returnStdout: true, script: "git config branch.main.remote origin")
-            sh(returnStdout: true, script: "git config branch.main.merge refs/heads/main")
-
-            echo sh(returnStdout: true, script: "echo y | sbt \"release with-defaults\"")
           }
 
           echo 'Getting release tag'
