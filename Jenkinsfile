@@ -2,13 +2,14 @@
 @Library('socrata-pipeline-library')
 
 // set up variables
+def service = 'soda-fountain'
 def project_wd = 'soda-fountain-jetty'
 def isPr = env.CHANGE_ID != null;
 def publishStage = false;
 
 // instanciate libraries
-def sbtbuild = new com.socrata.SBTBuild(steps, 'soda-fountain', project_wd)
-def dockerize = new com.socrata.Dockerize(steps, 'soda-fountain', env.BUILD_NUMBER)
+def sbtbuild = new com.socrata.SBTBuild(steps, service, project_wd)
+def dockerize = new com.socrata.Dockerize(steps, service, env.BUILD_NUMBER)
 
 pipeline {
   options {
