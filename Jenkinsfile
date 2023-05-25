@@ -84,7 +84,8 @@ pipeline {
           // set the SERVICE_SHA to the current head because it might not be the same as env.GIT_COMMIT
           env.SERVICE_SHA = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
           // set build description to be the same as the docker deploy tag
-          currentBuild.description = "${env.SERVICE}:${env.SERVICE_VERSION}_${env.BUILD_NUMBER}_${env.SERVICE_SHA.take(8)}"        }
+          currentBuild.description = "${env.SERVICE}:${env.SERVICE_VERSION}_${env.BUILD_NUMBER}_${env.SERVICE_SHA.take(8)}"
+        }
       }
 	  }
     stage('Publish') {
