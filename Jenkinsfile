@@ -1,118 +1,61 @@
 // Set up the libraries
 @Library('socrata-pipeline-library')
 
-// set up service and project variables
-def service = "soda-fountain"
-def project_wd = "soda-fountain-jetty"
-def deploy_service_pattern = "soda-fountain"
-def deploy_environment = "staging"
-def default_branch_specifier = "origin/main"
-
-def service_sha = env.GIT_COMMIT
-
-// variables that determine which stages we run based on what triggered the job
-def boolean stage_cut = false
-def boolean stage_build = false
-def boolean stage_dockerize = false
-def boolean stage_deploy = false
-def boolean stage_publish = false
+// set up variables
+def service = 'soda-fountain'
+def project_wd = 'soda-fountain-jetty'
+def isPr = env.CHANGE_ID != null;
+def publishStage = false;
 
 // instanciate libraries
 def sbtbuild = new com.socrata.SBTBuild(steps, service, project_wd)
-def dockerize = new com.socrata.Dockerize(steps, service, BUILD_NUMBER)
-def deploy = new com.socrata.MarathonDeploy(steps)
+def dockerize = new com.socrata.Dockerize(steps, service, env.BUILD_NUMBER)
 
 pipeline {
   options {
     ansiColor('xterm')
   }
   parameters {
-    booleanParam(name: 'RELEASE_CUT', defaultValue: false, description: 'Are we cutting a new release candidate?')
-    booleanParam(name: 'FORCE_DOCKERIZE', defaultValue: false, description: 'Are we forcing a docker build?')
-    string(name: 'AGENT', defaultValue: 'build-worker-pg13', description: 'Which build agent to use?')
-    string(name: 'BRANCH_SPECIFIER', defaultValue: default_branch_specifier, description: 'Use this branch for building the artifact.')
+    booleanParam(name: 'RELEASE_BUILD', defaultValue: false, description: 'Are we building a release candidate?')
+    booleanParam(name: 'RELEASE_DRY_RUN', defaultValue: false, description: 'To test out the release build without creating a new tag.')
+    string(name: 'AGENT', defaultValue: 'build-worker', description: 'Which build agent to use?')
+    string(name: 'BRANCH_SPECIFIER', defaultValue: 'origin/main', description: 'Use this branch for building the artifact.')
   }
   agent {
     label params.AGENT
   }
   environment {
-    PATH = "${WORKER_PATH}"
+    SERVICE = 'soda-fountain'
+    DOCKER_PATH = './docker'
   }
-
   stages {
-    stage('Setup') {
-      steps {
-        script {
-          // check to see if we want to use a non-standard branch and check out the repo
-          if (params.BRANCH_SPECIFIER == default_branch_specifier) {
-            checkout scm
-          } else {
-            def scmRepoUrl = scm.getUserRemoteConfigs()[0].getUrl()
-            checkout ([
-              $class: 'GitSCM',
-              branches: [[name: params.BRANCH_SPECIFIER ]],
-              userRemoteConfigs: [[ url: scmRepoUrl ]]
-            ])
-          }
-
-          // set the service sha to what was checked out (GIT_COMMIT isn't always set)
-          service_sha = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
-
-          // if we need to force a docker build
-          if (params.FORCE_DOCKERIZE) {
-            stage_build = true
-            stage_dockerize = true
-          }
-
-          // determine what triggered the build and what stages need to be run
-          if (params.RELEASE_CUT) { // RELEASE_CUT parameter was set by a cut job
-            stage_cut = true // stage_publish is turned on in the cut step as needed
-            stage_build = true
-            stage_dockerize = true
-            stage_deploy = true
-            deploy_environment = "rc"
-          }
-          else if (env.CHANGE_ID != null) { // we're running a PR builder
-            stage_build = true
-          }
-          else if (BRANCH_NAME == "main") { // we're running a build on main branch to deploy to staging
-            stage_build = true
-            stage_dockerize = true
-            stage_deploy = true
-          }
-          else {
-            // we're not sure what we're doing...
-            echo "Unknown build trigger - Exiting as Failure"
-            currentBuild.result = 'FAILURE'
-            return
-          }
-        }
+    stage('Release Tag') {
+      when {
+        expression { return params.RELEASE_BUILD }
       }
-    }
-    stage('Cut') {
-      when { expression { stage_cut } }
       steps {
         script {
-          // get a list of all files changes since the last tag
-          files = sh(returnStdout: true, script: "git diff --name-only HEAD `git describe --match \"v*\" --abbrev=0`").trim()
-          echo "Files changed:\n${files}"
-
-          if (files == 'version.sbt') {
-            echo 'No changes to the repo.  Rebuilding using the latest tag.'
-            // For release cuts, we want to rebuild and deploy even if there are no changes to the repo to pick up base layer changes for aqua compliance
-            stage_publish = false // artifactory does not let us publish without changes
+          if (params.RELEASE_DRY_RUN) {
+            echo 'DRY RUN: Skipping release tag creation'
           }
           else {
-            echo 'Running sbt-release'
+            // get a list of all files changes since the last tag
+            files = sh(returnStdout: true, script: "git diff --name-only HEAD `git describe --match \"v*\" --abbrev=0`").trim()
+            echo "Files changed:\n${files}"
 
-            // The git config setup required for your project prior to running 'sbt release with-defaults' may vary:
-            sh(returnStdout: true, script: "git config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*")
-            sh(returnStdout: true, script: "git config branch.main.remote origin")
-            sh(returnStdout: true, script: "git config branch.main.merge refs/heads/main")
+            // the release build process changes the version file, so it will always be changed
+            // if there are other files changed, then publish the changes, increment the version and create a new tag
+            if (files != 'version.sbt') {
+              publishStage = true
 
-            echo sh(returnStdout: true, script: "echo y | sbt \"release with-defaults\"")
+              echo 'Running sbt-release'
+              // The git config setup required for your project prior to running 'sbt release with-defaults' may vary:
+              sh(returnStdout: true, script: "git config remote.origin.fetch +refs/heads/*:refs/remotes/origin/*")
+              sh(returnStdout: true, script: "git config branch.main.remote origin")
+              sh(returnStdout: true, script: "git config branch.main.merge refs/heads/main")
 
-            stage_publish = true
+              echo sh(returnStdout: true, script: "echo y | sbt \"release with-defaults\"")
+            }
           }
 
           echo 'Getting release tag'
@@ -122,14 +65,10 @@ pipeline {
 
           // checkout the tag so we're performing subsequent actions on it
           sh "git checkout ${branchSpecifier}"
-
-          // set the service_sha to the current tag because it might not be the same as env.GIT_COMMIT
-          service_sha = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
         }
       }
     }
     stage('Build') {
-      when { expression { stage_build } }
       steps {
         script {
           // perform any needed modifiers on the build parameters here
@@ -140,39 +79,59 @@ pipeline {
           // build
           echo "Building sbt project..."
           sbtbuild.build()
+
+          env.SERVICE_VERSION = sbtbuild.getServiceVersion()
+          // set the SERVICE_SHA to the current head because it might not be the same as env.GIT_COMMIT
+          env.SERVICE_SHA = sh(returnStdout: true, script: "git rev-parse HEAD").trim()
+          // set build description to be the same as the docker deploy tag
+          currentBuild.description = "${env.SERVICE}:${env.SERVICE_VERSION}_${env.BUILD_NUMBER}_${env.SERVICE_SHA.take(8)}"
         }
       }
-	}
+	  }
     stage('Publish') {
-      when { expression { stage_publish } }
+      when {
+        expression { publishStage }
+      }
       steps {
         script {
-         echo "Publishing external library"
-         sbtbuild.setSubprojectName("sodaFountainExternal")
-         sbtbuild.setPublish(true)
-         sbtbuild.setBuildType("library")
-         sbtbuild.build()
+          echo "Publishing external library"
+          sbtbuild.setSubprojectName("sodaFountainExternal")
+          sbtbuild.setPublish(true)
+          sbtbuild.setBuildType("library")
+          sbtbuild.build()
         }
       }
     }
     stage('Dockerize') {
-      when { expression { stage_dockerize } }
+      when {
+        not { expression { isPr } }
+      }
       steps {
         script {
           echo "Building docker container..."
-          dockerize.docker_build(sbtbuild.getServiceVersion(), service_sha, "./docker", sbtbuild.getDockerArtifact())
+          dockerize.docker_build(env.SERVICE_VERSION, env.SERVICE_SHA, "./docker", sbtbuild.getDockerArtifact())
+          env.DOCKER_TAG = dockerize.getDeployTag()
+        }
+      }
+      post {
+        success {
+          script {
+            if (params.RELEASE_BUILD){
+              echo env.DOCKER_TAG // For now, just print the deploy tag in the console output -- later, communicate to release metadata service
+            }
+          }
         }
       }
     }
     stage('Deploy') {
-      when { expression { stage_deploy } }
+      when {
+        not { expression { isPr } }
+        not { expression { return params.RELEASE_BUILD } }
+      }
       steps {
         script {
-          // Checkout and run bundle install in the apps-marathon repo
-          deploy.checkoutAndInstall()
-
-          // deploy the service to the specified environment
-          deploy.deploy(deploy_service_pattern, deploy_environment, dockerize.getDeployTag())
+          // uses env.SERVICE and env.DOCKER_TAG, deploys to staging by default
+          marathonDeploy()
         }
       }
     }
