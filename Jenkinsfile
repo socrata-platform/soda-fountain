@@ -27,7 +27,7 @@ pipeline {
   environment {
     SERVICE = 'soda-fountain'
     DOCKER_PATH = './docker'
-    SERVICE_SHA = env.GIT_COMMIT
+    SERVICE_SHA = "${env.GIT_COMMIT}"
   }
   stages {
     stage('Release Tag') {
