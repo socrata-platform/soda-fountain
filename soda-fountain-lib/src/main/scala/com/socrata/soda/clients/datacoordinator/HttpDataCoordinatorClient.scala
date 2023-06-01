@@ -487,14 +487,13 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   def publish[T](dataset: DatasetHandle,
                  schemaHash: String,
                  expectedDataVersion: Option[Long],
-                 keepSnapshot:Option[Boolean],
                  user: String,
                  instructions: Iterator[DataCoordinatorInstruction])
                 (f: Result => T): T = {
     // TODO: publish should decode the row op report into something higher-level than JValues
     withConnectRetries() {
       withHost(dataset, mutate = true) { host =>
-        val pubScript = new MutationScript(user, PublishDataset(keepSnapshot, schemaHash, expectedDataVersion), instructions)
+        val pubScript = new MutationScript(user, PublishDataset(schemaHash, expectedDataVersion), instructions)
         sendNonCreateScript(mutateReq(host, dataset), pubScript)(f)
       }
     }

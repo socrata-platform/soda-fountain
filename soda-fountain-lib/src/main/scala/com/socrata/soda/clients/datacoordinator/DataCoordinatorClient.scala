@@ -201,7 +201,6 @@ trait DataCoordinatorClient {
   def publish[T](dataset: DatasetHandle,
                  schemaHash: String,
                  expectedDataVersion: Option[Long],
-                 keepSnapshot:Option[Boolean],
                  user: String,
                  instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
                 (f: Result => T): T

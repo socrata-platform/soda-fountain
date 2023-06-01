@@ -358,11 +358,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean]): Result =
+  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
-          dc.publish(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, keepSnapshot, user) {
+          dc.publish(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, newShapeVersion, lastModified) =>
               store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, Some(0))
               WorkingCopyPublished(newVersion, newShapeVersion)
