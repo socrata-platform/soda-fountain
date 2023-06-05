@@ -5,9 +5,13 @@ import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{ColumnId, DatasetHandle}
+import com.socrata.soda.server.id.{DatasetInternalName, ColumnId, DatasetHandle}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.stdlib.Context
+import com.socrata.soql.stdlib.analyzer2.{Context => NewContext}
+import com.socrata.soql.analyzer2.rewrite.Pass
+import com.socrata.soql.analyzer2
+import com.socrata.soql.types.{SoQLType, SoQLValue}
 import org.joda.time.DateTime
 
 object QueryCoordinatorClient {
@@ -68,6 +72,20 @@ object QueryCoordinatorClient {
 
   val HeaderRollup = "X-SODA2-Rollup"
 
+
+  final abstract class MetaTypes extends analyzer2.MetaTypes {
+    type ResourceNameScope = Int
+    type ColumnType = SoQLType
+    type ColumnValue = SoQLValue
+    type DatabaseTableNameImpl = (DatasetInternalName, Stage)
+    type DatabaseColumnNameImpl = ColumnId
+  }
+
+  object New {
+    sealed abstract class Result
+    case class Success(headers: Seq[(String, String)], content: java.io.InputStream) extends Result
+    case class NotModified(headers: Seq[(String, String)], content: java.io.InputStream) extends Result
+  }
 }
 
 trait QueryCoordinatorClient {
@@ -87,4 +105,11 @@ trait QueryCoordinatorClient {
                rs: ResourceScope,
                lensUid: Option[String])(f: Result => T): T
 
+  def newQuery(
+    tables: analyzer2.UnparsedFoundTables[MetaTypes],
+    context: NewContext,
+    rewritePasses: Seq[Seq[Pass]],
+    headers: Seq[(String, String)], // TODO: something less HTTP-specific
+    rs: ResourceScope
+  ): New.Result
 }

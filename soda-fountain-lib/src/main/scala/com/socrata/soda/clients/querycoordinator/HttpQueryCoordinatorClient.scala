@@ -2,7 +2,8 @@ package com.socrata.soda.clients.querycoordinator
 
 import java.net.URLEncoder
 import com.rojoma.json.v3.ast.{JNull, JNumber, JValue}
-import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil}
+import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil, AutomaticJsonEncode}
+import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, ReceiveTimeout, UnexpectedContentType}
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
@@ -13,7 +14,10 @@ import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError._
 import com.socrata.soda.server.{SodaUtils, ThreadLimiter}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.DatasetHandle
+import com.socrata.soql.analyzer2
+import com.socrata.soql.analyzer2.rewrite.Pass
 import com.socrata.soql.stdlib.Context
+import com.socrata.soql.stdlib.analyzer2.{Context => NewContext}
 import org.apache.http.HttpStatus._
 import org.joda.time.DateTime
 
@@ -156,4 +160,57 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     uuid
   }
 
+  def newQuery(
+    tables: analyzer2.UnparsedFoundTables[MetaTypes],
+    context: NewContext,
+    rewritePasses: Seq[Seq[Pass]],
+    additionalHeaders: Seq[(String, String)],
+    rs: ResourceScope
+  ) = {
+    @AutomaticJsonEncode
+    case class Body(
+      foundTables: analyzer2.UnparsedFoundTables[MetaTypes],
+      context: NewContext,
+      rewritePasses: Seq[Seq[Pass]]
+    )
+
+    val jValue = JsonEncode.toJValue(
+      Body(
+        tables,
+        context,
+        rewritePasses
+      )
+    )
+
+    retrying(5) {
+      qchost match {
+        case Some(host) =>
+          val base = host.p("new-query").method("QUERY").addHeaders(additionalHeaders)
+          val request = base.json(com.rojoma.json.v3.io.JValueEventIterator(jValue))
+          threadLimiter.withThreadpool {
+            val resp = httpClient.execute(request, rs)
+            resp.resultCode match {
+              case 200 =>
+                val headers = Seq("etag", "last-modified", "content-type").foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
+                  resp.headers(hdr).foldLeft(acc) { case (acc, value) =>
+                    acc :+ (hdr -> value)
+                  }
+                }
+                rs.openUnmanaged(New.Success(headers, resp.inputStream()), transitiveClose = List(resp))
+              case 304 =>
+                val headers = Seq("etag", "last-modified", "content-type").foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
+                  resp.headers(hdr).foldLeft(acc) { case (acc, value) =>
+                    acc :+ (hdr -> value)
+                  }
+                }
+                rs.openUnmanaged(New.NotModified(headers, resp.inputStream()), transitiveClose = List(resp))
+              case _ =>
+                throw new Exception("Invalid status code " + resp.resultCode)
+            }
+          }
+        case None =>
+          throw new Exception("could not connect to query coordinator")
+      }
+    }
+  }
 }
