@@ -109,6 +109,7 @@ trait QueryCoordinatorClient {
     tables: analyzer2.UnparsedFoundTables[MetaTypes],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
+    preserveSystemColumns: Boolean,
     headers: Seq[(String, String)], // TODO: something less HTTP-specific
     rs: ResourceScope
   ): New.Result

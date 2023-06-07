@@ -164,6 +164,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     tables: analyzer2.UnparsedFoundTables[MetaTypes],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
+    preserveSystemColumns: Boolean,
     additionalHeaders: Seq[(String, String)],
     rs: ResourceScope
   ) = {
@@ -171,14 +172,16 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     case class Body(
       foundTables: analyzer2.UnparsedFoundTables[MetaTypes],
       context: NewContext,
-      rewritePasses: Seq[Seq[Pass]]
+      rewritePasses: Seq[Seq[Pass]],
+      preserveSystemColumns: Boolean
     )
 
     val jValue = JsonEncode.toJValue(
       Body(
         tables,
         context,
-        rewritePasses
+        rewritePasses,
+        preserveSystemColumns
       )
     )
 
