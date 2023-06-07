@@ -17,7 +17,9 @@ case class FoundTablesRequest(
   @AllowMissing("Context.empty")
   context: Context,
   @AllowMissing("Nil")
-  rewritePasses: Seq[Seq[Pass]]
+  rewritePasses: Seq[Seq[Pass]],
+  @AllowMissing("false")
+  preserveSystemColumns: Boolean
 )
 
 object FoundTablesRequest {
