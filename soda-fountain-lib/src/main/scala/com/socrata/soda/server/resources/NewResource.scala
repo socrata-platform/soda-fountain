@@ -92,17 +92,25 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
       InputUtils.jsonSingleObjectStream(req.httpRequest, Long.MaxValue) match {
         case Right(obj) =>
           JsonDecode.fromJValue[FoundTablesRequest](obj) match {
-            case Right(reqData@FoundTablesRequest(tables, context, rewritePasses, preserveSystemColumns)) =>
+            case Right(reqData: FoundTablesRequest) =>
               log.debug("Received request {}", Lazy(JsonUtil.renderJson(reqData, pretty=true)))
               val cache = new DAOCache(req.nameAndSchemaStore)
-              val qcFoundTables = tables.rewriteDatabaseNames[QueryCoordinatorClient.MetaTypes](
+              val qcFoundTables = reqData.tables.rewriteDatabaseNames[QueryCoordinatorClient.MetaTypes](
                 cache.lookupTableName,
                 cache.lookupColumnName
               )
               val relevantHeaders = Seq("if-none-match", "if-match", "if-modified-since").flatMap { h =>
                 req.headers(h).map { h -> _ }
               }
-              req.queryCoordinator.newQuery(qcFoundTables, context, rewritePasses, preserveSystemColumns, relevantHeaders, req.resourceScope) match {
+              req.queryCoordinator.newQuery(
+                qcFoundTables,
+                reqData.context,
+                reqData.rewritePasses,
+                reqData.preserveSystemColumns,
+                reqData.debug,
+                relevantHeaders,
+                req.resourceScope
+              ) match {
                 case QueryCoordinatorClient.New.Success(hdrs, stream) =>
                   val base = hdrs.foldLeft[HttpResponse](OK) { case (acc, (hdrName, hdrVal)) =>
                     acc ~> Header(hdrName, hdrVal)

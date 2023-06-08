@@ -12,6 +12,7 @@ import com.socrata.soql.stdlib.analyzer2.{Context => NewContext}
 import com.socrata.soql.analyzer2.rewrite.Pass
 import com.socrata.soql.analyzer2
 import com.socrata.soql.types.{SoQLType, SoQLValue}
+import com.socrata.soql.sql.Debug
 import org.joda.time.DateTime
 
 object QueryCoordinatorClient {
@@ -110,6 +111,7 @@ trait QueryCoordinatorClient {
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     preserveSystemColumns: Boolean,
+    debug: Option[Debug],
     headers: Seq[(String, String)], // TODO: something less HTTP-specific
     rs: ResourceScope
   ): New.Result

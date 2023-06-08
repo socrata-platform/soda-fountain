@@ -21,7 +21,7 @@ object Dependencies {
     val slf4j             = "1.7.33"
     val socrataHttp       = "3.16.0"
     val soqlBrita         = "1.4.1"
-    val soqlReference     = "4.12.11"
+    val soqlReference     = "4.12.12"
     val thirdPartyUtils   = "5.0.0"
     val curatorUtils      = "1.2.0"
     val typesafeConfig    = "1.0.2"
@@ -84,6 +84,7 @@ object Dependencies {
   val soqlStandaloneParser     = "com.socrata"     %% "soql-standalone-parser"      % versions.soqlReference
   val soqlStdLib               = "com.socrata"     %% "soql-stdlib"                 % versions.soqlReference
   val soqlTypes                = "com.socrata"     %% "soql-types"                  % versions.soqlReference
+  val soqlUtils                = "com.socrata"     %% "soql-utils"                  % versions.soqlReference
 
   val typesafeConfig           = "com.typesafe"     % "config"                      % versions.typesafeConfig
 
