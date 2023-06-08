@@ -38,6 +38,7 @@ libraryDependencies ++= Seq(
   soqlStandaloneParser,
   soqlStdLib exclude ("javax.media", "jai_core"),
   soqlTypes exclude ("javax.media", "jai_core"),
+  soqlUtils exclude ("javax.media", "jai_core"),
   typesafeConfig,
   TestDeps.apacheCurator,
   TestDeps.mockito,

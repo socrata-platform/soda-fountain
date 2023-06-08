@@ -8,6 +8,7 @@ import com.socrata.soql.analyzer2.rewrite.Pass
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.types.{SoQLType, SoQLValue}
 import com.socrata.soql.stdlib.analyzer2.Context
+import com.socrata.soql.sql.Debug
 
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.ResourceName
@@ -19,7 +20,8 @@ case class FoundTablesRequest(
   @AllowMissing("Nil")
   rewritePasses: Seq[Seq[Pass]],
   @AllowMissing("false")
-  preserveSystemColumns: Boolean
+  preserveSystemColumns: Boolean,
+  debug: Option[Debug]
 )
 
 object FoundTablesRequest {

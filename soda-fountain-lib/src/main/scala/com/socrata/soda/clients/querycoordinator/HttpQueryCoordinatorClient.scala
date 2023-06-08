@@ -18,6 +18,7 @@ import com.socrata.soql.analyzer2
 import com.socrata.soql.analyzer2.rewrite.Pass
 import com.socrata.soql.stdlib.Context
 import com.socrata.soql.stdlib.analyzer2.{Context => NewContext}
+import com.socrata.soql.sql.Debug
 import org.apache.http.HttpStatus._
 import org.joda.time.DateTime
 
@@ -160,28 +161,31 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     uuid
   }
 
-  def newQuery(
+  @AutomaticJsonEncode
+  private case class NewQueryBody(
+    foundTables: analyzer2.UnparsedFoundTables[MetaTypes],
+    context: NewContext,
+    rewritePasses: Seq[Seq[Pass]],
+    preserveSystemColumns: Boolean,
+    debug: Option[Debug]
+  )
+
+  override def newQuery(
     tables: analyzer2.UnparsedFoundTables[MetaTypes],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     preserveSystemColumns: Boolean,
+    debug: Option[Debug],
     additionalHeaders: Seq[(String, String)],
     rs: ResourceScope
   ) = {
-    @AutomaticJsonEncode
-    case class Body(
-      foundTables: analyzer2.UnparsedFoundTables[MetaTypes],
-      context: NewContext,
-      rewritePasses: Seq[Seq[Pass]],
-      preserveSystemColumns: Boolean
-    )
-
     val jValue = JsonEncode.toJValue(
-      Body(
+      NewQueryBody(
         tables,
         context,
         rewritePasses,
-        preserveSystemColumns
+        preserveSystemColumns,
+        debug
       )
     )
 
