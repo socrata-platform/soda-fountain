@@ -89,7 +89,7 @@ object QueryCoordinatorClient {
   }
 }
 
-trait QueryCoordinatorClient {
+trait QueryCoordinatorClient extends analyzer2.LabelUniverse[QueryCoordinatorClient.MetaTypes] {
   import QueryCoordinatorClient._
   def query[T](dataset: DatasetHandle,
                precondition: Precondition,
@@ -108,6 +108,7 @@ trait QueryCoordinatorClient {
 
   def newQuery(
     tables: analyzer2.UnparsedFoundTables[MetaTypes],
+    locationSubcolumns: Map[DatabaseTableName, Map[DatabaseColumnName, Seq[Option[DatabaseColumnName]]]],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     preserveSystemColumns: Boolean,
