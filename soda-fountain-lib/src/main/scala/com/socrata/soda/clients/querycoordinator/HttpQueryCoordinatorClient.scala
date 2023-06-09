@@ -2,13 +2,15 @@ package com.socrata.soda.clients.querycoordinator
 
 import java.net.URLEncoder
 import com.rojoma.json.v3.ast.{JNull, JNumber, JValue}
-import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil, AutomaticJsonEncode}
+import com.rojoma.json.v3.util.{JsonArrayIterator, JsonUtil, AutomaticJsonEncode, OrJNull}
+import com.rojoma.json.v3.util.OrJNull.implicits._
 import com.rojoma.json.v3.codec.JsonEncode
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, ReceiveTimeout, UnexpectedContentType}
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.util._
+import com.socrata.soda.server.id.{DatasetInternalName, ColumnId}
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError._
 import com.socrata.soda.server.{SodaUtils, ThreadLimiter}
@@ -164,6 +166,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   @AutomaticJsonEncode
   private case class NewQueryBody(
     foundTables: analyzer2.UnparsedFoundTables[MetaTypes],
+    locationSubcolumns: Seq[(DatabaseTableName, Seq[(DatabaseColumnName, Seq[OrJNull[DatabaseColumnName]])])],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     preserveSystemColumns: Boolean,
@@ -172,6 +175,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
 
   override def newQuery(
     tables: analyzer2.UnparsedFoundTables[MetaTypes],
+    locationSubcolumns: Map[DatabaseTableName, Map[DatabaseColumnName, Seq[Option[DatabaseColumnName]]]],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     preserveSystemColumns: Boolean,
@@ -182,6 +186,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     val jValue = JsonEncode.toJValue(
       NewQueryBody(
         tables,
+        locationSubcolumns.mapValues(_.mapValues(_.map(_.orJNull)).toSeq).toSeq,
         context,
         rewritePasses,
         preserveSystemColumns,

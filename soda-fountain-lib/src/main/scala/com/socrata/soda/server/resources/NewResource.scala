@@ -8,7 +8,7 @@ import com.rojoma.json.v3.util.JsonUtil
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.HttpResponse
-import com.socrata.soql.analyzer2.{DatabaseTableName, DatabaseColumnName}
+import com.socrata.soql.analyzer2.{DatabaseTableName, DatabaseColumnName, LabelUniverse}
 import com.socrata.soql.analyzer2
 import com.socrata.soql.environment.ColumnName
 
@@ -82,10 +82,15 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
       val record = getRecord(dtn.name)
       DatabaseColumnName(record.schema(cn.name))
     }
+
+    def lookupAuxColumnName(dtn: DatabaseTableName[(ResourceName, Stage)], cn: ColumnName): Option[DatabaseColumnName[ColumnId]] = {
+      val record = getRecord(dtn.name)
+      record.schema.get(cn).map(DatabaseColumnName(_))
+    }
   }
 
 
-  case object service extends SodaResource {
+  case object service extends SodaResource with LabelUniverse[QueryCoordinatorClient.MetaTypes] {
     override def query = { req: SodaRequest =>
       val metricContext = new MetricContext(req)
 
@@ -95,6 +100,24 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
             case Right(reqData: FoundTablesRequest) =>
               log.debug("Received request {}", Lazy(JsonUtil.renderJson(reqData, pretty=true)))
               val cache = new DAOCache(req.nameAndSchemaStore)
+              val locationSubcolumns =
+                reqData.tables.allTableDescriptions.foldLeft(Map.empty[DatabaseTableName, Map[DatabaseColumnName, Seq[Option[DatabaseColumnName]]]]) { (acc, dsInfo) =>
+                  dsInfo.columns.valuesIterator.foldLeft(acc) { (acc, colInfo) =>
+                    if(colInfo.typ == com.socrata.soql.types.SoQLLocation) {
+                      val datasetName = cache.lookupTableName(dsInfo.name)
+                      val cid = cache.lookupColumnName(dsInfo.name, DatabaseColumnName(colInfo.name))
+                      val base = colInfo.name.name
+                      val dsColumns = acc.getOrElse(datasetName, Map.empty) +
+                        (cid -> Seq("address", "city", "state", "zip").map { suffix =>
+                           cache.lookupAuxColumnName(dsInfo.name, ColumnName(s"${base}_${suffix}"))
+                         })
+                      acc + (datasetName -> dsColumns)
+                    } else {
+                      acc
+                    }
+                  }
+                }
+
               val qcFoundTables = reqData.tables.rewriteDatabaseNames[QueryCoordinatorClient.MetaTypes](
                 cache.lookupTableName,
                 cache.lookupColumnName
@@ -104,6 +127,7 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
               }
               req.queryCoordinator.newQuery(
                 qcFoundTables,
+                locationSubcolumns,
                 reqData.context,
                 reqData.rewritePasses,
                 reqData.preserveSystemColumns,
