@@ -53,7 +53,7 @@ trait NameAndSchemaStore {
   def dropComputationStrategy(datasetId: DatasetInternalName, copyNumber: Long, columnSpec: ColumnSpec): ColumnRecord
   def updateColumnFieldName(datasetId: DatasetInternalName, columnId: ColumnId, newFieldName: ColumnName, copyNumber: Long) : Int
   def dropColumn(datasetId: DatasetInternalName, columnId: ColumnId, copyNumber: Long, primaryKeyColId: ColumnId) : Unit
-  def updateVersionInfo(datasetId: DatasetInternalName, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]): Unit
+  def updateVersionInfo(datasetId: DatasetInternalName, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long): Unit
   def makeCopy(datasetId: DatasetInternalName, copyNumber: Long, dataVersion: Long): Unit
 
   def bulkDatasetLookup(id: Set[DatasetInternalName], includeDeleted: Boolean = false): Set[ResourceName]

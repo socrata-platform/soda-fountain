@@ -4,11 +4,10 @@ import scala.language.implicitConversions
 
 import com.socrata.http.client.HttpClient
 import com.socrata.http.server.{HttpRequest, GeneratedHttpRequestApi}
-import com.socrata.http.server.util.RequestId.RequestId
 
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
-import com.socrata.soda.server.highlevel.{DatasetDAO, ColumnDAO, RowDAO, ExportDAO, ResyncDAO, SnapshotDAO}
+import com.socrata.soda.server.highlevel.{DatasetDAO, ColumnDAO, RowDAO, ExportDAO, ResyncDAO}
 import com.socrata.soda.server.persistence.NameAndSchemaStore
 
 trait SodaRequest {
@@ -21,7 +20,6 @@ trait SodaRequest {
   def columnDAO: ColumnDAO
   def rowDAO: RowDAO
   def exportDAO: ExportDAO
-  def snapshotDAO: SnapshotDAO
   def resyncDAO: ResyncDAO
   def nameAndSchemaStore: NameAndSchemaStore
 

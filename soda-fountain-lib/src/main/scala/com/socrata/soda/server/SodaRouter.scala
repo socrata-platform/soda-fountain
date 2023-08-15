@@ -3,15 +3,10 @@ package com.socrata.soda.server
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.routing.RouteContext
 import com.socrata.http.server.routing.{Extractor, OptionallyTypedPathComponent}
-import com.socrata.http.server.{HttpRequest, HttpResponse, HttpService}
-import com.socrata.soda.server._
+import com.socrata.http.server.{HttpResponse}
 import com.socrata.soda.server.responses.GeneralNotFoundError
 import com.socrata.soda.server.id.{IndexName, ResourceName, RollupName, RowSpecifier, SecondaryId}
 import com.socrata.soql.environment.ColumnName
-
-case class SnapshotResources(listDatasetsResource: SodaHttpService,  // list all datasets with snapshots
-                             listSnapshotsResource: ResourceName => SodaHttpService, // list snapshots for a dataset
-                             snapshotResource: (ResourceName, Long) => SodaHttpService) // export or delete the given snapshot
 
 class SodaRouter(versionResource: SodaHttpService,
                  healthZResource: SodaHttpService,
@@ -42,7 +37,6 @@ class SodaRouter(versionResource: SodaHttpService,
                  datasetIndexResource: (ResourceName, IndexName) => SodaHttpService,
                  sampleResource: (ResourceName, ColumnName) => SodaHttpService,
                  suggestResource: (ResourceName, ColumnName, String) => SodaHttpService,
-                 snapshotResources: SnapshotResources,
                  secondaryReindexResource: ResourceName => SodaHttpService,
                  indexDirectiveResource: (ResourceName, ColumnName) => SodaHttpService) {
   private[this] val routeContext = new RouteContext[SodaRequest, HttpResponse]
@@ -99,9 +93,6 @@ class SodaRouter(versionResource: SodaHttpService,
     Route("/dataset-version/{ResourceName}/{SecondaryId}", datasetVersionResource),
     Route("/export/{{ResourceName:exportExtensions}}", datasetExportResource),
     Route("/export/{ResourceName}/{{String:exportExtensions}}", datasetExportCopyResource),
-    Route("/snapshot", snapshotResources.listDatasetsResource),
-    Route("/snapshot/{ResourceName}", snapshotResources.listSnapshotsResource),
-    Route("/snapshot/{ResourceName}/{Long}", snapshotResources.snapshotResource),
     Route("/dataset-rollup/{ResourceName}", datasetRollupsResource),
     Route("/dataset-rollup/{ResourceName}/{RollupName}", datasetRollupResource),
     Route("/dataset-rollup/{ResourceName}/from", datasetRollupRelationFromResource),

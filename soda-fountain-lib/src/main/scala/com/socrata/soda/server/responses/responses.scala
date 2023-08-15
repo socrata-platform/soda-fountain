@@ -196,11 +196,6 @@ case class RowNotFound(value: RowSpecifier)
      s"Row with identifier ${value.underlying} was not found",
      "value" -> JString(value.underlying))
 
-case class SnapshotNotFound(value: ResourceName, snapshot: Long)
-  extends SodaResponse(SC_NOT_FOUND, "soda.snapshot.not-found", s"Snapshot ${snapshot} for dataset '${value.name}' was not found",
-    "dataset" -> JString(value.name),
-    "snapshot" -> JNumber(snapshot))
-
 case class DatasetNotInSecondary(secondary: String, dataset: ResourceName)
   extends SodaResponse(SC_NOT_FOUND, "req.secondary",
     s"Dataset with name '${dataset.name}' is not in secondary with id '$secondary'",

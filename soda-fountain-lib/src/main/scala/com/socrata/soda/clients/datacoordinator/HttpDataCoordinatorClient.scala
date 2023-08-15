@@ -61,13 +61,6 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
   def exportReq(host: RequestBuilder, dataset: DatasetHandle) =
     host.p("dataset", dataset.datasetId.underlying).
       addResourceHeader(dataset)
-  def snapshottedReq(host: RequestBuilder) = host.p("snapshotted")
-  def snapshotsReq(host: RequestBuilder, dataset: DatasetHandle) =
-    host.p("dataset", dataset.datasetId.underlying, "snapshots").
-      addResourceHeader(dataset)
-  def snapshotReq(host: RequestBuilder, dataset: DatasetHandle, num: Long) =
-    host.p("dataset", dataset.datasetId.underlying, "snapshots", num.toString).
-      addResourceHeader(dataset)
   def rollupReq(host: RequestBuilder, dataset: DatasetHandle) =
     host.p("dataset-rollup", dataset.datasetId.underlying).
       addResourceHeader(dataset)
@@ -339,8 +332,6 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
             case (datasetError: DCDatasetUpdateError) => datasetError match {
               case NoSuchDataset(dataset) =>
                 f(Left(DatasetNotFoundResult(dataset)))
-              case NoSuchSnapshot(dataset, snapshotNumber) =>
-                f(Left(SnapshotNotFoundResult(dataset, snapshotNumber)))
               case CannotAcquireDatasetWriteLock(dataset) =>
                 f(Left(CannotAcquireDatasetWriteLockResult(dataset)))
               case IncorrectLifecycleStage(dataset, actualStage, expectedStage) =>
@@ -613,8 +604,6 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
         PreconditionFailedResult
       case NoSuchDataset(dataset) =>
         DatasetNotFoundResult(dataset)
-      case NoSuchSnapshot(dataset, copyspec) =>
-        SnapshotNotFoundResult(dataset, copyspec)
       case cbr: ContentTypeBadRequest =>
         InternalServerErrorResult(cbr.code, tag, cbr.contentTypeError)
       case InvalidRowId() =>
@@ -693,76 +682,6 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
       }
     }
   }
-
-  private def datasetsWithSnapshotsOn(instance: String): Set[DatasetInternalName] = {
-    withFullRetries() {
-      hostO(instance).fold(Set.empty[DatasetInternalName]) { host => // there's nothing that can go wrong here that isn't an internal error
-        val request = snapshottedReq(host).get
-        httpClient.execute(request).run { r =>
-          errorFrom(r) match {
-            case None =>
-              r.value[Set[DatasetInternalName]]() match {
-                case Right(ids) =>
-                  ids
-                case Left(err) =>
-                  // yep, this deserves an internal error
-                  throw new Exception("Response from data-coordinator is not interpretable as a set of DatasetIds: " + err.english)
-              }
-            case Some(err) => // there's nothing that can go wrong with this that isn't an internal server error!
-              throw new Exception("Unexpected error from data-coordinator " + instance + " : " + err)
-          }
-        }
-      }
-    }
-  }
-
-  override def datasetsWithSnapshots(): Set[DatasetInternalName] =
-    instances().par.flatMap(datasetsWithSnapshotsOn).seq
-
-  override def deleteSnapshot(dataset: DatasetHandle, copy: Long): Either[FailResult, Unit] =
-    withConnectRetries() {
-      withHost(dataset, mutate = false) { host =>
-        val request = snapshotReq(host, dataset, copy).delete
-        httpClient.execute(request).run { r =>
-          errorFrom(r) match {
-            case None =>
-              Right(())
-            case Some(NoSuchDataset(dsId)) =>
-              Left(DatasetNotFoundResult(dsId))
-            case Some(NoSuchSnapshot(dsId, snapshot)) =>
-              Left(SnapshotNotFoundResult(dsId, snapshot))
-            case Some(err) =>
-              // ... and everything else is an internal error
-              throw new Exception("Unexpected error from data-coordinator deleting dataset copy " + dataset + "/" + copy + ": " + err)
-          }
-        }
-      }
-    }
-
-  override def listSnapshots(dataset: DatasetHandle): Option[Seq[Long]] =
-    withFullRetries() {
-      withHost(dataset, mutate = false) { host =>
-        val request = snapshotsReq(host, dataset).get
-        httpClient.execute(request).run { r =>
-          errorFrom(r) match {
-            case None =>
-              case class Bit(num: Long)
-              implicit val bCodec = AutomaticJsonCodecBuilder[Bit]
-              r.value[Seq[Bit]]() match {
-                case Right(copies) =>
-                  Some(copies.map(_.num))
-                case Left(err) =>
-                  throw new Exception("Response from data-coordinator is not interpretable as a set of dataset descriptions: " + err.english)
-              }
-            case Some(NoSuchDataset(_)) =>
-              None
-            case Some(err) =>
-              // and everything else is an internal error
-              throw new Exception("Unexpected error from data-coordinator listing snapshots for dataset " + dataset + ": " + err)
-          }
-        }
-      }
-    }
 
   override def getRollups(dataset: DatasetHandle): Result = {
     withFullRetries() {

@@ -175,7 +175,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
                          override lazy val columnDAO = new ColumnDAOImpl(dc, fbm, store, columnSpecUtils)
                          override lazy val rowDAO = new RowDAOImpl(store, dc, qc)
                          override lazy val exportDAO = new ExportDAOImpl(store, dc)
-                         override lazy val snapshotDAO = new SnapshotDAOImpl(store, dc)
                          override lazy val resyncDAO = ResyncDAOImpl(store, dc)
                          override val nameAndSchemaStore = store
                        })
@@ -214,7 +213,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     val resource = Resource(etagObfuscator, config.maxDatumSize, metricProvider, export)
     val newResource = NewResource(etagObfuscator, config.maxDatumSize, metricProvider)
     val suggest = Suggest(config.suggest)
-    val snapshots = Snapshots
     val resync = Resync
 
     new SodaRouter(
@@ -247,7 +245,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       datasetIndexResource = { case (resourceName, name) => dataset.indexService(resourceName, Some(name)) },
       sampleResource = suggest.sampleService,
       suggestResource = suggest.service,
-      snapshotResources = SnapshotResources(snapshots.findDatasetsService, snapshots.listSnapshotsService, snapshots.snapshotsService),
       secondaryReindexResource = dataset.secondaryReindexService,
       indexDirectiveResource = column.indexDirectiveService
     )

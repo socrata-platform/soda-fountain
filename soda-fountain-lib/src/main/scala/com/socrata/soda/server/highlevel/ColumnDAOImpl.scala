@@ -66,7 +66,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
               case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
                 // TODO: This next line can fail if a reader has come by and noticed the new column between the dc.update and here
                 store.addColumn(datasetRecord.systemId, copyNumber, spec)
-                store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+                store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
                 log.info("column created {} {} {}", datasetRecord.systemId.toString, copyNumber.toString, column.name)
                 spec.computationStrategy.foreach { strategy =>
                   fbm.maybeReplicate(datasetRecord.handle, Set(strategy.strategyType))
@@ -151,7 +151,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                 dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instructions.iterator) {
                   case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, newShapeVersion, lastModified) =>
                     store.setPrimaryKey(datasetRecord.systemId, columnRecord.id, copyNumber)
-                    store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+                    store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
                     ColumnDAO.Updated(columnRecord, None)
                   case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -337,8 +337,7 @@ class ColumnDAOImpl(dc: DataCoordinatorClient,
                                             newVersion,
                                             lastModified,
                                             None,
-                                            copyNumber,
-                                            None)
+                                            copyNumber)
                     ColumnDAO.Deleted(columnRef, etag)
                   case DataCoordinatorClient.SchemaOutOfDateResult(realSchema) =>
                     store.resolveSchemaInconsistency(datasetRecord.systemId, realSchema)

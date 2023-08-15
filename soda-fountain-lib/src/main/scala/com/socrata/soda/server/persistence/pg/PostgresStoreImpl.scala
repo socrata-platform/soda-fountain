@@ -774,7 +774,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     }
   }
 
-  def updateVersionInfo(datasetId: DatasetInternalName, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long, snapshotLimit: Option[Int]) = {
+  def updateVersionInfo(datasetId: DatasetInternalName, dataVersion: Long, lastModified: DateTime, stage: Option[Stage], copyNumber: Long) = {
     using(dataSource.getConnection) { conn =>
       using (conn.prepareStatement(updateVersionInfoSql)) { stmt =>
         stmt.setLong(1, dataVersion)
@@ -796,10 +796,6 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         stmt.setLong(14, copyNumber)
         stmt.setBoolean(15, stage.isDefined)
 
-        stmt.setBoolean(16, snapshotLimit.isDefined)
-        stmt.setString(17, datasetId.underlying)
-        val snapshotLimitValueIsIgnoredIfNotDefined = 10 // actual value does not matter
-        stmt.setInt(18, snapshotLimit.getOrElse(snapshotLimitValueIsIgnoredIfNotDefined))
         stmt.executeUpdate()
       }
     }
@@ -1250,10 +1246,10 @@ object PostgresStoreImpl {
      WHERE dataset_system_id = ?
        And copy_number = ?
     """,
-    // change previously published to snapshotted
+    // change previously published to discarded
     """
     UPDATE dataset_copies
-       SET lifecycle_stage = 'Snapshotted'
+       SET lifecycle_stage = 'Discarded'
      WHERE dataset_system_id = ?
        And deleted_at is null
        And lifecycle_stage = 'Published'
@@ -1269,20 +1265,6 @@ object PostgresStoreImpl {
        And copy_number = ?
        And deleted_at is null
        And ?
-    """,
-    // discard snapshots that exceed snapshot limit
-    """
-    UPDATE dataset_copies
-           SET lifecycle_stage = 'Discarded',
-               deleted_at = now()
-         WHERE ?
-           And id in
-             ( SELECT id
-                 FROM dataset_copies
-                WHERE dataset_system_id = ?
-                  And lifecycle_stage = 'Snapshotted'
-                ORDER By copy_number desc offset ?
-             )
     """)
 
   val updateVersionInfoSql = updateVersionInfoSqls.map(_.stripMargin).mkString(";")
