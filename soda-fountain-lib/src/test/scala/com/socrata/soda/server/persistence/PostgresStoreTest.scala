@@ -226,10 +226,12 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with Matchers with Data
     }
 
     for (copyNum <- 1 to lastCopy) {
-      val ds = store.lookupDataset(resourceName, copyNum).get
-      val stage = ds.stage.get
-      if (copyNum == lastCopy) stage should be (Published)
-      else stage should be (Discarded)
+      val ds = store.lookupDataset(resourceName, copyNum)
+      if (copyNum == lastCopy) {
+        ds.get.stage.get should be (Published)
+      } else {
+        ds should be (None)
+      }
     }
   }
 
@@ -259,13 +261,11 @@ class PostgresStoreTest extends SodaFountainDatabaseTest with Matchers with Data
 
     val publishedCopy = store.lookupDataset(resourceName, Some(Published))
     publishedCopy should not be (None)
-    publishedCopy.get.columns.foreach(println)
     publishedCopy.get.columns should be (columns.take(1))
 
     val unpublishedCopy = store.lookupDataset(resourceName, Some(Unpublished))
     unpublishedCopy should not be (None)
     val unpublishedColumns = unpublishedCopy.get.columns
-    unpublishedColumns.foreach(println)
     unpublishedColumns should be (columns.filter(_.fieldName.name.matches("one|three")))
   }
 
