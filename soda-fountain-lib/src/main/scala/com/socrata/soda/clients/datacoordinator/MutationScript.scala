@@ -139,10 +139,7 @@ class MutationScript(
       case i: CreateDataset => Map("resource" -> JString(i.resource.name), "locale" -> JString(i.locale), "c" -> JString(copyInstruction.command), "user" -> JString(user))
       case i: UpdateDataset => topLevelCommandBase(i.schema, i.expectedDataVersion)
       case i: CopyDataset   => topLevelCommandBase(i.schema, i.expectedDataVersion) + ("copy_data" -> JBoolean(i.copyData))
-      case i: PublishDataset=> i.keepSnapshot match {
-        case Some(s)  => topLevelCommandBase(i.schema, i.expectedDataVersion) + ("keep_snapshot" -> JBoolean(s))
-        case None     => topLevelCommandBase(i.schema, i.expectedDataVersion)
-      }
+      case i: PublishDataset=> topLevelCommandBase(i.schema, i.expectedDataVersion)
       case i: DropDataset => topLevelCommandBase(i.schema, i.expectedDataVersion)
     }
   }

@@ -133,7 +133,6 @@ object DataCoordinatorClient {
 
   // FAIL CASES: Datasets
   case class DatasetNotFoundResult(datasetId: DatasetInternalName) extends FailResult
-  case class SnapshotNotFoundResult(datasetId: DatasetInternalName, snapshot: CopySpecifier) extends FailResult
   case class CannotAcquireDatasetWriteLockResult(datasetId: DatasetInternalName) extends FailResult
   case class InitialCopyDropResult(datasetId: DatasetInternalName, commandIndex: Long) extends FailResult
   case class OperationAfterDropResult(datasetId: DatasetInternalName, commandIndex: Long) extends FailResult
@@ -201,7 +200,6 @@ trait DataCoordinatorClient {
   def publish[T](dataset: DatasetHandle,
                  schemaHash: String,
                  expectedDataVersion: Option[Long],
-                 keepSnapshot:Option[Boolean],
                  user: String,
                  instructions: Iterator[DataCoordinatorInstruction] = Iterator.empty)
                 (f: Result => T): T
@@ -222,10 +220,6 @@ trait DataCoordinatorClient {
   def checkVersionInSecondaries(dataset: DatasetHandle): Either[UnexpectedInternalServerResponseResult, Option[SecondaryVersionsReport]]
 
   def checkVersionInSecondary(dataset: DatasetHandle, secondary: SecondaryId): Either[UnexpectedInternalServerResponseResult, Option[VersionReport]]
-
-  def datasetsWithSnapshots(): Set[DatasetInternalName]
-  def listSnapshots(dataset: DatasetHandle): Option[Seq[Long]]
-  def deleteSnapshot(dataset: DatasetHandle, copy: Long): Either[FailResult, Unit]
 
   def exportSimple(dataset: DatasetHandle, copy: String, resourceScope: ResourceScope): Result
 

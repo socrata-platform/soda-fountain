@@ -127,9 +127,6 @@ case class ColumnNotFound(dataset: DatasetInternalName, column: ColumnId, comman
 @Tag("update.dataset.does-not-exist") // orignally dataset was a string, but not sure why it wouldnt be DatasetId
 case class NoSuchDataset(dataset: DatasetInternalName) extends DCDatasetUpdateError
 
-@Tag("update.snapshot.does-not-exist")
-case class NoSuchSnapshot(dataset: DatasetInternalName, copy: CopySpecifier) extends DCDatasetUpdateError
-
 @Tag("update.dataset.temporarily-not-writable")
 case class CannotAcquireDatasetWriteLock(dataset: DatasetInternalName) extends DCDatasetUpdateError
 

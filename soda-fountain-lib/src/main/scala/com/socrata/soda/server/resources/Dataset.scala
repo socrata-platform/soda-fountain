@@ -201,10 +201,6 @@ case class Dataset(maxDatumSize: Int) {
   }
 
   case class copyService(resourceName: ResourceName) extends SodaResource {
-    def keepSnapshot(req: SodaRequest) =
-      try { req.queryParameter("keep_snapshot").map(_.toBoolean) }
-      catch { case e: IllegalArgumentException => ??? /* TODO: Proper error */ }
-
     // TODO: not GET
     override def get = { req =>
       val doCopyData = req.queryParameter("copy_data") == Some("true")
@@ -215,7 +211,7 @@ case class Dataset(maxDatumSize: Int) {
       response(req, req.datasetDAO.dropCurrentWorkingCopy(user(req), resourceName, expectedDataVersion(req)))
     }
     override def put = { req =>
-      response(req, req.datasetDAO.publish(user(req), resourceName, expectedDataVersion(req), keepSnapshot = keepSnapshot(req)))
+      response(req, req.datasetDAO.publish(user(req), resourceName, expectedDataVersion(req)))
     }
   }
 

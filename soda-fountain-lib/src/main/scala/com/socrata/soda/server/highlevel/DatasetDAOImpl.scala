@@ -112,7 +112,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         }
 
         store.addResource(record)
-        store.updateVersionInfo(reportMetaData.datasetId, reportMetaData.version, reportMetaData.lastModified, None, Stage.InitialCopyNumber, None)
+        store.updateVersionInfo(reportMetaData.datasetId, reportMetaData.version, reportMetaData.lastModified, None, Stage.InitialCopyNumber)
 
         val strategyTypes = spec.columns.flatMap { case (_, colSpec) => colSpec.computationStrategy }.map { _.strategyType }.toSet
         fbm.maybeReplicate(record.handle, strategyTypes)
@@ -333,7 +333,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
             case Some(unpublishCopyNumber) =>
               dc.dropCopy(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user) {
                 case DataCoordinatorClient.NonCreateScriptResult(_, _, _, newVersion, newShapeVersion, lastModified) =>
-                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber, None)
+                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Discarded), unpublishCopyNumber)
                   WorkingCopyDropped(newVersion, newShapeVersion)
                 case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
                   store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -358,13 +358,13 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       }
     }
 
-  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long], keepSnapshot: Option[Boolean]): Result =
+  def publish(user: String, dataset: ResourceName, expectedDataVersion: Option[Long]): Result =
     retryable(limit = 5) {
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
-          dc.publish(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, keepSnapshot, user) {
+          dc.publish(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user) {
             case DataCoordinatorClient.NonCreateScriptResult(_, _, copyNumber, newVersion, newShapeVersion, lastModified) =>
-              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber, Some(0))
+              store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, Some(Published), copyNumber)
               WorkingCopyPublished(newVersion, newShapeVersion)
             case DataCoordinatorClient.SchemaOutOfDateResult(newSchema) =>
               store.resolveSchemaInconsistency(datasetRecord.systemId, newSchema)
@@ -427,7 +427,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
                 dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
                   Iterator.single(instruction)) {
                   case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
-                    store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+                    store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
                     RollupHelper.rollupCreatedOrUpdated(store,dataset,copyNumber,rollup,mappedQueries, tableNames)
                     RollupCreatedOrUpdated
                   case DataCoordinatorClient.NoSuchRollupResult(_, _) =>
@@ -572,7 +572,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         val instruction = rollups.map(DropRollupInstruction).toIterator
         dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instruction) {
           case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
-            store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+            store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
             store.deleteRollups(dataset,copyNumber,rollups.toSet)
             RollupDropped
           case DataCoordinatorClient.NoSuchRollupResult(ru, _) =>
@@ -607,7 +607,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user,
                 Iterator.single(instruction)) {
                 case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
-                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+                  store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
                   IndexCreatedOrUpdated
                 case DataCoordinatorClient.NoSuchIndexResult(_, _) =>
                   IndexNotFound(name)
@@ -662,7 +662,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         val instruction = indexes.map(DropIndexInstruction).toIterator
         dc.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion, user, instruction) {
           case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
-            store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber, None)
+            store.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
             IndexDropped
           case DataCoordinatorClient.NoSuchIndexResult(name, _) =>
             IndexNotFound(name)
