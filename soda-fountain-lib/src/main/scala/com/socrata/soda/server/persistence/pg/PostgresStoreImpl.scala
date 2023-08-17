@@ -1249,7 +1249,8 @@ object PostgresStoreImpl {
     // change previously published to discarded
     """
     UPDATE dataset_copies
-       SET lifecycle_stage = 'Discarded'
+       SET lifecycle_stage = 'Discarded',
+           deleted_at = now()
      WHERE dataset_system_id = ?
        And deleted_at is null
        And lifecycle_stage = 'Published'
