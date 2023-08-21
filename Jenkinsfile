@@ -75,6 +75,7 @@ pipeline {
           sbtbuild.setNoSubproject(true)
           sbtbuild.setScalaVersion("2.12")
           sbtbuild.setSubprojectName("sodaFountainJetty")
+          sbtbuild.setSrcJar("soda-fountain-jetty/target/soda-fountain-jetty-assembly.jar")
 
           // build
           echo "Building sbt project..."
