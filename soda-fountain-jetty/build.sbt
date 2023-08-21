@@ -11,3 +11,7 @@ libraryDependencies ++= Seq(
 )
 
 mainClass := Some("com.socrata.soda.server.SodaFountainJetty")
+
+assembly/assemblyJarName := s"${name.value}-assembly.jar"
+
+assembly/assemblyOutputPath := target.value / (assembly/assemblyJarName).value
