@@ -1,3 +1,5 @@
+# Soda Fountain
+
 **soda-fountain** is Socrata's HTTP REST server for serving Socrata Open Data API (SODA) version 2 API requests.  It talks to two other REST microservices, the data-coordinator, and the query-coordinator, to manage both CRUD operations on datasets as well as queries against datasets.
 
 ## Projects
@@ -7,6 +9,7 @@
 * soda-fountain-war - stuff for running in an application container
 
 ## Dependencies
+
 * Zookeeper
 * PostgreSQL (stores metadata about datasets)
 * Query Coordinator (registered through Zookeeper)
@@ -23,7 +26,7 @@ This forks a separate JVM, killing any previously forked JVM.  For really fast c
 
 To build an assembly and run as a separate process:
 
-    bin/start_soda_fountain.sh
+`bin/start_soda_fountain.sh`
 
 ## Tests
 
@@ -44,7 +47,15 @@ For example:
 To build and run migrations from command line:
 `bin/run_migrations.sh`
 
-##### Commands: 
+### Commands
+
 * migrate - apply all migrations to the database
 * undo - rollback the latest change, or [numberOfChanges] if specified
 * redo - runs undo then migrate in one command
+
+## Publishing
+
+To publish the external library:
+
+1. update the version.sbt file, create a PR and merge to main
+1. build the [soda-fountain-branch](https://jenkins-build.socrata.com/job/soda-fountain-branch/) job: check PUBLISH and enter the SHA from the version update commit in PUBLISH_SHA
