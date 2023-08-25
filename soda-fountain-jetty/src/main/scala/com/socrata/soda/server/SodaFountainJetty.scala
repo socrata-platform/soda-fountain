@@ -24,6 +24,14 @@ object SodaFountainJetty extends App with DynamicPortMap {
     val server = new SocrataServerJetty(
       sodaFountain.handle,
       SocrataServerJetty.defaultOptions.
+        withGzipOptions(
+          Some(
+            SocrataServerJetty.Gzip.defaultOptions.
+              withExcludedMimeTypes(
+                Set("application/x-socrata-gzipped-cjson")
+              )
+          )
+        ).
         withPort(config.network.port).
         withRequestHeaderSize(config.requestHeaderSize).
         withExtraHandlers(List(SocrataHttpSupport.getHandler(metricsOptions))).
