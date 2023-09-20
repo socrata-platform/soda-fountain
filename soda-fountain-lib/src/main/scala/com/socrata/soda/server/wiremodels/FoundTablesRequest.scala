@@ -14,7 +14,7 @@ import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.ResourceName
 
 case class FoundTablesRequest(
-  tables: UnparsedFoundTables[FoundTablesRequest.MetaTypes],
+  tables: UnparsedFoundTables[metatypes.QueryMetaTypes],
   @AllowMissing("Context.empty")
   context: Context,
   @AllowMissing("Nil")
@@ -26,12 +26,4 @@ case class FoundTablesRequest(
 
 object FoundTablesRequest {
   implicit val codec = AutomaticJsonCodecBuilder[FoundTablesRequest]
-
-  final abstract class MetaTypes extends analyzer2.MetaTypes {
-    type ResourceNameScope = Int
-    type ColumnType = SoQLType
-    type ColumnValue = SoQLValue
-    type DatabaseTableNameImpl = (ResourceName, Stage)
-    type DatabaseColumnNameImpl = ColumnName
-  }
 }

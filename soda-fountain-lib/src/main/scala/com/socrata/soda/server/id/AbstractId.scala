@@ -5,6 +5,7 @@ import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.codec.DecodeError.InvalidType
 import com.rojoma.json.v3.codec.JsonDecode.DecodeResult
 import com.rojoma.json.v3.codec.JsonEncode
+import com.rojoma.json.v3.util.{WrapperJsonCodec, WrapperFieldCodec}
 
 trait AbstractId {
   def underlying: String
@@ -15,26 +16,14 @@ case class DatasetInternalName(underlying: String) extends AbstractId {
 }
 
 object DatasetInternalName {
-  implicit val jCodec = new JsonEncode[DatasetInternalName] with JsonDecode[DatasetInternalName] {
-    def encode(x: DatasetInternalName): JValue = JString(x.underlying)
-    def decode(x: JValue): DecodeResult[DatasetInternalName] = x match {
-      case JString(n) => Right(DatasetInternalName(n))
-      case u => Left(InvalidType(JString, u.jsonType))
-    }
-  }
+  implicit val jCodec = WrapperJsonCodec[DatasetInternalName](DatasetInternalName(_), _.underlying)
+  implicit val fCodec = WrapperFieldCodec[DatasetInternalName](DatasetInternalName(_), _.underlying)
 }
 
 case class ColumnId(underlying: String) extends AbstractId
 object ColumnId {
-  implicit val jCodec = new JsonEncode[ColumnId] with JsonDecode[ColumnId] {
-    def encode(x: ColumnId): JValue = JString(x.underlying)
-
-    def decode(x: JValue): DecodeResult[ColumnId] = x match {
-      case JString(n) => Right(ColumnId(n))
-      case u => Left(InvalidType(JString, u.jsonType))
-    }
-  }
-
+  implicit val jCodec = WrapperJsonCodec[ColumnId](ColumnId(_), _.underlying)
+  implicit val fCodec = WrapperFieldCodec[ColumnId](ColumnId(_), _.underlying)
   implicit val ordering = new Ordering[ColumnId] {
     def compare(x: ColumnId, y: ColumnId): Int = x.underlying.compareTo(y.underlying)
   }
