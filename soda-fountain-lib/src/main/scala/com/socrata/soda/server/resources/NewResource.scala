@@ -18,10 +18,11 @@ import com.socrata.soda.server.metrics.{MetricProvider, NoopMetricProvider}
 import com.socrata.soda.server.metrics.Metrics.{QuerySuccess => QuerySuccessMetric, _}
 import com.socrata.soda.server.{responses => SodaErrors, _}
 import com.socrata.soda.server.wiremodels.{InputUtils, FoundTablesRequest}
+import com.socrata.soda.server.wiremodels.metatypes.QueryMetaTypes
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{DatasetInternalName, ResourceName, ColumnId}
 import com.socrata.soda.server.persistence.{DatasetRecord, NameAndSchemaStore}
-import com.socrata.soda.server.util.Lazy
+import com.socrata.soda.server.util.{Lazy, DAOCache}
 import com.socrata.thirdparty.metrics.Metrics
 
 case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProvider: MetricProvider) extends Metrics {
@@ -39,59 +40,10 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
     def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
   }
 
-  private class DAOCache(store: NameAndSchemaStore) {
-    private case class RelevantBits(
-      internalName: DatasetInternalName,
-      stage: Stage,
-      schema: Map[ColumnName, ColumnId]
-    )
+  case object service extends SodaResource {
+    override def query = doQuery
 
-    private val datasetCache = new scm.HashMap[(ResourceName, Stage), RelevantBits]
-
-    private def getRecord(dtn: (ResourceName, Stage)): RelevantBits = {
-      val (rn, stage) = dtn
-      datasetCache.get(dtn) match {
-        case Some(bits) =>
-          bits
-        case None =>
-          store.lookupDataset(rn, Some(stage)) match {
-            case Some(record) =>
-              val bits =
-                RelevantBits(
-                  record.systemId,
-                  stage,
-                  record.columns.iterator.map { col =>
-                    col.fieldName -> col.id
-                  }.toMap
-                )
-              datasetCache += (rn, stage) -> bits
-              bits
-            case None =>
-              // TODO
-              throw new Exception("Was told to look up a dataset I don't know about: " + dtn)
-          }
-      }
-    }
-
-    def lookupTableName(dtn: DatabaseTableName[(ResourceName, Stage)]): DatabaseTableName[(DatasetInternalName, Stage)] = {
-      val record = getRecord(dtn.name)
-      DatabaseTableName((record.internalName, record.stage))
-    }
-
-    def lookupColumnName(dtn: DatabaseTableName[(ResourceName, Stage)], cn: DatabaseColumnName[ColumnName]): DatabaseColumnName[ColumnId] = {
-      val record = getRecord(dtn.name)
-      DatabaseColumnName(record.schema(cn.name))
-    }
-
-    def lookupAuxColumnName(dtn: DatabaseTableName[(ResourceName, Stage)], cn: ColumnName): Option[DatabaseColumnName[ColumnId]] = {
-      val record = getRecord(dtn.name)
-      record.schema.get(cn).map(DatabaseColumnName(_))
-    }
-  }
-
-
-  case object service extends SodaResource with LabelUniverse[QueryCoordinatorClient.MetaTypes] {
-    override def query = { req: SodaRequest =>
+    private def doQuery(req: SodaRequest): HttpResponse = {
       val metricContext = new MetricContext(req)
 
       InputUtils.jsonSingleObjectStream(req.httpRequest, Long.MaxValue) match {
@@ -100,27 +52,20 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
             case Right(reqData: FoundTablesRequest) =>
               log.debug("Received request {}", Lazy(JsonUtil.renderJson(reqData, pretty=true)))
               val cache = new DAOCache(req.nameAndSchemaStore)
-              val locationSubcolumns =
-                reqData.tables.allTableDescriptions.foldLeft(Map.empty[DatabaseTableName, Map[DatabaseColumnName, Seq[Option[DatabaseColumnName]]]]) { (acc, dsInfo) =>
-                  dsInfo.columns.valuesIterator.foldLeft(acc) { (acc, colInfo) =>
-                    if(colInfo.typ == com.socrata.soql.types.SoQLLocation) {
-                      val datasetName = cache.lookupTableName(dsInfo.name)
-                      val cid = cache.lookupColumnName(dsInfo.name, DatabaseColumnName(colInfo.name))
-                      val base = colInfo.name.name
-                      val dsColumns = acc.getOrElse(datasetName, Map.empty) +
-                        (cid -> Seq("address", "city", "state", "zip").map { suffix =>
-                           cache.lookupAuxColumnName(dsInfo.name, ColumnName(s"${base}_${suffix}"))
-                         })
-                      acc + (datasetName -> dsColumns)
-                    } else {
-                      acc
-                    }
-                  }
-                }
+              val locationSubcolumns = cache.buildLocationColumnMap[QueryMetaTypes, QueryCoordinatorClient.MetaTypes](reqData.tables.allTableDescriptions).getOrElse {
+                // TODO: fail with error
+                return BadRequest
+              }
 
               val qcFoundTables = reqData.tables.rewriteDatabaseNames[QueryCoordinatorClient.MetaTypes](
-                cache.lookupTableName,
-                cache.lookupColumnName
+                cache.lookupTableName(_).getOrElse {
+                  // TODO fail with "unknown table"
+                  return BadRequest
+                },
+                cache.lookupColumnName(_, _).getOrElse {
+                  // TODO fail with "unknown column"
+                  return BadRequest
+                }
               )
               val relevantHeaders = Seq("if-none-match", "if-match", "if-modified-since").flatMap { h =>
                 req.headers(h).map { h -> _ }

@@ -5,10 +5,10 @@ import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Stra
 import com.socrata.soda.server.responses.RollupSpecMaltyped
 import com.socrata.soda.server.id.RollupName
 import com.socrata.soda.server.wiremodels.InputUtils.ExtractContext
+import com.socrata.soql.analyzer2.UnparsedFoundTables
 
 import java.time.OffsetDateTime
 import scala.{collection => sc}
-
 
 /**
  * Defines a rollup.

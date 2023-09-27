@@ -2,6 +2,7 @@ package com.socrata.soda.server.highlevel
 
 import com.rojoma.json.v3.util.{AutomaticJsonCodecBuilder, JsonKeyStrategy, Strategy}
 import com.socrata.http.server.util.RequestId.RequestId
+import com.socrata.soql.analyzer2.UnparsedFoundTables
 import com.socrata.soda.clients.datacoordinator.DataCoordinatorClient.{SecondaryVersionsReport, VersionReport}
 import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, RollupDatasetRelation}
 import com.socrata.soda.server.copy.Stage

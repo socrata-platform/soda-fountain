@@ -3,6 +3,9 @@ package com.socrata.soda.clients.datacoordinator
 import com.rojoma.json.v3.util._
 import com.rojoma.json.v3.ast._
 import com.rojoma.simplearm.v2.ResourceScope
+import com.socrata.soql.types.{SoQLType, SoQLValue}
+import com.socrata.soql.analyzer2
+import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.util.CopySpecifier
 import com.socrata.soda.server.util.schema.SchemaSpec
@@ -14,6 +17,23 @@ import org.joda.time.DateTime
 object DataCoordinatorClient {
 
   val client = "DC"
+
+  final abstract class MetaTypes extends analyzer2.MetaTypes {
+    type ResourceNameScope = Int
+    type ColumnType = SoQLType
+    type ColumnValue = SoQLValue
+    type DatabaseTableNameImpl = (DatasetInternalName, Stage)
+    type DatabaseColumnNameImpl = ColumnId
+  }
+
+  final abstract class UnstagedMetaTypes extends analyzer2.MetaTypes {
+    type DatabaseTableNameImpl = DatasetInternalName
+
+    type ResourceNameScope = MetaTypes#ResourceNameScope
+    type ColumnType = MetaTypes#ColumnType
+    type ColumnValue = MetaTypes#ColumnValue
+    type DatabaseColumnNameImpl = MetaTypes#DatabaseColumnNameImpl
+  }
 
   @JsonKeyStrategy(Strategy.Underscore)
   case class VersionSpec(raw: Long, shape: Long)
