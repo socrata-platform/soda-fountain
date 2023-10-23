@@ -21,7 +21,8 @@ case class FoundTablesRequest(
   rewritePasses: Seq[Seq[Pass]],
   @AllowMissing("false")
   preserveSystemColumns: Boolean,
-  debug: Option[Debug]
+  debug: Option[Debug],
+  queryTimeoutMS: Option[Long]
 )
 
 object FoundTablesRequest {

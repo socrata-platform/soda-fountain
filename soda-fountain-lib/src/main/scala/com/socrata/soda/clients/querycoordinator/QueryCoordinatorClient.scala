@@ -1,5 +1,7 @@
 package com.socrata.soda.clients.querycoordinator
 
+import scala.concurrent.duration.FiniteDuration
+
 import com.rojoma.json.v3.ast.JValue
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.rojoma.simplearm.v2.ResourceScope
@@ -113,6 +115,7 @@ trait QueryCoordinatorClient extends analyzer2.LabelUniverse[QueryCoordinatorCli
     rewritePasses: Seq[Seq[Pass]],
     preserveSystemColumns: Boolean,
     debug: Option[Debug],
+    queryTimeout: Option[FiniteDuration],
     headers: Seq[(String, String)], // TODO: something less HTTP-specific
     rs: ResourceScope
   ): New.Result
