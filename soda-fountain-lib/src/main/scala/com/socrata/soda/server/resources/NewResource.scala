@@ -1,6 +1,7 @@
 package com.socrata.soda.server.resources
 
 import scala.collection.{mutable => scm}
+import scala.concurrent.duration._
 
 import com.rojoma.json.v3.codec.JsonDecode
 import com.rojoma.json.v3.util.JsonUtil
@@ -77,6 +78,7 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
                 reqData.rewritePasses,
                 reqData.preserveSystemColumns,
                 reqData.debug,
+                reqData.queryTimeoutMS.map(_.milliseconds),
                 relevantHeaders,
                 req.resourceScope
               ) match {
