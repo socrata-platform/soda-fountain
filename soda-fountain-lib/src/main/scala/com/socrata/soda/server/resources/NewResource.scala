@@ -92,6 +92,8 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
                     acc ~> Header(hdrName, hdrVal)
                   }
                   base ~> Stream(stream)
+                case QueryCoordinatorClient.New.Error(status, err) =>
+                  Status(status) ~> Json(err)
               }
             case Left(err) =>
               log.info("Body wasn't a FoundTables: {}", err.english)

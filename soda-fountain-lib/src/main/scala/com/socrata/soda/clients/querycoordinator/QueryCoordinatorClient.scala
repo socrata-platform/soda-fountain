@@ -15,6 +15,7 @@ import com.socrata.soql.analyzer2.rewrite.Pass
 import com.socrata.soql.analyzer2
 import com.socrata.soql.types.{SoQLType, SoQLValue}
 import com.socrata.soql.sql.Debug
+import com.socrata.soql.util.GenericSoQLError
 import org.joda.time.DateTime
 
 object QueryCoordinatorClient {
@@ -88,6 +89,7 @@ object QueryCoordinatorClient {
     sealed abstract class Result
     case class Success(headers: Seq[(String, String)], content: java.io.InputStream) extends Result
     case class NotModified(headers: Seq[(String, String)], content: java.io.InputStream) extends Result
+    case class Error(status: Int, content: GenericSoQLError[MetaTypes#ResourceNameScope]) extends Result
   }
 }
 
