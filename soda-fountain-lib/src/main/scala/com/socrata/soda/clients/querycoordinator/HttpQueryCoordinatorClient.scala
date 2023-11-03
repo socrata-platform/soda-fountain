@@ -21,6 +21,7 @@ import com.socrata.soql.analyzer2.rewrite.Pass
 import com.socrata.soql.stdlib.Context
 import com.socrata.soql.stdlib.analyzer2.{Context => NewContext}
 import com.socrata.soql.sql.Debug
+import com.socrata.soql.util.GenericSoQLError
 import org.apache.http.HttpStatus._
 import org.joda.time.DateTime
 
@@ -212,6 +213,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
                   }
                 }
                 rs.openUnmanaged(New.Success(headers, resp.inputStream()), transitiveClose = List(resp))
+
               case 304 =>
                 val headers = Seq("etag", "last-modified", "content-type").foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
                   resp.headers(hdr).foldLeft(acc) { case (acc, value) =>
@@ -219,8 +221,14 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
                   }
                 }
                 rs.openUnmanaged(New.NotModified(headers, resp.inputStream()), transitiveClose = List(resp))
-              case _ =>
-                throw new Exception("Invalid status code " + resp.resultCode)
+
+              case other =>
+                val error = resp.value[GenericSoQLError[MetaTypes#ResourceNameScope]]() match {
+                  case Right(value) => value
+                  case Left(err) => throw new Exception("Invalid error response: " + err.english)
+                }
+                rs.close(resp)
+                rs.openUnmanaged(New.Error(other, error))
             }
           }
         case None =>
