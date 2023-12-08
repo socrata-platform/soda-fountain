@@ -4,7 +4,8 @@
 // set up variables
 def service = 'soda-fountain'
 def project_wd = 'soda-fountain-jetty'
-def isPr = env.CHANGE_ID != null;
+def isPr = env.CHANGE_ID != null
+def lastStage
 
 // instanciate libraries
 def sbtbuild = new com.socrata.SBTBuild(steps, service, project_wd)
@@ -30,6 +31,7 @@ pipeline {
   environment {
     SERVICE = "${service}"
     DOCKER_PATH = './docker'
+    WEBHOOK_ID = 'WEBHOOK_IQ'
   }
   stages {
     stage('Release Tag') {
@@ -38,6 +40,7 @@ pipeline {
       }
       steps {
         script {
+          lastStage = env.STAGE_NAME
           if (params.RELEASE_DRY_RUN) {
             echo 'DRY RUN: Skipping release tag creation'
           }
@@ -53,6 +56,7 @@ pipeline {
       }
       steps {
         script {
+          lastStage = env.STAGE_NAME
           // perform any needed modifiers on the build parameters here
           sbtbuild.setNoSubproject(true)
           sbtbuild.setScalaVersion("2.12")
@@ -71,6 +75,7 @@ pipeline {
       }
       steps {
         script {
+          lastStage = env.STAGE_NAME
           checkout([$class: 'GitSCM',
             branches: [[name: params.PUBLISH_SHA]],
             doGenerateSubmoduleConfigurations: false,
@@ -95,6 +100,7 @@ pipeline {
       }
       steps {
         script {
+          lastStage = env.STAGE_NAME
           if (params.RELEASE_BUILD) {
             env.REGISTRY_PUSH = (params.RELEASE_DRY_RUN) ? 'none' : 'all'
             env.DOCKER_TAG = dockerize.docker_build_specify_tag_and_push(params.RELEASE_NAME, env.DOCKER_PATH, sbtbuild.getDockerArtifact(), env.REGISTRY_PUSH)
@@ -123,8 +129,18 @@ pipeline {
       }
       steps {
         script {
+          lastStage = env.STAGE_NAME
           // uses env.SERVICE and env.DOCKER_TAG, deploys to staging by default
           marathonDeploy()
+        }
+      }
+    }
+  }
+  post {
+    failure {
+      script {
+        if (!isPr) {
+          teamsMessage(message: "Build [${currentBuild.fullDisplayName}](${env.BUILD_URL}) has failed in stage ${lastStage}", webhookCredentialID: WEBHOOK_ID)
         }
       }
     }
