@@ -22,7 +22,9 @@ case class FoundTablesRequest(
   @AllowMissing("false")
   preserveSystemColumns: Boolean,
   debug: Option[Debug],
-  queryTimeoutMS: Option[Long]
+  queryTimeoutMS: Option[Long],
+  @AllowMissing("false")
+  noObfuscateRowIds: Boolean
 )
 
 object FoundTablesRequest {

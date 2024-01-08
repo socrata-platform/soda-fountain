@@ -118,6 +118,7 @@ trait QueryCoordinatorClient extends analyzer2.LabelUniverse[QueryCoordinatorCli
     preserveSystemColumns: Boolean,
     debug: Option[Debug],
     queryTimeout: Option[FiniteDuration],
+    noObfuscateRowIds: Boolean,
     headers: Seq[(String, String)], // TODO: something less HTTP-specific
     rs: ResourceScope
   ): New.Result

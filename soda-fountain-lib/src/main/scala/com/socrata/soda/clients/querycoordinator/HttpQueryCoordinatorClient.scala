@@ -172,7 +172,8 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     rewritePasses: Seq[Seq[Pass]],
     preserveSystemColumns: Boolean,
     debug: Option[Debug],
-    queryTimeoutMS: Option[Long]
+    queryTimeoutMS: Option[Long],
+    noObfuscateRowIds: Boolean
   )
 
   override def newQuery(
@@ -183,6 +184,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     preserveSystemColumns: Boolean,
     debug: Option[Debug],
     queryTimeout: Option[FiniteDuration],
+    noObfuscateRowIds: Boolean,
     additionalHeaders: Seq[(String, String)],
     rs: ResourceScope
   ) = {
@@ -194,7 +196,8 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
         rewritePasses,
         preserveSystemColumns,
         debug,
-        queryTimeout.map(_.toMillis)
+        queryTimeout.map(_.toMillis),
+        noObfuscateRowIds
       )
     )
 
