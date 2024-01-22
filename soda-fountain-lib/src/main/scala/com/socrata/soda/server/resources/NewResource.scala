@@ -3,13 +3,19 @@ package com.socrata.soda.server.resources
 import scala.collection.{mutable => scm}
 import scala.concurrent.duration._
 
+import java.io.{InputStream, BufferedInputStream, InputStreamReader}
+import java.nio.charset.StandardCharsets
+import java.util.zip.GZIPInputStream
+
+import com.rojoma.json.v3.ast.JObject
 import com.rojoma.json.v3.codec.JsonDecode
-import com.rojoma.json.v3.util.JsonUtil
+import com.rojoma.json.v3.util.{JsonUtil, JsonArrayIterator, AutomaticJsonDecode}
+import com.rojoma.simplearm.v2._
 
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.HttpResponse
-import com.socrata.soql.analyzer2.{DatabaseTableName, DatabaseColumnName, LabelUniverse}
+import com.socrata.soql.analyzer2.{DatabaseTableName, DatabaseColumnName, LabelUniverse, types}
 import com.socrata.soql.analyzer2
 import com.socrata.soql.environment.ColumnName
 
@@ -23,7 +29,7 @@ import com.socrata.soda.server.wiremodels.metatypes.QueryMetaTypes
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{DatasetInternalName, ResourceName, ColumnId}
 import com.socrata.soda.server.persistence.{DatasetRecord, NameAndSchemaStore}
-import com.socrata.soda.server.util.{Lazy, DAOCache}
+import com.socrata.soda.server.util.{CloseBlockingInputStream, Lazy, DAOCache, UnboundedResettableInputStream}
 import com.socrata.thirdparty.metrics.Metrics
 
 case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProvider: MetricProvider) extends Metrics {
@@ -39,6 +45,24 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
   class MetricContext(req: SodaRequest) {
     val domainId = req.header(domainIdHeader)
     def metric(metric: Metric) = metricProvider.add(domainId, metric)(domainMissingHandler)
+  }
+
+  @AutomaticJsonDecode
+  private case class DataVersions(
+    dataVersions: Seq[(types.DatabaseTableName[QueryMetaTypes], Long)]
+  )
+
+  private def readDataVersions(stream: InputStream, contentType: Option[String]): Map[types.DatabaseTableName[QueryMetaTypes], Long] = {
+    for {
+      stream <- if(contentType == Some("application/x-socrata-gzipped-cjson")) {
+        managed(new GZIPInputStream(new CloseBlockingInputStream(stream)))
+      } else {
+        unmanaged(new CloseBlockingInputStream(stream))
+      }
+      reader <- managed(new InputStreamReader(stream, StandardCharsets.UTF_8))
+    } {
+      JsonArrayIterator.fromReader[DataVersions](reader).next().dataVersions.toMap
+    }
   }
 
   case object service extends SodaResource {
@@ -83,10 +107,16 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
                 req.resourceScope
               ) match {
                 case QueryCoordinatorClient.New.Success(hdrs, stream) =>
+                  val resettableStream = new UnboundedResettableInputStream(stream)
+                  resettableStream.mark(1);
+                  readDataVersions(resettableStream, hdrs.find { case (k, _) => k.equalsIgnoreCase("content-type") }.map(_._2))
+                  resettableStream.reset()
+                  resettableStream.mark(0)
+
                   val base = hdrs.foldLeft[HttpResponse](OK) { case (acc, (hdrName, hdrVal)) =>
                     acc ~> Header(hdrName, hdrVal)
                   }
-                  base ~> Stream(stream)
+                  base ~> Stream(resettableStream)
                 case QueryCoordinatorClient.New.NotModified(hdrs, stream) =>
                   val base = hdrs.foldLeft[HttpResponse](NotModified) { case (acc, (hdrName, hdrVal)) =>
                     acc ~> Header(hdrName, hdrVal)
