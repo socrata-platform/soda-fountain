@@ -8,6 +8,7 @@ import com.socrata.soql.environment.ColumnName
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.persistence.NameAndSchemaStore
 import com.socrata.soda.server.id.{DatasetInternalName, ResourceName, ColumnId}
+import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 
 object DAOCache {
   sealed abstract class Error
@@ -18,10 +19,12 @@ object DAOCache {
 class DAOCache(store: NameAndSchemaStore) {
   import DAOCache._
 
-  private case class RelevantBits(
+  case class RelevantBits(
+    resourceName: ResourceName,
     internalName: DatasetInternalName,
     stage: Stage,
-    schema: Map[ColumnName, ColumnId]
+    schema: Map[ColumnName, ColumnId],
+    truthDataVersion: Long
   )
 
   private val datasetCache = new scm.HashMap[(ResourceName, Stage), RelevantBits]
@@ -36,11 +39,13 @@ class DAOCache(store: NameAndSchemaStore) {
           case Some(record) =>
             val bits =
               RelevantBits(
+                rn,
                 record.systemId,
                 stage,
                 record.columns.iterator.map { col =>
                   col.fieldName -> col.id
-                }.toMap
+                }.toMap,
+                record.truthVersion
               )
             datasetCache += name -> bits
             Right(bits)
@@ -49,6 +54,9 @@ class DAOCache(store: NameAndSchemaStore) {
         }
     }
   }
+
+  def allTables: Iterator[RelevantBits] =
+    datasetCache.values.toVector.iterator
 
   def lookupTableName(dtn: DatabaseTableName[(ResourceName, Stage)]): Either[UnknownTable, DatabaseTableName[(DatasetInternalName, Stage)]] = {
     getRecord(dtn).map { record =>
@@ -66,39 +74,51 @@ class DAOCache(store: NameAndSchemaStore) {
     }
   }
 
-  def buildLocationColumnMap[
-    MT <: MetaTypes with ({ type DatabaseTableNameImpl = (ResourceName, Stage); type DatabaseColumnNameImpl = ColumnName }),
-    MT2 <: MetaTypes with ({ type DatabaseTableNameImpl = (DatasetInternalName, Stage); type DatabaseColumnNameImpl = ColumnId })
+  def buildAuxTableData[
+    MT <: MetaTypes with ({ type DatabaseTableNameImpl = (ResourceName, Stage); type DatabaseColumnNameImpl = ColumnName })
   ](
     tables: Iterator[TableDescriptionLike.Dataset[MT]]
-  ): Either[Error, Map[types.DatabaseTableName[MT2], Map[types.DatabaseColumnName[MT2], Seq[Option[types.DatabaseColumnName[MT2]]]]]] = {
+  ): Either[Error, Map[DatabaseTableName[(DatasetInternalName, Stage)], QueryCoordinatorClient.AuxiliaryTableData]] = {
     val result =
-      tables.foldLeft(Map.empty[types.DatabaseTableName[MT2], Map[types.DatabaseColumnName[MT2], Seq[Option[types.DatabaseColumnName[MT2]]]]]) { (acc, dsInfo) =>
-        dsInfo.columns.iterator.foldLeft(acc) { case (acc, (colName, colInfo)) =>
-          if(colInfo.typ == com.socrata.soql.types.SoQLLocation) {
-            val datasetName = lookupTableName(dsInfo.name) match {
-              case Right(dsn) => dsn
-              case Left(err) => return Left(err)
-            }
-            val cid = lookupColumnName(dsInfo.name, colName) match {
-              case Right(cid) => cid
-              case Left(err) => return Left(err)
-            }
-            val base = colInfo.name.name
-            val dsColumns = acc.getOrElse(datasetName, Map.empty) +
-              (cid -> Seq("address", "city", "state", "zip").map { suffix =>
-                 lookupColumnName(dsInfo.name, DatabaseColumnName(ColumnName(s"${base}_${suffix}"))) match {
-                   case Right(cid) => Some(cid)
-                   case Left(UnknownColumn(_, _)) => None
-                   case Left(err) => return Left(err)
-                 }
-               })
-            acc + (datasetName -> dsColumns)
-          } else {
-            acc
-          }
+      tables.foldLeft(Map.empty[DatabaseTableName[(DatasetInternalName, Stage)], QueryCoordinatorClient.AuxiliaryTableData]) { (acc, dsInfo) =>
+        val bits = getRecord(dsInfo.name) match {
+          case Right(dsn) => dsn
+          case Left(err) => return Left(err)
         }
+
+        val datasetName = DatabaseTableName((bits.internalName, bits.stage))
+
+        type DCN = DatabaseColumnName[ColumnId]
+
+        val locationColumnMap =
+          dsInfo.columns.iterator.foldLeft(Map.empty[DCN, Seq[Option[DCN]]]) { case (acc, (colName, colInfo)) =>
+            if(colInfo.typ == com.socrata.soql.types.SoQLLocation) {
+              val cid = lookupColumnName(dsInfo.name, colName) match {
+                case Right(cid) => cid
+                case Left(err) => return Left(err)
+              }
+              val base = colInfo.name.name
+              acc + (cid -> Seq("address", "city", "state", "zip").map { suffix =>
+                       lookupColumnName(dsInfo.name, DatabaseColumnName(ColumnName(s"${base}_${suffix}"))) match {
+                         case Right(cid) => Some(cid)
+                         case Left(UnknownColumn(_, _)) => None
+                         case Left(err) => return Left(err)
+                       }
+                     })
+            } else {
+              acc
+            }
+          }
+
+        val auxTableData = QueryCoordinatorClient.AuxiliaryTableData(
+          locationColumnMap,
+          bits.resourceName,
+          bits.truthDataVersion
+        )
+
+        acc + (datasetName -> auxTableData)
       }
+
     Right(result)
   }
 }

@@ -3,13 +3,19 @@ package com.socrata.soda.server.resources
 import scala.collection.{mutable => scm}
 import scala.concurrent.duration._
 
+import java.io.{InputStream, BufferedInputStream, InputStreamReader}
+import java.nio.charset.StandardCharsets
+import java.util.zip.GZIPInputStream
+
+import com.rojoma.json.v3.ast.JObject
 import com.rojoma.json.v3.codec.JsonDecode
-import com.rojoma.json.v3.util.JsonUtil
+import com.rojoma.json.v3.util.{JsonUtil, JsonArrayIterator, AutomaticJsonDecode}
+import com.rojoma.simplearm.v2._
 
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.responses._
 import com.socrata.http.server.HttpResponse
-import com.socrata.soql.analyzer2.{DatabaseTableName, DatabaseColumnName, LabelUniverse}
+import com.socrata.soql.analyzer2.{DatabaseTableName, DatabaseColumnName, LabelUniverse, types}
 import com.socrata.soql.analyzer2
 import com.socrata.soql.environment.ColumnName
 
@@ -53,10 +59,6 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
             case Right(reqData: FoundTablesRequest) =>
               log.debug("Received request {}", Lazy(JsonUtil.renderJson(reqData, pretty=true)))
               val cache = new DAOCache(req.nameAndSchemaStore)
-              val locationSubcolumns = cache.buildLocationColumnMap[QueryMetaTypes, QueryCoordinatorClient.MetaTypes](reqData.tables.allTableDescriptions).getOrElse {
-                // TODO: fail with error
-                return BadRequest
-              }
 
               val qcFoundTables = reqData.tables.rewriteDatabaseNames[QueryCoordinatorClient.MetaTypes](
                 cache.lookupTableName(_).getOrElse {
@@ -68,12 +70,18 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
                   return BadRequest
                 }
               )
+
+              val auxData = cache.buildAuxTableData(reqData.tables.allTableDescriptions).getOrElse {
+                // TODO: fail with error
+                return BadRequest
+              }
+
               val relevantHeaders = Seq("if-none-match", "if-match", "if-modified-since").flatMap { h =>
                 req.headers(h).map { h -> _ }
               }
               req.queryCoordinator.newQuery(
                 qcFoundTables,
-                locationSubcolumns,
+                auxData,
                 reqData.context,
                 reqData.rewritePasses,
                 reqData.allowRollups,
