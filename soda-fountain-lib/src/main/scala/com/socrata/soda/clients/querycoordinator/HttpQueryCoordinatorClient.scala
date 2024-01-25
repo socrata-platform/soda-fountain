@@ -170,6 +170,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     locationSubcolumns: Seq[(DatabaseTableName, Seq[(DatabaseColumnName, Seq[OrJNull[DatabaseColumnName]])])],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
+    allowRollups: Boolean,
     preserveSystemColumns: Boolean,
     debug: Option[Debug],
     queryTimeoutMS: Option[Long]
@@ -180,6 +181,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     locationSubcolumns: Map[DatabaseTableName, Map[DatabaseColumnName, Seq[Option[DatabaseColumnName]]]],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
+    allowRollups: Boolean,
     preserveSystemColumns: Boolean,
     debug: Option[Debug],
     queryTimeout: Option[FiniteDuration],
@@ -192,6 +194,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
         locationSubcolumns.mapValues(_.mapValues(_.map(_.orJNull)).toSeq).toSeq,
         context,
         rewritePasses,
+        allowRollups,
         preserveSystemColumns,
         debug,
         queryTimeout.map(_.toMillis)

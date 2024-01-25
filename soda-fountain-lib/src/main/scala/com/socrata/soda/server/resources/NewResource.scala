@@ -76,6 +76,7 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
                 locationSubcolumns,
                 reqData.context,
                 reqData.rewritePasses,
+                reqData.allowRollups,
                 reqData.preserveSystemColumns,
                 reqData.debug,
                 reqData.queryTimeoutMS.map(_.milliseconds),
