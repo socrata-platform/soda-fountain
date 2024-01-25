@@ -19,6 +19,8 @@ case class FoundTablesRequest(
   context: Context,
   @AllowMissing("Nil")
   rewritePasses: Seq[Seq[Pass]],
+  @AllowMissing("true")
+  allowRollups: Boolean,
   @AllowMissing("false")
   preserveSystemColumns: Boolean,
   debug: Option[Debug],

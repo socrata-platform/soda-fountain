@@ -115,6 +115,7 @@ trait QueryCoordinatorClient extends analyzer2.LabelUniverse[QueryCoordinatorCli
     locationSubcolumns: Map[DatabaseTableName, Map[DatabaseColumnName, Seq[Option[DatabaseColumnName]]]],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
+    allowRollups: Boolean,
     preserveSystemColumns: Boolean,
     debug: Option[Debug],
     queryTimeout: Option[FiniteDuration],
