@@ -500,19 +500,27 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         dc.getRollups(datasetRecord.handle) match {
           case result: DataCoordinatorClient.RollupResult =>
             val dcRollups = result.rollups.map { rollup =>
-              try {
-                val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)
-                val mappedQueries = RollupHelper.reverseMapQuery(store, dataset, parsedQueries, tableNames)
-                log.debug(s"soql for rollup ${rollup} is: ${parsedQueries}")
-                log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
-                RollupSpec(name = rollup.name, soql = mappedQueries.toString())
-              } catch {
-                case ex: BadParse =>
-                  log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
-                  RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
-                case ex: Exception =>
-                  log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
-                  RollupSpec(name = rollup.name, soql = "__Invalid Rollup__")
+              if(rollup.isNewAnalyzer) {
+                // New-rollups don't get reworked, so we can just hand back the soql unmodified
+                RollupSpec(
+                  name = rollup.name,
+                  soql = rollup.soql
+                )
+              } else {
+                try {
+                  val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)
+                  val mappedQueries = RollupHelper.reverseMapQuery(store, dataset, parsedQueries, tableNames)
+                  log.debug(s"soql for rollup ${rollup} is: ${parsedQueries}")
+                  log.debug(s"Mapped soql for rollup ${rollup} is: ${mappedQueries}")
+                  RollupSpec(name = rollup.name, soql = mappedQueries.toString())
+                } catch {
+                  case ex: BadParse =>
+                    log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
+                    RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
+                  case ex: Exception =>
+                    log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
+                    RollupSpec(name = rollup.name, soql = "__Invalid Rollup__")
+                }
               }
             }
 
@@ -520,21 +528,30 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
               dataset,
               store.latestCopyNumber(dataset)
             ).toSeq.map { rollup =>
-              try{
-                val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)
-                val soqlWithUserIdentifiers = RollupHelper.reverseMapQuery(store, dataset, parsedQueries, tableNames)
+              if(rollup.isNewAnalyzer) {
+                // New-rollups don't get reworked, so we can just hand back the soql unmodified
                 RollupSpec(
                   name = rollup.name,
-                  soql = soqlWithUserIdentifiers,
-                  //Soda knows the lastAccessed date of a rollup
-                  lastAccessed = Some(rollup.lastAccessed))
-              } catch {
-                case ex: BadParse =>
-                  log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
-                  RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
-                case ex: Exception =>
-                  log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
-                  RollupSpec(name = rollup.name, soql = "__Invalid Rollup__")
+                  soql = rollup.soql,
+                  lastAccessed = Some(rollup.lastAccessed)
+                )
+              } else {
+                try {
+                  val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)
+                  val soqlWithUserIdentifiers = RollupHelper.reverseMapQuery(store, dataset, parsedQueries, tableNames)
+                  RollupSpec(
+                    name = rollup.name,
+                    soql = soqlWithUserIdentifiers,
+                    //Soda knows the lastAccessed date of a rollup
+                    lastAccessed = Some(rollup.lastAccessed))
+                } catch {
+                  case ex: BadParse =>
+                    log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
+                    RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
+                  case ex: Exception =>
+                    log.warn(s"invalid rollup SoQL ${rollup.name} ${rollup.soql} ${ex.getMessage}")
+                    RollupSpec(name = rollup.name, soql = "__Invalid Rollup__")
+                }
               }
             }
 
