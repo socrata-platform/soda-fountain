@@ -1,5 +1,7 @@
 package com.socrata.soda.server.highlevel
 
+import scala.collection.{mutable => scm}
+
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.highlevel.DatasetDAO.CannotAcquireDatasetWriteLock
@@ -18,12 +20,14 @@ import DatasetDAO._
 
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
-import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation}
+import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation, NewRollup}
 import com.socrata.soda.server.util.RelationSide.{From, RelationSide, To}
 import com.socrata.soql.exceptions.SoQLException
 import com.socrata.soql.parsing.RecursiveDescentParser.ParseException
 import com.socrata.soql.parsing.standalone_exceptions.BadParse
+import com.socrata.soql.analyzer2.{UnparsedFoundTables, DatabaseTableName, DatabaseColumnName}
 import org.joda.time.DateTime
+import com.rojoma.json.v3.util.JsonUtil
 
 class DatasetDAOImpl(dc: DataCoordinatorClient,
                      fbm: FeedbackSecondaryManifestClient,
@@ -501,11 +505,58 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
           case result: DataCoordinatorClient.RollupResult =>
             val dcRollups = result.rollups.map { rollup =>
               if(rollup.isNewAnalyzer) {
-                // New-rollups don't get reworked, so we can just hand back the soql unmodified
-                RollupSpec(
-                  name = rollup.name,
-                  soql = rollup.soql
-                )
+                // A new-rollup coming back from DC will be in the
+                // DataCoordinatorClient.UnstagedMetaTypes space; we
+                // need to convert that back to our native
+                // RollupMetaTypes space.
+                JsonUtil.parseJson[NewRollup.NewRollupSoql](rollup.soql) match {
+                  case Right(newRollup) =>
+                    val cache = new scm.HashMap[DatasetInternalName, DatasetRecordLike]
+                    def lookupRecord(internalName: DatasetInternalName): DatasetRecordLike =
+                      if(internalName == datasetRecord.systemId) {
+                        datasetRecord
+                      } else {
+                        cache.get(internalName).getOrElse {
+                          store.lookupDataset(internalName, None) match {
+                            case Some(record) =>
+                              cache += internalName -> record
+                              record
+                            case None =>
+                              ???
+                          }
+                        }
+                      }
+                    val convertedFoundTables =
+                      newRollup.foundTables.rewriteDatabaseNames[metatypes.RollupMetaTypes](
+                        { case DatabaseTableName(internalName) =>
+                          DatabaseTableName(lookupRecord(internalName).resourceName)
+                        },
+                        { case (DatabaseTableName(internalName), DatabaseColumnName(columnId)) =>
+                          val record = lookupRecord(internalName)
+                          record.columnsById.get(columnId) match {
+                            case Some(col) =>
+                              DatabaseColumnName(col.fieldName)
+                            case None =>
+                              ???
+                          }
+                        }
+                      )
+
+                    val convertedRollup =
+                      NewRollupRequest.Stored(
+                        convertedFoundTables,
+                        newRollup.userParameters,
+                        newRollup.rewritePasses
+                      )
+
+                    RollupSpec(
+                      name = rollup.name,
+                      soql = JsonUtil.renderJson(convertedRollup, pretty = false)
+                    )
+                  case Left(err) =>
+                    log.warn(s"invalid new-analyzer rollup ${rollup.name}: ${err.english}")
+                    RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
+                }
               } else {
                 try {
                   val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)

@@ -210,7 +210,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
             val resp = httpClient.execute(request, rs)
             resp.resultCode match {
               case 200 =>
-                val headers = Seq("etag", "last-modified", "content-type").foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
+                val headers = Seq("etag", "last-modified", "content-type", "x-soda2-secondary").foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
                   resp.headers(hdr).foldLeft(acc) { case (acc, value) =>
                     acc :+ (hdr -> value)
                   }
