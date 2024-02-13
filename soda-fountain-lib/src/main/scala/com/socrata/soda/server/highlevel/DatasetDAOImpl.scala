@@ -513,6 +513,10 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         // A new-rollup coming back from DC will be in the
         // DataCoordinatorClient.UnstagedMetaTypes space; we need to
         // convert that back to our native RollupMetaTypes space.
+        //
+        // We also might want to tolerate schema changes better (cf
+        // the FoundTablesTableFinder thing that the RollupManager
+        // does over in soql-pg)
         val convertedFoundTables =
           newRollup.foundTables.rewriteDatabaseNames[metatypes.RollupMetaTypes](
             { case DatabaseTableName(internalName) =>
