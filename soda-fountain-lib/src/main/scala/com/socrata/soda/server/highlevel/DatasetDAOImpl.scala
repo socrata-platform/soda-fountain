@@ -501,7 +501,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
 
         def lookupRecord(internalName: DatasetInternalName): Option[DatasetRecordLike] =
           cache.get(internalName).orElse {
-            store.lookupDataset(internalName, None) match {
+            store.lookupDataset(internalName, Some(Published)) match {
               case Some(record) =>
                 cache += internalName -> record
                 Some(record)
