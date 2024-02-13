@@ -493,6 +493,67 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     }
   }
 
+  private def convertNewAnalyzerDCRollup(datasetRecord: DatasetRecordLike, rollup: RollupInfo): RollupSpec = {
+    JsonUtil.parseJson[NewRollup.NewRollupSoql](rollup.soql) match {
+      case Right(newRollup) =>
+        val cache = new scm.HashMap[DatasetInternalName, DatasetRecordLike]
+        cache += datasetRecord.systemId -> datasetRecord
+
+        def lookupRecord(internalName: DatasetInternalName): Option[DatasetRecordLike] =
+          cache.get(internalName).orElse {
+            store.lookupDataset(internalName, None) match {
+              case Some(record) =>
+                cache += internalName -> record
+                Some(record)
+              case None =>
+                None
+            }
+          }
+
+        // A new-rollup coming back from DC will be in the
+        // DataCoordinatorClient.UnstagedMetaTypes space; we need to
+        // convert that back to our native RollupMetaTypes space.
+        val convertedFoundTables =
+          newRollup.foundTables.rewriteDatabaseNames[metatypes.RollupMetaTypes](
+            { case DatabaseTableName(internalName) =>
+              val resourceName = lookupRecord(internalName).getOrElse {
+                log.warn(s"invalid new-analyzer rollup ${rollup.name}: No record of internal name ${internalName}")
+                return RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
+              }.resourceName
+              DatabaseTableName(resourceName)
+            },
+            { case (DatabaseTableName(internalName), DatabaseColumnName(columnId)) =>
+              val record = lookupRecord(internalName).getOrElse {
+                log.warn(s"invalid new-analyzer rollup ${rollup.name}: No record of internal name ${internalName}")
+                return RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
+              }
+              record.columnsById.get(columnId) match {
+                case Some(col) =>
+                  DatabaseColumnName(col.fieldName)
+                case None =>
+                  log.warn(s"invalid new-analyzer rollup ${rollup.name}: No record of column id ${columnId}")
+                  return RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
+              }
+            }
+          )
+
+        val convertedRollup =
+          NewRollupRequest.Stored(
+            convertedFoundTables,
+            newRollup.userParameters,
+            newRollup.rewritePasses
+          )
+
+        RollupSpec(
+          name = rollup.name,
+          soql = JsonUtil.renderJson(convertedRollup, pretty = false)
+        )
+      case Left(err) =>
+        log.warn(s"invalid new-analyzer rollup ${rollup.name}: ${err.english}")
+        RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
+    }
+  }
+
   def getRollups(dataset: ResourceName): Result = {
     store.lookupDataset(dataset, store.latestCopyNumber(dataset)) match {
       case Some(datasetRecord) =>
@@ -505,58 +566,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
           case result: DataCoordinatorClient.RollupResult =>
             val dcRollups = result.rollups.map { rollup =>
               if(rollup.isNewAnalyzer) {
-                // A new-rollup coming back from DC will be in the
-                // DataCoordinatorClient.UnstagedMetaTypes space; we
-                // need to convert that back to our native
-                // RollupMetaTypes space.
-                JsonUtil.parseJson[NewRollup.NewRollupSoql](rollup.soql) match {
-                  case Right(newRollup) =>
-                    val cache = new scm.HashMap[DatasetInternalName, DatasetRecordLike]
-                    def lookupRecord(internalName: DatasetInternalName): DatasetRecordLike =
-                      if(internalName == datasetRecord.systemId) {
-                        datasetRecord
-                      } else {
-                        cache.get(internalName).getOrElse {
-                          store.lookupDataset(internalName, None) match {
-                            case Some(record) =>
-                              cache += internalName -> record
-                              record
-                            case None =>
-                              ???
-                          }
-                        }
-                      }
-                    val convertedFoundTables =
-                      newRollup.foundTables.rewriteDatabaseNames[metatypes.RollupMetaTypes](
-                        { case DatabaseTableName(internalName) =>
-                          DatabaseTableName(lookupRecord(internalName).resourceName)
-                        },
-                        { case (DatabaseTableName(internalName), DatabaseColumnName(columnId)) =>
-                          val record = lookupRecord(internalName)
-                          record.columnsById.get(columnId) match {
-                            case Some(col) =>
-                              DatabaseColumnName(col.fieldName)
-                            case None =>
-                              ???
-                          }
-                        }
-                      )
-
-                    val convertedRollup =
-                      NewRollupRequest.Stored(
-                        convertedFoundTables,
-                        newRollup.userParameters,
-                        newRollup.rewritePasses
-                      )
-
-                    RollupSpec(
-                      name = rollup.name,
-                      soql = JsonUtil.renderJson(convertedRollup, pretty = false)
-                    )
-                  case Left(err) =>
-                    log.warn(s"invalid new-analyzer rollup ${rollup.name}: ${err.english}")
-                    RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
-                }
+                convertNewAnalyzerDCRollup(datasetRecord, rollup)
               } else {
                 try {
                   val (parsedQueries, tableNames) = RollupHelper.parse(rollup.soql)
