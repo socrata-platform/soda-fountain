@@ -28,6 +28,7 @@ trait NameAndSchemaStore {
   def translateResourceName(resourceName: ResourceName, stage: Option[Stage] = None, deleted: Boolean = false): Option[MinimalDatasetRecord]
   def latestCopyNumber(resourceName: ResourceName): Long
   def lookupCopyNumber(resourceName: ResourceName, copy: Option[Stage]): Option[Long]
+  def lookupCopyNumber(internalName: DatasetInternalName, copy: Option[Stage]): Option[Long]
   def latestCopyNumber(resourceName: DatasetRecord): Long
 
   def latestCopyId(resourceName: ResourceName): CopyId
@@ -38,6 +39,10 @@ trait NameAndSchemaStore {
   def lookupDataset(resourceName: ResourceName, copyNumber: Long): Option[DatasetRecord]
   def lookupDataset(resourceName: ResourceName, copy: Option[Stage]): Option[DatasetRecord] = {
     lookupCopyNumber(resourceName, copy).flatMap(lookupDataset(resourceName, _))
+  }
+  def lookupDataset(internalName: DatasetInternalName, copyNumber: Long): Option[DatasetRecord]
+  def lookupDataset(internalName: DatasetInternalName, copy: Option[Stage]): Option[DatasetRecord] = {
+    lookupCopyNumber(internalName, copy).flatMap(lookupDataset(internalName, _))
   }
   def lookupDroppedDatasets(delay:FiniteDuration): List[MinimalDatasetRecord]
   /**

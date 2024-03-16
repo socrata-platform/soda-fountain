@@ -64,6 +64,8 @@ object RollupHelper {
 
   private val soqlAnalyzer: SoQLAnalyzer[SoQLType,SoQLValue] = new SoQLAnalyzer(SoQLTypeInfo, SoQLFunctionInfo)
 
+  def isNewAnalyzerSoql(soql: String) = soql.startsWith("{")
+
   def parse(soql: String): (BinaryTree[Select], Set[TableName]) = {
     val parsedQueries = new Parser(AbstractParser.defaultParameters).binaryTreeSelect(soql)
     val tableNames = collectTableNames(parsedQueries).map(name => TableName(name))

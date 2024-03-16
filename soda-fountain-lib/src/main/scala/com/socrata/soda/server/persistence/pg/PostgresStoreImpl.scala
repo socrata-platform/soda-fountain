@@ -27,6 +27,153 @@ import org.joda.time.DateTime
 
 case class SodaFountainStoreError(message: String) extends SodaInternalException(message)
 
+object PostgresStoreImpl {
+  def fetchMinimalColumnsSql (includeColumnFilter: Boolean, isDeleted: Boolean) = {
+    val columnFilter = if (includeColumnFilter) "c.column_id = ? AND" else ""
+    val deletedFilter = if (!isDeleted) "AND dc.deleted_at is null" else "AND dc.deleted_at is not null"
+    s"""SELECT c.column_name,
+       |       c.column_id,
+       |       c.type_name,
+       |       c.is_inconsistency_resolution_generated,
+       |       cs.computation_strategy_type,
+       |       cs.source_columns,
+       |       cs.parameters
+       | FROM columns c
+       | JOIN dataset_copies dc on dc.id = c.copy_id
+       | LEFT JOIN computation_strategies cs
+       | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id AND c.copy_id = cs.copy_id
+       | WHERE $columnFilter
+        |dc.dataset_system_id = ? AND
+        |       dc.copy_number = ?
+        |       $deletedFilter
+        |       """.stripMargin
+  }
+
+  sealed abstract class DatasetKey
+  object DatasetKey {
+    case object ResourceName extends DatasetKey
+    case object InternalName extends DatasetKey
+  }
+  sealed abstract class DatasetKeyLike[T] {
+    def key: DatasetKey
+    def keyString(t: T): String
+  }
+  object DatasetKeyLike {
+    implicit object ResourceNameKey extends DatasetKeyLike[ResourceName] {
+      def key = DatasetKey.ResourceName
+      def keyString(t: ResourceName) = t.caseFolded
+    }
+    implicit object InternalNameKey extends DatasetKeyLike[DatasetInternalName] {
+      def key = DatasetKey.InternalName
+      def keyString(t: DatasetInternalName) = t.underlying
+    }
+  }
+
+  def fetchDatasetSql (key: Option[DatasetKey], copyNumber: Boolean, isDeleted: Boolean) = {
+    val resourceNameFilter =
+      key match {
+        case Some(DatasetKey.ResourceName) => "WHERE d.resource_name_casefolded = ?"
+        case Some(DatasetKey.InternalName) => "WHERE d.dataset_system_id = ?"
+        case None => ""
+      }
+    val deletedFilter = if (!isDeleted) "AND d.deleted_at is null AND c.deleted_at is null" else "AND d.deleted_at < now() - (?::INTERVAL)"
+    val copyNumberFilter = if (copyNumber) "And c.copy_number = ?" else ""
+    s"""SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, c.schema_hash, d.last_modified, d.deleted_at,
+    c.copy_number, c.primary_key_column_id, c.latest_version, c.lifecycle_stage, c.updated_at
+    FROM datasets d
+    Join dataset_copies c on c.dataset_system_id = d.dataset_system_id
+    $resourceNameFilter
+    $copyNumberFilter
+    $deletedFilter
+    ORDER By c.copy_number desc
+      """.stripMargin
+  }
+
+  // The string_to_array function below is a workaround for Postgres JDBC4
+  // which does not implement connection.createArrayOf
+  private def compStrategySourceColumnPartialSql =
+    """
+    ARRAY(SELECT c.column_id
+            FROM columns c
+            Join dataset_copies dc on dc.dataset_system_id = c.dataset_system_id
+             AND dc.id = c.copy_id
+           WHERE c.column_name = ANY (string_to_array(?, ','))
+             AND dc.dataset_system_id = ?
+             AND dc.copy_number = ?)
+    """.stripMargin
+
+
+  val addCompStrategySql =
+    s"""
+    INSERT INTO computation_strategies
+        (dataset_system_id,
+         column_id,
+         computation_strategy_type,
+         source_columns,
+         parameters,
+         copy_id)
+         SELECT ?,
+                ?,
+                ?,
+                $compStrategySourceColumnPartialSql,
+                ?,
+                id
+           FROM dataset_copies
+          WHERE dataset_system_id = ?
+            And copy_number = ?
+            And deleted_at is null
+    """.stripMargin
+
+  val dropCompStrategySql =
+    s"""
+    DELETE FROM computation_strategies
+     WHERE dataset_system_id = ?
+       And column_id = ?
+       And copy_id in (SELECT id FROM dataset_copies
+                        WHERE dataset_system_id = ?
+                          And copy_number = ?
+                          And deleted_at is null)
+    """.stripMargin
+
+  private val updateVersionInfoSqls = Seq(
+    // update dataset basic stuff
+    """
+    UPDATE datasets
+       SET latest_version = ?, last_modified = ?
+     WHERE dataset_system_id = ?
+    """,
+    // update dataset copy basic stuff
+    """
+    UPDATE dataset_copies
+       SET latest_version = ?, updated_at = ?
+     WHERE dataset_system_id = ?
+       And copy_number = ?
+    """,
+    // change previously published to discarded
+    """
+    UPDATE dataset_copies
+       SET lifecycle_stage = 'Discarded',
+           deleted_at = now()
+     WHERE dataset_system_id = ?
+       And deleted_at is null
+       And lifecycle_stage = 'Published'
+       And ?
+    """,
+    // take effect only when we discard a copy
+    """
+    UPDATE dataset_copies
+       SET lifecycle_stage = ?,
+           deleted_at = case when ? = 'Discarded' then now() else deleted_at end,
+           latest_version = ?, updated_at = now()
+     WHERE dataset_system_id = ?
+       And copy_number = ?
+       And deleted_at is null
+       And ?
+    """)
+
+  val updateVersionInfoSql = updateVersionInfoSqls.map(_.stripMargin).mkString(";")
+}
+
 class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
   import PostgresStoreImpl._
@@ -160,10 +307,16 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     else Some(datasets.head)
   }
 
+  def lookupDataset(internalName: DatasetInternalName, copyNumber: Long): Option[DatasetRecord] = {
+    val datasets = lookupDataset(internalName, Some(copyNumber))
+    if (datasets.isEmpty) None
+    else Some(datasets.head)
+  }
+
   def lookupDataset(resourceName: ResourceName): Seq[DatasetRecord] = lookupDataset(resourceName, None)
 
-  private def lookupDataset(resourceName: ResourceName, copyNumber: Option[Long]): Seq[DatasetRecord] = {
-    val sql = fetchDatasetSql(resourceName = true,
+  private def lookupDataset[T : DatasetKeyLike](resourceName: T, copyNumber: Option[Long]): Seq[DatasetRecord] = {
+    val sql = fetchDatasetSql(key = Some(implicitly[DatasetKeyLike[T]].key),
                               copyNumber = {if (copyNumber.isDefined) true else false},
                               isDeleted = false)
 
@@ -172,7 +325,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
 
       using(conn.prepareStatement(
         sql)) { dsQuery =>
-        dsQuery.setString(1, resourceName.caseFolded)
+        dsQuery.setString(1, implicitly[DatasetKeyLike[T]].keyString(resourceName))
         if(copyNumber.isDefined)
         {
           dsQuery.setString(2, copyNumber.toString())
@@ -686,7 +839,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
   }
 
   def lookupDroppedDatasets(delay: FiniteDuration): List[MinimalDatasetRecord]= {
-    val sql = fetchDatasetSql(resourceName = false, copyNumber = false,isDeleted = true)
+    val sql = fetchDatasetSql(key = None, copyNumber = false,isDeleted = true)
 
     using(dataSource.getConnection()) { conn =>
       conn.setAutoCommit(false)
@@ -1147,126 +1300,4 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
       }
     }
   }
-}
-
-object PostgresStoreImpl {
-  def fetchMinimalColumnsSql (includeColumnFilter: Boolean, isDeleted: Boolean) = {
-    val columnFilter = if (includeColumnFilter) "c.column_id = ? AND" else ""
-    val deletedFilter = if (!isDeleted) "AND dc.deleted_at is null" else "AND dc.deleted_at is not null"
-    s"""SELECT c.column_name,
-       |       c.column_id,
-       |       c.type_name,
-       |       c.is_inconsistency_resolution_generated,
-       |       cs.computation_strategy_type,
-       |       cs.source_columns,
-       |       cs.parameters
-       | FROM columns c
-       | JOIN dataset_copies dc on dc.id = c.copy_id
-       | LEFT JOIN computation_strategies cs
-       | ON c.dataset_system_id = cs.dataset_system_id AND c.column_id = cs.column_id AND c.copy_id = cs.copy_id
-       | WHERE $columnFilter
-        |dc.dataset_system_id = ? AND
-        |       dc.copy_number = ?
-        |       $deletedFilter
-        |       """.stripMargin
-  }
-
-  def fetchDatasetSql (resourceName: Boolean, copyNumber: Boolean, isDeleted: Boolean) = {
-    val resourceNameFilter = if (resourceName) "WHERE d.resource_name_casefolded = ?"  else ""
-    val deletedFilter = if (!isDeleted) "AND d.deleted_at is null AND c.deleted_at is null" else "AND d.deleted_at < now() - (?::INTERVAL)"
-    val copyNumberFilter = if (copyNumber) "And c.copy_number = ?" else ""
-    s"""SELECT d.resource_name, d.dataset_system_id, d.name, d.description, d.locale, c.schema_hash, d.last_modified, d.deleted_at,
-    c.copy_number, c.primary_key_column_id, c.latest_version, c.lifecycle_stage, c.updated_at
-    FROM datasets d
-    Join dataset_copies c on c.dataset_system_id = d.dataset_system_id
-    $resourceNameFilter
-    $copyNumberFilter
-    $deletedFilter
-    ORDER By c.copy_number desc
-      """.stripMargin
-  }
-
-  // The string_to_array function below is a workaround for Postgres JDBC4
-  // which does not implement connection.createArrayOf
-  private def compStrategySourceColumnPartialSql =
-    """
-    ARRAY(SELECT c.column_id
-            FROM columns c
-            Join dataset_copies dc on dc.dataset_system_id = c.dataset_system_id
-             AND dc.id = c.copy_id
-           WHERE c.column_name = ANY (string_to_array(?, ','))
-             AND dc.dataset_system_id = ?
-             AND dc.copy_number = ?)
-    """.stripMargin
-
-
-  val addCompStrategySql =
-    s"""
-    INSERT INTO computation_strategies
-        (dataset_system_id,
-         column_id,
-         computation_strategy_type,
-         source_columns,
-         parameters,
-         copy_id)
-         SELECT ?,
-                ?,
-                ?,
-                $compStrategySourceColumnPartialSql,
-                ?,
-                id
-           FROM dataset_copies
-          WHERE dataset_system_id = ?
-            And copy_number = ?
-            And deleted_at is null
-    """.stripMargin
-
-  val dropCompStrategySql =
-    s"""
-    DELETE FROM computation_strategies
-     WHERE dataset_system_id = ?
-       And column_id = ?
-       And copy_id in (SELECT id FROM dataset_copies
-                        WHERE dataset_system_id = ?
-                          And copy_number = ?
-                          And deleted_at is null)
-    """.stripMargin
-
-  private val updateVersionInfoSqls = Seq(
-    // update dataset basic stuff
-    """
-    UPDATE datasets
-       SET latest_version = ?, last_modified = ?
-     WHERE dataset_system_id = ?
-    """,
-    // update dataset copy basic stuff
-    """
-    UPDATE dataset_copies
-       SET latest_version = ?, updated_at = ?
-     WHERE dataset_system_id = ?
-       And copy_number = ?
-    """,
-    // change previously published to discarded
-    """
-    UPDATE dataset_copies
-       SET lifecycle_stage = 'Discarded',
-           deleted_at = now()
-     WHERE dataset_system_id = ?
-       And deleted_at is null
-       And lifecycle_stage = 'Published'
-       And ?
-    """,
-    // take effect only when we discard a copy
-    """
-    UPDATE dataset_copies
-       SET lifecycle_stage = ?,
-           deleted_at = case when ? = 'Discarded' then now() else deleted_at end,
-           latest_version = ?, updated_at = now()
-     WHERE dataset_system_id = ?
-       And copy_number = ?
-       And deleted_at is null
-       And ?
-    """)
-
-  val updateVersionInfoSql = updateVersionInfoSqls.map(_.stripMargin).mkString(";")
 }
