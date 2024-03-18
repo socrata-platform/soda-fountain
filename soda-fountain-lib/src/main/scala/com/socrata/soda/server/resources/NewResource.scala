@@ -80,6 +80,7 @@ case class NewResource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricP
                 reqData.preserveSystemColumns,
                 reqData.debug,
                 reqData.queryTimeoutMS.map(_.milliseconds),
+                reqData.store,
                 relevantHeaders,
                 req.resourceScope
               ) match {

@@ -173,7 +173,8 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     allowRollups: Boolean,
     preserveSystemColumns: Boolean,
     debug: Option[Debug],
-    queryTimeoutMS: Option[Long]
+    queryTimeoutMS: Option[Long],
+    store: Option[String]
   )
 
   override def newQuery(
@@ -185,6 +186,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     preserveSystemColumns: Boolean,
     debug: Option[Debug],
     queryTimeout: Option[FiniteDuration],
+    store: Option[String],
     additionalHeaders: Seq[(String, String)],
     rs: ResourceScope
   ) = {
@@ -197,7 +199,8 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
         allowRollups,
         preserveSystemColumns,
         debug,
-        queryTimeout.map(_.toMillis)
+        queryTimeout.map(_.toMillis),
+        store
       )
     )
 
@@ -208,9 +211,10 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
           val request = base.json(com.rojoma.json.v3.io.JValueEventIterator(jValue))
           threadLimiter.withThreadpool {
             val resp = httpClient.execute(request, rs)
+            def interestingHeaders = Seq("etag", "last-modified", "content-type", "x-soda2-secondary")
             resp.resultCode match {
               case 200 =>
-                val headers = Seq("etag", "last-modified", "content-type").foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
+                val headers = interestingHeaders.foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
                   resp.headers(hdr).foldLeft(acc) { case (acc, value) =>
                     acc :+ (hdr -> value)
                   }
@@ -218,7 +222,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
                 rs.openUnmanaged(New.Success(headers, resp.inputStream()), transitiveClose = List(resp))
 
               case 304 =>
-                val headers = Seq("etag", "last-modified", "content-type").foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
+                val headers = interestingHeaders.foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
                   resp.headers(hdr).foldLeft(acc) { case (acc, value) =>
                     acc :+ (hdr -> value)
                   }
