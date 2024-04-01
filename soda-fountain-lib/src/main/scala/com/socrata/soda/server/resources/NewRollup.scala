@@ -83,10 +83,10 @@ case object NewRollup {
                 { (_, dcn) => dcn }
               )
 
-              val locationSubcolumns = cache.buildLocationColumnMap[RestagedMT, DataCoordinatorClient.MetaTypes](staged.allTableDescriptions).getOrElse {
+              val locationSubcolumns = cache.buildAuxTableData[RestagedMT](staged.allTableDescriptions).getOrElse {
                 // TODO better error
                 return BadRequest
-              }.iterator.map { case (DatabaseTableName((rn, _)), value) => DatabaseTableName(rn) -> value }.toMap
+              }.iterator.map { case (DatabaseTableName((rn, _)), value) => DatabaseTableName(rn) -> value.locationSubcolumns }.toMap
 
               val dcFoundTables = staged.rewriteDatabaseNames[DataCoordinatorClient.UnstagedMetaTypes](
                 { dtn =>

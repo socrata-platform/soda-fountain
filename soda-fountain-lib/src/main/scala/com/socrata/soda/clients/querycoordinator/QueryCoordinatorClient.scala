@@ -7,7 +7,7 @@ import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.id.{DatasetInternalName, ColumnId, DatasetHandle}
+import com.socrata.soda.server.id.{DatasetInternalName, ColumnId, DatasetHandle, ResourceName}
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.stdlib.Context
 import com.socrata.soql.stdlib.analyzer2.{Context => NewContext}
@@ -91,6 +91,12 @@ object QueryCoordinatorClient {
     case class NotModified(headers: Seq[(String, String)], content: java.io.InputStream) extends Result
     case class Error(status: Int, content: GenericSoQLError[MetaTypes#ResourceNameScope]) extends Result
   }
+
+  case class AuxiliaryTableData(
+    locationSubcolumns: Map[analyzer2.types.DatabaseColumnName[MetaTypes], Seq[Option[analyzer2.types.DatabaseColumnName[MetaTypes]]]],
+    sfResourceName: ResourceName,
+    truthDataVersion: Long
+  )
 }
 
 trait QueryCoordinatorClient extends analyzer2.LabelUniverse[QueryCoordinatorClient.MetaTypes] {
@@ -112,7 +118,7 @@ trait QueryCoordinatorClient extends analyzer2.LabelUniverse[QueryCoordinatorCli
 
   def newQuery(
     tables: analyzer2.UnparsedFoundTables[MetaTypes],
-    locationSubcolumns: Map[DatabaseTableName, Map[DatabaseColumnName, Seq[Option[DatabaseColumnName]]]],
+    auxTableData: Map[DatabaseTableName, AuxiliaryTableData],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     allowRollups: Boolean,

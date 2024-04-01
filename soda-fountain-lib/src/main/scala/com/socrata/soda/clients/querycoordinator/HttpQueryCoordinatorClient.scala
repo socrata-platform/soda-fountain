@@ -10,7 +10,7 @@ import com.socrata.http.client.exceptions.{ConnectFailed, ConnectTimeout, Receiv
 import com.socrata.http.client.{HttpClient, RequestBuilder, Response}
 import com.socrata.http.server.implicits._
 import com.socrata.http.server.util._
-import com.socrata.soda.server.id.{DatasetInternalName, ColumnId}
+import com.socrata.soda.server.id.{DatasetInternalName, ColumnId, ResourceName}
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient._
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError._
 import com.socrata.soda.server.{SodaUtils, ThreadLimiter}
@@ -165,9 +165,16 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
   }
 
   @AutomaticJsonEncode
+  case class AuxTableData(
+    locationSubcolumns: Seq[(DatabaseColumnName, Seq[OrJNull[DatabaseColumnName]])],
+    sfResourceName: ResourceName,
+    truthDataVersion: Long
+  )
+
+  @AutomaticJsonEncode
   private case class NewQueryBody(
     foundTables: analyzer2.UnparsedFoundTables[MetaTypes],
-    locationSubcolumns: Seq[(DatabaseTableName, Seq[(DatabaseColumnName, Seq[OrJNull[DatabaseColumnName]])])],
+    auxTableData: Seq[(DatabaseTableName, AuxTableData)],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     allowRollups: Boolean,
@@ -179,7 +186,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
 
   override def newQuery(
     tables: analyzer2.UnparsedFoundTables[MetaTypes],
-    locationSubcolumns: Map[DatabaseTableName, Map[DatabaseColumnName, Seq[Option[DatabaseColumnName]]]],
+    auxTableData: Map[DatabaseTableName, AuxiliaryTableData],
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     allowRollups: Boolean,
@@ -193,7 +200,13 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     val jValue = JsonEncode.toJValue(
       NewQueryBody(
         tables,
-        locationSubcolumns.mapValues(_.mapValues(_.map(_.orJNull)).toSeq).toSeq,
+        auxTableData.mapValues { atd =>
+          AuxTableData(
+            atd.locationSubcolumns.mapValues(_.map(_.orJNull)).toSeq,
+            atd.sfResourceName,
+            atd.truthDataVersion
+          )
+        }.toSeq,
         context,
         rewritePasses,
         allowRollups,
@@ -211,7 +224,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
           val request = base.json(com.rojoma.json.v3.io.JValueEventIterator(jValue))
           threadLimiter.withThreadpool {
             val resp = httpClient.execute(request, rs)
-            def interestingHeaders = Seq("etag", "last-modified", "content-type", "x-soda2-secondary")
+            def interestingHeaders = Seq("etag", "last-modified", "content-type", "x-soda2-secondary", "x-soda2-data-out-of-date")
             resp.resultCode match {
               case 200 =>
                 val headers = interestingHeaders.foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
