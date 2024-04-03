@@ -212,7 +212,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     val export = Export(etagObfuscator)
     val resource = Resource(etagObfuscator, config.maxDatumSize, metricProvider, export)
     val newResource = NewResource(etagObfuscator, config.maxDatumSize, metricProvider)
-    val suggest = Suggest(config.suggest)
     val resync = Resync
 
     new SodaRouter(
@@ -244,8 +243,6 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
       datasetRollupRelationToResource= dataset.rollupRelationService(_, RelationSide.To) ,
       datasetIndexesResource = dataset.indexService(_, None),
       datasetIndexResource = { case (resourceName, name) => dataset.indexService(resourceName, Some(name)) },
-      sampleResource = suggest.sampleService,
-      suggestResource = suggest.service,
       secondaryReindexResource = dataset.secondaryReindexService,
       indexDirectiveResource = column.indexDirectiveService
     )

@@ -36,8 +36,6 @@ class SodaRouter(versionResource: SodaHttpService,
                  datasetRollupRelationToResource: (ResourceName) => SodaHttpService,
                  datasetIndexesResource: ResourceName => SodaHttpService,
                  datasetIndexResource: (ResourceName, IndexName) => SodaHttpService,
-                 sampleResource: (ResourceName, ColumnName) => SodaHttpService,
-                 suggestResource: (ResourceName, ColumnName, String) => SodaHttpService,
                  secondaryReindexResource: ResourceName => SodaHttpService,
                  indexDirectiveResource: (ResourceName, ColumnName) => SodaHttpService) {
   private[this] val routeContext = new RouteContext[SodaRequest, HttpResponse]
@@ -101,8 +99,6 @@ class SodaRouter(versionResource: SodaHttpService,
     Route("/dataset-rollup/{ResourceName}/to", datasetRollupRelationToResource),
     Route("/dataset-index/{ResourceName}", datasetIndexesResource),
     Route("/dataset-index/{ResourceName}/{IndexName}", datasetIndexResource),
-    Route("/suggest/{ResourceName}/{ColumnName}", sampleResource),
-    Route("/suggest/{ResourceName}/{ColumnName}/{String}", suggestResource),
     Route("/resync/{ResourceName}/{SecondaryId}", resyncResource)
   )
 

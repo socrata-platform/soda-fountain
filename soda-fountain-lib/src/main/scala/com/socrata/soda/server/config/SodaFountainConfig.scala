@@ -18,7 +18,6 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val log4j = getRawConfig("log4j")
   // This is a Typesafe config because there are variable number of subentries, one per handler
   val handlers = getRawConfig("handlers")
-  val suggest = getConfig("suggest", new SuggestConfig(_,_))
   val codaMetrics = getRawConfig("metrics")
   val threadpool = getRawConfig("threadpool")
   val tableDropDelay = getDuration("tableDropDelay")
@@ -71,11 +70,4 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
   val password = getString("password")
   val applicationName = getString("app-name")
   val poolOptions = optionally(getRawConfig("c3p0")) // these are the c3p0 configuration properties
-}
-
-class SuggestConfig(config: Config, root: String) extends ConfigClass(config, root) {
-  val host = getString("host")
-  val port = getInt("port")
-  val connectTimeout = getDuration("connect-timeout")
-  val receiveTimeout = getDuration("receive-timeout")
 }
