@@ -19,11 +19,6 @@ com.socrata.soda-fountain  {
     receive-timeout = {{ QUERY_TIMEOUT }}
   }
 
-  suggest {
-    host = "{{ SPANDEX_HOST }}"
-    port = "{{ SPANDEX_PORT }}"
-  }
-
   metrics {
     enable-graphite = {{ ENABLE_GRAPHITE }}
     graphite-host = "{{ GRAPHITE_HOST }}"

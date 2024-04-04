@@ -8,7 +8,6 @@ copied to `soda-fountain-assembly.jar` in this directory before building.
 * `SODA_FOUNTAIN_DB_HOST` - Soda Fountain DB hostname
 * `SODA_FOUNTAIN_DB_PASSWORD_LINE` - Full line of config for Soda Fountain DB password.  Designed to be either `password = "foo"` or `include /path/to/file`.
 * `ZOOKEEPER_ENSEMBLE` - The zookeeper cluster to talk to, in the form of `["10.0.0.1:2181", "10.0.0.2:2818"]`
-* `SPANDEX_HOST` - Spandex (Suggest) host
 
 ## Optional Runtime Variables
 
@@ -24,5 +23,4 @@ See the Dockerfile for defaults.
 * `SODA_FOUNTAIN_DB_NAME` - Soda Fountain DB database name
 * `SODA_FOUNTAIN_DB_PORT` - Soda Fountain DB port number
 * `SODA_FOUNTAIN_DB_USER` - Soda Fountain DB user name
-* `SPANDEX_PORT` - Spandex (Suggest) port
 * `THREAD_LIMIT_RATIO` - Sets the max ratio of threads available to be used by QC or DC. Default: 0.5
