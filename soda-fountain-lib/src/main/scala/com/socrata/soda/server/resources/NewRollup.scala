@@ -1,8 +1,8 @@
 package com.socrata.soda.server.resources
 
+import com.rojoma.json.v3.ast.JNull
 import com.rojoma.json.v3.codec.JsonDecode
-import com.rojoma.json.v3.util.{JsonUtil, AutomaticJsonEncode, OrJNull}
-import com.rojoma.json.v3.util.OrJNull.implicits._
+import com.rojoma.json.v3.util.{JsonUtil, AutomaticJsonCodec, OrJNull}
 
 import com.socrata.http.server.{HttpRequest, HttpResponse}
 import com.socrata.http.server.implicits._
@@ -27,24 +27,24 @@ final abstract class NewRollup
 case object NewRollup {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[NewRollup])
 
+  type DCMT = DataCoordinatorClient.UnstagedMetaTypes
+
+  @AutomaticJsonCodec
+  case class NewRollupSoql(
+    foundTables: UnparsedFoundTables[DCMT],
+    locationSubcolumns: Map[
+      types.DatabaseTableName[DCMT],
+      Map[
+        types.DatabaseColumnName[DCMT],
+        Seq[Either[JNull, types.DatabaseColumnName[DCMT]]]
+      ]
+    ],
+    userParameters: UserParameters,
+    rewritePasses: Seq[Seq[rewrite.AnyPass]]
+  )
+
   case object service extends SodaResource {
     override def post = doPost _
-
-    type DCMT = DataCoordinatorClient.UnstagedMetaTypes
-
-    @AutomaticJsonEncode
-    private case class NewRollupSoql(
-      foundTables: UnparsedFoundTables[DCMT],
-      locationSubcolumns: Map[
-        types.DatabaseTableName[DCMT],
-        Map[
-          types.DatabaseColumnName[DCMT],
-          Seq[OrJNull[types.DatabaseColumnName[DCMT]]]
-        ]
-      ],
-      userParameters: UserParameters,
-      rewritePasses: Seq[Seq[rewrite.Pass]]
-    )
 
     private def doPost(req: SodaRequest): HttpResponse = {
       InputUtils.jsonSingleObjectStream(req.httpRequest, Long.MaxValue) match {
@@ -113,7 +113,7 @@ case object NewRollup {
 
               val convertedSoql = NewRollupSoql(
                 dcFoundTables,
-                locationSubcolumns.mapValues(_.mapValues(_.map(_.orJNull))),
+                locationSubcolumns.mapValues(_.mapValues(_.map(_.toRight(JNull)))),
                 reqData.userParameters,
                 reqData.rewritePasses
               )
@@ -122,7 +122,7 @@ case object NewRollup {
               req.dataCoordinator.update(datasetRecord.handle, datasetRecord.schemaHash, expectedDataVersion(req), user(req), Iterator.single(instruction)) {
                 case DataCoordinatorClient.NonCreateScriptResult(report, etag, copyNumber, newVersion, newShapeVersion, lastModified) =>
                   req.nameAndSchemaStore.updateVersionInfo(datasetRecord.systemId, newVersion, lastModified, None, copyNumber)
-                  RollupHelper.rollupCreatedOrUpdated(req.nameAndSchemaStore, reqData.baseDataset, copyNumber, reqData.name, JsonUtil.renderJson(reqData.soql, pretty = false), tableNames)
+                  RollupHelper.rollupCreatedOrUpdated(req.nameAndSchemaStore, reqData.baseDataset, copyNumber, reqData.name, JsonUtil.renderJson(NewRollupRequest.Stored(reqData.soql, reqData.userParameters, reqData.rewritePasses), pretty = false), tableNames)
                   Created
                 case DataCoordinatorClient.DatasetNotFoundResult(_) =>
                   BadRequest // TODO better error
