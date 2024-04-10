@@ -40,7 +40,7 @@ case object NewRollup {
       ]
     ],
     userParameters: UserParameters,
-    rewritePasses: Seq[Seq[rewrite.Pass]]
+    rewritePasses: Seq[Seq[rewrite.AnyPass]]
   )
 
   case object service extends SodaResource {

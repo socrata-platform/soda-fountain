@@ -15,7 +15,7 @@ case class NewRollupRequest(
   @AllowMissing("UserParameters.empty")
   userParameters: UserParameters,
   @AllowMissing("Nil")
-  rewritePasses: Seq[Seq[rewrite.Pass]]
+  rewritePasses: Seq[Seq[rewrite.AnyPass]]
 )
 
 object NewRollupRequest {
@@ -23,6 +23,6 @@ object NewRollupRequest {
   case class Stored(
     soql: UnparsedFoundTables[metatypes.RollupMetaTypes],
     userParameters: UserParameters,
-    rewritePasses: Seq[Seq[rewrite.Pass]]
+    rewritePasses: Seq[Seq[rewrite.AnyPass]]
   )
 }
