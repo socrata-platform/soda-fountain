@@ -6,12 +6,13 @@ import com.socrata.soql.analyzer2._
 import com.socrata.soql.environment.ColumnName
 
 import com.socrata.soda.server.copy.Stage
-import com.socrata.soda.server.persistence.NameAndSchemaStore
+import com.socrata.soda.server.persistence.{NameAndSchemaStore, DatasetRecord}
 import com.socrata.soda.server.id.{DatasetInternalName, ResourceName, ColumnId}
 import com.socrata.soda.clients.querycoordinator.QueryCoordinatorClient
 
 object DAOCache {
   sealed abstract class Error
+  case class UnknownInternalName(table: DatabaseTableName[(DatasetInternalName, Stage)]) extends Error
   case class UnknownTable(table: DatabaseTableName[(ResourceName, Stage)]) extends Error
   case class UnknownColumn(table: DatabaseTableName[(ResourceName, Stage)], column: DatabaseColumnName[ColumnName]) extends Error
 }
@@ -28,6 +29,22 @@ class DAOCache(store: NameAndSchemaStore) {
   )
 
   private val datasetCache = new scm.HashMap[(ResourceName, Stage), RelevantBits]
+  private val reverseCache = new scm.HashMap[(DatasetInternalName, Stage), RelevantBits]
+
+  private def addBits(record: DatasetRecord, stage: Stage): RelevantBits = {
+    val bits = RelevantBits(
+      record.resourceName,
+      record.systemId,
+      stage,
+      record.columns.iterator.map { col =>
+        col.fieldName -> col.id
+      }.toMap,
+      record.truthVersion
+    )
+    datasetCache += (record.resourceName, stage) -> bits
+    reverseCache += (record.systemId, stage) -> bits
+    bits
+  }
 
   private def getRecord(dtn: DatabaseTableName[(ResourceName, Stage)]): Either[UnknownTable, RelevantBits] = {
     val DatabaseTableName(name@(rn, stage)) = dtn
@@ -37,26 +54,36 @@ class DAOCache(store: NameAndSchemaStore) {
       case None =>
         store.lookupDataset(rn, Some(stage)) match {
           case Some(record) =>
-            val bits =
-              RelevantBits(
-                rn,
-                record.systemId,
-                stage,
-                record.columns.iterator.map { col =>
-                  col.fieldName -> col.id
-                }.toMap,
-                record.truthVersion
-              )
-            datasetCache += name -> bits
-            Right(bits)
+            Right(addBits(record, stage))
           case None =>
             Left(UnknownTable(dtn))
         }
     }
   }
 
+  private def getRecordReverse(dtn: DatabaseTableName[(DatasetInternalName, Stage)]): Either[UnknownInternalName, RelevantBits] = {
+    val DatabaseTableName(name@(in, stage)) = dtn
+    reverseCache.get(name) match {
+      case Some(bits) =>
+        Right(bits)
+      case None =>
+        store.lookupDataset(in, Some(stage)) match {
+          case Some(record) =>
+            Right(addBits(record, stage))
+          case None =>
+            Left(UnknownInternalName(dtn))
+        }
+    }
+  }
+
   def allTables: Iterator[RelevantBits] =
     datasetCache.values.toVector.iterator
+
+  def lookupResourceName(dtn: DatabaseTableName[(DatasetInternalName, Stage)]): Either[UnknownInternalName, DatabaseTableName[(ResourceName, Stage)]] = {
+    getRecordReverse(dtn).map { record =>
+      DatabaseTableName((record.resourceName, record.stage))
+    }
+  }
 
   def lookupTableName(dtn: DatabaseTableName[(ResourceName, Stage)]): Either[UnknownTable, DatabaseTableName[(DatasetInternalName, Stage)]] = {
     getRecord(dtn).map { record =>

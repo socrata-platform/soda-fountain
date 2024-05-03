@@ -496,14 +496,14 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
   private def convertNewAnalyzerDCRollup(datasetRecord: DatasetRecordLike, rollup: RollupInfo): RollupSpec = {
     JsonUtil.parseJson[NewRollup.NewRollupSoql](rollup.soql) match {
       case Right(newRollup) =>
-        val cache = new scm.HashMap[DatasetInternalName, DatasetRecordLike]
-        cache += datasetRecord.systemId -> datasetRecord
+        val cache = new scm.HashMap[ResourceName, DatasetRecordLike]
+        cache += datasetRecord.resourceName -> datasetRecord
 
-        def lookupRecord(internalName: DatasetInternalName): Option[DatasetRecordLike] =
-          cache.get(internalName).orElse {
-            store.lookupDataset(internalName, Some(Published)) match {
+        def lookupRecord(resourceName: ResourceName): Option[DatasetRecordLike] =
+          cache.get(resourceName).orElse {
+            store.lookupDataset(resourceName, Some(Published)) match {
               case Some(record) =>
-                cache += internalName -> record
+                cache += resourceName -> record
                 Some(record)
               case None =>
                 None
@@ -519,16 +519,17 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
         // does over in soql-pg)
         val convertedFoundTables =
           newRollup.foundTables.rewriteDatabaseNames[metatypes.RollupMetaTypes](
-            { case DatabaseTableName(internalName) =>
-              val resourceName = lookupRecord(internalName).getOrElse {
-                log.warn(s"invalid new-analyzer rollup ${rollup.name}: No record of internal name ${internalName}")
+            { case dtn@DatabaseTableName(resourceName) =>
+              // just make sure the cache gets populated
+              lookupRecord(resourceName).getOrElse {
+                log.warn(s"invalid new-analyzer rollup ${rollup.name}: No record of resource name ${resourceName}")
                 return RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
-              }.resourceName
-              DatabaseTableName(resourceName)
+              }
+              dtn
             },
-            { case (DatabaseTableName(internalName), DatabaseColumnName(columnId)) =>
-              val record = lookupRecord(internalName).getOrElse {
-                log.warn(s"invalid new-analyzer rollup ${rollup.name}: No record of internal name ${internalName}")
+            { case (DatabaseTableName(resourceName), DatabaseColumnName(columnId)) =>
+              val record = lookupRecord(resourceName).getOrElse {
+                log.warn(s"invalid new-analyzer rollup ${rollup.name}: No record of resource name ${resourceName}")
                 return RollupSpec(name = rollup.name, soql = "__Invalid SoQL__")
               }
               record.columnsById.get(columnId) match {
