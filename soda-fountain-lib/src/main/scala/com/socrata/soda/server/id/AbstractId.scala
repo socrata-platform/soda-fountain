@@ -12,7 +12,18 @@ trait AbstractId {
 }
 
 case class DatasetInternalName(underlying: String) extends AbstractId {
-  def nativeDataCoordinator = underlying.substring(0, underlying.lastIndexOf('.'))
+  private val dotIndex = underlying.lastIndexOf('.')
+  if(dotIndex == -1) {
+    throw new IllegalArgumentException("Malformed internal name")
+  }
+  val datasetId = try {
+    java.lang.Long.parseLong(underlying.substring(dotIndex + 1))
+  } catch {
+    case _ : NumberFormatException =>
+      throw new IllegalArgumentException("Malformed internal name")
+  }
+
+  def nativeDataCoordinator = underlying.substring(0, dotIndex)
 }
 
 object DatasetInternalName {

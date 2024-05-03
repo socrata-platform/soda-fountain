@@ -94,7 +94,9 @@ case object NewRollup {
                     // TODO better error
                     return BadRequest
                   }
-                  DatabaseTableName(resourceName) -> value.locationSubcolumns
+                  val tableName: DataCoordinatorClient.RollupMetaTypes.TableName =
+                    DataCoordinatorClient.RollupMetaTypes.TableName.ResourceName(resourceName)
+                  DatabaseTableName(tableName) -> value.locationSubcolumns
                 }.toMap
 
               val dcFoundTables = staged.rewriteDatabaseNames[DataCoordinatorClient.RollupMetaTypes](
@@ -103,7 +105,9 @@ case object NewRollup {
                     // TODO better error
                     return BadRequest
                   }
-                  DatabaseTableName(resourceName)
+                  val tableName: DataCoordinatorClient.RollupMetaTypes.TableName =
+                    DataCoordinatorClient.RollupMetaTypes.TableName.ResourceName(resourceName)
+                  DatabaseTableName(tableName)
                 },
                 cache.lookupColumnName(_, _).getOrElse {
                   // TODO better error
