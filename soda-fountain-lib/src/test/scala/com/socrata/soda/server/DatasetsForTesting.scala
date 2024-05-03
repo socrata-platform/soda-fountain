@@ -20,7 +20,7 @@ trait DatasetsForTesting {
   def generateDataset(humanReadableTestIdentifier: String, columns: Seq[ColumnRecord]): DatasetRecord = {
     val time = System.currentTimeMillis().toString
     val resourceName = new ResourceName(s"$humanReadableTestIdentifier @$time")
-    val datasetId = new DatasetInternalName(s"id @$time")
+    val datasetId = new DatasetInternalName(s"id.$time")
 
     new DatasetRecord(
       resourceName,
@@ -69,7 +69,7 @@ trait DatasetsForTesting {
 
     val dataset = DatasetRecord(
       new ResourceName("test_resource"),
-      new DatasetInternalName("abcd-1234"),
+      new DatasetInternalName("abcd.1234"),
       "Test resource",
       "Description",
       "en_US",

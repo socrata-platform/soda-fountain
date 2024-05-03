@@ -2,10 +2,12 @@ package com.socrata.soda.clients.datacoordinator
 
 import com.rojoma.json.v3.util._
 import com.rojoma.json.v3.ast._
+import com.rojoma.json.v3.codec.{JsonEncode, JsonDecode, FieldEncode, FieldDecode, DecodeError}
 import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.soql.types.{SoQLType, SoQLValue}
 import com.socrata.soql.analyzer2
 import com.socrata.soda.server.copy.Stage
+import com.socrata.soda.server.id
 import com.socrata.soda.server.id._
 import com.socrata.soda.server.util.CopySpecifier
 import com.socrata.soda.server.util.schema.SchemaSpec
@@ -27,12 +29,58 @@ object DataCoordinatorClient {
   }
 
   final abstract class RollupMetaTypes extends analyzer2.MetaTypes {
-    type DatabaseTableNameImpl = ResourceName
+    type DatabaseTableNameImpl = RollupMetaTypes.TableName
 
     type ResourceNameScope = MetaTypes#ResourceNameScope
     type ColumnType = MetaTypes#ColumnType
     type ColumnValue = MetaTypes#ColumnValue
     type DatabaseColumnNameImpl = MetaTypes#DatabaseColumnNameImpl
+  }
+
+  object RollupMetaTypes {
+    // This is basically Either[DatasetInternalName, DatasetResourceName] but it
+    // can be used as a map key.  It's temporary until we migrate existing rollups
+    // to be all resource-name based
+    sealed abstract class TableName
+    object TableName {
+      case class InternalName(internalName: DatasetInternalName) extends TableName
+      case class ResourceName(resourceName: id.ResourceName) extends TableName
+
+      implicit val jCodec = new JsonEncode[TableName] with JsonDecode[TableName] {
+        def encode(tableName: TableName) =
+          tableName match {
+            case InternalName(in) => JsonEncode.toJValue(in)
+            case ResourceName(rn) => JsonEncode.toJValue(rn)
+          }
+
+        def decode(x: JValue) =
+          JsonDecode.fromJValue[DatasetInternalName](x) match {
+            case Right(in) =>
+              Right(InternalName(in))
+            case Left(err1) =>
+              JsonDecode.fromJValue[id.ResourceName](x) match {
+                case Right(rn) => Right(ResourceName(rn))
+                case Left(err2) => Left(DecodeError.join(Seq(err1, err2)))
+              }
+          }
+      }
+
+      implicit def fCodec = new FieldEncode[TableName] with FieldDecode[TableName] {
+        def encode(tn: TableName) =
+          tn match {
+            case InternalName(in) => in.underlying
+            case ResourceName(rn) => rn.name
+          }
+
+        def decode(x: String) =
+          try {
+            Right(InternalName(DatasetInternalName(x)))
+          } catch {
+            case e: IllegalArgumentException =>
+              Right(ResourceName(new id.ResourceName(x)))
+          }
+      }
+    }
   }
 
   @JsonKeyStrategy(Strategy.Underscore)
