@@ -26,8 +26,8 @@ object DataCoordinatorClient {
     type DatabaseColumnNameImpl = ColumnId
   }
 
-  final abstract class UnstagedMetaTypes extends analyzer2.MetaTypes {
-    type DatabaseTableNameImpl = DatasetInternalName
+  final abstract class RollupMetaTypes extends analyzer2.MetaTypes {
+    type DatabaseTableNameImpl = ResourceName
 
     type ResourceNameScope = MetaTypes#ResourceNameScope
     type ColumnType = MetaTypes#ColumnType

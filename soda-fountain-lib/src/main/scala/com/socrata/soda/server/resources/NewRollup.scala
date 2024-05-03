@@ -27,7 +27,7 @@ final abstract class NewRollup
 case object NewRollup {
   val log = org.slf4j.LoggerFactory.getLogger(classOf[NewRollup])
 
-  type DCMT = DataCoordinatorClient.UnstagedMetaTypes
+  type DCMT = DataCoordinatorClient.RollupMetaTypes
 
   @AutomaticJsonCodec
   case class NewRollupSoql(
@@ -83,18 +83,27 @@ case object NewRollup {
                 { (_, dcn) => dcn }
               )
 
-              val locationSubcolumns = cache.buildAuxTableData[RestagedMT](staged.allTableDescriptions).getOrElse {
-                // TODO better error
-                return BadRequest
-              }.iterator.map { case (DatabaseTableName((rn, _)), value) => DatabaseTableName(rn) -> value.locationSubcolumns }.toMap
-
-              val dcFoundTables = staged.rewriteDatabaseNames[DataCoordinatorClient.UnstagedMetaTypes](
-                { dtn =>
-                  val DatabaseTableName((internalName, _stage)) = cache.lookupTableName(dtn).getOrElse {
+              val locationSubcolumns = cache.buildAuxTableData[RestagedMT](staged.allTableDescriptions)
+                .getOrElse {
+                  // TODO better error
+                  return BadRequest
+                }
+                .iterator
+                .map { case (dtn@DatabaseTableName((internalName, _)), value) =>
+                  val DatabaseTableName((resourceName, _stage)) = cache.lookupResourceName(dtn).getOrElse {
                     // TODO better error
                     return BadRequest
                   }
-                  DatabaseTableName(internalName)
+                  DatabaseTableName(resourceName) -> value.locationSubcolumns
+                }.toMap
+
+              val dcFoundTables = staged.rewriteDatabaseNames[DataCoordinatorClient.RollupMetaTypes](
+                { case dtn@DatabaseTableName((resourceName, _stage)) =>
+                  cache.lookupTableName(dtn).getOrElse {
+                    // TODO better error
+                    return BadRequest
+                  }
+                  DatabaseTableName(resourceName)
                 },
                 cache.lookupColumnName(_, _).getOrElse {
                   // TODO better error
