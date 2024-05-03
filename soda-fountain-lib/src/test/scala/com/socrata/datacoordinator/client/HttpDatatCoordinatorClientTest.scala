@@ -52,7 +52,7 @@ class HttpDatatCoordinatorClientTest extends AnyFunSuite with Matchers {
 
   test("A recognized Error from Data-Coordinator", tag) {
       val status = 404 // could be any 400 or 500 code except
-      val someDataset = "someDataset"
+      val someDataset = "someDataset.1234"
       val someColumn = "someColumn"
       val someCommandIndex = 40L
       val data = Map("dataset" -> JString(someDataset), "column" -> JString(someColumn), "commandIndex" -> JNumber(someCommandIndex))

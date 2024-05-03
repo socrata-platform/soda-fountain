@@ -15,7 +15,7 @@ trait SodaPostgresContainerTest extends PostgresContainerTest with MockFactory {
   def generateDataset(humanReadableTestIdentifier: String, columns: Seq[ColumnRecord]): DatasetRecord = {
     val time = System.currentTimeMillis().toString
     val resourceName = new ResourceName(s"${humanReadableTestIdentifier}_$time")
-    val datasetId = new DatasetInternalName(s"id_$time")
+    val datasetId = new DatasetInternalName(s"id.$time")
 
     new DatasetRecord(
       resourceName,
