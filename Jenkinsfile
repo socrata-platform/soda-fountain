@@ -23,7 +23,7 @@ pipeline {
     timeout(time: 20, unit: 'MINUTES')
   }
   parameters {
-    string(name: 'AGENT', defaultValue: 'build-worker', description: 'Which build agent to use?')
+    string(name: 'AGENT', defaultValue: 'build-worker-pg13', description: 'Which build agent to use?')
     string(name: 'BRANCH_SPECIFIER', defaultValue: 'origin/main', description: 'Use this branch for building the artifact.')
     booleanParam(name: 'RELEASE_BUILD', defaultValue: false, description: 'Are we building a release candidate?')
     booleanParam(name: 'RELEASE_DRY_RUN', defaultValue: false, description: 'To test out the release build without creating a new tag.')
