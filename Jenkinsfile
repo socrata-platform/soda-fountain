@@ -8,6 +8,8 @@ def rmsSupportedEnvironment = com.socrata.ReleaseMetadataService.SupportedEnviro
 String service = 'soda-fountain'
 String project_wd = 'soda-fountain-jetty'
 boolean isPr = env.CHANGE_ID != null
+boolean isHotfix = isHotfixBranch(env.BRANCH_NAME)
+boolean skip = false
 String lastStage
 
 // instanciate libraries
@@ -61,9 +63,29 @@ pipeline {
         }
       }
     }
+    stage('Hotfix') {
+      when {
+        expression { isHotfix }
+      }
+      steps {
+        script {
+          lastStage = env.STAGE_NAME
+          if (releaseTag.noCommitsOnHotfixBranch(env.BRANCH_NAME)) {
+            skip = true
+            echo "SKIP: Skipping the rest of the build because there are no commits on the hotfix branch yet"
+            return
+          }
+          env.CURRENT_RELEASE_NAME = releaseTag.getReleaseName(env.BRANCH_NAME)
+          env.HOTFIX_NAME = releaseTag.getHotfixName(env.CURRENT_RELEASE_NAME)
+        }
+      }
+    }
     stage('Build') {
       when {
-        not { expression { return params.PUBLISH } }
+        allOf {
+          not { expression { return params.PUBLISH } }
+          not { expression { skip } }
+        }
       }
       steps {
         script {
@@ -80,13 +102,15 @@ pipeline {
       when {
         allOf {
           not { expression { isPr } }
+          not { expression { skip } }
           not { expression { return params.PUBLISH } }
         }
       }
       steps {
         script {
           lastStage = env.STAGE_NAME
-          if (params.RELEASE_BUILD) {
+          if (params.RELEASE_BUILD || isHotfix) {
+            env.VERSION = (isHotfix) ? env.HOTFIX_NAME : params.RELEASE_NAME
               env.DOCKER_TAG = dockerize.dockerBuildWithSpecificTag(
               tag: params.RELEASE_NAME,
               path: env.DOCKER_PATH,
@@ -105,7 +129,9 @@ pipeline {
       post {
         success {
           script {
-            if (params.RELEASE_BUILD){
+            if (isHotfix) {
+              env.GIT_TAG = releaseTag.create(env.HOTFIX_NAME)
+            } else if (params.RELEASE_BUILD) {
               env.GIT_TAG = releaseTag.getFormattedTag(params.RELEASE_NAME)
               if (releaseTag.doesReleaseTagExist(params.RELEASE_NAME)) {
                 echo "REBUILD: Tag ${env.GIT_TAG} already exists"
@@ -126,6 +152,7 @@ pipeline {
       when {
         allOf {
           not { expression { isPr } }
+          not { expression { skip } }
           not { expression { return params.PUBLISH } }
           not { expression { return params.RELEASE_BUILD && params.RELEASE_DRY_RUN } }
         }
@@ -133,7 +160,7 @@ pipeline {
       steps {
         script {
           lastStage = env.STAGE_NAME
-          if (params.RELEASE_BUILD) {
+          if (isHotfix || params.RELEASE_BUILD) {
             env.BUILD_ID = dockerize.publish(sourceTag: env.DOCKER_TAG)
           } else {
             env.BUILD_ID = dockerize.publish(
@@ -147,12 +174,15 @@ pipeline {
       post {
         success {
           script {
-            if (params.RELEASE_BUILD) {
+            if (isHotfix || params.RELEASE_BUILD) {
+              env.PURPOSE = (isHotfix) ? 'hotfix' : 'initial'
+              env.RELEASE_ID = (isHotfix) ? env.CURRENT_RELEASE_NAME : params.RELEASE_NAME
               Map buildInfo = [
                 "project_id": service,
                 "build_id": env.BUILD_ID,
-                "release_id": params.RELEASE_NAME,
+                "release_id": env.RELEASE_ID,
                 "git_tag": env.GIT_TAG,
+                "purpose": env.PURPOSE,
               ]
               createBuild(
                 buildInfo,
@@ -166,17 +196,35 @@ pipeline {
     stage('Deploy') {
       when {
         not { expression { isPr } }
+        not { expression { skip } }
         not { expression { return params.RELEASE_BUILD } }
         not { expression { return params.PUBLISH } }
       }
       steps {
         script {
           lastStage = env.STAGE_NAME
+          env.ENVIRONMENT = (isHotfix) ? 'rc' : 'staging'
           marathonDeploy(
             serviceName: service,
             tag: env.BUILD_ID,
-            environment: 'staging'
+            environment: env.ENVIRONMENT
           )
+        }
+      }
+      post {
+        success {
+          script {
+            if (isHotfix) {
+              Map deployInfo = [
+                "build_id": env.BUILD_ID,
+                "environment": env.ENVIRONMENT,
+              ]
+              createDeployment(
+                deployInfo,
+                rmsSupportedEnvironment.production
+              )
+            }
+          }
         }
       }
     }
@@ -184,9 +232,10 @@ pipeline {
   post {
     failure {
       script {
-        if (env.JOB_NAME == "${service}/main") {
+        boolean buildingMain = (env.JOB_NAME.contains("${service}/main"))
+        if (buildingMain) {
           teamsMessage(
-            message: "Build [${currentBuild.fullDisplayName}](${env.BUILD_URL}) has failed in stage ${lastStage}",
+            message: "[${currentBuild.fullDisplayName}](${env.BUILD_URL}) has failed in stage ${lastStage}",
             webhookCredentialID: WEBHOOK_ID
           )
         }
