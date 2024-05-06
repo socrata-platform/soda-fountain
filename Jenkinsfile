@@ -89,14 +89,14 @@ pipeline {
           if (params.RELEASE_BUILD) {
               env.DOCKER_TAG = dockerize.dockerBuildWithSpecificTag(
               tag: params.RELEASE_NAME,
-              path: sbtbuild.getDockerPath(),
+              path: env.DOCKER_PATH,
               artifacts: [sbtbuild.getDockerArtifact()]
             )
           } else {
             env.DOCKER_TAG = dockerize.dockerBuildWithDefaultTag(
               version: 'STAGING',
               sha: env.GIT_COMMIT,
-              path: sbtbuild.getDockerPath(),
+              path: env.DOCKER_PATH,
               artifacts: [sbtbuild.getDockerArtifact()]
             )
           }
