@@ -38,7 +38,7 @@ pipeline {
   }
   environment {
     DOCKER_PATH = './docker'
-    WEBHOOK_ID = 'WEBHOOK_IQ'
+    WEBHOOK_ID = 'WORKFLOW_IQ'
   }
   stages {
     stage('Publish Library') {
@@ -234,9 +234,9 @@ pipeline {
       script {
         boolean buildingMain = (env.JOB_NAME.contains("${service}/main"))
         if (buildingMain) {
-          teamsMessage(
+          teamsWorkflowMessage(
             message: "[${currentBuild.fullDisplayName}](${env.BUILD_URL}) has failed in stage ${lastStage}",
-            webhookCredentialID: WEBHOOK_ID
+            workflowCredentialID: WEBHOOK_ID
           )
         }
       }
