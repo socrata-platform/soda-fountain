@@ -25,6 +25,7 @@ object Dependencies {
     val thirdPartyUtils   = "5.0.0"
     val curatorUtils      = "1.2.0"
     val typesafeConfig    = "1.0.2"
+    val resourceGroupsClient = "1.0.7"
 
     // Test
     val mockito           = "1.10.7"
@@ -87,6 +88,8 @@ object Dependencies {
   val soqlUtils                = "com.socrata"     %% "soql-utils"                  % versions.soqlReference
 
   val typesafeConfig           = "com.typesafe"     % "config"                      % versions.typesafeConfig
+
+  val resourceGroupsClient     = "com.socrata"      % "resource-groups-client"      % versions.resourceGroupsClient
 
   object TestDeps {
     val apacheCurator          = "org.apache.curator"     % "curator-test"          % versions.apacheCurator   % "test"
