@@ -9,6 +9,7 @@ import com.socrata.resource_groups.models.api.ResourceGroupsObject
 class ResourceGroupsJsonAdapter extends ResourceGroupsClientBuilder.JsonCodecAdapter {
   @throws[ResourceGroupsException]
   override def readValue[T <: ResourceGroupsObject](content: String, targetClass: Class[T]): T = {
+    import com.socrata.soda.server.resource_groups.ResourceGroupsCodec.resourceGroupsCodec
     JsonUtil.parseJson(content) match {
       case Left(err) => throw new ResourceGroupsException(err)
       case Right(value) if targetClass.isAssignableFrom(value.getClass) => value.asInstanceOf[T]
@@ -18,6 +19,7 @@ class ResourceGroupsJsonAdapter extends ResourceGroupsClientBuilder.JsonCodecAda
 
   @throws[ResourceGroupsException]
   override def writeValueAsString[T <: ResourceGroupsObject](value: T): String = {
+    import com.socrata.soda.server.resource_groups.ResourceGroupsCodec.resourceGroupsCodec
     JsonUtil.renderJson(value.asInstanceOf[ResourceGroupsObject], false)
   }
 }
