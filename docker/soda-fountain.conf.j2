@@ -19,6 +19,10 @@ com.socrata.soda-fountain  {
     receive-timeout = {{ QUERY_TIMEOUT }}
   }
 
+  resource-groups-client {
+    apiHost = {{ RESOURCE_GROUPS_API_HOST }}
+  }
+
   metrics {
     enable-graphite = {{ ENABLE_GRAPHITE }}
     graphite-host = "{{ GRAPHITE_HOST }}"
