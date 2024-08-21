@@ -24,6 +24,7 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val dataCleanupInterval = getDuration("dataCleanupInterval")
   val computationStrategySecondaryId = optionally(getRawConfig("computation-strategy-secondary-id"))
   val requestHeaderSize = getInt("request-header-size")
+  val resourceGroupsClient = getConfig("resource-groups-client", new ResourceGroupClientConfig(_, _))
 }
 
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
@@ -70,4 +71,8 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
   val password = getString("password")
   val applicationName = getString("app-name")
   val poolOptions = optionally(getRawConfig("c3p0")) // these are the c3p0 configuration properties
+}
+
+class ResourceGroupClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
+  val apiHost = optionally(getString("apiHost"))
 }

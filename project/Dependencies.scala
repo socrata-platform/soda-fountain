@@ -26,6 +26,7 @@ object Dependencies {
     val curatorUtils      = "1.2.0"
     val typesafeConfig    = "1.0.2"
     val resourceGroupsClient = "1.0.7"
+    val apacheHttpComponents = "4.3.3"
 
     // Test
     val mockito           = "1.10.7"
@@ -90,6 +91,7 @@ object Dependencies {
   val typesafeConfig           = "com.typesafe"     % "config"                      % versions.typesafeConfig
 
   val resourceGroupsClient     = "com.socrata"      % "resource-groups-client"      % versions.resourceGroupsClient
+  val apacheHttpComponents = "org.apache.httpcomponents" % "fluent-hc" % versions.apacheHttpComponents
 
   object TestDeps {
     val apacheCurator          = "org.apache.curator"     % "curator-test"          % versions.apacheCurator   % "test"
