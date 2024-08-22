@@ -408,7 +408,6 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         dc.deleteFromSecondary(datasetRecord.handle, secondary)
-        rg.deregisterDataset(dataset.toString())
         DeletedFromSecondary
       case None =>
         DatasetNotFound(dataset)
