@@ -227,6 +227,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           store.markResourceForDeletion(dataset, datetime)
+          rg.deregisterDataset(dataset.toString())
           Deleted
         case None =>
           DatasetNotFound(dataset)
