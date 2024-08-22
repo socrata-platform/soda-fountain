@@ -27,7 +27,7 @@ object MigrateSchema extends App {
         throw new IllegalArgumentException(s"Unknown migration operation: '${args(0)}'")
     }
 
-    val config = new SodaFountainConfig(ConfigFactory.load)
+    val config = SodaFountainConfig.config()
     for {
       conn <- managed(DataSourceFromConfig(config.database).getConnection)
       stmt <- managed(conn.createStatement())
