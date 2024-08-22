@@ -1,9 +1,15 @@
 package com.socrata.soda.server.config
 
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import com.socrata.curator.{CuratorConfig, DiscoveryConfig}
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
 import com.typesafe.config.ConfigException.Missing
+
+object SodaFountainConfig {
+  private lazy val _config = new SodaFountainConfig(ConfigFactory.load)
+
+  def config(): SodaFountainConfig = _config
+}
 
 class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(config), "com.socrata.soda-fountain") {
   val maxDatumSize = getInt("max-datum-size")
