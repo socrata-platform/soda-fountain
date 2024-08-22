@@ -1,7 +1,6 @@
 package com.socrata.soda.server.highlevel
 
 import scala.collection.{mutable => scm}
-
 import com.socrata.http.server.util.RequestId.RequestId
 import com.socrata.soda.clients.datacoordinator._
 import com.socrata.soda.server.highlevel.DatasetDAO.CannotAcquireDatasetWriteLock
@@ -20,17 +19,19 @@ import DatasetDAO._
 
 import scala.util.control.ControlThrowable
 import com.socrata.soda.server.copy.{Discarded, Published, Stage, Unpublished}
-import com.socrata.soda.server.resources.{DCCollocateOperation, SFCollocateOperation, NewRollup}
+import com.socrata.soda.server.resources.{DCCollocateOperation, NewRollup, SFCollocateOperation}
 import com.socrata.soda.server.util.RelationSide.{From, RelationSide, To}
 import com.socrata.soql.exceptions.SoQLException
 import com.socrata.soql.parsing.RecursiveDescentParser.ParseException
 import com.socrata.soql.parsing.standalone_exceptions.BadParse
-import com.socrata.soql.analyzer2.{UnparsedFoundTables, DatabaseTableName, DatabaseColumnName}
+import com.socrata.soql.analyzer2.{DatabaseColumnName, DatabaseTableName, UnparsedFoundTables}
 import org.joda.time.DateTime
 import com.rojoma.json.v3.util.JsonUtil
+import com.socrata.resource_groups.client.ResourceGroupsClient
 
 class DatasetDAOImpl(dc: DataCoordinatorClient,
                      fbm: FeedbackSecondaryManifestClient,
+                     rg: ResourceGroupsClient,
                      store: NameAndSchemaStore,
                      columnSpecUtils: ColumnSpecUtils,
                      instanceForCreate: () => String) extends DatasetDAO {
@@ -406,6 +407,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
     store.translateResourceName(dataset) match {
       case Some(datasetRecord) =>
         dc.deleteFromSecondary(datasetRecord.handle, secondary)
+        rg.deregisterDataset(dataset.toString())
         DeletedFromSecondary
       case None =>
         DatasetNotFound(dataset)
