@@ -25,7 +25,7 @@ object Dependencies {
     val thirdPartyUtils   = "5.0.0"
     val curatorUtils      = "1.2.0"
     val typesafeConfig    = "1.0.2"
-    val resourceGroupsClient = "1.0.7"
+    val resourceGroupsClient = "1.0.8"
     val apacheHttpComponents = "4.3.3"
 
     // Test
