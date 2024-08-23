@@ -1,7 +1,6 @@
 package com.socrata.soda.server
 
 import java.nio.charset.StandardCharsets
-
 import com.mchange.v2.c3p0.DataSources
 import com.socrata.computation_strategies.{ComputationStrategy, StrategyType}
 import com.socrata.http.client.{HttpClientHttpClient, InetLivenessChecker}
@@ -20,11 +19,12 @@ import com.socrata.soda.server.persistence.{DataSourceFromConfig, NameAndSchemaS
 import com.socrata.soda.server.metrics.NoopMetricProvider
 import com.socrata.soda.server.util._
 import com.socrata.curator.{CuratorFromConfig, DiscoveryFromConfig}
+import com.socrata.soda.server.resource_groups.ResourceGroupsClientFactory
 import com.socrata.thirdparty.typesafeconfig.Propertizer
+
 import java.io.Closeable
 import java.security.SecureRandom
 import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
-
 import javax.sql.DataSource
 import org.apache.log4j.PropertyConfigurator
 import org.slf4j.{LoggerFactory, MDC}
@@ -127,6 +127,8 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     config.threadpool.getInt("max-threads"),
     config.threadpool.getDouble("max-thread-ratio")))
 
+  val resourceGroupsClient = new ResourceGroupsClientFactory(config.resourceGroupsClient).client()
+
   val dataSource = i(DataSourceFromConfig(config.database))
 
   val store: NameAndSchemaStore = i(new PostgresStoreImpl(dataSource))
@@ -151,7 +153,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
 
   def makeDatasetDAO(dc: DataCoordinatorClient, fbm: FeedbackSecondaryManifestClient): DatasetDAO = {
     new DatasetDAOImpl(
-      dc, fbm, store, columnSpecUtils,
+      dc, fbm, resourceGroupsClient, store, columnSpecUtils,
       () => config.dataCoordinatorClient.instancesForNewDatasets(rng.nextInt(config.dataCoordinatorClient.instancesForNewDatasets.size)))
   }
 

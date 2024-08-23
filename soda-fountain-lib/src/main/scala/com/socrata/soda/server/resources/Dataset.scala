@@ -16,7 +16,6 @@ import com.socrata.soda.server.wiremodels.{Extracted, IOProblem, IndexSpec, Requ
 import javax.servlet.http.HttpServletRequest
 import com.rojoma.json.v3.util.AutomaticJsonCodecBuilder
 import com.socrata.soda.server.highlevel.DatasetDAO.{Indexes, Rollups}
-import com.socrata.soda.server.resource_groups.ResourceGroupsClientFactory
 import com.socrata.soda.server.util.RelationSide.RelationSide
 
 /**
@@ -26,7 +25,6 @@ case class Dataset(maxDatumSize: Int) {
 
   val schemaHashHeaderName = "x-socrata-version-hash"
   val log = org.slf4j.LoggerFactory.getLogger(classOf[Dataset])
-  private val resourceGroupsClient = ResourceGroupsClientFactory.client()
 
   def withDatasetSpec(request: SodaRequest, logTags: LogTag*)(f: UserProvidedDatasetSpec => HttpResponse): HttpResponse = {
     UserProvidedDatasetSpec.fromRequest(request.httpRequest, maxDatumSize) match {
@@ -184,7 +182,6 @@ case class Dataset(maxDatumSize: Int) {
 
     override def delete = { req =>
       val datetime = req.dateTimeHeader("X-Socrata-Deleted-At") // allow expedited delete
-      resourceGroupsClient.deregisterDataset(resourceName.toString())
       response(req, req.datasetDAO.markDatasetForDeletion(user(req), resourceName, datetime))
     }
   }

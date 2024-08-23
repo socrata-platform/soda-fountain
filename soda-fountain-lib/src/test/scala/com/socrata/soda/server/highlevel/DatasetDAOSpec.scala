@@ -1,9 +1,12 @@
 package com.socrata.soda.server.highlevel
 
 import com.socrata.soda.clients.datacoordinator.{DataCoordinatorClient, FeedbackSecondaryManifestClient}
+import com.socrata.soda.server.config.ResourceGroupsClientConfig
 import com.socrata.soda.server.copy.{Published, Unpublished}
 import com.socrata.soda.server.id.ResourceName
 import com.socrata.soda.server.persistence.NameAndSchemaStore
+import com.socrata.soda.server.resource_groups.ResourceGroupsClientFactory
+import com.typesafe.config.ConfigFactory
 import org.scalamock.proxy.ProxyMockFactory
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.funsuite.AnyFunSuiteLike
@@ -23,8 +26,9 @@ class DatasetDAOSpec extends AnyFunSuiteLike with Matchers with MockFactory with
     ns.expects('lookupCopyNumber)(dataset, Some(Published)).returning(expectedCopyNum)
     val col = new ColumnSpecUtils(Random)
     val instance = () => "test"
+    val resourceGroupsClient = new ResourceGroupsClientFactory(new ResourceGroupsClientConfig(ConfigFactory.empty(),"resource-groups-client")).client();
 
-    val dao: DatasetDAO = new DatasetDAOImpl(dc, fbm, ns, col, instance)
+    val dao: DatasetDAO = new DatasetDAOImpl(dc, fbm,resourceGroupsClient, ns, col, instance)
 
     val copynum = dao.getCurrentCopyNum(dataset)
 
@@ -42,8 +46,10 @@ class DatasetDAOSpec extends AnyFunSuiteLike with Matchers with MockFactory with
     ns.expects('lookupCopyNumber)(dataset, Some(Unpublished)).returning(expectedCopyNum)
     val col = new ColumnSpecUtils(Random)
     val instance = () => "test"
+    val resourceGroupsClient = new ResourceGroupsClientFactory(new ResourceGroupsClientConfig(ConfigFactory.empty(),"resource-groups-client")).client();
 
-    val dao: DatasetDAO = new DatasetDAOImpl(dc, fbm, ns, col, instance)
+
+    val dao: DatasetDAO = new DatasetDAOImpl(dc, fbm,resourceGroupsClient, ns, col, instance)
 
     val copynum = dao.getCurrentCopyNum(dataset)
 
