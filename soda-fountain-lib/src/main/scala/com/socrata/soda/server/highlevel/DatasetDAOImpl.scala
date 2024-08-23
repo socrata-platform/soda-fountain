@@ -227,7 +227,11 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
       store.translateResourceName(dataset) match {
         case Some(datasetRecord) =>
           store.markResourceForDeletion(dataset, datetime)
-          rg.deregisterDataset(dataset.toString())
+          try{
+            rg.deregisterDataset(dataset.toString())
+          }catch{
+            case e:Exception=> log.error("Failed to deregister from resource groups",e)
+          }
           Deleted
         case None =>
           DatasetNotFound(dataset)
