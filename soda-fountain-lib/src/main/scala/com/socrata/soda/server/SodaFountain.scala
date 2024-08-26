@@ -127,7 +127,7 @@ class SodaFountain(config: SodaFountainConfig) extends Closeable {
     config.threadpool.getInt("max-threads"),
     config.threadpool.getDouble("max-thread-ratio")))
 
-  val resourceGroupsClient = new ResourceGroupsClientFactory(config.resourceGroupsClient).client()
+  val resourceGroupsClient = new ResourceGroupsClientFactory(config.resourceGroupsClient,httpClient).client()
 
   val dataSource = i(DataSourceFromConfig(config.database))
 
