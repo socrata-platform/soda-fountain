@@ -1,9 +1,15 @@
 package com.socrata.soda.server.config
 
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigFactory}
 import com.socrata.curator.{CuratorConfig, DiscoveryConfig}
 import com.socrata.thirdparty.typesafeconfig.ConfigClass
 import com.typesafe.config.ConfigException.Missing
+
+object SodaFountainConfig {
+  private lazy val _config = new SodaFountainConfig(ConfigFactory.load)
+
+  def config(): SodaFountainConfig = _config
+}
 
 class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(config), "com.socrata.soda-fountain") {
   val maxDatumSize = getInt("max-datum-size")
@@ -24,6 +30,7 @@ class SodaFountainConfig(config: Config) extends ConfigClass(WithDefaultAddress(
   val dataCleanupInterval = getDuration("dataCleanupInterval")
   val computationStrategySecondaryId = optionally(getRawConfig("computation-strategy-secondary-id"))
   val requestHeaderSize = getInt("request-header-size")
+  val resourceGroupsClient = getConfig("resource-groups-client", new ResourceGroupsClientConfig(_, _))
 }
 
 class DataCoordinatorClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
@@ -70,4 +77,8 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
   val password = getString("password")
   val applicationName = getString("app-name")
   val poolOptions = optionally(getRawConfig("c3p0")) // these are the c3p0 configuration properties
+}
+
+class ResourceGroupsClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
+  val apiHost = optionally(getString("apiHost"))
 }

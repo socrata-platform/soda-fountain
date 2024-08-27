@@ -13,7 +13,7 @@ import com.typesafe.config.ConfigFactory
 
 object SodaFountainJetty extends App with DynamicPortMap {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
-  val config = new SodaFountainConfig(ConfigFactory.load())
+  val config = SodaFountainConfig.config()
   val metricsOptions = MetricsOptions(config.codaMetrics)
 
   for {

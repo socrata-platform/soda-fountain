@@ -40,6 +40,7 @@ libraryDependencies ++= Seq(
   soqlTypes exclude ("javax.media", "jai_core"),
   soqlUtils exclude ("javax.media", "jai_core"),
   typesafeConfig,
+  resourceGroupsClient,
   TestDeps.apacheCurator,
   TestDeps.mockito,
   TestDeps.mockServer exclude("ch.qos.logback", "logback-classic"),
