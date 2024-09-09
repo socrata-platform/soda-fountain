@@ -147,6 +147,7 @@ object DatasetDAO {
   case class InternalServerError(code: String, tag: String, data: String) extends FailResult
   case class UnexpectedInternalServerResponse(reason: String, tag: String) extends FailResult
   case class GenericCollocateError(body: String) extends FailResult
+  case class CollocationLockTimeoutError() extends FailResult
 
   // FAILURES: Internally consumed
   case class InvalidDatasetName(name: ResourceName) extends FailResult

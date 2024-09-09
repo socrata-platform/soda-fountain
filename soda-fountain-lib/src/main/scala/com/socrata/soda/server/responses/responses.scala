@@ -308,3 +308,7 @@ case object InvalidRowId
 case class CollocateError(msg: String)
   extends SodaResponse(SC_BAD_REQUEST, "soda.collocate-error", //Does this string need to be referring to something in a different project?
       s"Collocate failed with: $msg")
+
+case class CollocationLockTimeoutError()
+  extends SodaResponse(SC_CONFLICT, "soda.collocate-lock-timeout",
+      s"Collocation failed to take the collocation lock")

@@ -150,6 +150,8 @@ case class Dataset(maxDatumSize: Int) {
         SodaUtils.response(req, InternalError(tag, "reason"  -> JString(reason)))
       case DatasetDAO.GenericCollocateError(err) =>
         SodaUtils.response(req, CollocateError(err))
+      case DatasetDAO.CollocationLockTimeoutError() =>
+        SodaUtils.response(req, CollocationLockTimeoutError())
 
     }
   }

@@ -229,6 +229,7 @@ object DataCoordinatorClient {
   case class StoreGroupNotExistResult(storeGroup: String) extends FailResult
   case class StoreNotExistResult(store: String) extends FailResult
   case class DatasetNotExistResult(dataset: DatasetInternalName) extends FailResult
+  case class CollocationLockTimeoutResult() extends FailResult
 
   // FAIL CASES: Resync
   case class DatasetNotInSecondaryResult(secondary: SecondaryId) extends FailResult

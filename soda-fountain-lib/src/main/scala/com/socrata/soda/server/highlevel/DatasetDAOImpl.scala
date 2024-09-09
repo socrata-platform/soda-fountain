@@ -793,6 +793,7 @@ class DatasetDAOImpl(dc: DataCoordinatorClient,
           case DataCoordinatorClient.StoreGroupNotExistResult(e) => GenericCollocateError(e)
           case DataCoordinatorClient.StoreNotExistResult(e) => GenericCollocateError(e)
           case DataCoordinatorClient.DatasetNotExistResult(e) => GenericCollocateError(e.underlying)
+          case DataCoordinatorClient.CollocationLockTimeoutResult() => CollocationLockTimeoutError()
           case x =>
             log.warn("case is NOT implemented %s".format(x.toString))
             InternalServerError("unknown", tag, x.toString)
