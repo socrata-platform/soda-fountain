@@ -111,8 +111,8 @@ pipeline {
           lastStage = env.STAGE_NAME
           if (params.RELEASE_BUILD || isHotfix) {
             env.VERSION = (isHotfix) ? env.HOTFIX_NAME : params.RELEASE_NAME
-              env.DOCKER_TAG = dockerize.dockerBuildWithSpecificTag(
-              tag: params.RELEASE_NAME,
+            env.DOCKER_TAG = dockerize.dockerBuildWithSpecificTag(
+              tag: env.VERSION,
               path: env.DOCKER_PATH,
               artifacts: [sbtbuild.getDockerArtifact()]
             )
