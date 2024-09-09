@@ -206,6 +206,9 @@ case class StoreNotExist(store: String) extends DCUpdateError
 @Tag("collocation.datataset.does-not-exist")
 case class DatasetNotExist(dataset: DatasetInternalName) extends DCUpdateError
 
+@Tag("collocation.lock-timeout")
+case class CollocationLockTimeout() extends DCUpdateError
+
 // Unknown Errors not found in Data-Coodinator:
 
 @Tag("req.not-modified")

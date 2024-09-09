@@ -191,7 +191,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
     r.resultCode match {
       case HttpServletResponse.SC_OK =>
         None
-        // unclear why this is a special case.
+      // unclear why this is a special case - answer: because it doesn't have a JSON body
       case HttpServletResponse.SC_NOT_MODIFIED =>
         Some(NotModified())
       case code =>
@@ -761,6 +761,7 @@ abstract class HttpDataCoordinatorClient extends DataCoordinatorClient {
             case Some(StoreGroupNotExist(storeGroup)) => StoreGroupNotExistResult(storeGroup)
             case Some(StoreNotExist(store)) => StoreNotExistResult(store)
             case Some(DatasetNotExist(dataset)) => DatasetNotExistResult(dataset)
+            case Some(CollocationLockTimeout()) => CollocationLockTimeoutResult()
             case Some(e) =>
               throw new Exception("Unexpected error from data-coordinator on collocation: " + e)
           }
