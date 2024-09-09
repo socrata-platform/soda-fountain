@@ -20,10 +20,10 @@ com.socrata.soda-fountain  {
   }
 
   resource-groups-client {
-      {% if RESOURCE_GROUPS_API_HOST is defined %}
-      apiHost = {{ RESOURCE_GROUPS_API_HOST }}
-      {% endif %}
-    }
+    {% if RESOURCE_GROUPS_API_HOST is defined %}
+    apiHost = {{ RESOURCE_GROUPS_API_HOST }}
+    {% endif %}
+  }
 
   metrics {
     enable-graphite = {{ ENABLE_GRAPHITE }}
