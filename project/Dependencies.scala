@@ -25,7 +25,7 @@ object Dependencies {
     val thirdPartyUtils   = "5.0.0"
     val curatorUtils      = "1.2.0"
     val typesafeConfig    = "1.0.2"
-    val resourceGroupsClient = "1.0.8"
+    val resourceGroupsClient = "1.0.9"
 
     // Test
     val mockito           = "1.10.7"
