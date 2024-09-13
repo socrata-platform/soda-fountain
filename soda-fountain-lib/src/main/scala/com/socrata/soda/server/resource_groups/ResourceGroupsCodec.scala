@@ -23,7 +23,7 @@ object ResourceGroupsCodec {
 
     override def encode(x: Registration): JValue = registrationPattern.generate(
       resourceGroupIdVar := x.getResourceGroupId,
-      isMovingVar := x.isMoving
+      isMovingVar := x.getIsMoving
     )
 
     override def decode(x: JValue): DecodeResult[Registration] = registrationPattern.matches(x).right.map { r =>
