@@ -41,42 +41,36 @@ pipeline {
   }
   stages {
     stage('Check for Version Change') {
-      /*
       when {
         branch 'main'
         not { expression { params.RELEASE_BUILD } }
       }
-      */
       steps {
         script {
           lastStage = env.STAGE_NAME
           // Checkout to fetch tags because the default checkout does not include tags
           // Fetching the tags without uisng checkout will confuse Jenkins about the git branch
           semVerTag.checkout('main')
-          publishLibrary = haveCertainFilesChanged(filePaths: ['version.sbt'], startingRevision: 'HEAD', endingRevision: 'HEAD~1')
+          publishLibrary = haveCertainFilesChanged(filePaths: ['version.sbt'])
         }
       }
     }
     stage('Publish Library') {
-      /*
       when {
         branch 'main'
         not { expression { params.RELEASE_BUILD } }
         expression { publishLibrary }
       }
-      */
       steps {
         script {
           lastStage = env.STAGE_NAME
           skip = true
           semVerTag.checkoutClosestTag()
           // Build & Publish
-          /*
           sbtbuild.setSubprojectName("sodaFountainExternal")
           sbtbuild.setPublish(true)
           sbtbuild.setBuildType("library")
           sbtbuild.build()
-          */
         }
       }
     }
