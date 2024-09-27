@@ -53,9 +53,11 @@ To build and run migrations from command line:
 * undo - rollback the latest change, or [numberOfChanges] if specified
 * redo - runs undo then migrate in one command
 
-## Publishing
+## Publishing the Library
 
-To publish the external library:
+To update the library:
 
-1. update the version.sbt file, create a PR and merge to main
-1. build the [soda-fountain-branch](https://jenkins-build.socrata.com/job/soda-fountain-branch/) job: check PUBLISH and enter the SHA from the version update commit in PUBLISH_SHA
+1. Make a PR, get it approved and merge your commits into main.
+1. From main, make a branch and run `sbt release`. This will create two commits to bump the version and create a git tag for the release version.
+1. Create a PR on the branch, get it approved and merged to main.
+1. Following the merge of the release commits to main, the Jenkins job for the main branch will build the stages "Check for Version Change" and "Publish Library" to publish the library.
