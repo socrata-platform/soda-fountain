@@ -58,6 +58,5 @@ To build and run migrations from command line:
 To update the library:
 
 1. Make a PR, get it approved and merge your commits into main.
-1. From main, make a branch and run `sbt release`. This will create two commits to bump the version and create a git tag for the release version.
-1. Create a PR on the branch, get it approved and merged to main.
-1. Following the merge of the release commits to main, the Jenkins job for the main branch will build the stages "Check for Version Change" and "Publish Library" to publish the library.
+1. From main, run `sbt release`. This will create two commits to bump the version and create a git tag for the release version and then push them to the remote repo.
+1. The Jenkins job for the main branch will build the stages "Check for Version Change" and "Publish Library" to publish the library.
