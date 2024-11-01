@@ -6,11 +6,14 @@ import com.socrata.soda.server.config.{ResourceGroupsClientConfig, SodaFountainC
 
 
 class ResourceGroupsClientFactory(resourceGroupClientConfig: ResourceGroupsClientConfig, httpClient: HttpClient) {
-  private lazy val _client = ResourceGroupsClientBuilder.builder()
-    .apiHost(resourceGroupClientConfig.apiHost.orNull)
-    .httpClientAdapter(new ResourceGroupsHttpAdapter(httpClient))
-    .jsonCodecAdapter(new ResourceGroupsJsonAdapter())
-    .build()
+  private lazy val _client = {
+    println(s"Resource groups apiHost: '${resourceGroupClientConfig.apiHost}'")
+    ResourceGroupsClientBuilder.builder()
+      .apiHost(resourceGroupClientConfig.apiHost.orNull)
+      .httpClientAdapter(new ResourceGroupsHttpAdapter(httpClient))
+      .jsonCodecAdapter(new ResourceGroupsJsonAdapter())
+      .build()
+  }
 
   def client(): ResourceGroupsClient = _client
 }
