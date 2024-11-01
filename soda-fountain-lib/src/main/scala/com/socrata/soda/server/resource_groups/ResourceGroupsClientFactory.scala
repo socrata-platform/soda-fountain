@@ -7,6 +7,9 @@ import com.socrata.soda.server.config.{ResourceGroupsClientConfig, SodaFountainC
 
 class ResourceGroupsClientFactory(resourceGroupClientConfig: ResourceGroupsClientConfig, httpClient: HttpClient) {
   private lazy val _client = {
+
+    //We build the protocol+hostname url here because of how apps marathon parses config strings.
+    //This is different than configuration elsewhere and is a soda specific shim.
     val apiHost = resourceGroupClientConfig.apiHost match {
       case Some(theApiHost) => resourceGroupClientConfig.apiProtocol match {
         case Some(theApiProtocol) => s"${theApiProtocol}://${theApiHost}"
