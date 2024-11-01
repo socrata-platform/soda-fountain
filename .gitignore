@@ -8,3 +8,4 @@ keystore.jks
 target/
 configs/local*.conf
 /.bsp/
+.DS_Store
