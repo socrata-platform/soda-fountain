@@ -80,6 +80,8 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
 }
 
 class ResourceGroupsClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
+  //apiHost must not contain a protocol. This is due to how apps-marathon parses string.
   val apiHost = optionally(getString("apiHost"))
+  //pass the protocol here instead.
   val apiProtocol = optionally(getString("apiProtocol"))
 }
