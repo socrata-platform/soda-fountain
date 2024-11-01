@@ -23,6 +23,9 @@ com.socrata.soda-fountain  {
     {% if RESOURCE_GROUPS_API_HOST is defined %}
     apiHost = {{ RESOURCE_GROUPS_API_HOST }}
     {% endif %}
+    {% if RESOURCE_GROUPS_API_PROTOCOL is defined %}
+    apiProtocol = {{ RESOURCE_GROUPS_API_PROTOCOL }}
+    {% endif %}
   }
 
   metrics {

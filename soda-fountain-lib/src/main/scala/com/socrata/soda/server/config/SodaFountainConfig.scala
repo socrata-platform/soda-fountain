@@ -81,4 +81,5 @@ class DataSourceConfig(config: Config, root: String) extends ConfigClass(config,
 
 class ResourceGroupsClientConfig(config: Config, root: String) extends ConfigClass(config, root) {
   val apiHost = optionally(getString("apiHost"))
+  val apiProtocol = optionally(getString("apiProtocol"))
 }
