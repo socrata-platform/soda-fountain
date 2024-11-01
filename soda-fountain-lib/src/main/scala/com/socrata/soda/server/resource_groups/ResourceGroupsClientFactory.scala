@@ -1,15 +1,25 @@
 package com.socrata.soda.server.resource_groups
 
 import com.socrata.http.client.HttpClient
-import com.socrata.resource_groups.client.{ResourceGroupsClient, ResourceGroupsClientBuilder}
+import com.socrata.resource_groups.client.{ResourceGroupsClient, ResourceGroupsClientBuilder, ResourceGroupsException}
 import com.socrata.soda.server.config.{ResourceGroupsClientConfig, SodaFountainConfig}
 
 
 class ResourceGroupsClientFactory(resourceGroupClientConfig: ResourceGroupsClientConfig, httpClient: HttpClient) {
   private lazy val _client = {
-    println(s"Resource groups apiHost: '${resourceGroupClientConfig.apiHost}'")
+
+    //We build the protocol+hostname url here because of how apps marathon parses config strings.
+    //This is different than configuration elsewhere and is a soda specific shim.
+    val apiHost = resourceGroupClientConfig.apiHost match {
+      case Some(theApiHost) => resourceGroupClientConfig.apiProtocol match {
+        case Some(theApiProtocol) => s"${theApiProtocol}://${theApiHost}"
+        case None => throw new ResourceGroupsException("apiHost was provided, but protocol is absent. You must provide a protocol.")
+      }
+      case None => null //null to trigger stub
+    }
+    println(s"Resource groups apiHost: '${apiHost}'")
     ResourceGroupsClientBuilder.builder()
-      .apiHost(resourceGroupClientConfig.apiHost.orNull)
+      .apiHost(apiHost)
       .httpClientAdapter(new ResourceGroupsHttpAdapter(httpClient))
       .jsonCodecAdapter(new ResourceGroupsJsonAdapter())
       .build()
