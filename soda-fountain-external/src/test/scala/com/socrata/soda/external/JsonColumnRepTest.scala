@@ -73,11 +73,6 @@ class JsonColumnRepTest extends AnyFunSuite with Matchers with Assertions {
     assert(result.get.asInstanceOf[SoQLDouble].value.isNaN)
   }
 
-  test("JSON type checker with money"){
-    val input = BigDecimal(123.45).bigDecimal
-    JsonColumnRep.forClientType(SoQLMoney).fromJValue(JNumber(input)) must equal (Some(SoQLMoney(input)))
-  }
-
   test("JSON type checker with boolean"){
     val input = false
     JsonColumnRep.forClientType(SoQLBoolean).fromJValue(JBoolean(input)) must equal (Some(SoQLBoolean(input)))
@@ -110,16 +105,6 @@ class JsonColumnRepTest extends AnyFunSuite with Matchers with Assertions {
   test("JSON type checker with invalid time"){
     val input = "@0z2:2!6:0$5.123"
     JsonColumnRep.forClientType(SoQLTime).fromJValue(JString(input)) must be (None)
-  }
-
-  test("JSON type checker with array"){
-    val input = JArray(Seq(JString("this is text"), JNumber(222), JNull, JBoolean(true)))
-    JsonColumnRep.forClientType(SoQLArray).fromJValue(input) must equal (Some(SoQLArray(input)))
-  }
-
-  test("JSON type checker with object"){
-    val input = JObject(Map("key" -> JString("value")))
-    JsonColumnRep.forClientType(SoQLObject).fromJValue(input) must equal (Some(SoQLObject(input)))
   }
 
   test("JSON type checker with Point"){

@@ -33,12 +33,6 @@ object CsvColumnRep {
       else ClientNumberRep.decimalToString(value.asInstanceOf[SoQLNumber].value)
   }
 
-  object MoneyRep extends CsvColumnRep {
-    def toString(value: SoQLValue) =
-      if(SoQLNull == value) null
-      else ClientNumberRep.decimalToString(value.asInstanceOf[SoQLMoney].value)
-  }
-
   object DoubleRep extends CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
@@ -92,18 +86,6 @@ object CsvColumnRep {
     def toString(value: SoQLValue) =
       if(SoQLNull == value) null
       else JsonColumnRep.VersionStringRep(value.asInstanceOf[SoQLVersion])
-  }
-
-  object ObjectRep extends CsvColumnRep {
-    def toString(value: SoQLValue) =
-      if(SoQLNull == value) null
-      else CompactJsonWriter.toString(value.asInstanceOf[SoQLObject].value)
-  }
-
-  object ArrayRep extends CsvColumnRep {
-    def toString(value: SoQLValue) =
-      if(SoQLNull == value) null
-      else CompactJsonWriter.toString(value.asInstanceOf[SoQLArray].value)
   }
 
   object JValueRep extends CsvColumnRep {
@@ -160,22 +142,6 @@ object CsvColumnRep {
           case Some(JString(x)) => sb.append(x); sb.append(sep)
           case _ =>
         }
-      }
-    }
-  }
-
-  object PhoneRep extends CsvColumnRep {
-    /**
-     * phoneType: phoneNumber
-     * phoneNumber (if phoneType is null)
-     * phoneType (if phoneNumber is null)
-     */
-    def toString(value: SoQLValue) = {
-      value match {
-        case SoQLNull => null
-        case SoQLPhone(phoneNumber, phoneType) =>
-          Seq(phoneType, phoneNumber).flatten.mkString(": ")
-        case _ => null
       }
     }
   }
@@ -262,11 +228,8 @@ object CsvColumnRep {
     SoQLID -> IDRep,
     SoQLVersion -> VersionRep,
     SoQLNumber -> NumberRep,
-    SoQLMoney -> MoneyRep,
     SoQLDouble -> DoubleRep,
     SoQLBoolean -> BooleanRep,
-    SoQLObject -> ObjectRep,
-    SoQLArray -> ArrayRep,
     SoQLJson -> JValueRep,
     SoQLPoint -> new GeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value),
     SoQLMultiLine -> new GeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value),
@@ -275,7 +238,6 @@ object CsvColumnRep {
     SoQLMultiPoint -> new GeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value),
     SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value),
     SoQLBlob -> BlobRep,
-    SoQLPhone -> PhoneRep,
     SoQLLocation -> LocationRep,
     SoQLDocument -> DocumentRep,
     SoQLPhoto -> PhotoRep,

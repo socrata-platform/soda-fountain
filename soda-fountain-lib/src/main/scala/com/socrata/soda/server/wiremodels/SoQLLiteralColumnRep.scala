@@ -37,12 +37,6 @@ object SoQLLiteralColumnRep {
       value.asInstanceOf[SoQLNumber].value.toString
   }
 
-  object MoneyRep extends SoQLLiteralColumnRep {
-    val representedType = SoQLMoney
-    def toRawSoQLLiteral(value: SoQLValue) =
-      value.asInstanceOf[SoQLMoney].value.toString
-  }
-
   object BooleanRep extends SoQLLiteralColumnRep {
     val representedType = SoQLBoolean
     def toRawSoQLLiteral(value: SoQLValue) =
@@ -84,7 +78,6 @@ object SoQLLiteralColumnRep {
       SoQLID -> IDRep,
       //SoQLVersion -> VersionRep,
       SoQLNumber -> NumberRep,
-      SoQLMoney -> MoneyRep,
       //SoQLDouble -> DoubleRep,
       SoQLBoolean -> BooleanRep,
       //SoQLObject -> ObjectRep,

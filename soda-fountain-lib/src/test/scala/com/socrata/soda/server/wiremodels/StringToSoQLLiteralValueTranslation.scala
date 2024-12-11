@@ -41,11 +41,8 @@ class StringToSoQLLiteralValueTranslation extends AnyFunSuite with Matchers {
   test("JSON rep type check with number"){ testRep("12345", "((12345)::number)", SoQLNumber) }
   test("JSON rep type check with boolean"){ testRep("t", "((true)::boolean)", SoQLBoolean) }
   test("JSON rep type check with double"){ pendingUntilFixed { testRep("123.45", "((123.45)::double)", SoQLDouble) } }
-  test("JSON rep type check with money"){ testRep("123.45", "((123.45)::money)", SoQLMoney) }
   test("JSON rep type check with fixed timestamp"){ testRep("2013-06-03T02:26:05.123Z", "((\"2013-06-03T02:26:05.123Z\")::fixed_timestamp)", SoQLFixedTimestamp) }
   test("JSON rep type check with floating timestamp"){ testRep("2013-06-03T02:26:05.123", "((\"2013-06-03T02:26:05.123\")::floating_timestamp)", SoQLFloatingTimestamp) }
   test("JSON rep type check with date"){ pendingUntilFixed { testRep("2013-06-03", "((\"2013-06-03\")::date)", SoQLDate) } }
   test("JSON rep type check with time"){ pendingUntilFixed { testRep("02:26:05.123", "((\"02:26:05.123\")::time)", SoQLTime) } }
-  //test("JSON rep type check with object"){ testRep("{a:1}", "{a:1}", SoQLObject) }
-  //test("JSON rep type check with array"){ testRep("[1,2,3]", "[1,2,3]", SoQLArray) }
 }
