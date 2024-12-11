@@ -33,13 +33,6 @@ object StringColumnRep {
       catch { case _: NumberFormatException => None }
   }
 
-  object MoneyRep extends StringColumnRep {
-    val representedType = SoQLMoney
-    def fromString(input: String) =
-      try { Some(SoQLMoney(new java.math.BigDecimal(input))) }
-      catch { case _: NumberFormatException => None }
-  }
-
   object BooleanRep extends StringColumnRep {
     val representedType = SoQLBoolean
     def fromString(input: String) = input.toLowerCase match {
@@ -74,7 +67,6 @@ object StringColumnRep {
       SoQLID -> IDRep,
       //SoQLVersion -> VersionRep,
       SoQLNumber -> NumberRep,
-      SoQLMoney -> MoneyRep,
       //SoQLDouble -> DoubleRep,
       SoQLBoolean -> BooleanRep
       //SoQLObject -> ObjectRep,

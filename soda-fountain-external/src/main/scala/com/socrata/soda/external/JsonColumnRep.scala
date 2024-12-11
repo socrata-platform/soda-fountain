@@ -53,10 +53,7 @@ object JsonColumnRep {
 
   object TextRep extends CodecBasedJsonColumnRep[String](SoQLText, _.asInstanceOf[SoQLText].value, SoQLText(_))
   object NumberRep extends CodecBasedJsonColumnRep[java.math.BigDecimal](SoQLNumber, _.asInstanceOf[SoQLNumber].value, SoQLNumber(_))
-  object MoneyRep extends CodecBasedJsonColumnRep[java.math.BigDecimal](SoQLMoney, _.asInstanceOf[SoQLMoney].value, SoQLMoney(_))
   object BooleanRep extends CodecBasedJsonColumnRep[Boolean](SoQLBoolean, _.asInstanceOf[SoQLBoolean].value, SoQLBoolean(_))
-  object ObjectRep extends CodecBasedJsonColumnRep[JObject](SoQLObject, _.asInstanceOf[SoQLObject].value, SoQLObject(_))
-  object ArrayRep extends CodecBasedJsonColumnRep[JArray](SoQLArray, _.asInstanceOf[SoQLArray].value, SoQLArray(_))
   object BlobRep extends CodecBasedJsonColumnRep[String](SoQLBlob, _.asInstanceOf[SoQLBlob].value, SoQLBlob(_))
   object PhotoRep extends CodecBasedJsonColumnRep[String](SoQLPhoto, _.asInstanceOf[SoQLPhoto].value, SoQLPhoto(_))
 
@@ -92,25 +89,6 @@ object JsonColumnRep {
             loc.address.map(JString(_)).getOrElse(JNull),
             loc.latitude.map(x => JString(x.toPlainString)).getOrElse(JNull),
             loc.longitude.map(x => JString(x.toPlainString)).getOrElse(JNull)))
-        case SoQLNull => JNull
-        case _ => stdBadValue
-      }
-    }
-  }
-
-  object PhoneRep extends JsonColumnRep {
-    val representedType = SoQLPhone
-
-    def fromJValue(input: JValue): Option[SoQLValue] = {
-      JsonDecode[SoQLPhone].decode(input) match {
-        case Right(phone) => Some(phone)
-        case _ => Some(SoQLNull)
-      }
-    }
-
-    def toJValue(input: SoQLValue): JValue = {
-      input match {
-        case phone: SoQLPhone => JsonEncode.toJValue(phone)
         case SoQLNull => JNull
         case _ => stdBadValue
       }
@@ -266,21 +244,6 @@ object JsonColumnRep {
       if (d.scale.abs > ScientificNotationScaleThreshold) d.toString() // might use scientific notation
       else d.toPlainString()
     }
-  }
-
-  object ClientMoneyRep extends JsonColumnRep {
-    def fromJValue(input: JValue): Option[SoQLValue] = input match {
-      case JString(s) => try { Some(SoQLMoney(new java.math.BigDecimal(s))) } catch { case e: NumberFormatException => None }
-      case n: JNumber => Some(SoQLMoney(n.toJBigDecimal))
-      case JNull => Some(SoQLNull)
-      case _ => None
-    }
-
-    def toJValue(value: SoQLValue): JValue =
-      if(SoQLNull == value) JNull
-      else JString(ClientNumberRep.decimalToString(value.asInstanceOf[SoQLMoney].value))
-
-    val representedType: SoQLType = SoQLMoney
   }
 
   object ClientLocationRep extends JsonColumnRep {
@@ -443,11 +406,8 @@ object JsonColumnRep {
       SoQLID -> IDRep,
       SoQLVersion -> VersionRep,
       SoQLNumber -> ClientNumberRep,
-      SoQLMoney -> ClientMoneyRep,
       SoQLDouble -> DoubleRep,
       SoQLBoolean -> BooleanRep,
-      SoQLObject -> ObjectRep,
-      SoQLArray -> ArrayRep,
       SoQLJson -> JValueRep,
       SoQLPoint -> new ClientGeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value, SoQLPoint(_)),
       SoQLMultiLine -> new ClientGeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value, SoQLMultiLine(_)),
@@ -456,7 +416,6 @@ object JsonColumnRep {
       SoQLMultiPoint -> new ClientGeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value, SoQLMultiPoint(_)),
       SoQLPolygon -> new ClientGeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_)),
       SoQLBlob -> BlobRep,
-      SoQLPhone -> PhoneRep,
       SoQLUrl -> UrlRep,
       SoQLDocument -> DocumentRep,
       SoQLPhoto -> PhotoRep,
@@ -475,11 +434,8 @@ object JsonColumnRep {
       SoQLID -> IDRep,
       SoQLVersion -> VersionRep,
       SoQLNumber -> NumberRep,
-      SoQLMoney -> MoneyRep,
       SoQLDouble -> DoubleRep,
       SoQLBoolean -> BooleanRep,
-      SoQLObject -> ObjectRep,
-      SoQLArray -> ArrayRep,
       SoQLJson -> JValueRep,
       SoQLPoint -> new GeometryLikeRep[Point](SoQLPoint, _.asInstanceOf[SoQLPoint].value, SoQLPoint(_)),
       SoQLMultiLine -> new GeometryLikeRep[MultiLineString](SoQLMultiLine, _.asInstanceOf[SoQLMultiLine].value, SoQLMultiLine(_)),
@@ -488,7 +444,6 @@ object JsonColumnRep {
       SoQLMultiPoint -> new GeometryLikeRep[MultiPoint](SoQLMultiPoint, _.asInstanceOf[SoQLMultiPoint].value, SoQLMultiPoint(_)),
       SoQLPolygon -> new GeometryLikeRep[Polygon](SoQLPolygon, _.asInstanceOf[SoQLPolygon].value, SoQLPolygon(_)),
       SoQLBlob -> BlobRep,
-      SoQLPhone -> PhoneRep,
       SoQLUrl -> UrlRep,
       SoQLDocument -> DocumentRep,
       SoQLPhoto -> PhotoRep,

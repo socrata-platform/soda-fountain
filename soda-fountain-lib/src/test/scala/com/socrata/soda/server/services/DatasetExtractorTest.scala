@@ -41,7 +41,7 @@ class DatasetExtractorTest extends AnyFunSuite with Matchers {
                          |  name: "hot dog",
                          |  columns: [
                          |    {field_name:"col1",
-                         |    datatype:"money"}
+                         |    datatype:"number"}
                          |  ]
                          |}""".stripMargin)
     spec match {
@@ -50,7 +50,7 @@ class DatasetExtractorTest extends AnyFunSuite with Matchers {
         val columns = dspec.columns.get
         columns.size should be (1)
         columns(0).fieldName should be eq (Some("col1"))
-        columns(0).datatype should be (Some(com.socrata.soql.types.SoQLMoney))
+        columns(0).datatype should be (Some(com.socrata.soql.types.SoQLNumber))
       case _ => fail("didn't extract")
     }
   }
