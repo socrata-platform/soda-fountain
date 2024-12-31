@@ -224,7 +224,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
           val request = base.json(com.rojoma.json.v3.io.JValueEventIterator(jValue))
           threadLimiter.withThreadpool {
             val resp = httpClient.execute(request, rs)
-            def interestingHeaders = Seq("etag", "last-modified", "content-type", "x-soda2-secondary", "x-soda2-data-out-of-date")
+            def interestingHeaders = Seq("etag", "last-modified", "content-type", "x-soda2-secondary", "x-soda2-data-out-of-date", "x-soda2-cached")
             resp.resultCode match {
               case 200 =>
                 val headers = interestingHeaders.foldLeft(Vector.empty[(String, String)]) { (acc, hdr) =>
