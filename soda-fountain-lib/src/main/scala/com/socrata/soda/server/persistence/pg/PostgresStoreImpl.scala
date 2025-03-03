@@ -202,8 +202,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           FROM datasets d
           Join dataset_copies dc On dc.dataset_system_id = d.dataset_system_id
          WHERE d.resource_name_casefolded = ?
-           And dc.id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
-        """.format(latestStageAsNone(stage).map(_ => " And lifecycle_stage = ?").getOrElse("")))) { stmt =>
+           And dc.id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id And %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
+        """.format(latestStageAsNone(stage).map(_ => "lifecycle_stage = ?").getOrElse("lifecycle_stage <> 'Discarded'")))) { stmt =>
         stmt.setString(1, resourceName.caseFolded)
         latestStageAsNone(stage).foreach(s => stmt.setString(2, s.name))
         val rs = stmt.executeQuery()
@@ -228,8 +228,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
           FROM datasets d
           Join dataset_copies dc On dc.dataset_system_id = d.dataset_system_id
          WHERE d.resource_name_casefolded = ?
-           And dc.id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
-        """.format(latestStageAsNone(stage).map(_ => " And lifecycle_stage = ?").getOrElse("")))) { stmt =>
+           And dc.id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id And %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
+        """.format(latestStageAsNone(stage).map(_ => "lifecycle_stage = ?").getOrElse("lifecycle_stage <> 'Discarded'")))) { stmt =>
         stmt.setString(1, resourceName.caseFolded)
         latestStageAsNone(stage).foreach(s => stmt.setString(2, s.name))
         val rs = stmt.executeQuery()
@@ -244,8 +244,8 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
         """
         SELECT copy_number
           FROM dataset_copies
-         WHERE id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
-        """.format(latestStageAsNone(stage).map(_ => " And lifecycle_stage = ?").getOrElse("")))) { stmt =>
+         WHERE id = (SELECT id FROM dataset_copies WHERE dataset_system_id = d.dataset_system_id And %s And deleted_at is null ORDER By copy_number DESC LIMIT 1)
+        """.format(latestStageAsNone(stage).map(_ => "lifecycle_stage = ?").getOrElse("lifecycle_stage <> 'Discarded'")))) { stmt =>
         stmt.setString(1, datasetId.underlying)
         latestStageAsNone(stage).foreach(s => stmt.setString(2, s.name))
         val rs = stmt.executeQuery()
@@ -260,7 +260,7 @@ class PostgresStoreImpl(dataSource: DataSource) extends NameAndSchemaStore {
     using(dataSource.getConnection) { connection =>
       val dDeletedFilter = if (!isDeleted) " AND d.deleted_at is null" else " AND d.deleted_at is not null"
       val latestCopyDeletedFilter = if (!isDeleted) "AND latest_dc.deleted_at is null" else "AND latest_dc.deleted_at is not null"
-      val lifecycleStageFilter = stage.fold("")(_ => "AND lifecycle_stage = ?")
+      val lifecycleStageFilter = stage.fold("AND lifecycle_stage <> 'Discarded'")(_ => "AND lifecycle_stage = ?")
       using(connection.prepareStatement(
         s"""
         SELECT d.resource_name, d.dataset_system_id, d.locale, dc.schema_hash, dc.primary_key_column_id,
