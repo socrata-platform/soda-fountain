@@ -9,6 +9,7 @@ com.socrata.soda-fountain  {
     database = "{{ SODA_FOUNTAIN_DB_NAME }}"
     username = "{{ SODA_FOUNTAIN_DB_USER }}"
     {{ SODA_FOUNTAIN_DB_PASSWORD_LINE }}
+    password = ${?SODA_FOUNTAIN_DB_PASSWORD}
   }
 
   data-coordinator-client {

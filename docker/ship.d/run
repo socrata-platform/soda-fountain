@@ -1,7 +1,12 @@
 #!/bin/sh
 set -ev
 
-if [ -z "$MARATHON_APP_ID" ]; then
+if [ -n "$ECS_CONTAINER_METADATA_URI_V4" ]; then
+    ARK_HOST="$(curl -sf "$ECS_CONTAINER_METADATA_URI_V4" | jq -r '.Networks[0].IPv4Addresses[0]')"
+    export ARK_HOST
+fi
+
+if [ -z "$MARATHON_APP_ID" ] && [ -z "$ECS_CONTAINER_METADATA_URI_V4" ]; then
   echo "Not compiling j2 config file because this is not running in Marathon!"
 else
   /bin/env_parse ${SERVER_CONFIG}.j2

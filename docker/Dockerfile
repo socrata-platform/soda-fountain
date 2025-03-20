@@ -5,6 +5,8 @@ EXPOSE 6012/udp
 ENV JMX_PORT 6019
 #EXPOSE 6039
 
+RUN apt-get -y update && apt-get -y install jq
+
 ENV SERVER_ROOT /srv/soda-fountain/
 # TODO sbt task to copy latest jar into docker/
 ENV SERVER_ARTIFACT soda-fountain-jetty-assembly.jar
