@@ -195,7 +195,7 @@ pipeline {
               ]
               createBuild(
                 buildInfo,
-                rmsSupportedEnvironment.production
+                rmsSupportedEnvironment.development //production
               )
             }
           }
@@ -218,6 +218,14 @@ pipeline {
             tag: env.BUILD_ID,
             environment: env.ENVIRONMENT
           )
+          // While working on migrating from marathon to ECS, we are keeping the tagged images up to date
+          // Once the migration is done, we will remove the marathonDeploy and leave in place this publish which triggers the ECS deployment
+          env.TARGET_DEPLOY_TAG = (env.ENVIRONMENT == 'rc') ? 'rc' : 'latest'
+          dockerize.publish(
+            sourceTag: env.DOCKER_TAG,
+            targetTag: env.TARGET_DEPLOY_TAG,
+            environments: ['internal']
+          )
         }
       }
       post {
@@ -230,7 +238,7 @@ pipeline {
               ]
               createDeployment(
                 deployInfo,
-                rmsSupportedEnvironment.production
+                rmsSupportedEnvironment.development //production
               )
             }
           }
