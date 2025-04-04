@@ -98,7 +98,7 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
       case RowDAO.DatasetNotFound(dataset) =>
         SodaUtils.response(req, SodaErrors.DatasetNotFound(dataset))
       case RowDAO.SchemaOutOfSync =>
-        SodaUtils.response(req, SodaErrors.SchemaInvalidForMimeType)
+        SodaUtils.response(req, SodaErrors.SchemaOutOfSync)
       case RowDAO.InvalidRequest(client, status, body) =>
         SodaUtils.response(req, SodaErrors.InternalError(s"Error from $client:", "code"  -> JNumber(status),
           "data" -> body))

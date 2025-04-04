@@ -24,6 +24,9 @@ case class RequestTimedOut(customTimeout: JValue)
 case object SchemaInvalidForMimeType
   extends SodaResponse(SC_NOT_ACCEPTABLE, "schema-invalid-for-mime-type", "Schema is invalid for given mime-type")
 
+case object SchemaOutOfSync
+  extends SodaResponse(SC_INTERNAL_SERVER_ERROR, "schema-out-of-sync", "Schema is not in sync with upstream service")
+
 case class GeneralNotFoundError(path: String)
   extends SodaResponse(SC_NOT_FOUND, "not-found", s"Path not found: $path", "path" -> JString(path))
 
