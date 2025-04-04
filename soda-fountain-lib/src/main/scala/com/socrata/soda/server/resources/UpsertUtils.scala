@@ -67,7 +67,7 @@ object UpsertUtils {
       case RowDAO.DatasetVersionMismatch(dataset, version) =>
         SodaUtils.response(request, SodaErrors.DatasetVersionMismatch(dataset, version))(response)
       case RowDAO.SchemaOutOfSync =>
-        SodaUtils.response(request, SodaErrors.SchemaInvalidForMimeType)(response)
+        SodaUtils.response(request, SodaErrors.SchemaOutOfSync)(response)
       case RowDAO.InvalidRequest(client, status, body) =>
         SodaUtils.response(request, SodaErrors.InternalError(s"Error from $client:", "code"  -> JNumber(status),
           "data" -> body))(response)
