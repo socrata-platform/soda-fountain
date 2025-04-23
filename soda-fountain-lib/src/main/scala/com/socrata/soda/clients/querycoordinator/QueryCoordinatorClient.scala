@@ -8,6 +8,7 @@ import com.rojoma.simplearm.v2.ResourceScope
 import com.socrata.http.server.util.{EntityTag, Precondition}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.{DatasetInternalName, ColumnId, DatasetHandle, ResourceName}
+import com.socrata.soda.server.wiremodels.PreserveSystemColumns
 import com.socrata.soql.environment.ColumnName
 import com.socrata.soql.stdlib.Context
 import com.socrata.soql.stdlib.analyzer2.{Context => NewContext}
@@ -122,7 +123,7 @@ trait QueryCoordinatorClient extends analyzer2.LabelUniverse[QueryCoordinatorCli
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     allowRollups: Boolean,
-    preserveSystemColumns: Boolean,
+    preserveSystemColumns: PreserveSystemColumns,
     debug: Option[Debug],
     queryTimeout: Option[FiniteDuration],
     store: Option[String],
