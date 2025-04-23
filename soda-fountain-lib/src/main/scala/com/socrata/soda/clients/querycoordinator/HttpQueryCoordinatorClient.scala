@@ -16,6 +16,7 @@ import com.socrata.soda.clients.querycoordinator.QueryCoordinatorError._
 import com.socrata.soda.server.{SodaUtils, ThreadLimiter}
 import com.socrata.soda.server.copy.Stage
 import com.socrata.soda.server.id.DatasetHandle
+import com.socrata.soda.server.wiremodels.PreserveSystemColumns
 import com.socrata.soql.analyzer2
 import com.socrata.soql.analyzer2.rewrite.Pass
 import com.socrata.soql.stdlib.Context
@@ -178,7 +179,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     allowRollups: Boolean,
-    preserveSystemColumns: Boolean,
+    preserveSystemColumns: PreserveSystemColumns,
     debug: Option[Debug],
     queryTimeoutMS: Option[Long],
     store: Option[String]
@@ -190,7 +191,7 @@ trait HttpQueryCoordinatorClient extends QueryCoordinatorClient {
     context: NewContext,
     rewritePasses: Seq[Seq[Pass]],
     allowRollups: Boolean,
-    preserveSystemColumns: Boolean,
+    preserveSystemColumns: PreserveSystemColumns,
     debug: Option[Debug],
     queryTimeout: Option[FiniteDuration],
     store: Option[String],
