@@ -18,7 +18,7 @@ ENV GRAPHITE_HOST 0.0.0.0
 ENV GRAPHITE_PORT 0
 ENV JAVA_XMX 512m
 ENV JAVA_MAX_METASPACE 64m
-ENV JAVA_GC_LOG_BEHAVIOR=-Xloggc:/tmp/gc.log -XX:+PrintGCDateStamps -XX:+PrintGCDetails -XX:+PrintTenuringDistribution -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=50M -XX:+TraceClassLoading -XX:+PrintGCCause -XX:+TraceClassUnloading
+ENV JAVA_GC_LOG_BEHAVIOR="-Xloggc:/tmp/gc.log -XX:+PrintGCDateStamps -XX:+PrintGCDetails -XX:+PrintTenuringDistribution -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=50M -XX:+TraceClassLoading -XX:+PrintGCCause -XX:+TraceClassUnloading"
 ENV LOG_METRICS false
 ENV MAX_THREADS 100
 ENV QUERY_TIMEOUT 10m
