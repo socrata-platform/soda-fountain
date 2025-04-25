@@ -30,4 +30,5 @@ exec su socrata -c 'exec /usr/bin/java \
     -Dcom.sun.management.jmxremote.ssl=false \
     -Dcom.sun.management.jmxremote.authenticate=false \
     -Djava.rmi.server.hostname=${ARK_HOST:-localhost} \
+    ${JAVA_GC_LOG_BEHAVIOR} \
     -jar $SERVER_ARTIFACT'
