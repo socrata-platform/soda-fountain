@@ -12,8 +12,10 @@ metadata:
       url: "https://socrata.atlassian.net/wiki/spaces/ONCALL/pages/2158985270/OpsDoc+-+SODA+Server+aka+NBE"
     - title: "Teams Channel"
       url: "https://teams.microsoft.com/l/channel/19%3Acc7bc69e4e1349c98d6de53dea8fcd97%40thread.tacv2/egress-q-and-a?groupId=102da3ef-c928-4a59-afe5-f0d51e6443dd&tenantId=7cc5f0f9-ee5b-4106-a62d-1b9f7be46118"
+    - title: "New Backend (NBE) Crash Course"
+      url: "https://tylertech.sharepoint.com/:v:/r/sites/DataInsightsDivision/Shared%20Documents/Engineering/NewBackendCrashCourse.mov?csf=1&web=1&e=2NsXHJ"
   annotations:
-    github.com/project-slug: 'socrata/soda-fountain'
+    github.com/project-slug: 'socrata-platform/soda-fountain'
     backstage.io/techdocs-ref: dir:.
   tags:
     - scala
