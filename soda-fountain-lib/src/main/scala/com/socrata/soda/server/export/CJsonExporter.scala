@@ -73,7 +73,8 @@ object CJsonExporter extends Exporter {
           val ci = fusedSchema.schema(fusedSchemaOrdering(i))
           w.write(s"""{"c":${JString(ci.fieldName.name)},"t":${JsonEncode.toJValue(ci.typ)}""")
           ci.computationStrategy.foreach { cs =>
-            w.write(s""","s":${CompactJsonWriter.toString(cs)}""")
+            w.write(s""","s":${CompactJsonWriter.toString(cs)}""") // legacy; remove next release
+            w.write(s""","computation_strategy":${CompactJsonWriter.toString(cs)}""")
           }
           w.write("}")
         }
