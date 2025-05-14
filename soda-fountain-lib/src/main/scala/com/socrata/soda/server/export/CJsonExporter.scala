@@ -3,7 +3,7 @@ package com.socrata.soda.server.export
 import com.rojoma.json.v3.ast.{JNumber, JString}
 import com.rojoma.json.v3.codec._
 import com.rojoma.json.v3.io.CompactJsonWriter
-import com.rojoma.json.v3.io.CompactJsonWriter
+import com.rojoma.json.v3.util.JsonUtil
 import com.rojoma.simplearm.v2._
 import com.socrata.http.common.util.AliasedCharset
 import com.socrata.http.server.HttpResponse
@@ -23,7 +23,7 @@ object CJsonExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("cjson")
 
-  def export(charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = {
+  def export(datasetCopy: Option[(ResourceName, String)], charset: AliasedCharset, schema: ExportDAO.CSchema, fingerprint: Option[String], rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     val jsonColumnReps = if (obfuscateId) JsonColumnRep.forClientType
@@ -55,6 +55,20 @@ object CJsonExporter extends Exporter {
           w.write(s""""approximate_row_count":${JNumber(count)}""")
           w.write("\n ,")
         }
+        datasetCopy.foreach { dc =>
+          schema.dataVersion.foreach { dv =>
+            w.write(s""""dataVersions": [[${JsonUtil.renderJson(dc, pretty=false)}, ${JNumber(dv)}]]""")
+            w.write("\n ,")
+          }
+        }
+        fingerprint.foreach { fp =>
+          w.write(s""""fingerprint": ${JString(fp)}""")
+          w.write("\n ,")
+        }
+        schema.lastModified.foreach { lm =>
+          w.write(s""""last_modified": ${JString(org.joda.time.format.ISODateTimeFormat.dateTime.print(lm.withZone(org.joda.time.DateTimeZone.UTC)))}""")
+          w.write("\n ,")
+        }
         w.write(s""""locale":${JString(schema.locale)}""")
         w.write('\n')
         schema.pk.foreach { pk =>
@@ -71,9 +85,9 @@ object CJsonExporter extends Exporter {
           if(didOne) w.write(',')
           else didOne = true
           val ci = fusedSchema.schema(fusedSchemaOrdering(i))
-          w.write(s"""{"c":${JString(ci.fieldName.name)},"t":${JsonEncode.toJValue(ci.typ)}""")
+          w.write(s"""{"c":${JString(ci.fieldName.name)},"t":${JsonEncode.toJValue(ci.typ)},"s":false""")
           ci.computationStrategy.foreach { cs =>
-            w.write(s""","s":${CompactJsonWriter.toString(cs)}""")
+            w.write(s""","computation_strategy":${CompactJsonWriter.toString(cs)}""")
           }
           w.write("}")
         }

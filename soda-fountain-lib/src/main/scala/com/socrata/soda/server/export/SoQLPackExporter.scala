@@ -30,7 +30,7 @@ object SoQLPackExporter extends Exporter {
   val mimeType = new MimeType(mimeTypeBase)
   val extension = Some("soqlpack")
 
-  def export(charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
+  def export(datasetCopy: Option[(ResourceName, String)], charset: AliasedCharset, schema: ExportDAO.CSchema, fingerprint: Option[String], rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = { // This format ignores obfuscateId.  SoQLPack does not obfuscate id.
     // Compute the schema
     val soqlSchema = schema.schema.map { ci =>
       (ci.fieldName.name, ci.typ)

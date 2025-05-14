@@ -26,7 +26,7 @@ class TableExporter(val mimeTypeBaseValue: String,
   val extension = extensionValue
   val separator = separatorValue
 
-  def export(charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = {
+  def export(datasetCopy: Option[(ResourceName, String)], charset: AliasedCharset, schema: ExportDAO.CSchema, fingerprint: Option[String], rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse = {
     val mt = new MimeType(mimeTypeBase)
     mt.setParameter("charset", charset.alias)
     exporterHeaders(schema) ~> Write(mt) { rawWriter =>

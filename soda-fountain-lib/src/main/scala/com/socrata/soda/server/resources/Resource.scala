@@ -262,7 +262,7 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
                         optionalHeader(QueryCoordinatorClient.HeaderRollup, rollup) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                     createHeader ~>
-                      exporter.export(charset, schema, rows, singleRow = false, obfuscateId = obfuscateId,
+                      exporter.export(None, charset, schema, None, rows, singleRow = false, obfuscateId = obfuscateId,
                                       bom = parameter(qpBom).map(_.toBoolean).getOrElse(false))
                   case RowDAO.InfoSuccess(_, body) =>
                     // Just drain the iterator into an array, this should never be large
@@ -458,7 +458,7 @@ case class Resource(etagObfuscator: ETagObfuscator, maxRowSize: Long, metricProv
                         optionalHeader("X-SODA2-Secondary-Last-Modified", schema.lastModified.map(_.toHttpDate)) ~>
                         Header("X-SODA2-Truth-Last-Modified", truthLastModified.toHttpDate)
                       createHeader ~>
-                        exporter.export(charset, schema, Iterator.single(row), singleRow = true, obfuscateId = obfuscateId,
+                        exporter.export(None, charset, schema, None, Iterator.single(row), singleRow = true, obfuscateId = obfuscateId,
                                         bom = parameter(qpBom).map(_.toBoolean).getOrElse(false))
                     case RowDAO.RowNotFound(row) =>
                       metric(QueryErrorUser)

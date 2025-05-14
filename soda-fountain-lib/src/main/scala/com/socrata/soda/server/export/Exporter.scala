@@ -17,7 +17,7 @@ import com.socrata.soda.server.id.ResourceName
 trait Exporter {
   val mimeType: MimeType
   val extension: Option[String]
-  def export(charset: AliasedCharset, schema: ExportDAO.CSchema, rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse
+  def export(datasetCopy: Option[(ResourceName, String)], charset: AliasedCharset, schema: ExportDAO.CSchema, fingerPrint: Option[String], rows: Iterator[Array[SoQLValue]], singleRow: Boolean = false, obfuscateId: Boolean = true, bom: Boolean = false, fuseMap: Map[String, String] = Map.empty): HttpResponse
   protected def exporterHeaders(schema: ExportDAO.CSchema): HttpResponse =
     schema.lastModified.fold(NoOp) { lm =>
       Header("Last-Modified", HttpUtils.HttpDateFormat.print(lm)) ~> maybeSoda2FieldsHeader(schema)

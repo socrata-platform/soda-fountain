@@ -149,7 +149,7 @@ class TableExporterTest extends ExporterTest {
       mockResponse.expects('setContentType)(s"$contentType; charset=UTF-8")
       mockResponse.expects('getOutputStream)().returning(wrapped)
 
-      tableExporter.export(charset, getDCSchema("TableExporterTest", columns, pk, rows), rows.iterator, singleRow)(mockResponse)
+      tableExporter.export(None, charset, getDCSchema("TableExporterTest", columns, pk, rows), None, rows.iterator, singleRow)(mockResponse)
       new String(out.toByteArray, "UTF-8")
     }
   }

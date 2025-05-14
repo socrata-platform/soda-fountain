@@ -181,8 +181,9 @@ case class Export(etagObfuscator: ETagObfuscator) {
                                  requestId = req.requestId,
                                  resourceScope = req.resourceScope) match {
               case ExportDAO.Success(fullSchema, newTag, fullRows) =>
-                val headers = OK ~> Header("Vary", ContentNegotiation.headers.mkString(",")) ~> newTag.foldLeft(NoOp) { (acc, tag) =>
-                  acc ~> ETag(prepareTag(tag))
+                val etag = newTag.map(prepareTag)
+                val headers = OK ~> Header("Vary", ContentNegotiation.headers.mkString(",")) ~> etag.foldLeft(NoOp) { (acc, tag) =>
+                  acc ~> ETag(tag)
                 }
                 // TODO: DC export always includes row id
                 // When DC has the option to exclude row id,
@@ -195,7 +196,7 @@ case class Export(etagObfuscator: ETagObfuscator) {
                   else (fullSchema.copy(schema = userColumns),
                     fullRows.map(row => row.take(sysColsStart) ++ row.drop(sysColsStart + sysColumns.size)))
                 // TODO: determine whether tenant metrics is needed in export
-                headers ~> exporter.export(charset, schema, rows, singleRow, obfuscateId, fuseMap = fuseMap)
+                headers ~> exporter.export(Some((resourceName, copy)), charset, schema, etag.map{etag=>org.apache.commons.codec.binary.Base64.encodeBase64URLSafeString(etag.asBytes)}, rows, singleRow, obfuscateId, fuseMap = fuseMap)
               case ExportDAO.PreconditionFailed =>
                 SodaUtils.response(req, EtagPreconditionFailed)
               case ExportDAO.NotModified(etags) =>
