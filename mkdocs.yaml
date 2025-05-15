@@ -1,0 +1,5 @@
+site_name: 'soda-fountain'
+docs_dir: '.'
+nav:
+  - Home: README.md
+  - Docker: docker/README.md
