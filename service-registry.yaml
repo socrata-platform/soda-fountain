@@ -1,0 +1,22 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: soda-fountain
+  description: |
+    Soda Fountain is a REST server for serving Socrata Open Data API (SODA) API
+    requests. It talks to two other REST microservices, the data-coordinator,
+    and the query-coordinator, to manage both CRUD operations on datasets as
+    well as queries against datasets.
+  links:
+    - title: "Ops Doc"
+      url: "https://socrata.atlassian.net/wiki/spaces/ONCALL/pages/2158985270/OpsDoc+-+SODA+Server+aka+NBE"
+    - title: "New Backend (NBE) Crash Course"
+      url: "https://tylertech.sharepoint.com/:v:/r/sites/DataInsightsDivision/Shared%20Documents/Engineering/NewBackendCrashCourse.mov?csf=1&web=1&e=2NsXHJ"
+  annotations:
+    github.com/project-slug: 'socrata-platform/soda-fountain'
+    backstage.io/techdocs-ref: dir:.
+    infrastructure: apps-marathon
+spec:
+  type: service
+  owner: egress
+  lifecycle: production
