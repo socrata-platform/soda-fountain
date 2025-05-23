@@ -21,8 +21,9 @@ class MutationScript(
 
     val dcInstructions = instructions.map { instruction =>
       seqNum += 1
-      if (seqNum % reportingInterval == 0)
-        log.info(s"MutationScript: instruction # $seqNum [$instruction]")
+      if (seqNum % reportingInterval == 0) {
+        log.info(s"MutationScript: instruction # $seqNum")
+      }
 
       val ops = new scala.collection.mutable.ListBuffer[JValue]
       instruction match {
